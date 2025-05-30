@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarinKino</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script defer src="/static/script.js"></script>
+	<link rel="icon" href="/static/logo.png">
+</head>
+<body>
+    <header>
+    <h1>MarinKino</h1>
+    <div class='logo'>
+		<img src="/static/logo.png">
+    </div>
+    <div class="group-selector">
+        <ul>
+          {% for group in group_folders %}
+            <li><a href="#group-{{ group }}">{{ group|replace('-', ' ') }}</a></li>
+          {% endfor %}
+          <li><a href="/meme">Zbirka šal</a></li>
+        </ul>
+      </div>
+
+    <form method="get">
+        <select name="genre" id="genre">
+            <option value="">-- Vsi žanri --</option>
+            {% for genre in known_genres %}
+                <option value="{{ genre }}" {% if genre == selected_genre %}selected{% endif %}>
+                    {{ genre|capitalize }}
+                </option>
+            {% endfor %}
+        </select>
+        <select name="sort" id="sort">
+            <option value="name-asc" {% if sort == "name-asc" %}selected{% endif %}>Po imenu naraščajoče</option>
+            <option value="name-desc" {% if sort == "name-desc" %}selected{% endif %}>Po imenu padajoče</option>
+            <option value="runtime-asc" {% if sort == "runtime-asc" %}selected{% endif %}>Po dolžini naraščajoče</option>
+            <option value="runtime-desc" {% if sort == "runtime-desc" %}selected{% endif %}>Po dolžini padajoče</option>
+        </select>
+        <button type="submit">Pripravi</button>
+        {% if current_user.is_authenticated %}
+            <p class="user">Pozdravljen, {{ current_user.id }}! <a href="/logout">Odjava</a></p>
+        {% endif %}
+    </form>
+    </header>
+    <div class='popcorn'>
+		<img src="/static/popcorn.png">
+    </div>
+
+
+    <div class="group-grid">
+        {% for group in group_folders %}
+        <h2 id="group-{{ group }}">{{ group|replace('-', ' ') }}</h2>
+        <div class="movie-grid" id="group-{{ group }}">
+            {% for movie in movies[group] %}
+            <div class="movie-card">
+                <img src="/movies{{ movie.cover }}" alt="Poster" loading="lazy">
+                <h3>{{ movie.title }}{{ movie.year }}<div class="slosinh">{{ movie.slosinh }}</div></h3>
+                <div class="genres">
+                    {% for genre in movie.genres %}
+                    <span class="genre-badge {{ genre|lower|replace(' ', '-') if genre in known_genres else 'unknown' }}">{{ genre }}</span>
+                    {% endfor %}
+                </div>
+                <div class="description">
+                    <b>{{ movie.players }}</b></br>
+                    <hr>{{ movie.description }}</br>
+                    <hr>{{ movie.description_2 }}
+                </div>
+                <a href="/play{{ movie.folder }}">Poglej ({{ movie.runtimes }} min)</a>
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+	<section>To je pregledovalnik filmov in risank na družinskem disku. 
+	Anže Marinko je uredil filme in priskrbel to stran z opisi. V primeru napak se obrnite nanj.</section>
+</body>
+</html>

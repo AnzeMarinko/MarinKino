@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarinKino</title>
+    <link rel="stylesheet" href="static/css/style.css">
+    <script defer src="static/script.js"></script>
+	<link rel="icon" href="static/logo.png">
+</head>
+
+<body>
+
+    <!-- Pogled 1: seznam filmov -->
+    <div id="filmList">
+      <header>
+      <h1>MarinKino</h1>
+      <div class='logo'>
+      <img src="static/logo.png">
+      </div>
+      <div class="group-selector">
+          <ul>
+            {}
+          </ul>
+        </div>
+      </header>
+      <div class='popcorn'>
+      <img src="static/popcorn.png">
+      </div>
+
+      <div class="group-grid">
+          {}
+      </div>
+
+	<section>To je pregledovalnik filmov in risank na družinskem disku. 
+	Anže Marinko je uredil filme in priskrbel to stran z opisi. V primeru napak se obrnite nanj.</section>
+    </div>
+
+    <!-- Pogled 2: predvajalnik -->
+  <div id="playerView" style="display: none">
+    <button onclick="closePlayer()">← Nazaj na seznam</button>
+    <video id="player" controls width="100%">
+      <track id="subtitleTrack" kind="subtitles" srclang="sl" label="Slovenski podnapisi" src="" default>
+      <source id="videoSource" src="" type="video/mp4">
+      Vaš brskalnik ne podpira HTML5 videa.
+    </video>
+  </div>
+
+</body>
+
+</html>

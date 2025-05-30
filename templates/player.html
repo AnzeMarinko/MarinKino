@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predvajanje {{ movie.title }}{{ movie.year }}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+	<link rel="icon" href="/movies{{ movie.cover }}">
+</head>
+<body>
+    <div class="movie-page">
+        <div class="cover"><img src="/movies{{ movie.cover }}" alt="Poster"></div>
+        
+        <div class="description">
+            <h1>{{ movie.title }}{{ movie.year }}<div class="slosinh">{{ movie.slosinh }}</div></h1></br>
+            <div class="genres">
+                {% for genre in movie.genres %}
+                <span class="genre-badge {{ genre|lower|replace(' ', '-') if genre in known_genres else 'unknown' }}">{{ genre }}</span>
+                {% endfor %}
+            </div></br>
+            <hr>
+            <b>{{ movie.players }}</b></br>
+            <hr>{{ movie.description }}</br>
+            <hr>{{ movie.description_2 }}
+        </div>
+
+        <div class="home">
+            <a href="/"><img src="/static/logo.png" alt="Home">Domov</a>
+        </div>
+    </div>
+
+    {{ movie.folder }}
+
+    {% if not is_collection %}
+        <video id="videoPlayer" width="100%" controls playsinline>
+
+            <source src="/movies/{{ group_folder }}/{{ folder }}/{{ video_file }}" type="video/mp4">
+            {% if slosubs_file %}
+                <track src="/movies/{{ group_folder }}/{{ folder }}/{{ slosubs_file }}" kind="subtitles" srclang="sl" label="{{ slosubs_file|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" default>
+            {% endif %}
+            
+            {% for subtitle in subtitles %}
+                {% if subtitle != slosubs_file %}
+                <track src="/movies/{{ group_folder }}/{{ folder }}/{{ subtitle }}" kind="subtitles" srclang="{{ subtitle|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" label="{{ subtitle|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}">
+                {% endif %}
+            {% endfor %}
+            Tvoj brskalnik ne podpira videa.
+        </video>
+        <br>
+    {% else %}
+        {% for video_file in video_files %}
+            <button onclick="playVideo('/movies/{{ group_folder }}/{{ folder }}/{{ video_file }}')">{{ video_file|replace('.mp4', '') }}</button>
+        {% endfor %}
+        <video id="videoPlayer" width="100%" controls playsinline>
+            <source id="videoSource" src="" type="video/mp4">
+            Tvoj brskalnik ne podpira videa.
+        </video>
+    {% endif %}
+
+<script>
+    
+document.addEventListener("DOMContentLoaded", function () {
+    const video = document.getElementById("videoPlayer");
+    if (!video) return;
+
+    video.addEventListener("dblclick", () => {
+        if (!document.fullscreenElement) {
+            // Vklopi celozaslonski način
+            if (video.requestFullscreen) {
+                video.requestFullscreen();
+            } else if (video.webkitRequestFullscreen) { // Safari
+                video.webkitRequestFullscreen();
+            } else if (video.msRequestFullscreen) { // IE11
+                video.msRequestFullscreen();
+            }
+        } else {
+            // Izhod iz celozaslonskega načina
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) { // Safari
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) { // IE11
+                document.msExitFullscreen();
+            }
+        }
+    });
+
+    function playVideo(videoPath) {
+        const source = document.getElementById("videoSource");
+
+        source.src = videoPath;
+
+        video.load();       // ponastavi video z novimi viri
+        video.play();       // začne predvajanje
+    }
+
+    // Nastavi interval (v milisekundah)
+    const intervalMillis = 10 * 1000;
+    setInterval(() => {
+            if (video && !video.paused && !video.ended) {
+                const data = {
+                    filename: video.currentSrc,
+                    currentTime: video.currentTime,
+                    duration: video.duration
+                };
+                navigator.sendBeacon('/video-progress', JSON.stringify(data));
+            }
+        }, intervalMillis);
+});
+</script>
+
+    
+</body>
+</html>

@@ -1,0 +1,10 @@
+__pycache__
+credentials
+.env
+users.json
+movies
+memes
+music
+.venv
+*.pth
+*progress.json

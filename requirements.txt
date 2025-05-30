@@ -1,0 +1,31 @@
+# Osnovne knjižnice
+huggingface-hub==0.29.3
+python-dotenv
+Flask
+requests
+beautifulsoup4
+IMDbPY
+google-cloud
+pysrt
+scipy
+numpy
+numba
+pyannote.audio
+matplotlib
+gemini-srt-translator
+chardet
+langdetect
+waitress
+tqdm
+
+# za Real-ESRGAN (github.com/xinntao/Real-ESRGAN) modele
+basicsr>=1.4.2
+opencv-python
+ffmpeg-python
+
+# PyTorch z CUDA podporo (12.8)
+torch==2.0.1
+torchaudio
+torchvision==0.15.2
+# PIP naj uporablja ustrezen indeks za CUDA pakete
+--extra-index-url https://download.pytorch.org/whl/cu128

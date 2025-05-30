@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <title>Anžetova zbirka šal</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: black; /* Preliv bo proti črni, spremeni v white po želji */
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .slika-container {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .slika-container img {
+            max-width: 95vw;
+            max-height: 95vh;
+            width: 100vw;
+            min-width: 500pt;
+            height: auto;
+            display: block;
+            object-fit: contain;
+            border-radius: 12px;
+            box-shadow: 0 0 50px 30px black; /* Ustvari preliv v črno – spremeni barvo po potrebi */
+        }
+
+        .slika-container video {
+            max-width: 95vw;
+            max-height: 95vh;
+            width: 100vw;
+            min-width: 500pt;
+            height: auto;
+            display: block;
+            object-fit: contain;
+            border-radius: 12px;
+            box-shadow: 0 0 50px 30px black; /* Ustvari preliv v črno – spremeni barvo po potrebi */
+        }
+
+        .meme-menu {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            z-index: 9999
+        }
+
+        .meme-menu button {
+            background: rgba(255, 255, 255, 0.7);
+            border: none;
+            padding: 10px 14px;
+            font-size: 20px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background 0.3s;
+        }
+
+        .meme-menu button:hover {
+            background: rgba(255, 255, 255, 0.95);
+        }
+
+        .meme-menu a {
+            text-decoration: none;
+            margin-right: 10px;
+        }
+
+
+    </style>
+</head>
+<body>
+    <div class="meme-menu">
+        <a id="home" href="/" title="Domov">
+            <button>⌂</button>
+        </a>
+        <button id="fullscreen-toggle" onclick="preklopiFullscreen()" title="Celozaslonski način">
+            ⛶
+        </button>
+
+    </div>
+
+    <div class="slika-container">
+        <a href="/meme">
+            {% if meme_file_name.endswith('.mp4') %}
+                <video id="videoPlayer" width="100%" controls autoplay playsinline>
+                    <source id="videoSource" src="memes/{{ meme_file_name }}" type="video/mp4">
+                    Tvoj brskalnik ne podpira videa.
+                </video>
+            {% else %}
+                <img src="memes/{{ meme_file_name }}" alt="Naključna slika">
+            {% endif %}
+        </a>
+    </div>
+</body>
+
+<script>
+    setTimeout(() => {
+        location.reload();
+    }, 30 * 1000); // Osveži vsakih 30 sekund
+
+    function preklopiFullscreen() {
+        const elem = document.documentElement;
+
+        if (!document.fullscreenElement &&
+            !document.webkitFullscreenElement &&
+            !document.msFullscreenElement) {
+            
+            // Vklop
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen();
+            } else if (elem.webkitRequestFullscreen) {
+                elem.webkitRequestFullscreen();
+            } else if (elem.msRequestFullscreen) {
+                elem.msRequestFullscreen();
+            }
+        } else {
+            // Izklop
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) {
+                document.msExitFullscreen();
+            }
+        }
+    }
+
+</script>
+
+</html>
