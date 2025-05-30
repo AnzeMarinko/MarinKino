@@ -8,3 +8,4 @@ music
 .venv
 *.pth
 *progress.json
+user-interface.html
