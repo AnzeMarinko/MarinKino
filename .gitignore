@@ -1,5 +1,5 @@
 __pycache__
-credentials
+credentials/*.json
 .env
 users.json
 movies/**/*.mp4

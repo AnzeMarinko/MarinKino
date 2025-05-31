@@ -1,6 +1,11 @@
 ## Dependencies:
-Python 3.9
-CUDA 11.1
+* Python 3.9
+* CUDA 11.1
+
+## Instalation
+* Clone repository
+* install `requirements.txt`
+* update `.env` and `credentials/gen-lang-client.json`
 
 # TODO:
 
