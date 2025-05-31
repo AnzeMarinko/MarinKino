@@ -1,3 +1,7 @@
+## Dependencies:
+Python 3.9
+CUDA 11.1
+
 # TODO:
 
 * pregled naslovov, trajanj, letnic in slik

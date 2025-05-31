@@ -5,9 +5,7 @@ import numpy as np
 import torch
 from torch import nn as nn
 from torch.nn import functional as F
-from basicsr.archs.rrdbnet_arch import RRDBNet
-from basicsr.utils.registry import ARCH_REGISTRY
-
+from .basicsr import RRDBNet, ARCH_REGISTRY
 
 
 @ARCH_REGISTRY.register()

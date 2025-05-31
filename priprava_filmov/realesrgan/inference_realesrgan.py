@@ -126,8 +126,7 @@ def upscale_video(input_mp4_path, model_name="RealESRGAN_x4plus", outscale=4, su
     reader = Reader(input_mp4_path)
     audio = reader.get_audio()
     height, width = reader.get_resolution()
-    fps = reader.input_fps()
-    writer = Writer(outscale, audio, height, width, video_save_path, fps)
+    writer = Writer(outscale, audio, height, width, video_save_path, reader.input_fps)
 
     pbar = tqdm(total=len(reader), unit='frame', desc='inference')
     while True:
