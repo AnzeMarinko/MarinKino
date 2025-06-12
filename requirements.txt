@@ -2,6 +2,7 @@
 huggingface-hub==0.29.3
 python-dotenv
 Flask
+flask-login
 requests
 beautifulsoup4
 IMDbPY
@@ -10,21 +11,12 @@ pysrt
 scipy
 numpy<2
 numba
-pyannote.audio
+pyannote.audio==2.1.1
 matplotlib
 gemini-srt-translator
+google-cloud-translate==3.20.3
+aiohttp==3.8.1
 chardet
 langdetect
 waitress
 tqdm
-
-# za Real-ESRGAN (github.com/xinntao/Real-ESRGAN) modele
-opencv-python
-ffmpeg-python
-
-# PyTorch z CUDA podporo (11.1)
-torch==1.9.1+cu111
-torchvision==0.10.1+cu111
-torchaudio==0.9.1
-# PIP naj uporablja ustrezen indeks za CUDA pakete
--f https://download.pytorch.org/whl/cu111/torch_stable.html

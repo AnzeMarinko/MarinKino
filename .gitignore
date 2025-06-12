@@ -3,6 +3,8 @@ credentials/*.json
 .env
 users.json
 movies/**/*.mp4
+*.mkv
+*.avi
 movies/**/*.jpg
 movies/**/*.json
 movies/**/*.pkl
@@ -21,3 +23,4 @@ music/**/*.wma
 .venv
 *progress.json
 user-interface.html
+tmp_current_file.txt

@@ -1,6 +1,5 @@
 ## Dependencies:
-* Python 3.9
-* CUDA 11.1
+* Python 3.11
 
 ## Instalation
 * Clone repository
