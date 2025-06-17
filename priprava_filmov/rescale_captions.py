@@ -55,7 +55,9 @@ def extract_audio(video_path):
     speech = np.zeros(len(data))
     for segment in vad_result.get_timeline().support():
         segment_start = int(segment.start * TARGET_RATE)
-        segment_end = int(segment.end * TARGET_RATE)
+        if segment_start >= len(speech):
+            continue
+        segment_end = min(int(segment.end * TARGET_RATE), len(speech))
         speech[segment_start:segment_end] = np.log10(np.linspace(1, 0.2, segment_end - segment_start)) + 1
 
     return data, speech

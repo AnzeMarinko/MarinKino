@@ -3,7 +3,7 @@ import json
 import tqdm
 import subprocess
 
-from priprava_filmov.config import FILMS_ROOT, IZJEME
+from priprava_filmov.config import FILMS_ROOT, IZJEME, CACHE_ROOT
 from priprava_filmov.helpers import is_ffmpeg_installed
 from priprava_filmov.video_converter import concat_and_convert, convert_single_file
 from priprava_filmov.download_subtitles import search_podnapisi, download_podnapis

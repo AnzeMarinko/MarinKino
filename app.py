@@ -4,10 +4,15 @@ from waitress import serve
 from datetime import timedelta, datetime, timezone
 import os
 import re
-from main import check_folder, FILMS_ROOT
+from main import check_folder, FILMS_ROOT, CACHE_ROOT
 from copy import copy
 import json
 import random
+
+if not os.path.exists(CACHE_ROOT):
+    os.mkdir(CACHE_ROOT)
+if not os.path.exists(os.path.join(CACHE_ROOT, "users")):
+    os.mkdir(os.path.join(CACHE_ROOT, "users"))
 
 GENRES_MAPPING = {
     "Comedy": "Komedija",
@@ -21,7 +26,8 @@ GENRES_MAPPING = {
 
 app = Flask(__name__, static_url_path='/static', static_folder='static')
 app.secret_key = os.getenv("FLASK_KEY")
-app.permanent_session_lifetime = timedelta(days=7)  # seja traja 7 dni
+app.permanent_session_lifetime = timedelta(days=365)  # seja traja eno leto
+app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=365)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -48,7 +54,7 @@ def login():
         password = request.form['password']
         if username in users and users[username]['password'] == password:
             user = User(username)
-            login_user(user)
+            login_user(user, remember=True)
             session.permanent = True
             flash('Prijava uspešna!')
             return redirect(url_for('index'))
@@ -144,7 +150,7 @@ def movie_file(movies_subfolder, movie_folder, filename):
                 start = int(match.group(1))
                 if start == 0:
                 
-                    films_progress_file = f"users/{current_user.id}_films_progress.json"
+                    films_progress_file = os.path.join(CACHE_ROOT, "users", f"{current_user.id}_films_progress.json")
 
                     if os.path.exists(films_progress_file):
                         with open(films_progress_file, "r", encoding="utf-8") as f:
@@ -171,7 +177,7 @@ def video_progress():
         return "", 204
     current_time = round(data.get('currentTime', 0), 1)
     duration = round(data.get('duration', 0), 1)
-    films_progress_file = f"users/{current_user.id}_films_progress.json"
+    films_progress_file = os.path.join(CACHE_ROOT, "users", f"{current_user.id}_films_progress.json")
 
     if os.path.exists(films_progress_file):
         with open(films_progress_file, "r", encoding="utf-8") as f:

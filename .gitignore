@@ -1,4 +1,9 @@
 __pycache__
+.venv
+tmp_current_file.txt
+output.wav
+*progress.json
+
 credentials/*.json
 .env
 users.json
@@ -20,7 +25,5 @@ memes/*.png
 music/**/*.mp3
 music/**/*.m4a
 music/**/*.wma
-.venv
-*progress.json
 user-interface.html
-tmp_current_file.txt
+.tmp.driveupload

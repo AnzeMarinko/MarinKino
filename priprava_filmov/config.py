@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 FILMS_ROOT = r"E:\MarinKino\movies"
+CACHE_ROOT = r"E:\.MarinKinoCache"
 
 IZJEME = {
 }
