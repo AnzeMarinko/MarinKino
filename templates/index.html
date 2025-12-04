@@ -19,7 +19,7 @@
           {% for group in group_folders %}
             <li><a href="#group-{{ group }}">{{ group|replace('-', ' ') }}</a></li>
           {% endfor %}
-          <li><a href="/meme">Zbirka šal</a></li>
+          <li><a href="/meme">Zbirka šal in navdihov</a></li>
         </ul>
       </div>
 
@@ -38,11 +38,23 @@
             <option value="runtime-asc" {% if sort == "runtime-asc" %}selected{% endif %}>Po dolžini naraščajoče</option>
             <option value="runtime-desc" {% if sort == "runtime-desc" %}selected{% endif %}>Po dolžini padajoče</option>
         </select>
+
+        <label class="izbira">
+            <input type="checkbox" id="onlyunwatched" name="onlyunwatched" {% if onlyunwatched %}checked="checked"{% endif %}>
+            <span>Skrij pogledano</span>
+        </label>
         <button type="submit">Pripravi</button>
-        {% if current_user.is_authenticated %}
-            <p class="user">Pozdravljen, {{ current_user.id }}! <a href="/logout">Odjava</a></p>
-        {% endif %}
+        
     </form>
+    <div class="user">
+            <p>Bog daj <span id="greeting"></span>, {{ current_user.id }}!</p>
+            
+            <p><a href="/logout" class="button">Odjava</a></p>
+
+            {% if current_user.is_admin %}
+            <p><a href="/register" class="button">Registracija novega uporabnika</a></p>
+            {% endif %}
+        </div>
     </header>
     <div class='popcorn'>
 		<img src="/static/popcorn.png">
@@ -54,8 +66,8 @@
         <h2 id="group-{{ group }}">{{ group|replace('-', ' ') }}</h2>
         <div class="movie-grid" id="group-{{ group }}">
             {% for movie in movies[group] %}
-            <div class="movie-card">
-                <img src="/movies{{ movie.cover }}" alt="Poster" loading="lazy">
+            <div class="movie-card {{ movie.movie_id }}" style="--watch: {{ movie.watch_ratio }}%;">
+                <a href="/play{{ movie.folder }}"><img src="/movies{{ movie.thumbnail }}" alt="Poster" loading="lazy"></a>
                 <h3>{{ movie.title }}{{ movie.year }}<div class="slosinh">{{ movie.slosinh }}</div></h3>
                 <div class="genres">
                     {% for genre in movie.genres %}
@@ -66,14 +78,67 @@
                     <b>{{ movie.players }}</b></br>
                     <hr>{{ movie.description }}</br>
                     <hr>{{ movie.description_2 }}
+                    {% if movie.subtitle_buttons %}</br>
+            <hr>Podnapisi: {% for subtitle in movie.subtitle_buttons %}<button class="subtitles">{{ subtitle }}</button> {% endfor %}
+            {% endif %}</br>
+                    <hr>
+                <div class="izbira" movie-id="{{ movie.movie_id }}">
+    <input type="radio" id="opcija1-{{ movie.movie_id }}" name="izbor-{{ movie.movie_id }}" value="0">
+    <label for="opcija1-{{ movie.movie_id }}">Nepogledano</label>
+
+    <input type="radio" id="opcija2-{{ movie.movie_id }}" name="izbor-{{ movie.movie_id }}" value="100">
+    <label for="opcija2-{{ movie.movie_id }}">Pogledano</label>
+</div>
                 </div>
-                <a href="/play{{ movie.folder }}">Poglej ({{ movie.runtimes }} min)</a>
+                <div class="buttons">
+                <button class="runtime">({{ movie.runtimes }} min)</button>
+                {% if current_user.is_admin %}
+                <form action="/remove{{ movie.folder }}" method="post" onsubmit="return odstraniMovieCard(event, this);">
+                    <button type="submit">Odstrani</button>
+                </form>
+                {% endif %}
+                </div>
             </div>
             {% endfor %}
         </div>
         {% endfor %}
     </div>
 	<section>To je pregledovalnik filmov in risank na družinskem disku. 
-	Anže Marinko je uredil filme in priskrbel to stran z opisi. V primeru napak se obrnite nanj.</section>
+	Filme in podatke o njih je uredil Anže Marinko v veliki meri avtomatizirano, kar je razlog nekaterih napak in na trenutke slabih prevodov z umetno inteligenco.
+    Z uporabo umetne inteligence so prevedeni opisi filmov, podnapisi filmov in z umetno inteligenco so podnapisi tudi poravnani z zvokom (kar ni nujno poravnano tudi s sliko).
+Slaba kvaliteta videa lahko izvira iz načina pridobivanja filmov (piratsko).</section>
 </body>
+
+
+<script>
+function odstraniMovieCard(event, form) {
+    if (!confirm('Ali res želiš izbrisati vse datoteke v mapi?')) {
+        return false;
+    }
+    event.preventDefault();
+    // Najdi najbližji parent z class "movie-card"
+    const card = form.closest('.movie-card');
+    if (card) {
+        card.remove(); // odstrani iz DOM
+    }
+    fetch(form.action, { method: 'POST' })
+        .then(resp => resp.json())
+        .then(data => console.log('Film odstranjen', data))
+        .catch(err => console.error(err));
+
+    return false; 
+}
+
+function getGreeting() {
+    const hour = new Date().getHours();
+
+    if (hour < 5)      return "lahko noč";
+    if (hour < 10)     return "dobro jutro";
+    if (hour < 18)     return "dober dan";
+    return "dober večer";
+}
+
+document.getElementById("greeting").textContent = getGreeting();
+
+</script>
 </html>

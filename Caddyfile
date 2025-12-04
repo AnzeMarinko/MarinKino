@@ -1,9 +1,0 @@
-anzemarinko.duckdns.org {
-    handle /.well-known/acme-challenge/* {
-        root * C:\Users\anzem\AppData\Roaming\Caddy\acme-challenge
-        file_server
-    }
-    handle {
-        reverse_proxy 127.0.0.1:5000
-    }
-}

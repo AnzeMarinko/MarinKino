@@ -3,10 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <title>Anžetova zbirka šal</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="icon" href="/static/logo.png">
     <style>
         body {
             margin: 0;
-            background-color: black; /* Preliv bo proti črni, spremeni v white po želji */
+            background-color: black;
             overflow: hidden;
             display: flex;
             justify-content: center;
@@ -19,18 +21,7 @@
             overflow: hidden;
         }
 
-        .slika-container img {
-            max-width: 95vw;
-            max-height: 95vh;
-            width: 100vw;
-            min-width: 500pt;
-            height: auto;
-            display: block;
-            object-fit: contain;
-            border-radius: 12px;
-            box-shadow: 0 0 50px 30px black; /* Ustvari preliv v črno – spremeni barvo po potrebi */
-        }
-
+        .slika-container img,
         .slika-container video {
             max-width: 95vw;
             max-height: 95vh;
@@ -40,14 +31,14 @@
             display: block;
             object-fit: contain;
             border-radius: 12px;
-            box-shadow: 0 0 50px 30px black; /* Ustvari preliv v črno – spremeni barvo po potrebi */
+            box-shadow: 0 0 50px 30px black;
         }
 
         .meme-menu {
             position: fixed;
             top: 15px;
             right: 15px;
-            z-index: 9999
+            z-index: 9999;
         }
 
         .meme-menu button {
@@ -64,15 +55,26 @@
             background: rgba(255, 255, 255, 0.95);
         }
 
-        .meme-menu a {
-            text-decoration: none;
-            margin-right: 10px;
+        .next-btn {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 9998;
+            background: rgba(255, 255, 255, 0.7);
+            border: none;
+            font-size: 32px;
+            padding: 10px 20px;
+            border-radius: 50%;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.3s;
         }
-
 
     </style>
 </head>
 <body>
+
     <div class="meme-menu">
         <a id="home" href="/" title="Domov">
             <button>⌂</button>
@@ -80,27 +82,65 @@
         <button id="fullscreen-toggle" onclick="preklopiFullscreen()" title="Celozaslonski način">
             ⛶
         </button>
-
+        {% if current_user.is_admin %}
+        <button id="delete-btn" onclick="izbrisiMeme()" title="Izbriši meme">
+            🗑️
+        </button>
+        {% endif %}
     </div>
 
-    <div class="slika-container">
-        <a href="/meme">
-            {% if meme_file_name.endswith('.mp4') %}
-                <video id="videoPlayer" width="100%" controls autoplay playsinline>
-                    <source id="videoSource" src="memes/{{ meme_file_name }}" type="video/mp4">
-                    Tvoj brskalnik ne podpira videa.
-                </video>
-            {% else %}
-                <img src="memes/{{ meme_file_name }}" alt="Naključna slika">
-            {% endif %}
-        </a>
+    <div class="slika-container" id="mediaContainer">
+        {% if meme_file_name.endswith('.mp4') %}
+            <video id="videoPlayer" controls autoplay playsinline>
+                <source src="memes/{{ meme_file_name }}" type="video/mp4">
+                Tvoj brskalnik ne podpira videa.
+            </video>
+        {% else %}
+            <img src="memes/{{ meme_file_name }}" alt="Naključna slika" id="slikaElement">
+        {% endif %}
+        <button class="next-btn" id="nextButton" onclick="pojdiNaNaslednjega()">➤</button>
     </div>
+
 </body>
 
 <script>
-    setTimeout(() => {
-        location.reload();
-    }, 30 * 1000); // Osveži vsakih 30 sekund
+    let refreshing = true;
+    const refreshInterval = setInterval(() => {
+        if (refreshing) {
+            location.reload();
+        }
+    }, 30 * 1000);
+
+    // Ustavi osvežitev ob interakciji
+    const container = document.getElementById('mediaContainer');
+    container.addEventListener('mousedown', () => refreshing = false);
+    container.addEventListener('touchstart', () => refreshing = false);
+
+    const video = document.getElementById('videoPlayer');
+    if (video) {
+        video.addEventListener('playing', () => refreshing = false);
+        video.addEventListener('pause', () => refreshing = true);
+        video.addEventListener('ended', () => refreshing = true);
+    }
+
+    function izbrisiMeme() {
+        if (confirm("Res želiš izbrisati ta meme?")) {
+            fetch(`/meme/delete/{{ meme_file_name }}`, {
+                method: 'DELETE'
+            })
+            .then(response => {
+                if (response.ok) {
+                    pojdiNaNaslednjega();
+                } else {
+                    alert("Napaka pri brisanju mema!");
+                }
+            });
+        }
+    }
+
+    function pojdiNaNaslednjega() {
+        window.location.href = "/meme";
+    }
 
     function preklopiFullscreen() {
         const elem = document.documentElement;
@@ -108,8 +148,6 @@
         if (!document.fullscreenElement &&
             !document.webkitFullscreenElement &&
             !document.msFullscreenElement) {
-            
-            // Vklop
             if (elem.requestFullscreen) {
                 elem.requestFullscreen();
             } else if (elem.webkitRequestFullscreen) {
@@ -118,7 +156,6 @@
                 elem.msRequestFullscreen();
             }
         } else {
-            // Izklop
             if (document.exitFullscreen) {
                 document.exitFullscreen();
             } else if (document.webkitExitFullscreen) {
@@ -128,6 +165,39 @@
             }
         }
     }
+
+    const nextBtn = document.getElementById('nextButton');
+    const mediaContainer = document.getElementById('mediaContainer');
+
+    // Prikaz gumbka samo, ko je miška/blizu sredine
+    function checkPosition(event) {
+        const rect = mediaContainer.getBoundingClientRect();
+        const x = event.clientX || (event.touches ? event.touches[0].clientX : 0);
+        const y = event.clientY || (event.touches ? event.touches[0].clientY : 0);
+
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+
+        const distanceX = Math.abs(x - centerX);
+        const distanceY = Math.abs(y - centerY);
+
+        const toleranceX = rect.width * 0.25;  // 25% širine
+        const toleranceY = rect.height * 0.25; // 25% višine
+
+        if (distanceX < toleranceX && distanceY < toleranceY) {
+            nextBtn.style.opacity = 1;
+        } else {
+            nextBtn.style.opacity = 0;
+        }
+    }
+
+    // Za miško
+    mediaContainer.addEventListener('mousemove', checkPosition);
+    // Za mobilne naprave
+    mediaContainer.addEventListener('touchmove', checkPosition);
+
+    // Ob izhodu iz območja skrij gumb
+    mediaContainer.addEventListener('mouseleave', () => nextBtn.style.opacity = 0);
 
 </script>
 

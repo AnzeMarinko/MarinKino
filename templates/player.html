@@ -3,9 +3,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Predvajanje {{ movie.title }}{{ movie.year }}</title>
+    <title>{{ movie.title }}{{ movie.year }}</title>
     <link rel="stylesheet" href="/static/css/style.css">
-	<link rel="icon" href="/movies{{ movie.cover }}">
+	<link rel="icon" href="/static/logo.png">
 </head>
 <body>
     <div class="movie-page">
@@ -21,7 +21,11 @@
             <hr>
             <b>{{ movie.players }}</b></br>
             <hr>{{ movie.description }}</br>
-            <hr>{{ movie.description_2 }}
+            <hr>{{ movie.description_2 }}</br>
+            <hr>{{ movie.folder }}
+        {% if subtitle_buttons %}</br>
+            <hr>Podnapisi (izberete v predvajalniku med možnostmi): {% for subtitle in subtitle_buttons %}<button class="subtitles">{{ subtitle }}</button> {% endfor %}
+            {% endif %}
         </div>
 
         <div class="home">
@@ -29,10 +33,8 @@
         </div>
     </div>
 
-    {{ movie.folder }}
-
     {% if not is_collection %}
-        <video id="videoPlayer" width="100%" controls playsinline>
+        <video id="videoPlayer" controls playsinline>
 
             <source src="/movies/{{ group_folder }}/{{ folder }}/{{ video_file }}" type="video/mp4">
             {% if slosubs_file %}
@@ -46,19 +48,51 @@
             {% endfor %}
             Tvoj brskalnik ne podpira videa.
         </video>
-        <br>
+        <script>
+            const video = document.getElementById('videoPlayer');
+            const lastTime = {{ movie.last_play_time|default(0) }}; // v sekundah
+
+            video.addEventListener('loadedmetadata', () => {
+                if (lastTime < video.duration) {
+                    video.currentTime = lastTime;
+                }
+            });
+        </script>
     {% else %}
         {% for video_file in video_files %}
-            <button onclick="playVideo('/movies/{{ group_folder }}/{{ folder }}/{{ video_file }}')">{{ video_file|replace('.mp4', '') }}</button>
+            <button class="video-btn" style="--watch: {{ movie.watch_info[video_file]['watch_ratio']|default(0) }}%;" 
+                onclick="playVideo('/movies/{{ group_folder }}/{{ folder }}/{{ video_file }}', {{ movie.watch_info[video_file]['last_play_time']|default(0) }}, this)">
+                {{ video_file|replace('.mp4', '') }} ({{ movie.runtimes_by_files[video_file] }} min)
+            </button>
         {% endfor %}
         <video id="videoPlayer" width="100%" controls playsinline>
             <source id="videoSource" src="" type="video/mp4">
             Tvoj brskalnik ne podpira videa.
         </video>
+
+        <script>
+        function playVideo(src, startTime = 0, button) {
+            // Označi izbran gumb
+            document.querySelectorAll('.video-btn').forEach(btn => btn.classList.remove('selected'));
+            button.classList.add('selected');
+            
+            // Predvajaj video
+            const video = document.getElementById('videoPlayer');
+            const source = document.getElementById('videoSource');
+            source.src = src;
+            video.load();
+            video.addEventListener('loadedmetadata', function setStartTime() {
+                if (startTime < video.duration) {
+                    video.currentTime = startTime;
+                }
+                video.play();
+                video.removeEventListener('loadedmetadata', setStartTime);
+            });
+        }
+        </script>
     {% endif %}
 
 <script>
-    
 document.addEventListener("DOMContentLoaded", function () {
     const video = document.getElementById("videoPlayer");
     if (!video) return;
@@ -95,7 +129,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // Nastavi interval (v milisekundah)
-    const intervalMillis = 10 * 1000;
+    const intervalMillis = 20 * 1000;
     setInterval(() => {
             if (video && !video.paused && !video.ended) {
                 const data = {
@@ -104,6 +138,10 @@ document.addEventListener("DOMContentLoaded", function () {
                     duration: video.duration
                 };
                 navigator.sendBeacon('/video-progress', JSON.stringify(data));
+                const selectedButton = document.querySelector('.video-btn.selected');
+                if (selectedButton) {
+                    selectedButton.style.setProperty('--watch', Math.round(video.currentTime / video.duration * 100) + '%');
+                }
             }
         }, intervalMillis);
 });

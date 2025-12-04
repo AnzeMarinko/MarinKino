@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prijava v MarinKino</title>
+    <title>Registracija v MarinKino</title>
     <link rel="stylesheet" href="/static/css/style.css">
 	<link rel="icon" href="/static/logo.png">
 </head>
@@ -19,7 +19,7 @@
     </div>
 
 
-    <h2>Prijava</h2>
+    <h2>Registracija novega uporabnika</h2>
 
     {% if error %}
       <div class="error">{{ error }}</div>
@@ -30,11 +30,12 @@
       <input id="username" name="username" type="text" autocomplete="username" required><br>
 
       <label for="password">Geslo:</label><br>
-      <input id="password" name="password" type="password" autocomplete="current-password" required><br>
+      <input id="password" name="password" type="password" required><br>
 
-      <button type="submit">Prijavi se</button>
+      <label for="password2">Ponovi geslo:</label><br>
+      <input id="password2" name="password2" type="password" required><br>
+
+      <button type="submit">Registriraj uporabnika</button>
   </form>
-
-	<section>To je pregledovalnik filmov in risank na družinskem disku. Za registracijo novega uporabnika se obrnite na avtorja te strani Anžeta Marinkota. Prvo nalaganje glavne strani lahko traja nekaj sekund.</section>
 </body>
 </html>

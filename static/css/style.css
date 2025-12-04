@@ -8,15 +8,21 @@ body {
     color: #333;
 }
 
-header{
+header {
     background: #396ba5;
-	padding: 10px;
+    padding: 10px;
     position: fixed;
-    margin-top: -30px;
-    margin-left: -30px;
+    top: 0;
+    left: 0;
     width: 100%;
     text-align: right;
     z-index: 150;
+    transition: top 0.3s ease-in-out; /* Animate slide in/out */
+    will-change: transform;
+}
+
+html, body {
+    overflow-x: hidden;
 }
 
 select {
@@ -32,12 +38,12 @@ select {
     position: absolute;
     border-bottom-left-radius: 5px;
     border-bottom-right-radius: 5px;
-    margin-left: 20px;
     background-color: #f79737;
     padding: 10px;
     box-shadow: 0 0 20px 0 rgba(0,0,0,0.3);
     top: 0;
     z-index: 1000;
+    margin-left: 10px;
 }
 
 .logo img{
@@ -50,7 +56,7 @@ select {
     position: absolute;
     border-bottom-left-radius: 5px;
     border-bottom-right-radius: 5px;
-    margin-left: 150px;
+    margin-left: 140px;
     background-color: #f79737;
     padding: 10px;
     box-shadow: 0 0 20px 0 rgba(0,0,0,0.3);
@@ -62,9 +68,20 @@ select {
     width: 100%;
 }
 
+.logo, .popcorn {
+    left: 0;
+}
+
+
+.group-selector {
+    max-width: 70%;
+    margin-left: auto;
+}
+
 h1 {
-    text-align: center;
+    text-align: right;
     color: #fff;
+    margin-right: 20pt;
 }
 
 h2 {
@@ -73,6 +90,16 @@ h2 {
 }
 
 header form {
+    margin-bottom: 20px;
+    padding-right: 40px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    border-radius: 8px;
+}
+
+header .user {
+    color: white;
     margin-bottom: 20px;
     padding-right: 40px;
     display: flex;
@@ -110,10 +137,23 @@ input, button {
     padding: 10px;
     text-align: center;
     transition: transform 0.2s ease;
-    overflow: visible; /* pomembno */
+    overflow: visible;
     height: 500px;
-    z-index: 0; /* osnovni sloj */
+    /* border: 5px solid transparent; /* pripravi prostor za rob */
+    z-index: 0;
+    justify-content: center;
+    align-items: center;
+    --watch: 0%;
+    background-image: linear-gradient(
+        to right,
+        #ff5e00 var(--watch),
+        #f7973733 var(--watch)
+    );
+    background-size: 100% 20px;
+    background-repeat: no-repeat;
+    background-position: bottom left;
 }
+
 
 .movie-card:hover {
     transform: scale(1.03);
@@ -155,11 +195,15 @@ input, button {
     pointer-events: auto;
 }
 
-.movie-card a {
+.movie-card .buttons {
     position: absolute;
     bottom: 10px;
-    left: 50%;
-    transform: translateX(-50%);
+    margin-bottom: 10pt;
+    width: 100%;
+    align-items: center;
+}
+
+.movie-card .runtime {
     padding: 8px 14px;
     background-color: #007bff;
     color: white;
@@ -219,13 +263,11 @@ input, button {
 .movie-page {
     text-align: center;
     color: #333;
-    display: flex;
+    display: inline-flex;
     justify-content: space-between;
 	overflow: hidden;
     box-shadow: 0px 0px 30px 0px rgba(0, 0, 0, 0.3);
     padding: 20px 40px;
-	width: 50%; 
-    min-width: 700pt;
     margin: 10px 10px 0px 10px;
     color: black;
     text-decoration: none;
@@ -236,6 +278,8 @@ video {
     border-radius: 12px;
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     margin: 10px;
+    min-width: 200pt;
+    width: 70%
 }
 
 .movie-page img {
@@ -261,6 +305,8 @@ video {
     margin-left: 20px;
     margin-right: 20px;
     font-size: 0.9rem;
+	width: 40%; 
+    min-width: 200pt;
     color: #333;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     border-radius: 12px;
@@ -275,8 +321,24 @@ button {
     text-decoration: none;
     display: inline-block;
     font-size: 16px;
-    margin: 10px;
+    margin: 4px;
     background-color: #ffcc5c;
+    --watch: 0%;
+    background-image: linear-gradient(
+        to right,
+        #ff5e00 var(--watch),
+        transparent var(--watch)
+    );
+    background-size: 100% 15px;
+    background-repeat: no-repeat;
+    background-position: bottom left;
+}
+
+button.subtitles {
+    padding: 5px;
+    font-size: 14px;
+    margin: 2px;
+    background-color: #ffb35c;
 }
 
 button:visited {
@@ -288,4 +350,88 @@ p.user {
 }
 p.user a {
     color: red;
+}
+
+a.button {
+    border-radius: 8px;
+    border: none;
+    padding: 9px;
+    text-align: center;
+    text-decoration: none;
+    font-size: 12px;
+    margin: 7px;
+    background-color: #ffcc5c;
+    color: black;
+}
+a.button:hover {
+  background: #b22;
+}
+a.button:visited {
+  color: black;
+}
+
+video, img {
+    max-width: 100%;
+}
+
+.izbira {
+    display: flex;
+    gap: 1rem;
+    font-family: sans-serif;
+}
+
+.izbira input[type="radio"] {
+    display: none; /* skrij radio gumb */
+}
+
+.izbira input[type="checkbox"] {
+    display: none; /* skrij radio gumb */
+}
+
+.izbira label {
+    padding: 5px 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    cursor: pointer;
+    user-select: none;
+    background-color: wheat;
+  display: flex;
+  justify-content: center;   /* horizontalno */
+  align-items: center;       /* vertikalno */
+}
+
+.izbira span {
+    padding: 5px 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    cursor: pointer;
+    user-select: none;
+    background-color: wheat;
+  display: flex;
+  justify-content: center;   /* horizontalno */
+  align-items: center;       /* vertikalno */
+}
+
+.izbira input[type="radio"]:checked + label {
+    background-color: #e8ffe8;
+    border-color: #4CAF50;
+    font-weight: bold;
+}
+
+.izbira input[type="checkbox"]:checked + span {
+    background-color: #e8ffe8;
+    border-color: #4CAF50;
+    font-weight: bold;
+}
+
+.video-btn.selected {
+    background-color: #4CAF50;
+    color: white;
+    border: 2px solid #2E7D32;
+}
+
+.error {
+    color: red;
+    margin-bottom: 1rem;
+    font-weight: bold;
 }

@@ -4,13 +4,14 @@ import tqdm
 import subprocess
 
 from priprava_filmov.config import FILMS_ROOT, IZJEME, CACHE_ROOT
-from priprava_filmov.helpers import is_ffmpeg_installed
+from priprava_filmov.helpers import is_ffmpeg_installed, remove
 from priprava_filmov.video_converter import concat_and_convert, convert_single_file
 from priprava_filmov.download_subtitles import search_podnapisi, download_podnapis
 from priprava_filmov.translate_subtitles import translate
 from priprava_filmov.rescale_captions import rescale_captions
 from priprava_filmov.get_movie_metadata import MovieMetadata
 from priprava_filmov.prepare_user_interface import prepare_html
+from priprava_filmov.the_chosen_scrapper import scrappe_chosen
 
 def convert_audio_to_aac(filepath):
     """Uporabi ffmpeg za konverzijo v MP4 format."""
@@ -58,12 +59,14 @@ def check_folder(folder, only_collect_metadata=True):
     videos = [f for f in files if f[1].lower() in {"avi", "mp4", "mkv", "vob"} and os.path.basename(f[0]) not in IZJEME]
     subtitles = [f[0] for f in files if f[1].lower() == "srt"]
 
-    if not only_collect_metadata:
+    if not only_collect_metadata and "06-the-chosen" not in folder:
         for video, form in videos:
             if form == "mp4":
                 with open("tmp_current_file.txt", "w") as f:
                     f.write(video)
                 convert_audio_to_aac(video)
+        if os.path.exists("tmp_current_file.txt"):
+            remove("tmp_current_file.txt")
 
         new_file = os.path.join(folder, os.path.basename(folder) + ".mp4")
         if videos and not os.path.exists(new_file):
@@ -153,6 +156,7 @@ def check_folder(folder, only_collect_metadata=True):
 
 if __name__ == "__main__":
     if is_ffmpeg_installed():
+        scrappe_chosen()
         all_films = check_folder(FILMS_ROOT, only_collect_metadata=False)
         prepare_html(all_films)
         print("\n✅ Končano!\n")

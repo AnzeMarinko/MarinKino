@@ -1,5 +1,5 @@
 ## Dependencies:
-* Python 3.11
+* Python 3.12
 
 ## Instalation
 * Clone repository
@@ -9,7 +9,8 @@
 
 # TODO:
 
-* pregled naslovov, trajanj, letnic in slik
+* naj se pod gumbom za tip filmov kaže koliko je že pogledano od tega tipa
+
+Glasba:
+* dol potegni vse od Karoline YouTubeMusic in uredi glasbo (odstrani večino moje stare glasbe, ki ni krščanska ali pa vsaj klasična), dodaj kakšne meni v tem času ljube pesmi (Res je prijetno, Molim te ponižno, Jezus se ob morju ustavi, Tezejske ...)
 * dodaj stran za predvajanje glasbe
-* naj se nekje vidi, katere in koliko si že pogledal (glede na to kje si bil nazadnje začni tam, razen če si bil 5% pred koncem, potem začni od začetka)
-* moznost dodajanja uporabnika na daljavo

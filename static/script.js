@@ -65,3 +65,45 @@ function closePlayer() {
     document.getElementById('playerView').style.display = 'none';
     document.getElementById('filmList').style.display = 'block';
 }
+
+let lastScroll = 0;
+const header = document.querySelector("header");
+const headerHeight = header.offsetHeight - 50;
+
+function onScroll() {
+    const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
+
+    if (currentScroll > lastScroll) {
+        // scroll down
+        header.style.top = `-${headerHeight}px`;
+    } else {
+        // scroll up
+        header.style.top = "0";
+    }
+    
+    lastScroll = currentScroll <= 0 ? 0 : currentScroll;
+}
+
+window.addEventListener("scroll", onScroll, { passive: true });
+window.addEventListener("touchmove", onScroll, { passive: true }); // za mobilne naprave
+
+document.querySelectorAll('.izbira').forEach((skupina) => {
+    const movieId = skupina.getAttribute('movie-id');
+    const radios = skupina.querySelectorAll('input[type="radio"]');
+
+    radios.forEach(radio => {
+      radio.addEventListener('change', () => {
+        // Pripravi podatke za pošiljanje
+        const izbor = radio.value;
+
+        fetch("/progress-change", {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ izbor: izbor, movieId: movieId })
+        })
+        document.querySelectorAll('.' + movieId).forEach(el => {
+            el.style.setProperty('--watch', izbor + '%');
+            });
+      });
+    });
+  });

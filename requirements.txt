@@ -1,5 +1,4 @@
-# Osnovne knjižnice
-huggingface-hub==0.29.3
+huggingface-hub
 python-dotenv
 Flask
 flask-login
@@ -9,14 +8,17 @@ IMDbPY
 google-cloud
 pysrt
 scipy
-numpy<2
+numpy
 numba
-pyannote.audio==2.1.1
+pyannote.audio
 matplotlib
 gemini-srt-translator
-google-cloud-translate==3.20.3
-aiohttp==3.8.1
+google-cloud-translate
 chardet
 langdetect
 waitress
 tqdm
+m3u8
+playwright
+pyautogui
+flask-compress

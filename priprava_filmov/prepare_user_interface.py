@@ -50,7 +50,7 @@ def prepare_html(films_metadata):
                     f'<hr>{movie_html}'
                 '</div>'
             '</div>')
-        mapa = film_metadata.folder.split(os.sep)[3]
+        mapa = film_metadata.folder.replace(FILMS_ROOT, "").split(os.sep)[1]
         filmi[mapa] = filmi.get(mapa, "") + html_item
         counter[mapa] = counter.get(mapa, 0) + 1
 
