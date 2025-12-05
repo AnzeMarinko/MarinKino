@@ -11,6 +11,12 @@ import random
 import shutil
 from urllib.parse import unquote
 from flask_compress import Compress
+from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.security import generate_password_hash, check_password_hash
+import pathlib
+from flask_wtf.csrf import CSRFProtect
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 if not os.path.exists(CACHE_ROOT):
     os.mkdir(CACHE_ROOT)
@@ -33,6 +39,14 @@ app.secret_key = os.getenv("FLASK_KEY")
 app.permanent_session_lifetime = timedelta(days=365)  # seja traja eno leto
 app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=365)
 Compress(app)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1)
+csrf = CSRFProtect(app)
+
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=[]
+)
+limiter.init_app(app)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -40,11 +54,19 @@ login_manager.login_view = 'login'
 
 with open("users.json", 'r', encoding="utf-8") as f:
     users = json.loads(f.read())
+    
 
 class User(UserMixin):
     def __init__(self, username):
         self.id = username
         self.is_admin = users[username].get("is_admin", False)
+
+def safe_path(base_folder, filename):
+    path = pathlib.Path(base_folder) / filename
+    path = path.resolve()
+    if not str(path).startswith(str(pathlib.Path(base_folder).resolve())):
+        raise ValueError("Nevaren path")
+    return str(path)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -53,12 +75,13 @@ def load_user(user_id):
     return None
 
 @app.route('/login', methods=['GET', 'POST'])
+@limiter.limit("5 per 15 minutes")
 def login():
     error = None  # spremenljivka za napako
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        if username in users and users[username]['password'] == password:
+        if username in users and check_password_hash(users[username]['password_hash'], password):
             user = User(username)
             login_user(user, remember=True)
             session.permanent = True
@@ -83,7 +106,7 @@ def register():
         elif len(password) < 4 or password != password2:
             error = 'Geslo mora imeti vsaj 4 znake in mora biti pravilno ponovljeno!'
         else:
-            users[username] = {"password": password}
+            users[username] = {"password_hash": generate_password_hash(password), "user_id_hash": password}
             with open("users.json", 'w', encoding="utf-8") as f:
                 f.write(json.dumps(users, indent=4))
             return redirect(url_for('index'))
@@ -216,7 +239,10 @@ def remove_movie(movies_subfolder, movie_folder):
     all_films[group_folders[movies_subfolder]] = [f for f in all_films[group_folders[movies_subfolder]] if removing_folder != f["folder"]]
     removing_folder = os.path.join(FILMS_ROOT, movies_subfolder, movie_folder)
     for filename in os.listdir(removing_folder):
-        path = os.path.join(removing_folder, filename)
+        try:
+            path = safe_path(FILMS_ROOT, os.path.join(movies_subfolder, movie_folder, filename))
+        except ValueError:
+            return "", 404
         try:
             if os.path.isfile(path) or os.path.islink(path):
                 os.remove(path)
@@ -231,6 +257,10 @@ def remove_movie(movies_subfolder, movie_folder):
 @app.route("/movies/<movies_subfolder>/<movie_folder>/<filename>")
 @login_required
 def movie_file(movies_subfolder, movie_folder, filename):
+    try:
+        safe_path(FILMS_ROOT, os.path.join(movies_subfolder, movie_folder, filename))
+    except ValueError:
+        return "", 404
     if ".mp4" in filename[-4:]:
         range_header = request.headers.get('Range')
         if range_header:
@@ -356,7 +386,11 @@ def meme():
 @app.route("/memes/<meme_file_name>")
 @login_required
 def meme_file(meme_file_name):
-    if ".mp4" in meme_file_name[-4:]:
+    try:
+        path = safe_path("memes", meme_file_name)
+    except ValueError:
+        return "", 404
+    if path.endswith(".mp4"):
         return send_from_directory("memes", meme_file_name, mimetype='video/mp4', conditional=True)
     return send_from_directory("memes", meme_file_name, conditional=True)
 
@@ -365,7 +399,11 @@ def meme_file(meme_file_name):
 def meme_remove(meme_file_name):
     if not current_user.is_admin:
         return "", 204
-    os.remove(os.path.join("memes", meme_file_name))
+    try:
+        path = safe_path("memes", meme_file_name)
+    except ValueError:
+        return "", 404
+    os.remove(path)
     return "", 204
 
 

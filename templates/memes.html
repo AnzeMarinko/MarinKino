@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Anžetova zbirka šal</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 	<link rel="icon" href="/static/logo.png">
     <style>
         body {
@@ -124,9 +125,13 @@
     }
 
     function izbrisiMeme() {
+        const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         if (confirm("Res želiš izbrisati ta meme?")) {
             fetch(`/meme/delete/{{ meme_file_name }}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': token
+                }
             })
             .then(response => {
                 if (response.ok) {

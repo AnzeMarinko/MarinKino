@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>MarinKino</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <script defer src="/static/script.js"></script>
@@ -24,6 +25,7 @@
       </div>
 
     <form method="get">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <select name="genre" id="genre">
             <option value="">-- Vsi žanri --</option>
             {% for genre in known_genres %}
@@ -94,6 +96,7 @@
                 <button class="runtime">({{ movie.runtimes }} min)</button>
                 {% if current_user.is_admin %}
                 <form action="/remove{{ movie.folder }}" method="post" onsubmit="return odstraniMovieCard(event, this);">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit">Odstrani</button>
                 </form>
                 {% endif %}
@@ -118,10 +121,14 @@ function odstraniMovieCard(event, form) {
     event.preventDefault();
     // Najdi najbližji parent z class "movie-card"
     const card = form.closest('.movie-card');
+    const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     if (card) {
         card.remove(); // odstrani iz DOM
     }
-    fetch(form.action, { method: 'POST' })
+    fetch(form.action, { method: 'POST',
+        headers: {
+            'X-CSRFToken': token
+        } })
         .then(resp => resp.json())
         .then(data => console.log('Film odstranjen', data))
         .catch(err => console.error(err));

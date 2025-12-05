@@ -26,6 +26,7 @@
     {% endif %}
 
     <form class="login" method="post" autocomplete="on">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <label for="username">Uporabniško ime:</label><br>
       <input id="username" name="username" type="text" autocomplete="username" required><br>
 

@@ -95,10 +95,11 @@ document.querySelectorAll('.izbira').forEach((skupina) => {
       radio.addEventListener('change', () => {
         // Pripravi podatke za pošiljanje
         const izbor = radio.value;
+        const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
         fetch("/progress-change", {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': token },
           body: JSON.stringify({ izbor: izbor, movieId: movieId })
         })
         document.querySelectorAll('.' + movieId).forEach(el => {

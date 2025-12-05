@@ -22,3 +22,6 @@ m3u8
 playwright
 pyautogui
 flask-compress
+certbot
+Flask-WTF
+Flask-Limiter
