@@ -69,6 +69,8 @@ function closePlayer() {
 let lastScroll = 0;
 const header = document.querySelector("header");
 const headerHeight = header.offsetHeight - 50;
+const movie_grid = document.getElementById('movie-grid');
+movie_grid.style.paddingTop = `${header.offsetHeight}px`;
 
 function onScroll() {
     const currentScroll = window.pageYOffset || document.documentElement.scrollTop;

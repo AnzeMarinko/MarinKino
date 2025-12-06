@@ -16,16 +16,18 @@
 		<img src="/static/logo.png">
     </div>
     <div class="group-selector">
-        <ul>
-          {% for group in group_folders %}
-            <li><a href="#group-{{ group }}">{{ group|replace('-', ' ') }}</a></li>
-          {% endfor %}
-          <li><a href="/meme">Zbirka šal in navdihov</a></li>
-        </ul>
+        <a href="/meme"><button>Zbirka šal in navdihov</button></a>
       </div>
 
     <form method="get">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <select name="movietype" id="movietype">
+            {% for group in group_folders %}
+                <option value="{{ group }}" {% if group == selected_movietype %}selected{% endif %}>
+                    {{ group_folders[group]|capitalize }}
+                </option>
+            {% endfor %}
+        </select>
         <select name="genre" id="genre">
             <option value="">-- Vsi žanri --</option>
             {% for genre in known_genres %}
@@ -62,48 +64,42 @@
 		<img src="/static/popcorn.png">
     </div>
 
-
-    <div class="group-grid">
-        {% for group in group_folders %}
-        <h2 id="group-{{ group }}">{{ group|replace('-', ' ') }}</h2>
-        <div class="movie-grid" id="group-{{ group }}">
-            {% for movie in movies[group] %}
-            <div class="movie-card {{ movie.movie_id }}" style="--watch: {{ movie.watch_ratio }}%;">
-                <a href="/play{{ movie.folder }}"><img src="/movies{{ movie.thumbnail }}" alt="Poster" loading="lazy"></a>
-                <h3>{{ movie.title }}{{ movie.year }}<div class="slosinh">{{ movie.slosinh }}</div></h3>
-                <div class="genres">
-                    {% for genre in movie.genres %}
-                    <span class="genre-badge {{ genre|lower|replace(' ', '-') if genre in known_genres else 'unknown' }}">{{ genre }}</span>
-                    {% endfor %}
-                </div>
-                <div class="description">
-                    <b>{{ movie.players }}</b></br>
-                    <hr>{{ movie.description }}</br>
-                    <hr>{{ movie.description_2 }}
-                    {% if movie.subtitle_buttons %}</br>
-            <hr>Podnapisi: {% for subtitle in movie.subtitle_buttons %}<button class="subtitles">{{ subtitle }}</button> {% endfor %}
-            {% endif %}</br>
-                    <hr>
-                <div class="izbira" movie-id="{{ movie.movie_id }}">
-    <input type="radio" id="opcija1-{{ movie.movie_id }}" name="izbor-{{ movie.movie_id }}" value="0">
-    <label for="opcija1-{{ movie.movie_id }}">Nepogledano</label>
-
-    <input type="radio" id="opcija2-{{ movie.movie_id }}" name="izbor-{{ movie.movie_id }}" value="100">
-    <label for="opcija2-{{ movie.movie_id }}">Pogledano</label>
-</div>
-                </div>
-                <div class="buttons">
-                <button class="runtime">({{ movie.runtimes }} min)</button>
-                {% if current_user.is_admin %}
-                <form action="/remove{{ movie.folder }}" method="post" onsubmit="return odstraniMovieCard(event, this);">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit">Odstrani</button>
-                </form>
-                {% endif %}
-                </div>
+    <div class="movie-grid" id="movie-grid">
+        {% for movie in movies %}
+        <div class="movie-card {{ movie.movie_id }}" style="--watch: {{ movie.watch_ratio }}%;">
+            <a href="/play{{ movie.folder }}"><img src="/movies{{ movie.thumbnail }}" alt="Poster" loading="lazy"></a>
+            <h3>{{ movie.title }}{{ movie.year }}<div class="slosinh">{{ movie.slosinh }}</div></h3>
+            <div class="genres">
+                {% for genre in movie.genres %}
+                <span class="genre-badge {{ genre|lower|replace(' ', '-') if genre in known_genres else 'unknown' }}">{{ genre }}</span>
+                {% endfor %}
             </div>
-            {% endfor %}
+            <div class="description">
+                <b>{{ movie.players }}</b></br>
+                <hr>{{ movie.description }}</br>
+                <hr>{{ movie.description_2 }}
+                {% if movie.subtitle_buttons %}</br>
+        <hr>Podnapisi: {% for subtitle in movie.subtitle_buttons %}<button class="subtitles">{{ subtitle }}</button> {% endfor %}
+        {% endif %}</br>
+                <hr>
+            <div class="izbira" movie-id="{{ movie.movie_id }}">
+                <input type="radio" id="opcija1-{{ movie.movie_id }}" name="izbor-{{ movie.movie_id }}" value="0">
+                <label for="opcija1-{{ movie.movie_id }}">Nepogledano</label>
+
+                <input type="radio" id="opcija2-{{ movie.movie_id }}" name="izbor-{{ movie.movie_id }}" value="100">
+                <label for="opcija2-{{ movie.movie_id }}">Pogledano</label>
+            </div>
         </div>
+        <div class="buttons">
+        <button class="runtime">({{ movie.runtimes }} min)</button>
+        {% if current_user.is_admin %}
+        <form action="/remove{{ movie.folder }}" method="post" onsubmit="return odstraniMovieCard(event, this);">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit">Odstrani</button>
+        </form>
+        {% endif %}
+        </div>
+    </div>
         {% endfor %}
     </div>
 	<section>To je pregledovalnik filmov in risank na družinskem disku. 

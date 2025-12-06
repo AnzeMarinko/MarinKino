@@ -226,7 +226,7 @@ input, button {
     justify-content: flex-end;
   }
   
-  .group-selector a {
+  .group-selector button {
     text-decoration: none;
     background-color: #ddd;
     padding: 5px 10px;
@@ -235,7 +235,7 @@ input, button {
     font-weight: bold;
   }
   
-  .group-selector a:hover {
+  .group-selector button:hover {
     background-color: #bbb;
   }
 

@@ -140,8 +140,9 @@ all_films = [{
         } for i, m in enumerate(all_films)]
 
 groups = [f["group_folder"] for f in all_films]
-group_folders = {g: g[3:].title() + f"-({groups.count(g)})" for g in set(groups)}
-all_films = {g: [f for f in all_films if f["group_folder"] == k] for k, g in group_folders.items()}
+group_folders = {g: g[3:].title() + f"-({groups.count(g)})" for g in sorted(list(set(groups)))}
+all_films = {g: [f for f in all_films if f["group_folder"] == g] for g in group_folders.keys()}
+
 
 # Seznam vseh memov v mapi
 memes = os.listdir("memes")
@@ -193,23 +194,28 @@ def index():
     genre_filter = request.args.get('genre')
     sort = request.args.get('sort', "name-asc")
     onlyunwatched = request.args.get('onlyunwatched') == "on"
-    movies = copy(all_films)
-    for k in movies.keys():
-        movies[k] = [add_watch_info(m, user_data) for m in movies[k]]
-        if genre_filter:
-            movies[k] = [m for m in movies[k] if genre_filter in m.get('genres', [])]
-        if onlyunwatched:
-            movies[k] = [m for m in movies[k] if m["watch_ratio"] < 100]
-        movies[k] = sorted(movies[k], key=lambda m: str_to_int(m["runtimes"]) if "runtime" in sort else m["title"], reverse="desc" in sort)
+    movietype = request.args.get('movietype', random.choice(list(group_folders.keys())))
+    movies = copy(all_films[movietype])
+    total_watch_ratios = {}
+    movies = [add_watch_info(m, user_data) for m in movies]
+    if genre_filter:
+        movies = [m for m in movies if genre_filter in m.get('genres', [])]
+    if onlyunwatched:
+        movies = [m for m in movies if m["watch_ratio"] < 100]
+    movies = sorted(movies, key=lambda m: str_to_int(m["runtimes"]) if "runtime" in sort else m["title"], reverse="desc" in sort)
 
-    return render_template("index.html", movies=movies, selected_genre=genre_filter, sort=sort, onlyunwatched=onlyunwatched, group_folders=[group_folders[k] for k in sorted(group_folders.keys())], known_genres=GENRES_MAPPING.values())
+    return render_template("index.html", movies=movies, selected_movietype=movietype, 
+                           selected_genre=genre_filter, sort=sort, 
+                           onlyunwatched=onlyunwatched, 
+                           group_folders=group_folders, 
+                           known_genres=GENRES_MAPPING.values(), total_watch_ratios=total_watch_ratios)
 
 @app.route("/play/<movies_subfolder>/<movie_folder>")
 @login_required
 def play_movie(movies_subfolder, movie_folder):
     user_data = get_user_progress_data(current_user.id)
 
-    film_candidates = [f for f in all_films[group_folders[movies_subfolder]] if os.path.sep + os.path.join("", movies_subfolder, movie_folder) == f["folder"]]
+    film_candidates = [f for f in all_films[movies_subfolder] if os.path.sep + os.path.join("", movies_subfolder, movie_folder) == f["folder"]]
     if len(film_candidates) != 1:
         print(f"Got {len(film_candidates)} candidates!")
         return 0
@@ -236,7 +242,7 @@ def remove_movie(movies_subfolder, movie_folder):
     if not current_user.is_admin:
         return redirect(url_for('index'))
     removing_folder = os.path.sep + os.path.join("", movies_subfolder, movie_folder)
-    all_films[group_folders[movies_subfolder]] = [f for f in all_films[group_folders[movies_subfolder]] if removing_folder != f["folder"]]
+    all_films[movies_subfolder] = [f for f in all_films[movies_subfolder] if removing_folder != f["folder"]]
     removing_folder = os.path.join(FILMS_ROOT, movies_subfolder, movie_folder)
     for filename in os.listdir(removing_folder):
         try:
