@@ -140,7 +140,7 @@ all_films = [{
         } for i, m in enumerate(all_films)]
 
 groups = [f["group_folder"] for f in all_films]
-group_folders = {g: g[3:].title() + f"-({groups.count(g)})" for g in sorted(list(set(groups)))}
+group_folders = {g: g[3:].replace("-", " ").title() + f" ({groups.count(g)})" for g in sorted(list(set(groups)))}
 all_films = {g: [f for f in all_films if f["group_folder"] == g] for g in group_folders.keys()}
 
 

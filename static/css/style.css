@@ -120,6 +120,7 @@ input, button {
     padding: 8px 12px;
     font-size: 1rem;
     margin: 5px;
+    cursor: pointer;
 }
 
 .movie-grid {
@@ -242,8 +243,6 @@ input, button {
   
   .group-selector button {
     text-decoration: none;
-    background-color: #ddd;
-    padding: 5px 10px;
     border-radius: 8px;
     color: #333;
     font-weight: bold;
