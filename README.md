@@ -10,8 +10,6 @@
 
 # TODO:
 
-* če bi stran postala zelo počasna (veliko uporabnikov in/ali filmov), dodaj pagination ali infinite scroll (da se filmi ob skrolanju dodajajo in ne naložijo kar vsi že ob enem klicu)
-
 Glasba:
 * naredi playlisto vsega kar bi rad imel (najprej Youtube music in nato še navaden Youtube)
 * potem pa:

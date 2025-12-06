@@ -65,42 +65,6 @@
     </div>
 
     <div class="movie-grid" id="movie-grid">
-        {% for movie in movies %}
-        <div class="movie-card {{ movie.movie_id }}" style="--watch: {{ movie.watch_ratio }}%;">
-            <a href="/play{{ movie.folder }}"><img src="/movies{{ movie.thumbnail }}" alt="Poster" loading="lazy"></a>
-            <h3>{{ movie.title }}{{ movie.year }}<div class="slosinh">{{ movie.slosinh }}</div></h3>
-            <div class="genres">
-                {% for genre in movie.genres %}
-                <span class="genre-badge {{ genre|lower|replace(' ', '-') if genre in known_genres else 'unknown' }}">{{ genre }}</span>
-                {% endfor %}
-            </div>
-            <div class="description">
-                <b>{{ movie.players }}</b></br>
-                <hr>{{ movie.description }}</br>
-                <hr>{{ movie.description_2 }}
-                {% if movie.subtitle_buttons %}</br>
-        <hr>Podnapisi: {% for subtitle in movie.subtitle_buttons %}<button class="subtitles">{{ subtitle }}</button> {% endfor %}
-        {% endif %}</br>
-                <hr>
-            <div class="izbira" movie-id="{{ movie.movie_id }}">
-                <input type="radio" id="opcija1-{{ movie.movie_id }}" name="izbor-{{ movie.movie_id }}" value="0">
-                <label for="opcija1-{{ movie.movie_id }}">Nepogledano</label>
-
-                <input type="radio" id="opcija2-{{ movie.movie_id }}" name="izbor-{{ movie.movie_id }}" value="100">
-                <label for="opcija2-{{ movie.movie_id }}">Pogledano</label>
-            </div>
-        </div>
-        <div class="buttons">
-        <button class="runtime">({{ movie.runtimes }} min)</button>
-        {% if current_user.is_admin %}
-        <form action="/remove{{ movie.folder }}" method="post" onsubmit="return odstraniMovieCard(event, this);">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit">Odstrani</button>
-        </form>
-        {% endif %}
-        </div>
-    </div>
-        {% endfor %}
     </div>
 	<section>To je pregledovalnik filmov in risank na družinskem disku. 
 	Filme in podatke o njih je uredil Anže Marinko v veliki meri avtomatizirano, kar je razlog nekaterih napak in na trenutke slabih prevodov z umetno inteligenco.
@@ -142,6 +106,100 @@ function getGreeting() {
 }
 
 document.getElementById("greeting").textContent = getGreeting();
+
+let currentPage = 0;
+let loading = false;
+
+// CSRF token
+const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+// Glavni container
+const grid = document.getElementById("movie-grid");
+
+async function loadNextPage() {
+    if (loading) return;
+    loading = true;
+
+    const response = await fetch(`/movies_page?page=${currentPage}`);
+    const data = await response.json();
+
+    data.movies.forEach(movie => {
+        const card = renderMovieCard(movie);
+        grid.appendChild(card);
+    });
+
+    if (data.has_more) {
+        currentPage += 1;
+        loading = false;
+    }
+}
+
+// Render funkcija, ki ustvari DOM strukturo enako tvojemu Jinja templatu
+function renderMovieCard(movie) {
+    const wrapper = document.createElement("div");
+    wrapper.className = `movie-card ${movie.movie_id}`;
+    wrapper.style = `--watch: ${movie.watch_ratio}%;`;
+
+    wrapper.innerHTML = `
+        <a href="/play${movie.folder}">
+            <img src="/movies${movie.thumbnail}" alt="Poster" loading="lazy">
+        </a>
+
+        <h3>${movie.title}${movie.year}
+            <div class="slosinh">${movie.slosinh}</div>
+        </h3>
+
+        <div class="genres">
+            ${movie.genres.map(g => `
+                <span class="genre-badge ${g.toLowerCase().replace(/ /g, '-')}">${g}</span>
+            `).join('')}
+        </div>
+
+        <div class="description">
+            <b>${movie.players}</b><br>
+            <hr>${movie.description}<br>
+            <hr>${movie.description_2 || ""}
+
+            ${movie.subtitle_buttons?.length ? `
+                <br><hr>Podnapisi:
+                ${movie.subtitle_buttons.map(s => `<button class="subtitles">${s}</button>`).join("")}
+            ` : ""}
+
+            <br><hr>
+
+            <div class="izbira" movie-id="${movie.movie_id}">
+                <input type="radio" id="opcija1-${movie.movie_id}" name="izbor-${movie.movie_id}" value="0">
+                <label for="opcija1-${movie.movie_id}">Nepogledano</label>
+
+                <input type="radio" id="opcija2-${movie.movie_id}" name="izbor-${movie.movie_id}" value="100">
+                <label for="opcija2-${movie.movie_id}">Pogledano</label>
+            </div>
+        </div>
+
+        <div class="buttons">
+            <button class="runtime">(${movie.runtimes} min)</button>
+
+            ${movie.is_admin ? `
+            <form action="/remove${movie.folder}" method="post" onsubmit="return odstraniMovieCard(event, this);">
+                <input type="hidden" name="csrf_token" value="${csrfToken}">
+                <button type="submit">Odstrani</button>
+            </form>
+            ` : ""}
+        </div>
+    `;
+
+    return wrapper;
+}
+
+// Infinite scroll trigger
+window.addEventListener("scroll", () => {
+    if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 300) {
+        loadNextPage();
+    }
+});
+
+// Zaženi prvo nalaganje
+loadNextPage();
 
 </script>
 </html>

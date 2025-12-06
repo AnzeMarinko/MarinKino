@@ -110,3 +110,4 @@ document.querySelectorAll('.izbira').forEach((skupina) => {
       });
     });
   });
+  

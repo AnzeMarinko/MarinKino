@@ -187,6 +187,42 @@ def get_user_progress_data(user_id):
         user_data = {}
     return user_data
 
+@app.route("/movies_chunk")
+@login_required
+def movies_chunk():
+    # Parametri za paginacijo
+    offset = int(request.args.get("offset", 0))
+    limit = int(request.args.get("limit", 50))
+
+    # Filtri
+    genre_filter = request.args.get('genre')
+    sort = request.args.get('sort', "name-asc")
+    onlyunwatched = request.args.get('onlyunwatched') == "on"
+    movietype = request.args.get('movietype', random.choice(list(group_folders.keys())))
+
+    # Vzameš vedno isti seznam — samo gradiš iz offset/limit
+    user_data = get_user_progress_data(current_user.id)
+    movies = copy(all_films[movietype])
+    movies = [add_watch_info(m, user_data) for m in movies]
+
+    if genre_filter:
+        movies = [m for m in movies if genre_filter in m.get('genres', [])]
+    if onlyunwatched:
+        movies = [m for m in movies if m["watch_ratio"] < 100]
+
+    # Sortiraj
+    movies = sorted(movies, key=lambda m: str_to_int(m["runtimes"]) if "runtime" in sort else m["title"], reverse="desc" in sort)
+
+    # Vrni samo chunk
+    chunk = movies[offset: offset + limit]
+
+    return {
+        "movies": chunk,
+        "has_more": offset + limit < len(movies)
+    }
+
+MOVIES_PER_PAGE = 40
+
 @app.route("/")
 @login_required
 def index():
@@ -195,20 +231,72 @@ def index():
     sort = request.args.get('sort', "name-asc")
     onlyunwatched = request.args.get('onlyunwatched') == "on"
     movietype = request.args.get('movietype', random.choice(list(group_folders.keys())))
+
     movies = copy(all_films[movietype])
-    total_watch_ratios = {}
     movies = [add_watch_info(m, user_data) for m in movies]
+
     if genre_filter:
         movies = [m for m in movies if genre_filter in m.get('genres', [])]
     if onlyunwatched:
         movies = [m for m in movies if m["watch_ratio"] < 100]
-    movies = sorted(movies, key=lambda m: str_to_int(m["runtimes"]) if "runtime" in sort else m["title"], reverse="desc" in sort)
 
-    return render_template("index.html", movies=movies, selected_movietype=movietype, 
-                           selected_genre=genre_filter, sort=sort, 
-                           onlyunwatched=onlyunwatched, 
-                           group_folders=group_folders, 
-                           known_genres=GENRES_MAPPING.values(), total_watch_ratios=total_watch_ratios)
+    movies = sorted(
+        movies,
+        key=lambda m: str_to_int(m["runtimes"]) if "runtime" in sort else m["title"],
+        reverse="desc" in sort
+    )
+
+    # 🔥 Shrani seznam v session
+    movie_ids = [m["movie_id"] for m in movies]
+    session["movies_cache"] = movie_ids
+
+    # Vrni prvi batch
+    movies_page = movies[:MOVIES_PER_PAGE]
+    has_more = len(movies) > MOVIES_PER_PAGE
+
+    return render_template(
+        "index.html",
+        movies=movies_page,
+        has_more=has_more,
+        page=1,
+        selected_movietype=movietype,
+        selected_genre=genre_filter,
+        sort=sort,
+        onlyunwatched=onlyunwatched,
+        group_folders=group_folders,
+        known_genres=GENRES_MAPPING.values()
+    )
+
+# Global lookup: movie_id -> movie object
+global_movie_index = {}
+
+for group in all_films.values():
+    for m in group:
+        global_movie_index[m["movie_id"]] = m
+
+@app.route("/movies_page")
+@login_required
+def movies_page():
+    page = int(request.args.get('page', 1))
+    MOVIES_PER_PAGE = 40
+
+    movie_ids = session.get("movies_cache", [])
+    start = page * MOVIES_PER_PAGE
+    end = start + MOVIES_PER_PAGE
+
+    page_ids = movie_ids[start:end]
+
+    # Pobere dejanske filme iz all_films (ki je globalen)
+    movies_page = [global_movie_index[mid] for mid in page_ids]   # razlozim spodaj
+
+    has_more = end < len(movie_ids)
+
+    return {"movies": [
+        { **m, "is_admin": current_user.is_admin }
+        for m in movies_page
+    ], "has_more": has_more}
+
+
 
 @app.route("/play/<movies_subfolder>/<movie_folder>")
 @login_required
