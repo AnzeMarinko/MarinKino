@@ -1,14 +1,25 @@
-## Dependencies:
-* Python 3.12
-* port forwarding 80-80 in 443-443, nginx, certbot (ga bo v virtualno okolje naložil pip) generiraj certifikat in nastavi cron job za redno posodobitev
+# MarinKino
 
-## Instalation
-* Clone repository
-* install `requirements.txt`
-* update `.env` and `credentials/gen-lang-client.json`
-* run `git update-index --assume-unchanged .env` to keep credentials secure
+To je repozitorij za domači kino. Preko HTTPS serverja so tako filmi z domačega diska varno dostopni preko spleta. Ta server omogoča enostavno izbiro in ogled filmov kar v brskalniku (deluje pa seveda le, kadar je računalnik s serverjem prižgan). Koda avtomatizirano poskrbi:
+* da vsak film v eni mp4 datoteki za zmanjšanje datoteke in tudi za združevanje .vob in drugih podobnih formatov, 
+* priskrbi naslovnice, opise in druge podatke o filmih ter opise z umetno inteligenco prevede v slovenščino,
+* priskrbi podnapise z interneta (ročno je potrebno izbrani najboljšo datoteko),
+* z umetno inteligenco zazna govor in poravna podnapise z zvokom (zamik in skaliranje),
+* preveri jezik podnapisov in po potrebi z umetno inteligenco prevede v slovenščino.
 
-# TODO:
+Poleg tega je tu tudi koda za avtomatsko pridobitev serije The Chosen in snemanje filmov s Sloflix, saj Mojblink.si nima mnogih filmov, partis.si pa že dolgo ne deluje več.
+> Mimogrede: Filme sem uredil in večino kode pripravil že preden je ven prišel Sloflix, ki na nek način podobna stvar. Poleg osebnega zadovoljstva ob učenju novega in pripravi celotnega lastnega sistema je namen te strani predvsem zbirka vsebinsko kvalitetnih filmov in risank.
+
+> Stran je dostopna preko [anzemarinko.duckdns.org](anzemarinko.duckdns.org).
+
+Preko strani pa so dostopne tudi šale (meme) in spodbude, ki sem jih zbiral skozi leta. Del šal je seveda časovno specifičen predvsem zaradi zborovskih in koronskih let.
+
+## Nastavitev
+[Nastavitev MarinKino serverja](installation.md)
+
+V primeru napak ali pomanjkljivosti navodil ali delovanja priprave filmov in strežnika bom vesel predlogov.
+
+## TODO:
 
 Glasba:
 * naredi playlisto vsega kar bi rad imel (najprej Youtube music in nato še navaden Youtube)

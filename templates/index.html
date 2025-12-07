@@ -82,9 +82,6 @@ function odstraniMovieCard(event, form) {
     // Najdi najbližji parent z class "movie-card"
     const card = form.closest('.movie-card');
     const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-    if (card) {
-        card.remove(); // odstrani iz DOM
-    }
     fetch(form.action, { method: 'POST',
         headers: {
             'X-CSRFToken': token
@@ -92,6 +89,9 @@ function odstraniMovieCard(event, form) {
         .then(resp => resp.json())
         .then(data => console.log('Film odstranjen', data))
         .catch(err => console.error(err));
+    if (card) {
+        card.remove(); // odstrani iz DOM
+    }
 
     return false; 
 }
@@ -193,7 +193,7 @@ function renderMovieCard(movie) {
 
 // Infinite scroll trigger
 window.addEventListener("scroll", () => {
-    if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 300) {
+    if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 100) {
         loadNextPage();
     }
 });
