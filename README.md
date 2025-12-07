@@ -8,11 +8,11 @@ To je repozitorij za domači kino. Preko HTTPS serverja so tako filmi z domačeg
 * preveri jezik podnapisov in po potrebi z umetno inteligenco prevede v slovenščino.
 
 Poleg tega je tu tudi koda za avtomatsko pridobitev serije The Chosen in snemanje filmov s Sloflix, saj Mojblink.si nima mnogih filmov, partis.si pa že dolgo ne deluje več.
-> Mimogrede: Filme sem uredil in večino kode pripravil že preden je ven prišel Sloflix, ki na nek način podobna stvar. Poleg osebnega zadovoljstva ob učenju novega in pripravi celotnega lastnega sistema je namen te strani predvsem zbirka vsebinsko kvalitetnih filmov in risank.
+> Mimogrede: Filme sem uredil in večino kode pripravil že preden je ven prišel Sloflix, ki na nek način podobna stvar. Poleg osebnega zadovoljstva ob učenju novega in pripravi celotnega lastnega sistema je namen te strani predvsem zbirka vsebinsko kvalitetnih filmov in risank brez oglasov.
 
 > Stran je dostopna preko [anzemarinko.duckdns.org](anzemarinko.duckdns.org).
 
-Preko strani pa so dostopne tudi šale (meme) in spodbude, ki sem jih zbiral skozi leta. Del šal je seveda časovno specifičen predvsem zaradi zborovskih in koronskih let.
+Preko strani pa so dostopne tudi šale (meme) in spodbude, ki sem jih zbiral skozi leta. Del šal je seveda časovno specifičen predvsem zaradi zborovskih in koronskih let. V prihodnosti pa je v načrtu tudi dostop do zbirke kvalitetne glasbe brez oglasov (slovenske, klasične, krščanske, rokerske, ...).
 
 ## Nastavitev
 [Nastavitev MarinKino serverja](installation.md)
@@ -23,12 +23,11 @@ V primeru napak ali pomanjkljivosti navodil ali delovanja priprave filmov in str
 
 Glasba:
 * naredi playlisto vsega kar bi rad imel (najprej Youtube music in nato še navaden Youtube)
-* potem pa:
+* potem pa (predelaj ta ukaz še malo):
 yt-dlp --extract-audio --audio-format mp3 \
   --embed-thumbnail --embed-metadata \
   --add-metadata \
   -o "%(playlist_index)s - %(title)s.%(ext)s" \
   <URL_PLAYLISTE>
-
-* dol potegni vse od Karoline YouTubeMusic in uredi glasbo (odstrani večino moje stare glasbe, ki ni krščanska ali pa vsaj klasična), dodaj kakšne meni v tem času ljube pesmi (Res je prijetno, Molim te ponižno, Jezus se ob morju ustavi, Tezejske ...)
+* uredi zbirko glasbe (dodaj tudi kakšne meni v tem času ljube pesmi: Res je prijetno, Molim te ponižno, Jezus se ob morju ustavi, Tezejske ...)
 * dodaj stran za predvajanje glasbe
