@@ -10,7 +10,7 @@ To je repozitorij za domači kino. Preko HTTPS serverja so tako filmi z domačeg
 Poleg tega je tu tudi koda za avtomatsko pridobitev serije The Chosen in snemanje filmov s Sloflix, saj Mojblink.si nima mnogih filmov, partis.si pa že dolgo ne deluje več.
 > Mimogrede: Filme sem uredil in večino kode pripravil že preden je ven prišel Sloflix, ki na nek način podobna stvar. Poleg osebnega zadovoljstva ob učenju novega in pripravi celotnega lastnega sistema je namen te strani predvsem zbirka vsebinsko kvalitetnih filmov in risank brez oglasov.
 
-> Stran je dostopna preko [anzemarinko.duckdns.org](anzemarinko.duckdns.org).
+> Stran je dostopna preko [anzemarinko.duckdns.org](https://anzemarinko.duckdns.org).
 
 Preko strani pa so dostopne tudi šale (meme) in spodbude, ki sem jih zbiral skozi leta. Del šal je seveda časovno specifičen predvsem zaradi zborovskih in koronskih let. V prihodnosti pa je v načrtu tudi dostop do zbirke kvalitetne glasbe brez oglasov (slovenske, klasične, krščanske, rokerske, ...).
 
