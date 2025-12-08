@@ -513,10 +513,12 @@ def get_albums():
     return music_albums
 
 @app.route("/music")
+@login_required
 def music():
     return render_template("music_player.html", albums=get_albums())
 
 @app.route("/music/<path:filename>")
+@login_required
 def song(filename):
     try:
         path = safe_path("music", filename)
