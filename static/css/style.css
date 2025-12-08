@@ -347,6 +347,10 @@ button {
     background-position: bottom left;
 }
 
+.group-selector button {
+    padding: 5px;
+}
+
 button.subtitles {
     padding: 5px;
     font-size: 14px;
