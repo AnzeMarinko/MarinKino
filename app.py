@@ -17,6 +17,7 @@ import pathlib
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+import glob
 
 if not os.path.exists(CACHE_ROOT):
     os.mkdir(CACHE_ROOT)
@@ -499,6 +500,45 @@ def meme_remove(meme_file_name):
         return "", 404
     os.remove(path)
     return "", 204
+
+def get_albums():
+    music_albums = {}
+    music_files = [f[6:] for f in glob.iglob("music/**/*.mp3", recursive=True)]
+    for s in music_files:
+        parts = s.split("/")[:-1]
+        music_albums.setdefault("Vse", []).append(s)
+        for i in range(len(parts)):
+            album = " - ".join(parts[:i+1]).title()
+            music_albums.setdefault(album, []).append(s)
+    return music_albums
+
+@app.route("/music")
+def music():
+    return render_template("music_player.html", albums=get_albums())
+
+@app.route("/music/<path:filename>")
+def song(filename):
+    try:
+        path = safe_path("music", filename)
+    except ValueError:
+        return "", 404
+    return send_from_directory("music", filename, conditional=True)
+
+@app.route("/music/delete/<path:filename>", methods=["DELETE"])
+@login_required
+def song_remove(filename):
+    if not current_user.is_admin:
+        return "", 204
+    try:
+        path = safe_path("music", filename)
+    except ValueError:
+        return "", 404
+    os.remove(path)
+    return "", 204
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory('static', 'logo.png')
 
 
 if __name__ == "__main__":

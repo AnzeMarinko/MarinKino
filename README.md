@@ -30,4 +30,3 @@ yt-dlp --extract-audio --audio-format mp3 \
   -o "%(playlist_index)s - %(title)s.%(ext)s" \
   <URL_PLAYLISTE>
 * uredi zbirko glasbe (dodaj tudi kakšne meni v tem času ljube pesmi: Res je prijetno, Molim te ponižno, Jezus se ob morju ustavi, Tezejske ...)
-* dodaj stran za predvajanje glasbe
