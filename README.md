@@ -12,7 +12,7 @@ Poleg tega je tu tudi koda za avtomatsko pridobitev serije The Chosen in snemanj
 
 > Stran je dostopna preko [anzemarinko.duckdns.org](https://anzemarinko.duckdns.org).
 
-Preko strani pa so dostopne tudi šale (meme) in spodbude, ki sem jih zbiral skozi leta. Del šal je seveda časovno specifičen predvsem zaradi zborovskih in koronskih let. V prihodnosti pa je v načrtu tudi dostop do zbirke kvalitetne glasbe brez oglasov (slovenske, klasične, krščanske, rokerske, ...).
+Preko strani pa so dostopne tudi šale (meme) in spodbude, ki sem jih zbiral skozi leta. Del šal je seveda časovno specifičen predvsem zaradi zborovskih in koronskih let. V prihodnosti pa je v načrtu tudi dostop do zbirke kvalitetne glasbe brez oglasov (slovenske, klasične, krščanske, rokerske, ...). Stran z glasbo je že pripravljena, je pa izbor pesmi še potreben pregleda.
 
 ## Nastavitev
 [Nastavitev MarinKino serverja](installation.md)

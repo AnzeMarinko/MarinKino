@@ -124,8 +124,13 @@ button:hover {
 }
 
 #home {
-    background: #396ba5;
+    position: fixed;
+    bottom: 10px;
+    left: 10px;
 }
+#home button {
+    background: #396ba5;
+    }
 </style>
 </head>
 <body>
@@ -146,11 +151,10 @@ button:hover {
     <audio id="audio" preload="auto"></audio>
 
     <div id="controls">
-        <button onclick="prev()">⏮ Nazaj</button>
-        <button onclick="togglePlay()">▶️/⏸ Play/Pause</button>
-        <button onclick="next()">⏭ Naprej</button>
-        <button id="shuffleBtn" onclick="toggleRandom()">🔀 Random</button>
-        <a href="/"><button id="home">MarinKino</button></a>
+        <button onclick="prev()">⏮</button>
+        <button onclick="togglePlay()">▶️/⏸</button>
+        <button onclick="next()">⏭</button>
+        <button id="shuffleBtn" onclick="toggleRandom()">🔀</button>
     </div>
 
     <input type="range" id="seekBar" value="0">
@@ -161,6 +165,7 @@ button:hover {
         🗑️ Izbriši
     </button>
     {% endif %}
+    <a id="home" href="/"><button>MarinKino</button></a>
 </div>
 
 <script>
