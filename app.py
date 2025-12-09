@@ -503,7 +503,7 @@ def meme_remove(meme_file_name):
 
 def get_albums():
     music_albums = {}
-    music_files = [f[6:] for f in glob.iglob("music/**/*.mp3", recursive=True)]
+    music_files = sorted([f[6:] for f in glob.iglob("music/**/*.mp3", recursive=True)])
     for s in music_files:
         parts = s.split("/")[:-1]
         music_albums.setdefault("Vse", []).append(s)

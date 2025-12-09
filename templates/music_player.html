@@ -206,7 +206,7 @@ function loadAlbum(name) {
     trackListEl.innerHTML = "";
     currentSongs.forEach((s,i)=>{
         const div = document.createElement("div");
-        div.textContent = s.split("/").pop();
+        div.textContent = s.split("/").join(" : ");
         div.className = "track-item" + (s===currentTrack?" active":"");
         div.onclick = ()=>playTrack(i);
         trackListEl.appendChild(div);
