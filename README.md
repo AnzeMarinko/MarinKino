@@ -1,7 +1,7 @@
 # MarinKino
 
 To je repozitorij za domači kino. Preko HTTPS serverja so tako filmi z domačega diska varno dostopni preko spleta. Ta server omogoča enostavno izbiro in ogled filmov kar v brskalniku (deluje pa seveda le, kadar je računalnik s serverjem prižgan). Koda avtomatizirano poskrbi:
-* da vsak film v eni mp4 datoteki za zmanjšanje datoteke in tudi za združevanje .vob in drugih podobnih formatov, 
+* da je vsak film v eni mp4 datoteki za zmanjšanje datoteke in tudi za združevanje .vob in drugih podobnih formatov, 
 * priskrbi naslovnice, opise in druge podatke o filmih ter opise z umetno inteligenco prevede v slovenščino,
 * priskrbi podnapise z interneta (ročno je potrebno izbrani najboljšo datoteko),
 * z umetno inteligenco zazna govor in poravna podnapise z zvokom (zamik in skaliranje),
@@ -12,21 +12,9 @@ Poleg tega je tu tudi koda za avtomatsko pridobitev serije The Chosen in snemanj
 
 > Stran je dostopna preko [anzemarinko.duckdns.org](https://anzemarinko.duckdns.org).
 
-Preko strani pa so dostopne tudi šale (meme) in spodbude, ki sem jih zbiral skozi leta. Del šal je seveda časovno specifičen predvsem zaradi zborovskih in koronskih let. V prihodnosti pa je v načrtu tudi dostop do zbirke kvalitetne glasbe brez oglasov (slovenske, klasične, krščanske, rokerske, ...). Stran z glasbo je že pripravljena, je pa izbor pesmi še potreben pregleda.
+Preko strani pa so dostopne tudi šale (meme) in spodbude, ki sem jih zbiral skozi leta. Del šal je seveda časovno specifičen predvsem zaradi zborovskih in koronskih let. V prihodnosti pa je v načrtu tudi dostop do zbirke kvalitetne glasbe brez oglasov (slovenske, klasične, krščanske, rokerske, ...). Stran z glasbo je že pripravljena, je pa izbor pesmi še potreben pregleda, saj sem pesmi počasi zbiral skozi leta in je vmes tudi, kaj vsebinsko nekvalitetnega, kar mi je bilo v nekem času zanimivo.
 
 ## Nastavitev
 [Nastavitev MarinKino serverja](installation.md)
 
 V primeru napak ali pomanjkljivosti navodil ali delovanja priprave filmov in strežnika bom vesel predlogov.
-
-## TODO:
-
-Glasba:
-* naredi playlisto vsega kar bi rad imel (najprej Youtube music in nato še navaden Youtube)
-* potem pa (predelaj ta ukaz še malo):
-yt-dlp --extract-audio --audio-format mp3 \
-  --embed-thumbnail --embed-metadata \
-  --add-metadata \
-  -o "%(playlist_index)s - %(title)s.%(ext)s" \
-  <URL_PLAYLISTE>
-* uredi zbirko glasbe (dodaj tudi kakšne meni v tem času ljube pesmi: Res je prijetno, Molim te ponižno, Jezus se ob morju ustavi, Tezejske ...)
