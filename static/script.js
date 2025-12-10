@@ -89,25 +89,28 @@ function onScroll() {
 window.addEventListener("scroll", onScroll, { passive: true });
 window.addEventListener("touchmove", onScroll, { passive: true }); // za mobilne naprave
 
-document.querySelectorAll('.izbira').forEach((skupina) => {
-    const movieId = skupina.getAttribute('movie-id');
-    const radios = skupina.querySelectorAll('input[type="radio"]');
+document.addEventListener("change", (e) => {
+    if (e.target.matches('.izbira input[type="radio"]')) {
 
-    radios.forEach(radio => {
-      radio.addEventListener('change', () => {
-        // Pripravi podatke za pošiljanje
+        const radio = e.target;
+        const skupina = radio.closest(".izbira");
+        const movieId = skupina.getAttribute("movie-id");
         const izbor = radio.value;
-        const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        const token = document.querySelector('meta[name="csrf-token"]').content;
 
         fetch("/progress-change", {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': token },
-          body: JSON.stringify({ izbor: izbor, movieId: movieId })
-        })
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRFToken': token
+            },
+            body: JSON.stringify({ izbor, movieId })
+        });
+
         document.querySelectorAll('.' + movieId).forEach(el => {
             el.style.setProperty('--watch', izbor + '%');
-            });
-      });
-    });
-  });
+        });
+    }
+});
   

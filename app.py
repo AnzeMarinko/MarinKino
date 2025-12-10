@@ -231,9 +231,9 @@ def index():
     genre_filter = request.args.get('genre')
     sort = request.args.get('sort', "name-asc")
     onlyunwatched = request.args.get('onlyunwatched') == "on"
-    movietype = request.args.get('movietype', random.choice(list(group_folders.keys())))
+    movietype = request.args.get('movietype', "")
 
-    movies = copy(all_films[movietype])
+    movies = copy(all_films.get(movietype, []))
     movies = [add_watch_info(m, user_data) for m in movies]
 
     if genre_filter:

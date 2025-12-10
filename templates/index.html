@@ -6,7 +6,6 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>MarinKino</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <script defer src="/static/script.js"></script>
 	<link rel="icon" href="/static/logo.png">
 </head>
 <body>
@@ -26,6 +25,7 @@
     <form method="get">
 
         <select name="movietype" id="movietype">
+            <option value="" {% if group == selected_movietype %}selected{% endif %}>-- Izberi tip filmov --</option>
             {% for group in group_folders %}
                 <option value="{{ group }}" {% if group == selected_movietype %}selected{% endif %}>
                     {{ group_folders[group] }}
@@ -74,10 +74,11 @@
 	Filme in podatke o njih je uredil Anže Marinko v veliki meri avtomatizirano, kar je razlog nekaterih napak in na trenutke slabih prevodov z umetno inteligenco.
     Z uporabo umetne inteligence so prevedeni opisi filmov, podnapisi filmov in z umetno inteligenco so podnapisi tudi poravnani z zvokom (kar ni nujno poravnano tudi s sliko).
 Slaba kvaliteta videa lahko izvira iz načina pridobivanja filmov (piratsko).</section>
+
 </body>
 
-
 <script>
+    
 function odstraniMovieCard(event, form) {
     if (!confirm('Ali res želiš izbrisati vse datoteke v mapi?')) {
         return false;
@@ -206,4 +207,5 @@ window.addEventListener("scroll", () => {
 loadNextPage();
 
 </script>
+<script defer src="/static/script.js"></script>
 </html>

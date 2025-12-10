@@ -130,14 +130,21 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Nastavi interval (v milisekundah)
     const intervalMillis = 20 * 1000;
+    const csrfToken = "{{ csrf_token() }}";
     setInterval(() => {
             if (video && !video.paused && !video.ended) {
-                const data = {
-                    filename: video.currentSrc,
-                    currentTime: video.currentTime,
-                    duration: video.duration
-                };
-                navigator.sendBeacon('/video-progress', JSON.stringify(data));
+                fetch("/video-progress", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": csrfToken
+                    },
+                    body: JSON.stringify({
+                        filename: video.currentSrc,
+                        currentTime: video.currentTime,
+                        duration: video.duration
+                    })
+                }).catch(() => {});
                 const selectedButton = document.querySelector('.video-btn.selected');
                 if (selectedButton) {
                     selectedButton.style.setProperty('--watch', Math.round(video.currentTime / video.duration * 100) + '%');
