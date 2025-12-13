@@ -7,8 +7,53 @@ import html
 import subprocess
 from PIL import Image
 import re
+from difflib import SequenceMatcher
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "credentials/gen-lang-client.json"
+TMDB_KEY = os.getenv("TMDB_KEY")
+TMDB_URL = "https://api.themoviedb.org/3"
+
+def tmdb_get(path, params=None):
+    if params is None:
+        params = {}
+    params["api_key"] = TMDB_KEY
+    params["language"] = "en-US"
+    r = requests.get(f"{TMDB_URL}{path}", params=params, timeout=10)
+    r.raise_for_status()
+    return r.json()
+
+def tmdb_search_movie(title, year=None):
+    params = {"query": title}
+    if year:
+        params["year"] = year
+
+    data = tmdb_get("/search/movie", params)
+
+    return data.get("results", [])
+
+def best_tmdb_match(query, results):
+    best, score = None, 0
+    for r in results:
+        title = r.get("title", "")
+        s = SequenceMatcher(None, query.lower(), title.lower()).ratio()
+        if s > score:
+            best, score = r, s
+    return best, score
+
+def tmdb_movie_details(tmdb_id):
+    return tmdb_get(f"/movie/{tmdb_id}")
+
+def tmdb_poster_url(poster_path, size="w500"):
+    if not poster_path:
+        return None
+    return f"https://image.tmdb.org/t/p/{size}{poster_path}"
+
+def tmdb_cast(tmdb_id, limit=10):
+    data = tmdb_get(f"/movie/{tmdb_id}/credits")
+    cast = data.get("cast", [])[:limit]
+    return [p["name"] for p in cast]
+
+
 
 translate_client = translate.Client()
 
@@ -67,46 +112,57 @@ def get_movie_runtimes(folder, video_files):
 def get_movie_metadata(folder, film, video_files):
     film_readme_file = os.path.join(folder, 'readme.json')
     film_cover_file = os.path.join(folder, 'cover_image.jpg')
+    result = {"Film": film}
+    film_aux = re.sub(r'\b(19|20)\d{2}\b', '', film)
+    film_aux = re.sub(r'\s+', ' ', film_aux).strip()
+    match = re.search(r'(?<!\d)(19\d{2}|20\d{2})(?!\d)', film)
+    if match:
+        year = int(match.group(1))
+    else:
+        year = None
 
-    if os.path.exists(film_readme_file) and os.path.exists(film_cover_file):
+    if os.path.exists(film_readme_file):
         with open(film_readme_file, 'r', encoding="utf-8") as f:
             movie_metadata = json.loads(f.read()) 
 
-        return movie_metadata, film_cover_file
+        if os.path.exists(film_cover_file) and [k for k in movie_metadata.keys() if k not in ["Film", "Title"]]:
+            return movie_metadata, film_cover_file
+        else:
+            result = movie_metadata
+            film_aux = movie_metadata["Film"]
 
     if "Collection" in folder:
         print("Missing data for collection: " + film)
         return {}, "popcorn.png"
     
-    film_aux = re.sub(r'\b(19|20)\d{2}\b', '', film).strip()
-    search = ia.search_movie(film_aux, results=10)
-    print(film_aux, search)
-    result = {"Film": film}
-
+    search = tmdb_search_movie(film_aux, year=year)
     if len(search) == 0:
         print("Missing data for: " + film)
         return {}, "popcorn.png"
+    movie, score = best_tmdb_match(film_aux, search)
+    print(film, score)
+    details = tmdb_movie_details(movie["id"])
+    cover_url = tmdb_poster_url(details["poster_path"])
 
-    cover_url = None
+    result["Title"] = details.get("title")
+    result["Year"] = details.get("release_date", "")[:4]
+    result["Rating"] = details.get("vote_average")
+    result["Votes"] = details.get("vote_count")
+    result["Plot"] = details.get("overview")
+    result["Kind"] = "movie"
+    result["Genres"] = [g["name"] for g in details.get("genres", [])]
+    result["Runtimes"] = details.get("runtime")
+    result["Players"] = tmdb_cast(details["id"])
 
-    for i, mov in enumerate(search[:3]):
-        movie = ia.get_movie(mov.movieID)
-        if film != film_aux and movie.get('year') in film:
-            continue
-        
-        result['Title'] = movie.get('title') if result.get('Title', None) == None else result['Title']
-        result['Genres'] = movie.get('genres', "") if result.get('Genres', None) == None else result['Genres']
-        result['Rating'] = movie.get('rating') if result.get('Rating', None) == None else result['Rating']
-        result['Votes'] = movie.get('votes') if result.get('Votes', None) == None else result['Votes']
-        result['Year'] = movie.get('year') if result.get('Year', None) == None else result['Year']
-        result['Runtimes'] = int(movie.get('runtimes', ['0'])[0]) if result.get('Runtimes', None) == None else result['Runtimes']
-        result['Players'] = namesInList(movie.get('cast')) if result.get('Players', None) == None else result['Players']
-        result['Country'] = movie.get('countries', [''])[0] if result.get('Country', None) == None else result['Country']
-        result['Language'] = movie.get('languages', [''])[0] if result.get('Language', None) == None else result['Language']
-        result['Plot outline'] = movie.get('plot outline') if result.get('Plot outline', None) == None else result['Plot outline']
-        result['Plot'] = movie.get('plot', [''])[0] if result.get('Plot', None) == None else result['Plot']
-        result['Kind'] = movie.get('kind') if result.get('Kind', None) == None else result['Kind']
-        cover_url = movie.get('cover url', movie.get('full-size cover url')) if cover_url == None else cover_url
+    # country
+    countries = details.get("production_countries", [])
+    if countries:
+        result["Country"] = countries[0]["name"]
+
+    # language
+    langs = details.get("spoken_languages", [])
+    if langs:
+        result["Language"] = langs[0]["english_name"]
 
     result["Plot outline - translated"] = translate_text(result.get("Plot outline", ""))
     result["Plot - translated"] = translate_text(result.get("Plot", ""))
@@ -135,7 +191,7 @@ def get_movie_metadata(folder, film, video_files):
         result["Runtimes"] = runtime
     
     with open(film_readme_file, 'w', encoding="utf-8") as f:
-        json.dump(result, f, ensure_ascii=False, indent=4)            
+        json.dump(result, f, ensure_ascii=False, indent=4)           
             
     return result, film_cover_file
 
