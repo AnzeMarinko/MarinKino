@@ -53,6 +53,9 @@ def tmdb_cast(tmdb_id, limit=10):
     cast = data.get("cast", [])[:limit]
     return [p["name"] for p in cast]
 
+def get_imdb_id_from_tmdb(tmdb_id):
+    return tmdb_get(f"/movie/{tmdb_id}/external_ids").get("imdb_id")
+
 
 
 translate_client = translate.Client()
@@ -153,6 +156,7 @@ def get_movie_metadata(folder, film, video_files):
     result["Genres"] = [g["name"] for g in details.get("genres", [])]
     result["Runtimes"] = details.get("runtime")
     result["Players"] = tmdb_cast(details["id"])
+    result["imdb_id"] = get_imdb_id_from_tmdb(details["id"])
 
     # country
     countries = details.get("production_countries", [])

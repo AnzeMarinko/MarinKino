@@ -6,7 +6,7 @@ import subprocess
 from priprava_filmov.config import FILMS_ROOT, IZJEME, CACHE_ROOT
 from priprava_filmov.helpers import is_ffmpeg_installed, remove
 from priprava_filmov.video_converter import concat_and_convert, convert_single_file
-from priprava_filmov.download_subtitles import search_podnapisi, download_podnapis
+from priprava_filmov.download_subtitles import get_subtitles
 from priprava_filmov.translate_subtitles import translate
 from priprava_filmov.rescale_captions import rescale_captions
 from priprava_filmov.get_movie_metadata import MovieMetadata
@@ -116,12 +116,7 @@ def check_folder(folder, only_collect_metadata=True):
                     if os.path.exists(os.path.join(folder, "readme.json")):
                         with open(os.path.join(folder, "readme.json"), "r") as f:
                             metadata = json.loads(f.read())
-                        podnapisi = search_podnapisi(metadata["Title"], metadata["Year"])
-                        if podnapisi:
-                            for podnapis in podnapisi:
-                                download_podnapis(podnapis["link"], folder)
-                        else:
-                            print(f"⚠️ Ni podnapisov za: {folder}")
+                        get_subtitles(metadata["Title"], metadata["Year"], metadata["imdb_id"], folder)
 
         par_folder = os.sep.join(folder.split(os.sep)[:-1])
         if videos:

@@ -25,3 +25,4 @@ flask-compress
 certbot
 Flask-WTF
 Flask-Limiter
+opensubtitlescom

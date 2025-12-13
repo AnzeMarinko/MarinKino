@@ -1,53 +1,126 @@
 import requests
 from bs4 import BeautifulSoup
 import zipfile
+import re
+from opensubtitlescom import OpenSubtitles
+import os
+import time
+import io
 
-def search_podnapisi(title, year):
-    """Poišče film na podnapisi.net in vrne povezave do slovenskih podnapisov."""
-    base_url = "https://www.podnapisi.net"
-    search_url = f"{base_url}/sl/subtitles/search/advanced?keywords={title.replace(' ', '+')}"
-    
-    headers = {"User-Agent": "Mozilla/5.0"}
-    response = requests.get(search_url, headers=headers)
-    soup = BeautifulSoup(response.text, "html.parser")
+OPENSUBTITLESCOM_TOKEN = os.getenv("OPENSUBTITLESCOM_TOKEN")
+OPENSUBTITLESCOM_PASSWORD = os.getenv("OPENSUBTITLESCOM_PASSWORD")
+osub = OpenSubtitles("MarinKino", OPENSUBTITLESCOM_TOKEN)
+osub.login("anzem", OPENSUBTITLESCOM_PASSWORD)
 
-    en_subtitles = []
-    subtitles = []
+def search_opensubtitles(imdb_id, languages=("sl", "en")):
+    results = []
+    for lang in languages:
+        try:
+            subs = osub.search(
+                imdb_id=imdb_id.replace("tt", ""),
+                languages=lang,
+                order_by="download_count",
+                order_direction="desc",
+            )
+            for s in subs.data:
+                results.append({
+                    "lang": lang,
+                    "downloads": s.download_count,
+                    "url": s.files[0].get("file_id"),
+                    "release": s.release,
+                })
+            if subs:
+                break
+        except Exception as e:
+            print("OpenSubtitles error:", e)
+            msg = str(e).lower()
+            if "429" in msg or "too many" in msg:
+                return results, "RateLimitError"
+    return results, None
+
+def download_opensubtitles(sub, path):
+    data = osub.download(sub["url"])
+    filename = f"{path}/subtitle.{sub['lang']}.srt"
+    with open(filename, "wb") as f:
+        f.write(data)
+    return filename
+
+
+session = requests.Session()
+session.headers.update({
+    "User-Agent": "Mozilla/5.0",
+    "Accept-Language": "sl-SI,sl;q=0.9,en;q=0.8",
+})
+
+def fetch_html(url, tries=5):
+    for i in range(tries):
+        try:
+            r = session.get(url, timeout=10)
+            if r.status_code == 200 and "<html" in r.text.lower():
+                return r.text
+        except:
+            pass
+        time.sleep(1.5 * (i + 1))
+    return None
+
+def search_podnapisi_safe(title, year):
+    title = re.sub(r'[^\w]+', ' ', title, flags=re.UNICODE)
+    title = re.sub(r'\b(19|20)\d{2}\b', '', title).strip()
+
+    base = "https://www.podnapisi.net"
+    url = f"{base}/sl/subtitles/search/advanced?keywords={title.replace(' ', '+')}"
     
-    # Poiščemo zadetke (tabela podnapisov)
+    html = fetch_html(url)
+    if not html:
+        return []
+
+    soup = BeautifulSoup(html, "html.parser")
+    results = []
+
     for row in soup.select("tbody tr"):
-        language = row.select_one("abbr.language span")
-        if language and ("sl" in language.text or "en" in language.text):  # Filtriramo slovenske podnapise
-            output = {}
-            for a in row.select("td a"):
-                href = a.get("href")
-                if href:
-                    if "sl/subtitles/search/" not in href and "/download" not in href[-9:] and "link" not in output.keys() and "title" not in output.keys():
-                        link = base_url + a.get("href")
-                        aux_title = a.text.strip()
-                        if title in aux_title and f"({year})" in aux_title:
-                            output["title"] = aux_title
-                            output["link"] = link
-                    elif "&contributors=" in href and "contributor" not in output.keys():
-                        contributor = a.text.strip()
-                        output["contributor"] = contributor
-            if "link" in output.keys():
-                if "sl" in language.text:
-                    subtitles.append(output)
-                else:
-                    en_subtitles.append(output)
+        lang = row.select_one("abbr.language span")
+        if not lang or lang.text.strip() not in ("sl", "en"):
+            continue
 
-    return subtitles[:5] + en_subtitles[:5]
+        title_link = row.select_one("td a[href^='/sl/subtitles/']")
+        if not title_link:
+            continue
 
-def download_podnapis(url, extract_path):
-    """Prenese in shrani podnapise iz podnapisi.net."""
-    headers = {"User-Agent": "Mozilla/5.0"}
-    file_response = requests.get(url + "/download", headers=headers)
+        aux_title = title_link.text
+        if year and str(year) not in aux_title:
+            continue
 
-    zip_path = "subtitles.zip"
-    with open(zip_path, "wb") as f:
-        f.write(file_response.content)
-    with zipfile.ZipFile(zip_path, "r") as zip_ref:
-        zip_ref.extractall(extract_path)
+        results.append({
+            "lang": lang.text.strip(),
+            "title": aux_title,
+            "link": base + title_link["href"]
+        })
 
-    print(f"Podnapisi so shranjeni")
+    return results[:5]
+
+def download_podnapisi_safe(url, extract_path):
+    r = session.get(url + "/download", timeout=10)
+    with zipfile.ZipFile(io.BytesIO(r.content)) as z:
+        z.extractall(extract_path)
+    print("Podnapisi so shranjeni")
+
+
+
+def get_subtitles(title, year, imdb_id, path):
+    # 1. OpenSubtitles
+    subs, err = search_opensubtitles(imdb_id)
+    if subs:
+        return download_opensubtitles(subs[0], path)
+    elif err == "RateLimitError":
+        return err
+
+    # 2. podnapisi.net fallback
+    subs = search_podnapisi_safe(title, year)
+    if subs:
+        for sub in subs:
+            download_podnapisi_safe(sub["link"], path)
+        return True
+
+    print("❌ No subtitles found:", title)
+    return False
+
