@@ -18,7 +18,7 @@ GENRES_MAPPING = {
 def prepare_html(films_metadata):
     filmi = {}
     counter = {}
-    for film_metadata in films_metadata:
+    for film_metadata in films_metadata[::-1]:
         genre_html = ""
         sinh =  'Sinhroniziran' if film_metadata.slosinh else ""
 

@@ -5,13 +5,12 @@ import pysrt
 from scipy.io import wavfile
 import numpy as np
 from numba import njit
-from pyannote.audio import Pipeline
+import webrtcvad
 import pickle
 from scipy.optimize import differential_evolution
 import matplotlib.pyplot as plt
-
-token = os.getenv("HF_TOKEN")
-pipeline = None
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="webrtcvad")
 
 TARGET_RATE = 100
 
@@ -25,42 +24,51 @@ def extract_subtitles(srt_file):
         out_subs.append((time_to_timestamp(sub.start.to_time()), time_to_timestamp(sub.end.to_time()), sub.text))
     return out_subs
 
-# Hitrejša ekstrakcija zvoka z uporabo ffmpeg
 def extract_audio(video_path):
-    global pipeline
-
     wav_file = "output.wav"
     if os.path.exists(wav_file):
         os.remove(wav_file)
-    command = [
-        "ffmpeg", "-i", video_path,  # Vhodni video
-        "-vn",  # Brez videa (samo audio)
-        "-acodec", "pcm_s16le",  # Format WAV
-        "-ar", str(16000),  # Sample rate
-        "-ac", "1",  # Mono zvok
-        wav_file  # Izhodna datoteka
-    ]
-    subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-    _, data = wavfile.read(wav_file)
-    
-    DOWNSAMLE_RATE = int(16000 / TARGET_RATE)
-    reshaped = np.abs(data[:int(len(data) // DOWNSAMLE_RATE) * DOWNSAMLE_RATE]).reshape(-1, DOWNSAMLE_RATE)
-    data = reshaped.max(axis=1)
-    data = data / np.max(data)
 
-    if pipeline is None:
-        pipeline = Pipeline.from_pretrained("pyannote/voice-activity-detection", use_auth_token=token)
-    vad_result = pipeline(wav_file)
+    subprocess.run([
+        "ffmpeg", "-i", video_path,
+        "-vn",
+        "-acodec", "pcm_s16le",
+        "-ar", "16000",
+        "-ac", "1",
+        wav_file
+    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
 
-    speech = np.zeros(len(data))
-    for segment in vad_result.get_timeline().support():
-        segment_start = int(segment.start * TARGET_RATE)
-        if segment_start >= len(speech):
-            continue
-        segment_end = min(int(segment.end * TARGET_RATE), len(speech))
-        speech[segment_start:segment_end] = np.log10(np.linspace(1, 0.2, segment_end - segment_start)) + 1
+    sr, data = wavfile.read(wav_file)
+    assert sr == 16000
 
-    return data, speech
+    # ---- downsample amplitude envelope (kot prej)
+    DOWNSAMPLE_RATE = int(16000 / TARGET_RATE)
+    reshaped = np.abs(data[:len(data)//DOWNSAMPLE_RATE * DOWNSAMPLE_RATE]).reshape(-1, DOWNSAMPLE_RATE)
+    envelope = reshaped.max(axis=1)
+    envelope = envelope / (np.max(envelope) + 1e-9)
+
+    # ---- WebRTC VAD
+    vad = webrtcvad.Vad(2)  # 0–3 (2 je dober kompromis)
+    frame_ms = 30
+    frame_len = int(16000 * frame_ms / 1000)
+
+    speech = np.zeros(len(envelope))
+
+    for i in range(0, len(data) - frame_len, frame_len):
+        frame = data[i:i+frame_len]
+        pcm = frame.astype(np.int16).tobytes()
+
+        if vad.is_speech(pcm, 16000):
+            start = int((i / 16000) * TARGET_RATE)
+            end = int(((i + frame_len) / 16000) * TARGET_RATE)
+            speech[start:end] = 1.0
+
+    # ---- rahlo zgladi robove (kot tvoj fade)
+    for i in range(1, len(speech)):
+        if speech[i] and not speech[i-1]:
+            speech[i:i+5] *= np.linspace(0.3, 1, 5)
+
+    return envelope, speech
 
 # Formatiranje časa za SRT datoteko
 def format_time(seconds):

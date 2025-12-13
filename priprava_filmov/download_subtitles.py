@@ -5,18 +5,19 @@ import zipfile
 def search_podnapisi(title, year):
     """Poišče film na podnapisi.net in vrne povezave do slovenskih podnapisov."""
     base_url = "https://www.podnapisi.net"
-    search_url = f"{base_url}/sl/subtitles/search/advanced?keywords={title.replace(' ', '+')}&language=sl"
+    search_url = f"{base_url}/sl/subtitles/search/advanced?keywords={title.replace(' ', '+')}"
     
     headers = {"User-Agent": "Mozilla/5.0"}
     response = requests.get(search_url, headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
 
+    en_subtitles = []
     subtitles = []
     
     # Poiščemo zadetke (tabela podnapisov)
     for row in soup.select("tbody tr"):
         language = row.select_one("abbr.language span")
-        if language and "sl" in language.text:  # Filtriramo slovenske podnapise
+        if language and ("sl" in language.text or "en" in language.text):  # Filtriramo slovenske podnapise
             output = {}
             for a in row.select("td a"):
                 href = a.get("href")
@@ -31,8 +32,12 @@ def search_podnapisi(title, year):
                         contributor = a.text.strip()
                         output["contributor"] = contributor
             if "link" in output.keys():
-                subtitles.append(output)
-    return subtitles[:5]
+                if "sl" in language.text:
+                    subtitles.append(output)
+                else:
+                    en_subtitles.append(output)
+
+    return subtitles[:5] + en_subtitles[:5]
 
 def download_podnapis(url, extract_path):
     """Prenese in shrani podnapise iz podnapisi.net."""

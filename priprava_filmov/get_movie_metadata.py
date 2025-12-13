@@ -1,4 +1,4 @@
-import imdb  # IMDbPY
+from imdb import Cinemagoer
 import os
 import requests
 import json
@@ -6,6 +6,7 @@ from google.cloud import translate_v2 as translate
 import html
 import subprocess
 from PIL import Image
+import re
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "credentials/gen-lang-client.json"
 
@@ -34,7 +35,8 @@ def create_thumbnail(src, height=250, quality=85):
     img.save(dst, "JPEG", quality=quality)
     return dst
 
-ia = imdb.IMDb()
+
+ia = Cinemagoer()
 
 def namesInList(nameList):
     names = ''
@@ -76,7 +78,9 @@ def get_movie_metadata(folder, film, video_files):
         print("Missing data for collection: " + film)
         return {}, "popcorn.png"
     
-    search = ia.search_movie(film)
+    film_aux = re.sub(r'\b(19|20)\d{2}\b', '', film).strip()
+    search = ia.search_movie(film_aux, results=10)
+    print(film_aux, search)
     result = {"Film": film}
 
     if len(search) == 0:
@@ -87,6 +91,8 @@ def get_movie_metadata(folder, film, video_files):
 
     for i, mov in enumerate(search[:3]):
         movie = ia.get_movie(mov.movieID)
+        if film != film_aux and movie.get('year') in film:
+            continue
         
         result['Title'] = movie.get('title') if result.get('Title', None) == None else result['Title']
         result['Genres'] = movie.get('genres', "") if result.get('Genres', None) == None else result['Genres']
@@ -100,7 +106,7 @@ def get_movie_metadata(folder, film, video_files):
         result['Plot outline'] = movie.get('plot outline') if result.get('Plot outline', None) == None else result['Plot outline']
         result['Plot'] = movie.get('plot', [''])[0] if result.get('Plot', None) == None else result['Plot']
         result['Kind'] = movie.get('kind') if result.get('Kind', None) == None else result['Kind']
-        cover_url = movie.get('cover url') if cover_url == None else cover_url
+        cover_url = movie.get('cover url', movie.get('full-size cover url')) if cover_url == None else cover_url
 
     result["Plot outline - translated"] = translate_text(result.get("Plot outline", ""))
     result["Plot - translated"] = translate_text(result.get("Plot", ""))

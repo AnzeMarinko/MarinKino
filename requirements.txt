@@ -4,13 +4,13 @@ Flask
 flask-login
 requests
 beautifulsoup4
-IMDbPY
+cinemagoer
 google-cloud
 pysrt
 scipy
 numpy
 numba
-pyannote.audio
+webrtcvad
 matplotlib
 gemini-srt-translator
 google-cloud-translate

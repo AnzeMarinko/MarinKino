@@ -92,21 +92,8 @@ def check_folder(folder, only_collect_metadata=True):
         videos = [f for f in files if f[1].lower() in {"avi", "mp4", "mkv", "vob"}]
 
         if len(videos) == 1:
-            # add subtitles if needed
-            if len(subtitles) == 0:
-                film_name = os.path.basename(folder).lower()
-                if "slosinh" not in film_name and "slovenski-filmi" not in folder:
-                    print(f"Pridobivam podnapise za: {folder}")
-                    with open(os.path.join(folder, "readme.json"), "r") as f:
-                        metadata = json.loads(f.read())
-                    podnapisi = search_podnapisi(metadata["Title"], metadata["Year"])
-                    if podnapisi:
-                        for podnapis in podnapisi:
-                            download_podnapis(podnapis["link"], folder)
-                    else:
-                        print(f"⚠️ Ni podnapisov za: {folder}")
                     
-            elif len(subtitles) == 1:
+            if len(subtitles) == 1:
                 if "subtitles-SloSubs.srt".lower() not in subtitles[0].lower():
                     print(f"🌍 Prevajam {folder}")
                     new_file = os.path.join(folder, "subtitles.srt")
@@ -120,6 +107,21 @@ def check_folder(folder, only_collect_metadata=True):
                 if subtitle.split(".")[-1].lower() == "srt":
                     rescale_captions(folder, os.path.join(folder, subtitle), videos[0][0])
                     convert_srt_to_vtt(os.path.join(folder, subtitle))
+
+            # add subtitles if needed
+            if len(subtitles) == 0:
+                film_name = os.path.basename(folder).lower()
+                if "slosinh" not in film_name and "slovenski-filmi" not in folder:
+                    print(f"Pridobivam podnapise za: {folder}")
+                    if os.path.exists(os.path.join(folder, "readme.json")):
+                        with open(os.path.join(folder, "readme.json"), "r") as f:
+                            metadata = json.loads(f.read())
+                        podnapisi = search_podnapisi(metadata["Title"], metadata["Year"])
+                        if podnapisi:
+                            for podnapis in podnapisi:
+                                download_podnapis(podnapis["link"], folder)
+                        else:
+                            print(f"⚠️ Ni podnapisov za: {folder}")
 
         par_folder = os.sep.join(folder.split(os.sep)[:-1])
         if videos:
@@ -143,7 +145,7 @@ def check_folder(folder, only_collect_metadata=True):
     if len(videos) or "Collection" in folder:
         output_films.append(MovieMetadata(folder))
 
-    subfolders = [os.path.join(folder, f) for f in sorted(os.listdir(folder)) if os.path.isdir(os.path.join(folder, f))]
+    subfolders = [os.path.join(folder, f) for f in sorted(os.listdir(folder), reverse=True) if os.path.isdir(os.path.join(folder, f))]
     if subfolders:
         if only_collect_metadata:
             for f in subfolders:
