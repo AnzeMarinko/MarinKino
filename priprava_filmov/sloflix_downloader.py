@@ -23,8 +23,7 @@ import webbrowser
 import pyautogui
 
 URLS = {
-    # "21. Anglež z omleto": ("https://sf.strp2p.com/#ow6i9", 26 * 60),
-    "The.Social.Dilemma": ("movies/07-neurejeni-filmi/The.Social.Dilemma", 'https://sf.strp2p.com/#356et&subs=%5B%7B%22language%22:%22sl%22,%22label%22:%22Slovenski%22,%22url%22:%22https://sloflix.com/subtitles/14730_1.vtt%22%7D%5D', 120*60)
+    # "21. Anglež z omleto": ("movies/07-neurejeni-filmi/Zelenjavcki.Collection", "https://sf.strp2p.com/#ow6i9", 26 * 60),
 }
 
 def start_recording(output_path, duration):
