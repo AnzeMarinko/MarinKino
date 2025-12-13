@@ -12,7 +12,7 @@ def convert_single_file(input_file, output_file):
         output_file
     ]
     try:
-        subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+        subprocess.run(command, check=True)
         remove(input_file)
     except subprocess.CalledProcessError as e:
         print(f"❌ Napaka pri pretvorbi {input_file}: {e}")
@@ -29,7 +29,7 @@ def concat_and_convert(files, new_file):
             f.write(f"file '{temp}'\n")
 
     concat_command = ["ffmpeg", "-f", "concat", "-safe", "0", "-i", "temp_list.txt", "-c", "copy", new_file]
-    subprocess.run(concat_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+    subprocess.run(concat_command, check=True)
 
     for temp in temp_files:
         remove(temp)

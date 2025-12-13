@@ -23,12 +23,13 @@ def search_opensubtitles(imdb_id, languages=("sl", "en")):
                 order_direction="desc",
             )
             for s in subs.data:
-                results.append({
-                    "lang": lang,
-                    "downloads": s.download_count,
-                    "url": s.files[0].get("file_id"),
-                    "release": s.release,
-                })
+                if len(s.files) == 1:
+                    results.append({
+                        "lang": lang,
+                        "downloads": s.download_count,
+                        "url": s.files[0].get("file_id"),
+                        "release": s.release,
+                    })
             if subs:
                 break
         except Exception as e:

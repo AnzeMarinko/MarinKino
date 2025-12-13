@@ -129,6 +129,12 @@ def get_movie_metadata(folder, film, video_files):
             movie_metadata = json.loads(f.read()) 
 
         if os.path.exists(film_cover_file) and [k for k in movie_metadata.keys() if k not in ["Film", "Title"]]:
+            if "07-" in folder and sorted(list(movie_metadata["RuntimesByFiles"].keys())) != sorted(list(video_files)):
+                print(film)
+                runtimes = get_movie_runtimes(folder, video_files)
+                movie_metadata["RuntimesByFiles"] = {file: runtime for file, runtime in zip(video_files, runtimes)}
+                with open(film_readme_file, 'w', encoding="utf-8") as f:
+                    json.dump(movie_metadata, f, ensure_ascii=False, indent=4)    
             return movie_metadata, film_cover_file
         else:
             result = movie_metadata
@@ -241,6 +247,8 @@ class MovieMetadata:
         self.runtimes = metadata.get("Runtimes", "")
         self.runtimes_by_files = metadata.get("RuntimesByFiles", {})
         self.players = metadata.get("Players", "")
+        if isinstance(self.players, list):
+            self.players = "; ".join(self.players)
         self.plot_1 = html.unescape(metadata.get("Plot outline - translated", metadata.get("Plot outline", "")))
         self.plot_2 = html.unescape(metadata.get("Plot - translated", metadata.get("Plot", "")))
 
