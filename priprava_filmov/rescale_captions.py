@@ -5,12 +5,26 @@ import pysrt
 from scipy.io import wavfile
 import numpy as np
 from numba import njit
-import webrtcvad
 import pickle
 from scipy.optimize import differential_evolution
 import matplotlib.pyplot as plt
-import warnings
-warnings.filterwarnings("ignore", category=UserWarning, module="webrtcvad")
+
+_model, _utils = None, None
+
+def get_pipeline():
+    global _model
+    global _utils
+    if _model is None:
+        import torch
+        torch.backends.nnpack.enabled = False
+        torch.set_num_threads(1)
+
+        _model, _utils = torch.hub.load(
+            repo_or_dir='snakers4/silero-vad',
+            model='silero_vad',
+            trust_repo=True
+        )
+    return _model, _utils
 
 TARGET_RATE = 100
 
@@ -38,35 +52,26 @@ def extract_audio(video_path):
         wav_file
     ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
 
-    sr, data = wavfile.read(wav_file)
+    sr, audio = wavfile.read(wav_file)
     assert sr == 16000
 
-    # ---- downsample amplitude envelope (kot prej)
+    model, utils = get_pipeline()
+    (get_speech_timestamps, _, _, _, _) = utils
+
+    data = get_speech_timestamps(audio, model, sampling_rate=sr)
     DOWNSAMPLE_RATE = int(16000 / TARGET_RATE)
-    reshaped = np.abs(data[:len(data)//DOWNSAMPLE_RATE * DOWNSAMPLE_RATE]).reshape(-1, DOWNSAMPLE_RATE)
+    reshaped = np.abs(audio[:len(audio)//DOWNSAMPLE_RATE * DOWNSAMPLE_RATE]).reshape(-1, DOWNSAMPLE_RATE)
     envelope = reshaped.max(axis=1)
     envelope = envelope / (np.max(envelope) + 1e-9)
 
-    # ---- WebRTC VAD
-    vad = webrtcvad.Vad(2)  # 0–3 (2 je dober kompromis)
-    frame_ms = 30
-    frame_len = int(16000 * frame_ms / 1000)
-
     speech = np.zeros(len(envelope))
 
-    for i in range(0, len(data) - frame_len, frame_len):
-        frame = data[i:i+frame_len]
-        pcm = frame.astype(np.int16).tobytes()
-
-        if vad.is_speech(pcm, 16000):
-            start = int((i / 16000) * TARGET_RATE)
-            end = int(((i + frame_len) / 16000) * TARGET_RATE)
-            speech[start:end] = 1.0
-
-    # ---- rahlo zgladi robove (kot tvoj fade)
-    for i in range(1, len(speech)):
-        if speech[i] and not speech[i-1]:
-            speech[i:i+5] *= np.linspace(0.3, 1, 5)
+    for s in data:
+        start = int((s['start']/sr) * TARGET_RATE)
+        if start >= len(speech):
+            continue
+        end = min(int((s['end']/sr) * TARGET_RATE), len(speech))
+        speech[start:end] = np.log10(np.linspace(1, 0.2, end - start)) + 1
 
     return envelope, speech
 
@@ -113,7 +118,7 @@ def aux_rescale_captions(subtitles, speech):
         a, b = params
         return -compute_score(a, b)
 
-    bounds = [(0.9, 1.1), (-90, 90)]
+    bounds = [(0.9, 1.1), (-5, 5)]
     res = differential_evolution(objective, bounds, x0=[1.0, 0.0])
     best_a, best_b = res.x
     best_score = -res.fun
@@ -127,6 +132,7 @@ def rescale_captions(folder, subtitle_path, video_path, plot=False):
     file_name = os.path.basename(subtitle_path)
     original_file = subtitle_path.replace(file_name, "." + file_name + ".original")
     if not os.path.exists(original_file):
+        # preveri če ima ročno vnešen okviren zamik na začetku in na koncu
         voice_file = os.path.join(folder, ".detected-voice-activity.pkl")
         if not os.path.exists(voice_file):
             print(f"⚙ Zaznavam govor: {video_path}")
@@ -143,7 +149,7 @@ def rescale_captions(folder, subtitle_path, video_path, plot=False):
                 return None
             print(f"⚙ Poravnavam podnapise: {video_path}")
             scale, shift, aux_get_subtitle_audio = aux_rescale_captions(subtitles, speech)
-            if abs(scale - 1) < 0.01:
+            if abs(scale - 1) < 0.05 and abs(shift) < 10:
                 generate_srt(0, 1, subtitles, original_file)
                 last_sub_end = subtitles[-1][1]
                 subtitles.append((last_sub_end+1, last_sub_end+20, f"Podnapisi avtomatsko raztegnjeni za {(scale-1) * 100:.2f} % in zamaknjeni za {shift:.3f} sekund."))

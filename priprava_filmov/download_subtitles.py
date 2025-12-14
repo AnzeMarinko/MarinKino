@@ -22,7 +22,7 @@ def search_opensubtitles(imdb_id, languages=("sl", "en")):
                 order_by="download_count",
                 order_direction="desc",
             )
-            for s in subs.data:
+            for s in subs.data[:5]:
                 if len(s.files) == 1:
                     results.append({
                         "lang": lang,
@@ -30,8 +30,6 @@ def search_opensubtitles(imdb_id, languages=("sl", "en")):
                         "url": s.files[0].get("file_id"),
                         "release": s.release,
                     })
-            if subs:
-                break
         except Exception as e:
             print("OpenSubtitles error:", e)
             msg = str(e).lower()
@@ -39,9 +37,9 @@ def search_opensubtitles(imdb_id, languages=("sl", "en")):
                 return results, "RateLimitError"
     return results, None
 
-def download_opensubtitles(sub, path):
+def download_opensubtitles(sub, i, path):
     data = osub.download(sub["url"])
-    filename = f"{path}/subtitle.{sub['lang']}.srt"
+    filename = f"{path}/subtitle{i}.{sub['lang']}.srt"
     with open(filename, "wb") as f:
         f.write(data)
     return filename
@@ -111,7 +109,9 @@ def get_subtitles(title, year, imdb_id, path):
     # 1. OpenSubtitles
     subs, err = search_opensubtitles(imdb_id)
     if subs:
-        return download_opensubtitles(subs[0], path)
+        for i, sub in enumerate(subs):
+            download_opensubtitles(sub, i, path)
+        return 
     elif err == "RateLimitError":
         return err
 

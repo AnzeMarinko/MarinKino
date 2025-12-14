@@ -10,7 +10,7 @@ pysrt
 scipy
 numpy
 numba
-webrtcvad
+torch
 matplotlib
 gemini-srt-translator
 google-cloud-translate
