@@ -14,7 +14,7 @@ LOGFILE="$LOG_DIR/duckdns_refresh_$LOGDATE.txt"
 echo "===== DuckDNS posodobitev [$(date)] =====" >> "$LOGFILE"
 
 # --- Pobriši stare loge, starejše od 3 dni ---
-find "$LOG_DIR" -type f -name "*.txt" -mtime +7 -delete
+find "$LOG_DIR" -type f -name "*.txt" -mtime +3 -delete
 
 # --- Preberi .env datoteko (če obstaja) ---
 if [ -f "$ENV_FILE" ]; then

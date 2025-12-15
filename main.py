@@ -8,7 +8,7 @@ from priprava_filmov.helpers import is_ffmpeg_installed, remove
 from priprava_filmov.video_converter import concat_and_convert, convert_single_file
 from priprava_filmov.download_subtitles import get_subtitles
 from priprava_filmov.translate_subtitles import translate
-from priprava_filmov.rescale_captions import rescale_captions
+from priprava_filmov.rescale_captions import rescale_captions, extract_audio
 from priprava_filmov.get_movie_metadata import MovieMetadata
 from priprava_filmov.prepare_user_interface import prepare_html
 from priprava_filmov.the_chosen_scrapper import scrappe_chosen
@@ -103,6 +103,8 @@ def check_folder(folder, only_collect_metadata=True):
                 if os.path.join(folder, "subtitles.srt") in subtitles or os.path.join(folder, "subtitles-SloSubs-auto.srt") not in subtitles or len(subtitles) > 2:
                     print(f"⚠️⚠️ Več podnapisov v mapi: {folder}")
             
+            if "slosinh" not in os.path.basename(folder).lower() and "slovenski-filmi" not in folder:
+                extract_audio(folder, videos[0][0])
             for subtitle in os.listdir(folder):
                 if subtitle.split(".")[-1].lower() == "srt":
                     rescale_captions(folder, os.path.join(folder, subtitle), videos[0][0])

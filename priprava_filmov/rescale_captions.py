@@ -38,42 +38,53 @@ def extract_subtitles(srt_file):
         out_subs.append((time_to_timestamp(sub.start.to_time()), time_to_timestamp(sub.end.to_time()), sub.text))
     return out_subs
 
-def extract_audio(video_path):
-    wav_file = "output.wav"
-    if os.path.exists(wav_file):
-        os.remove(wav_file)
+def extract_audio(folder, video_path):
 
-    subprocess.run([
-        "ffmpeg", "-i", video_path,
-        "-vn",
-        "-acodec", "pcm_s16le",
-        "-ar", "16000",
-        "-ac", "1",
-        wav_file
-    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+    voice_file = os.path.join(folder, ".detected-voice-activity.pkl")
+    if not os.path.exists(voice_file):
+        print(f"⚙ Zaznavam govor: {video_path}")
+        wav_file = "output.wav"
+        if os.path.exists(wav_file):
+            os.remove(wav_file)
 
-    sr, audio = wavfile.read(wav_file)
-    assert sr == 16000
+        subprocess.run([
+            "ffmpeg", "-i", video_path,
+            "-vn",
+            "-acodec", "pcm_s16le",
+            "-ar", "16000",
+            "-ac", "1",
+            wav_file
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
 
-    model, utils = get_pipeline()
-    (get_speech_timestamps, _, _, _, _) = utils
+        sr, audio = wavfile.read(wav_file)
+        assert sr == 16000
 
-    data = get_speech_timestamps(audio, model, sampling_rate=sr)
-    DOWNSAMPLE_RATE = int(16000 / TARGET_RATE)
-    reshaped = np.abs(audio[:len(audio)//DOWNSAMPLE_RATE * DOWNSAMPLE_RATE]).reshape(-1, DOWNSAMPLE_RATE)
-    envelope = reshaped.max(axis=1)
-    envelope = envelope / (np.max(envelope) + 1e-9)
+        model, utils = get_pipeline()
+        (get_speech_timestamps, _, _, _, _) = utils
 
-    speech = np.zeros(len(envelope))
+        data = get_speech_timestamps(audio, model, sampling_rate=sr)
+        DOWNSAMPLE_RATE = int(16000 / TARGET_RATE)
+        reshaped = np.abs(audio[:len(audio)//DOWNSAMPLE_RATE * DOWNSAMPLE_RATE]).reshape(-1, DOWNSAMPLE_RATE)
+        envelope = reshaped.max(axis=1)
+        envelope = envelope / (np.max(envelope) + 1e-9)
 
-    for s in data:
-        start = int((s['start']/sr) * TARGET_RATE)
-        if start >= len(speech):
-            continue
-        end = min(int((s['end']/sr) * TARGET_RATE), len(speech))
-        speech[start:end] = np.log10(np.linspace(1, 0.2, end - start)) + 1
+        speech = np.zeros(len(envelope))
 
-    return envelope, speech
+        for s in data:
+            start = int((s['start']/sr) * TARGET_RATE)
+            if start >= len(speech):
+                continue
+            end = min(int((s['end']/sr) * TARGET_RATE), len(speech))
+            speech[start:end] = np.log10(np.linspace(1, 0.2, end - start)) + 1
+
+        with open(voice_file, "wb") as f:
+            pickle.dump({"audio": envelope, "speech": speech}, f)
+    
+    with open(voice_file, "rb") as f:
+        voice_result = pickle.load(f)
+        audio, speech = voice_result["audio"], voice_result["speech"]
+
+    return audio, speech
 
 # Formatiranje časa za SRT datoteko
 def format_time(seconds):
@@ -118,10 +129,11 @@ def aux_rescale_captions(subtitles, speech):
         a, b = params
         return -compute_score(a, b)
 
-    bounds = [(0.9, 1.1), (-5, 5)]
+    bounds = [(0.9, 1.1), (-15, 15)]
     res = differential_evolution(objective, bounds, x0=[1.0, 0.0])
     best_a, best_b = res.x
     best_score = -res.fun
+    print(current_score, compute_score(best_a, best_b), best_score)
 
     print(f"Scale: {best_a * 100:.3f} %, Shift: {best_b:.3f} s, Score improvement: {(best_score / current_score - 1) * 100:.2f} %")
 
@@ -132,17 +144,7 @@ def rescale_captions(folder, subtitle_path, video_path, plot=False):
     file_name = os.path.basename(subtitle_path)
     original_file = subtitle_path.replace(file_name, "." + file_name + ".original")
     if not os.path.exists(original_file):
-        # preveri če ima ročno vnešen okviren zamik na začetku in na koncu
-        voice_file = os.path.join(folder, ".detected-voice-activity.pkl")
-        if not os.path.exists(voice_file):
-            print(f"⚙ Zaznavam govor: {video_path}")
-            audio, speech = extract_audio(video_path)
-            with open(voice_file, "wb") as f:
-                pickle.dump({"audio": audio, "speech": speech}, f)
-        else:
-            with open(voice_file, "rb") as f:
-                voice_result = pickle.load(f)
-                audio, speech = voice_result["audio"], voice_result["speech"]
+        audio, speech = extract_audio(folder, video_path)
         subtitles = extract_subtitles(subtitle_path)
         if subtitles:
             if len(subtitles) < 200:
