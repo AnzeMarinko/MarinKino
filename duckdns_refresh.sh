@@ -4,7 +4,7 @@
 # ========================================
 
 # --- Nastavitve ---
-LOG_DIR="/media/marinko/Local2TB/.MarinKinoCache/logs"
+LOG_DIR="/home/marinko/Desktop/.MarinKinoCache/logs"
 ENV_FILE=".env"
 
 LOGFILE="$LOG_DIR/duckdns_refresh.txt"

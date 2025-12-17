@@ -6,7 +6,8 @@ Spodaj so celotna navodila za nastavitev okolja, da se ob zagonu računalnika za
 * Računalnik, ki teče na Linux (recimo Ubuntu 24.04)
 * Python 3.12
 * ffmpeg
-* TLC port forwarding za 80-80 (notranji in zunanji vhod) in 443-443 nastavljen na routerju
+* rezerviran IP za strežnik
+* TLC port forwarding za 80-80 (notranji in zunanji vhod) in 443-443 nastavljen na routerju za IP strežnika
 * na duckdns.org nastavljeno poddomeno za svojo stran.
 
 ## Nastavitev programa
@@ -40,6 +41,9 @@ S tem ohraniš ključe varne.
 python app.py
 ```
 
+Po potrebi popravi poti v kodi.
+Dodaj `users.json` z vsaj enim administratorjem.
+
 ### 6. Posodabljaj svoj IP na DuckDNS
 
 Pripravi cron job:
@@ -49,7 +53,7 @@ sudo crontab -e
 
 Dodaj (popravi pot do datoteke):
 ```
-*/10 * * * * /media/marinko/Local2TB/GoogleDriveMirror/MarinKino/duckdns_refresh.sh
+*/10 * * * * /home/marinko/Desktop/MarinKino/duckdns_refresh.sh
 ```
 
 ## Konfiguracija zagonskega programa
@@ -72,13 +76,10 @@ Requires=local-fs.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/media/marinko/Local2TB/GoogleDriveMirror/MarinKino
-
-# Če disk ni mountan, ga mounta
-ExecStartPre=/bin/bash -c 'mountpoint -q /media/marinko/Local2TB || sudo mount /dev/sdb1 /media/marinko/Local2>
+WorkingDirectory=/home/marinko/Desktop/MarinKino
 
 # Zažene tvoj skript
-ExecStart=/bin/bash /media/marinko/Local2TB/GoogleDriveMirror/MarinKino/start_server.sh
+ExecStart=/bin/bash /home/marinko/Desktop/MarinKino/start_server.sh
 Restart=on-failure
 
 [Install]
