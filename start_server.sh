@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # === Nastavitve ===
-LOG_DIR="/media/marinko/Local2TB/.MarinKinoCache/logs"
-PROJECT_DIR="/media/marinko/Local2TB/GoogleDriveMirror/MarinKino"
+LOG_DIR="/home/marinko/Desktop/.MarinKinoCache/logs"
+PROJECT_DIR="/home/marinko/Desktop/MarinKino"
 PYTHON_APP="$PROJECT_DIR/app.py"
 
 # Ustvari log mapo, če še ne obstaja
