@@ -1,0 +1,35 @@
+# 🐍 Python - izloči virtualna okolja in cache
+**/.venv/**
+**/venv/**
+**/__pycache__/**
+.venv/**
+venv/**
+__pycache__/**
+
+# 📦 Build / dist datoteke
+**/build/**
+**/dist/**
+**/*.egg-info/**
+**/*.egg
+**/*.whl
+build/**
+dist/**
+*.egg-info/**
+*.egg
+*.whl
+
+# 💾 Začasne datoteke
+*.tmp
+*.bak
+*.swp
+*.DS_Store
+Thumbs.db
+
+# 🧰 Git in razvojni repozitoriji
+**/.git/**
+.git/**
+
+# 🧠 Ostalo, kar nočeš sinhronizirati
+**/node_modules/**
+node_modules/**
+
