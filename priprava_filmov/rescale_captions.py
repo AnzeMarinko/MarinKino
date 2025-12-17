@@ -133,7 +133,6 @@ def aux_rescale_captions(subtitles, speech):
     res = differential_evolution(objective, bounds, x0=[1.0, 0.0])
     best_a, best_b = res.x
     best_score = -res.fun
-    print(current_score, compute_score(best_a, best_b), best_score)
 
     print(f"Scale: {best_a * 100:.3f} %, Shift: {best_b:.3f} s, Score improvement: {(best_score / current_score - 1) * 100:.2f} %")
 
@@ -154,7 +153,7 @@ def rescale_captions(folder, subtitle_path, video_path, plot=False):
             if abs(scale - 1) < 0.05 and abs(shift) < 10:
                 generate_srt(0, 1, subtitles, original_file)
                 last_sub_end = subtitles[-1][1]
-                subtitles.append((last_sub_end+1, last_sub_end+20, f"Podnapisi avtomatsko raztegnjeni za {(scale-1) * 100:.2f} % in zamaknjeni za {shift:.3f} sekund."))
+                subtitles.append((last_sub_end+1, last_sub_end+20, f"Podnapisi avtomatsko raztegnjeni za {(scale-1) * 100:.1f} %\nin zamaknjeni za {shift:.1f} sekund."))
                 generate_srt(shift, scale, subtitles, subtitle_path)
                 return None
             if plot:

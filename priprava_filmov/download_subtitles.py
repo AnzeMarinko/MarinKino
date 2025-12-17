@@ -63,7 +63,7 @@ def fetch_html(url, tries=5):
     return None
 
 def search_podnapisi_safe(title, year):
-    title = re.sub(r'[^\w]+', ' ', title, flags=re.UNICODE)
+    title = re.sub(r'[^\w]+', ' ', title.lower().replace(".slosinh", ""), flags=re.UNICODE)
     title = re.sub(r'\b(19|20)\d{2}\b', '', title).strip()
 
     base = "https://www.podnapisi.net"

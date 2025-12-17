@@ -7,14 +7,12 @@
 LOG_DIR="/media/marinko/Local2TB/.MarinKinoCache/logs"
 ENV_FILE=".env"
 
-# --- Ustvari log datoteko s časovnim žigom ---
-LOGDATE=$(date +"%Y-%m-%d_%H-%M")
-LOGFILE="$LOG_DIR/duckdns_refresh_$LOGDATE.txt"
+LOGFILE="$LOG_DIR/duckdns_refresh.txt"
 
 echo "===== DuckDNS posodobitev [$(date)] =====" >> "$LOGFILE"
 
-# --- Pobriši stare loge, starejše od 3 dni ---
-find "$LOG_DIR" -type f -name "*.txt" -mtime +3 -delete
+# --- Pobriši stare loge, starejše od 7 dni ---
+find "$LOG_DIR" -type f -name "*.txt" -mtime +7 -delete
 
 # --- Preberi .env datoteko (če obstaja) ---
 if [ -f "$ENV_FILE" ]; then
