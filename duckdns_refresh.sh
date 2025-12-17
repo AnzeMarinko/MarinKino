@@ -1,11 +1,14 @@
 #!/bin/bash
 # ========================================
-# DuckDNS IP osvežitev + čiščenje starih logov
+# DuckDNS IP osvežitev
 # ========================================
 
 # --- Nastavitve ---
-LOG_DIR="/home/marinko/Desktop/.MarinKinoCache/logs"
+LOG_DIR="/home/marinko/Desktop/MarinKinoCache/logs"
 ENV_FILE=".env"
+
+# Ustvari log mapo, če še ne obstaja
+mkdir -p "$LOG_DIR"
 
 LOGFILE="$LOG_DIR/duckdns_refresh.txt"
 

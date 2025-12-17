@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 FILMS_ROOT = "/home/marinko/Desktop/MarinKino/movies"
-CACHE_ROOT = "/home/marinko/Desktop/.MarinKinoCache"
+CACHE_ROOT = "/home/marinko/Desktop/MarinKinoCache"
 
 IZJEME = {
 }

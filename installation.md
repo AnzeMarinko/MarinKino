@@ -16,6 +16,9 @@ Spodaj so celotna navodila za nastavitev okolja, da se ob zagonu računalnika za
 ```
 git clone https://github.com/AnzeMarinko/MarinKino.git
 cd repozitorij
+chmod +x ./duckdns_refresh.sh
+chmod +x ./start_server.sh
+chmod +x ./rclone/rclone-sync-gdrive.sh
 ```
 
 ### 2. 🐍 Ustvari virtualno okolje
@@ -56,14 +59,22 @@ Dodaj (popravi pot do datoteke):
 */10 * * * * /home/marinko/Desktop/MarinKino/duckdns_refresh.sh
 ```
 
+### 7. Varno shrani datoteke
+
+V mape movies, memes in music postavi datoteke ter postavi rclone sinhronizacijo na oblak. Ko imaš rclone konfiguriran, ročno enkrat poženi skripto v spodnjem "cron job" in nato dodaj v cron job:
+```
+0 7 * * * /home/marinko/Desktop/MarinKino/rclone/rclone-sync-gdrive.sh
+```
+
+
 ## Konfiguracija zagonskega programa
 
-Naredimo `systemd` servis `movies.service`, da bo tvoja Flask/Waitress aplikacija tekla kot storitev ob zagonu sistema.
+Naredimo `systemd` servis `marinkino.service`, da bo tvoja Flask/Waitress aplikacija tekla kot storitev ob zagonu sistema.
 ### 1. Ustvari servisno datoteko
 
 Ustvari datoteko:
 ```
-sudo nano /etc/systemd/system/movies.service
+sudo nano /etc/systemd/system/marinkino.service
 ```
 
 Vsebina (prilagodi poti, ime uporabnika ...!):
@@ -92,9 +103,9 @@ Pomembno:
 ### 2. Zaženi zagonsko aplikacijo
 ```
 sudo systemctl daemon-reload
-sudo systemctl enable movies.service
-sudo systemctl start movies.service
-systemctl status movies.service
+sudo systemctl enable marinkino.service
+sudo systemctl start marinkino.service
+systemctl status marinkino.service
 ```
 
 ## Konfiguracija Nginx strežnika

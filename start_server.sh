@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # === Nastavitve ===
-LOG_DIR="/home/marinko/Desktop/.MarinKinoCache/logs"
+LOG_DIR="/home/marinko/Desktop/MarinKinoCache/logs"
 PROJECT_DIR="/home/marinko/Desktop/MarinKino"
 PYTHON_APP="$PROJECT_DIR/app.py"
 
