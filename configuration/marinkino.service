@@ -1,0 +1,19 @@
+[Unit]
+Description=MarinKino startup
+After=network.target
+Requires=local-fs.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/media/marinko/Local2TB/GoogleDriveMirror/MarinKino
+
+# Če disk ni mountan, ga mounta
+ExecStartPre=/bin/bash -c 'mountpoint -q /media/marinko/Local2TB || sudo mount /dev/sdb1 /media/marinko/Local2TB'
+
+# Zažene tvoj skript
+ExecStart=/bin/bash /media/marinko/Local2TB/GoogleDriveMirror/MarinKino/start_server.sh
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

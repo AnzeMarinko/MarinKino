@@ -1,0 +1,42 @@
+# ----------------------------------------------------------
+# HTTP (port 80)
+# - omogočia Certbot validacijo
+# - vse ostalo preusmeri na HTTPS
+# ----------------------------------------------------------
+server {
+    listen 80;
+    server_name anzemarinko.duckdns.org;
+
+    # Certbot challenge
+    location ^~ /.well-known/acme-challenge/ {
+        alias /var/www/html/.well-known/acme-challenge/;
+    }
+
+    # preostalo — redirect na HTTPS
+    return 301 https://$host$request_uri;
+}
+
+# ----------------------------------------------------------
+# HTTPS (port 443)
+# - reverse proxy do Flask/Waitress
+# ----------------------------------------------------------
+server {
+    listen 443 ssl;
+    server_name anzemarinko.duckdns.org;
+
+    # Let's Encrypt certifikati
+    ssl_certificate /etc/letsencrypt/live/anzemarinko.duckdns.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/anzemarinko.duckdns.org/privkey.pem;
+
+    # Za boljšo varnost (ni obvezno, je pa priporočljivo)
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+
+    # Reverse proxy do Flask/Waitress
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
