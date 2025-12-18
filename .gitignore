@@ -19,6 +19,9 @@ movies/**/*.original
 memes/*.mp4
 memes/*.gif
 memes/*.jpg
+memes/*.JPG
+memes/*.PNG
+memes/*.GIF
 memes/*.jpeg
 memes/*.webp
 memes/*.png
