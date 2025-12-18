@@ -91,7 +91,8 @@ WorkingDirectory=/home/marinko/Desktop/MarinKino
 
 # Zažene tvojo skripto
 ExecStart=/bin/bash /home/marinko/Desktop/MarinKino/start_server.sh
-Restart=on-failure
+Restart=always
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target

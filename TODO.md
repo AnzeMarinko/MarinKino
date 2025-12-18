@@ -1,6 +1,11 @@
 # TODO:
 
+naredi naslovno stran, kjer se gre lahko na filme, glasbo ...
+vsaka stran naj ima svoj logo, barvo, gumb domov
+malo uredi css
+
 Glasba:
+* naj bodo metapodatki (naslov, izvajalec ...) vidni
 * naredi playlisto vsega kar bi rad imel (najprej Youtube music in nato še navaden Youtube)
 * potem pa (predelaj ta ukaz še malo):
 yt-dlp --extract-audio --audio-format mp3 \

@@ -4,7 +4,7 @@
 # ========================================
 
 # --- Nastavitve ---
-LOG_DIR="/home/marinko/Desktop/MarinKino/cache/logs"
+LOG_DIR="/home/marinko/Desktop/MarinKinoCache/logs"
 ENV_FILE="/home/marinko/Desktop/MarinKino/.env"
 
 # Ustvari log mapo, če še ne obstaja

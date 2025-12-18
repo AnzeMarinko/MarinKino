@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # === Nastavitve ===
-LOG_DIR="/home/marinko/Desktop/MarinKino/cache/logs"
+LOG_DIR="/home/marinko/Desktop/MarinKinoCache/logs"
 PROJECT_DIR="/home/marinko/Desktop/MarinKino"
 PYTHON_APP="$PROJECT_DIR/app.py"
 
@@ -39,66 +39,4 @@ cd "$PROJECT_DIR" || { echo "[NAPAKA] Mapa $PROJECT_DIR ne obstaja!" | tee -a "$
 # === 4. Zagon Flask/Waitress ===
 echo "[INFO] Zagon Flask aplikacije prek Waitress..." | tee -a "$LOGFILE"
 
-# Nastavitve
-MAX_TRIES=3
-URL="http://anzemarinko.duckdns.org/login"
-# lahko tudi "http://127.0.0.1" ali "http://localhost:80"
-SLEEPTIMES=(5 10 20)   # čakalni časi med ponovitvami (v sekundah)
-
-attempt=1
-while [ $attempt -le $MAX_TRIES ]; do
-
-  (
-    nohup "$PROJECT_DIR/.venv/bin/python" -u "$PYTHON_APP" >> "$LOGFILE" 2>&1 &
-  ) >/dev/null 2>&1 < /dev/null &
-
-  # === 5. Počakaj da se Flask zažene ===
-  sleep 60
-
-  # === 6. Preveri, ali python app že teče ===
-  if pgrep -f "$PYTHON_APP" >/dev/null; then
-    echo "[INFO] Python ($PYTHON_APP) teče." | tee -a "$LOGFILE"
-  else
-    echo "[NAPAKA] Python ($PYTHON_APP) še ne teče." | tee -a "$LOGFILE"
-  fi
-
-  echo "[INFO] Poskus #$attempt: preverjam $URL ..."
-  # curl vrne HTTP status v spremenljivko
-  status=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 30 "$URL" 2>>"$LOGFILE" || echo "000")
-
-  if [[ "$status" =~ ^([2-3][0-9]{2})$ ]]; then
-    echo "[USPEH] Stran je dosegljiva (HTTP $status)." | tee -a "$LOGFILE"
-    break
-  else
-    echo "[OPOZORILO] Stran ni dosegljiva (HTTP $status)." | tee -a "$LOGFILE"
-  fi
-
-  # če smo na zadnjem poskusu, ne čakamo več
-  if [ $attempt -eq $MAX_TRIES ]; then
-    echo "[NAPAKA] Po $MAX_TRIES poskusih stran še vedno ni dosegljiva." | tee -a "$LOGFILE"
-    exit 1
-  fi
-
-  # počakaj (varnostno: uporabimo SLEEPTIMES, če obstaja)
-  sleep_time=${SLEEPTIMES[$((attempt-1))]:-10}
-  echo "[INFO] Čakam $sleep_time sekund pred naslednjim poskusom..."
-  sleep "$sleep_time"
-
-  attempt=$((attempt+1))
-done
-
-# === 7. Zaključno sporočilo ===
-echo "[USPEH] Flask je bil zagnan!" | tee -a "$LOGFILE"
-echo "Obišči: http://anzemarinko.duckdns.org" | tee -a "$LOGFILE"
-
-echo "===== Konec [$(date)] =====" >> "$LOGFILE"
-
-while true; do
-  sleep 60
-  if ! pgrep -f "$PYTHON_APP" >/dev/null; then
-    echo "[NAPAKA] Ponovno zaganjam python app!" | tee -a "$LOGFILE"
-    (
-      nohup "$PROJECT_DIR/.venv/bin/python" -u "$PYTHON_APP" >> "$LOGFILE" 2>&1 &
-    ) >/dev/null 2>&1 < /dev/null &
-  fi
-done
+$PROJECT_DIR/.venv/bin/python -u "$PYTHON_APP" >> "$LOGFILE" 2>&1
