@@ -11,6 +11,7 @@ scipy
 numpy
 numba
 torch
+torchaudio
 matplotlib
 gemini-srt-translator
 google-cloud-translate

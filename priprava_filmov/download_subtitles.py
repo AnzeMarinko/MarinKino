@@ -10,9 +10,9 @@ import io
 OPENSUBTITLESCOM_TOKEN = os.getenv("OPENSUBTITLESCOM_TOKEN")
 OPENSUBTITLESCOM_PASSWORD = os.getenv("OPENSUBTITLESCOM_PASSWORD")
 osub = OpenSubtitles("MarinKino", OPENSUBTITLESCOM_TOKEN)
-osub.login("anzem", OPENSUBTITLESCOM_PASSWORD)
 
 def search_opensubtitles(imdb_id, languages=("sl", "en")):
+    osub.login("anzem", OPENSUBTITLESCOM_PASSWORD)
     results = []
     for lang in languages:
         try:

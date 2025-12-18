@@ -89,7 +89,7 @@ Type=simple
 User=root
 WorkingDirectory=/home/marinko/Desktop/MarinKino
 
-# Zažene tvoj skript
+# Zažene tvojo skripto
 ExecStart=/bin/bash /home/marinko/Desktop/MarinKino/start_server.sh
 Restart=on-failure
 
@@ -108,108 +108,133 @@ sudo systemctl start marinkino.service
 systemctl status marinkino.service
 ```
 
-## Konfiguracija Nginx strežnika
-### 1. 📦 Namestitev potrebnih paketov in preverjanje delovanja
+## Postavi NGINX + CERTBOT (DuckDNS) HTTPS server
+### 0️⃣ Predpogoj (OBVEZNO, pred vsem)
+
+Preveri, da DNS DELA:
+```
+dig anzemarinko.duckdns.org +short
+```
+
+👉 mora vrniti tvoj javni IP
+Če ne → Certbot NE bo delal (ne glede na nginx)
+
+### 1️⃣ 📦 Namestitev paketov
 ```
 sudo apt update
-sudo apt install nginx certbot python3-certbot-nginx
-systemctl status nginx
+sudo apt install -y nginx certbot python3-certbot-nginx
+sudo systemctl enable nginx
+sudo systemctl start nginx
+sudo systemctl status nginx
 ```
 
-### 2. 🌐 Osnovna konfiguracija Nginx strežnika
-
-Ustvari konfiguracijo za svojo domeno:
+### 2️⃣ 🌐 HTTP konfiguracija
+Odpri datoteko:
 ```
-sudo nano /etc/nginx/sites-available/myapp
+sudo nano /etc/nginx/sites-available/marinkinoapp
 ```
 
-Primer konfiguracije (ime(-na) serverja spremeni iz example.com v ime(-na) svojega serverja/domene):
+Vanjo postavi HTTP config:
 ```
 server {
     listen 80;
-    server_name example.com www.example.com;
+    server_name anzemarinko.duckdns.org;
 
-    # Certbot challenge
+    # ACME challenge (Certbot)
     location ^~ /.well-known/acme-challenge/ {
-        alias /var/www/html/.well-known/acme-challenge/;
+        root /var/www/html;
+        default_type "text/plain";
     }
 
-    # Redirect na HTTPS
-    return 301 https://$host$request_uri;
+    location / {
+        return 200 "OK\n";
+    }
+}
+```
+
+Omogoči config in preveri
+```
+sudo ln -s /etc/nginx/sites-available/marinkinoapp /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+Preveri v brskalniku:
+```
+http://anzemarinko.duckdns.org
+```
+
+### 3️⃣ 🔒 Pridobi certifikat
+```
+sudo certbot certonly \
+  --webroot \
+  -w /var/www/html \
+  -d anzemarinko.duckdns.org
+```
+
+✅ Uspeh izgleda tako:
+```
+Congratulations! Your certificate and chain have been saved at:
+/etc/letsencrypt/live/anzemarinko.duckdns.org/
+```
+
+### 4️⃣ 🔐 Dodaj HTTPS + redirect
+
+Zdaj šele posodobi nginx config:
+```
+sudo nano /etc/nginx/sites-available/marinkinoapp
+```
+Naj bo tole notri:
+```
+server {
+    listen 80;
+    server_name anzemarinko.duckdns.org;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
+
+    location / { return 301 https://$host$request_uri; }
 }
 
 server {
     listen 443 ssl;
-    server_name example.com www.example.com;
+    server_name anzemarinko.duckdns.org;
 
-    # Let's Encrypt certifikati
     ssl_certificate /etc/letsencrypt/live/anzemarinko.duckdns.org/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/anzemarinko.duckdns.org/privkey.pem;
 
-    # Za boljšo varnost (ni obvezno, je pa priporočljivo)
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers on;
 
     add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
 
-    # Reverse proxy do Flask/Waitress
     location / {
         proxy_pass http://127.0.0.1:5000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
 ```
 
-Omogoči konfiguracijo in jo preveri:
+Aktiviraj HTTPS
 ```
-sudo ln -s /etc/nginx/sites-available/myapp /etc/nginx/sites-enabled/
 sudo nginx -t
-```
-
-Ponovno naloži:
-```
 sudo systemctl reload nginx
 ```
-### 3. 🔒 Namestitev TLS/SSL certifikata preko Certbot
 
-Za popolnoma avtomatsko konfiguracijo (zamenjaj s svojo domeno):
-```
-sudo certbot --nginx -d example.com -d www.example.com
-```
+### 5️⃣ 🔁 Samodejna obnova certifikata
 
-Certbot bo:
-* preveril DNS
-* ustvaril certifikat
-* konfiguriral Nginx
-* postavil auto-renew hook
+Certbot že namesti systemd timer.
 
-Preveri, ali certifikat deluje:
-```
-sudo certbot certificates
-```
-### 4. 🔁 Samodejna obnova certifikata (cron)
-
-Certbot že avtomatično namesti systemd timer.
 Preveri:
 ```
 systemctl list-timers | grep certbot
 ```
 
-Če želiš svoj cron job, ustvari:
-```
-sudo crontab -e
-```
-
-Dodaj:
-```
-0 3 * * * certbot renew --quiet --nginx
-```
-
-S tem vsak dan ob 03:00 preveri certifikat, ga obnovi samo, če je manj kot 30 dni do izteka in  poskrbi za reload nginx.
-
-Za test:
+Test obnove:
 ```
 sudo certbot renew --dry-run
 ```

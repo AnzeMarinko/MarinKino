@@ -4,6 +4,7 @@ tmp_current_file.txt
 output.wav
 *progress.json
 
+cache
 credentials/*.json
 .env
 users.json

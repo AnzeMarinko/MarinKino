@@ -4,13 +4,14 @@
 # ========================================
 
 # --- Nastavitve ---
-LOG_DIR="/home/marinko/Desktop/MarinKinoCache/logs"
-ENV_FILE=".env"
+LOG_DIR="/home/marinko/Desktop/MarinKino/cache/logs"
+ENV_FILE="/home/marinko/Desktop/MarinKino/.env"
 
 # Ustvari log mapo, če še ne obstaja
 mkdir -p "$LOG_DIR"
 
-LOGFILE="$LOG_DIR/duckdns_refresh.txt"
+LOGDATE=$(date +"%Y-%m-%d")
+LOGFILE="$LOG_DIR/duckdns_refresh_${LOGDATE}.txt"
 
 echo "===== DuckDNS posodobitev [$(date)] =====" >> "$LOGFILE"
 
