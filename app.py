@@ -545,5 +545,7 @@ def favicon():
 
 if __name__ == "__main__":
     print("Started server")
-    serve(app, host="0.0.0.0", port=5000, threads=8)
-    # app.run(host="localhost", port=5000)
+    try:
+        serve(app, host="0.0.0.0", port=5000, threads=8)
+    except OSError:
+        app.run(host="localhost", port=5050)

@@ -228,6 +228,93 @@ input, button {
 }
 .movie-card .slosinh {color: #f79737;}
 
+.navbar .nav-link {
+  position: relative;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.navbar .nav-link:hover {
+  background-color: rgba(13,110,253,0.12); /* Bootstrap primary */
+  color: #396ba5;
+}
+
+/* tanka črta spodaj */
+.navbar .nav-link::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 4px;
+  height: 2px;
+  background: #0d6efd;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.navbar .nav-link:hover::after {
+  opacity: 1;
+}
+
+.navbar .nav-link:active {
+  background-color: rgba(13,110,253,0.2);
+}
+
+.btn-orange {
+  background-color: #f79737;
+  border-color: #f79737;
+  color: white;
+}
+
+.btn-orange:hover {
+  background-color: #f3a566;
+  border-color: #f3a566;
+  color: white;
+}
+
+.btn-orange:active {
+  background-color: #b65d03;
+  border-color: #b65d03;
+}
+
+.btn-check:checked + .btn {
+  background-color: #396ba5;
+  border-color: #396ba5;
+  color: white;
+}
+
+.btn-check:hover + .btn {
+  background-color: #9cc6f7;
+}
+
+footer ul {
+  padding-left: 1rem;
+}
+
+footer li {
+  margin-bottom: 4px;
+}
+
+.footer-link {
+  color: #0d6efd;
+  text-decoration: none;
+}
+
+.footer-link:hover {
+  text-decoration: underline;
+}
+
+/* RADIO GUMBI LEPI */
+.watch-toggle input {
+  display: none;
+}
+
+.watch-toggle label {
+  margin-right: 4px;
+}
+
+
 .group-selector {
     padding-right: 40px;
 }
