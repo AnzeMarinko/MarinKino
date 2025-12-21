@@ -117,7 +117,7 @@ form.login {
 }
 
 input, button {
-    padding: 8px 12px;
+    padding: 4px 8px;
     font-size: 1rem;
     margin: 5px;
     cursor: pointer;
@@ -131,6 +131,8 @@ input, button {
 }
 
 .movie-card {
+    display: flex;
+    flex-direction: column;
     position: relative;
     background: white;
     border-radius: 12px;
@@ -139,7 +141,6 @@ input, button {
     text-align: center;
     transition: transform 0.2s ease;
     overflow: visible;
-    height: 500px;
     /* border: 5px solid transparent; /* pripravi prostor za rob */
     z-index: 0;
     justify-content: center;
@@ -211,15 +212,25 @@ input, button {
 }
 
 .movie-card .buttons {
-    position: absolute;
+    position: relative;
     bottom: 10px;
     margin-bottom: 10pt;
     width: 100%;
     align-items: center;
+    padding-top: 10px;
+  margin-top: auto;
+}
+
+.movie-card .genres {
+    bottom: 10px;
+    margin-bottom: 10pt;
+    width: 100%;
+  flex: 1;
+    align-items: center;
 }
 
 .movie-card .runtime {
-    padding: 8px 14px;
+    padding: 4px 8px;
     background-color: #007bff;
     color: white;
     text-decoration: none;
@@ -342,12 +353,12 @@ footer li {
 .genre-badge {
     border: none;
     color: white;
+    border-radius: 8px;
     padding: 2px 2px;
     text-align: center;
     text-decoration: none;
     display: inline-block;
-    font-size: 16px;
-    margin: 2px 2px 2px 2px;
+    margin-top: 2px;
     background-color: #bd5734;
 }
 
@@ -366,10 +377,12 @@ footer li {
     display: inline-flex;
     justify-content: space-between;
 	overflow: hidden;
-    box-shadow: 0px 0px 30px 0px rgba(0, 0, 0, 0.3);
-    padding: 20px 40px;
-    margin: 10px 10px 0px 10px;
+    align-items: center;
+    box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.3);
+    padding: 10px 10px;
+    margin: 5px 5px 0px 5px;
     color: black;
+    max-width: 100%;
     text-decoration: none;
     background: #FFEDC8;
     border-radius: 12px;
@@ -377,9 +390,16 @@ footer li {
 video {
     border-radius: 12px;
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    margin: 10px;
-    min-width: 200pt;
-    width: 70%
+    max-width: 100%;
+}
+
+
+/* ==== Responsive prilagoditve ==== */
+@media (max-width: 768px) {
+    .movie-page {
+        flex-direction: column;
+        align-items: center;
+    }
 }
 
 .movie-page img {
@@ -389,7 +409,7 @@ video {
     margin-bottom: 10px;
 }
 
-.movie-page .home img {
+.home img {
     height: 60px;
 }
 
@@ -397,16 +417,16 @@ video {
     font-size: 1.1rem;
     margin: 10px 0 5px;
     color: #333;
+    text-align: center;
 }
 
 .movie-page .description {
     background-color: rgba(255, 255, 255, 0.97);
-    padding: 12px;
-    margin-left: 20px;
-    margin-right: 20px;
+    padding: 4px;
+    margin-left: 10px;
+    margin-right: 10px;
     font-size: 0.9rem;
-	width: 40%; 
-    min-width: 200pt;
+    max-width: 500px;
     color: #333;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     border-radius: 12px;
@@ -416,11 +436,10 @@ video {
 button {
     border-radius: 8px;
     border: none;
-    padding: 15px;
+    padding: 4px 8px;
     text-align: center;
     text-decoration: none;
     display: inline-block;
-    font-size: 16px;
     margin: 4px;
     background-color: #ffcc5c;
     --watch: 0%;

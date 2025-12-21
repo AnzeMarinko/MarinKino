@@ -66,29 +66,6 @@ function closePlayer() {
     document.getElementById('filmList').style.display = 'block';
 }
 
-let lastScroll = 0;
-const header = document.querySelector("header");
-const headerHeight = header.offsetHeight - 50;
-const movie_grid = document.getElementById('movie-grid');
-movie_grid.style.paddingTop = `${header.offsetHeight}px`;
-
-function onScroll() {
-    const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
-
-    if (currentScroll > lastScroll) {
-        // scroll down
-        header.style.top = `-${headerHeight}px`;
-    } else {
-        // scroll up
-        header.style.top = "0";
-    }
-    
-    lastScroll = currentScroll <= 0 ? 0 : currentScroll;
-}
-
-window.addEventListener("scroll", onScroll, { passive: true });
-window.addEventListener("touchmove", onScroll, { passive: true }); // za mobilne naprave
-
 document.addEventListener("change", (e) => {
     if (e.target.matches('.izbira input[type="radio"]')) {
 

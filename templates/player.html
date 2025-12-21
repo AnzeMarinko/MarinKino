@@ -9,9 +9,8 @@
 </head>
 <body>
     <div class="movie-page">
-        <div class="cover"><img src="/movies{{ movie.cover }}" alt="Poster"></div>
-        
         <div class="description">
+            <div class="cover"><img src="/movies{{ movie.cover }}" alt="Poster"></div>
             <h1>{{ movie.title }}{{ movie.year }}<div class="slosinh">{{ movie.slosinh }}</div></h1></br>
             <div class="genres">
                 {% for genre in movie.genres %}
@@ -25,13 +24,18 @@
             <hr>{{ movie.folder }}
         {% if subtitle_buttons %}</br>
             <hr>Podnapisi (izberete v predvajalniku med možnostmi): {% for subtitle in subtitle_buttons %}<button class="subtitles">{{ subtitle }}</button> {% endfor %}
+            {% endif %}</br>
+            <hr>{% if is_collection %}
+                <div>
+                    {% for video_file in video_files %}
+                        <button class="video-btn" style="--watch: {{ movie.watch_info[video_file]['watch_ratio']|default(0) }}%;" 
+                            onclick="playVideo('/movies/{{ group_folder }}/{{ folder }}/{{ video_file }}', {{ movie.watch_info[video_file]['last_play_time']|default(0) }}, this)">
+                            {{ video_file|replace('.mp4', '') }} ({{ movie.runtimes_by_files[video_file] }} min)
+                        </button>
+                    {% endfor %}
+                    </div>
             {% endif %}
         </div>
-
-        <div class="home">
-            <a href="/"><img src="/static/logo.png" alt="Home">Domov</a>
-        </div>
-    </div>
 
     {% if not is_collection %}
         <video id="videoPlayer" controls playsinline>
@@ -59,12 +63,6 @@
             });
         </script>
     {% else %}
-        {% for video_file in video_files %}
-            <button class="video-btn" style="--watch: {{ movie.watch_info[video_file]['watch_ratio']|default(0) }}%;" 
-                onclick="playVideo('/movies/{{ group_folder }}/{{ folder }}/{{ video_file }}', {{ movie.watch_info[video_file]['last_play_time']|default(0) }}, this)">
-                {{ video_file|replace('.mp4', '') }} ({{ movie.runtimes_by_files[video_file] }} min)
-            </button>
-        {% endfor %}
         <video id="videoPlayer" width="100%" controls playsinline>
             <source id="videoSource" src="" type="video/mp4">
             Tvoj brskalnik ne podpira videa.
@@ -91,6 +89,7 @@
         }
         </script>
     {% endif %}
+    </div>
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
@@ -155,5 +154,9 @@ document.addEventListener("DOMContentLoaded", function () {
 </script>
 
     
+        
+        <div class="home">
+            <a href="/"><img src="/static/logo.png" alt="Home">Domov</a>
+        </div>
 </body>
 </html>

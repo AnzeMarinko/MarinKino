@@ -275,9 +275,7 @@ function renderMovieCard(movie) {
         </div>
 
         <div class="buttons">
-            <button class="runtime">(${movie.runtimes} min)</button>
-
-            ${movie.is_admin ? `
+            <button class="runtime">${movie.runtimes} min</button>${movie.is_admin ? `
             <form action="/remove${movie.folder}" method="post" onsubmit="return odstraniMovieCard(event, this);">
                 <input type="hidden" name="csrf_token" value="${csrfToken}">
                 <button type="submit">Odstrani</button>
