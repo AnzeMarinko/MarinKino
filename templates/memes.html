@@ -26,8 +26,7 @@
         .slika-container video {
             max-width: 95vw;
             max-height: 95vh;
-            width: 100vw;
-            min-width: 500pt;
+            width: 1000pt;
             height: auto;
             display: block;
             object-fit: contain;
@@ -73,19 +72,21 @@
         }
 
     </style>
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 </head>
 <body>
 
     <div class="meme-menu">
         <a id="home" href="/" title="Domov">
-            <button>⌂</button>
+            <button><i class="bi bi-house-door-fill"></i></button>
         </a>
         <button id="fullscreen-toggle" onclick="preklopiFullscreen()" title="Celozaslonski način">
-            ⛶
+            <i class="bi bi-fullscreen"></i>
         </button>
         {% if current_user.is_admin %}
         <button id="delete-btn" onclick="izbrisiMeme()" title="Izbriši meme">
-            🗑️
+            <i class="bi bi-trash-fill"></i>
         </button>
         {% endif %}
     </div>

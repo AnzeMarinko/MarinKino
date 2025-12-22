@@ -1,10 +1,7 @@
 # TODO:
 
 popravi rclone
-
-naredi naslovno stran, kjer se gre lahko na filme, glasbo ...
-vsaka stran naj ima svoj logo, barvo, gumb domov
-malo uredi css
+uredi stran z glasbo izgled
 
 Glasba:
 * naj bodo metapodatki (naslov, izvajalec ...) vidni

@@ -79,14 +79,12 @@ select {
 }
 
 h1 {
-    text-align: right;
     color: #fff;
     margin-right: 20pt;
 }
 
 h2 {
-    padding-top: 220px;
-    font-size: 30px;
+    padding-top: 20px;
 }
 
 header form {
