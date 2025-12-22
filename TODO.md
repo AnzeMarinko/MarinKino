@@ -1,7 +1,6 @@
 # TODO:
 
 popravi rclone
-uredi stran z glasbo izgled
 
 Glasba:
 * naj bodo metapodatki (naslov, izvajalec ...) vidni

@@ -11,10 +11,11 @@
             margin: 0;
             background-color: black;
             overflow: hidden;
-            display: flex;
+            display: inline-block;
             justify-content: center;
             align-items: center;
             height: 100vh;
+            width: 100vw;
         }
 
         .slika-container {
@@ -26,6 +27,8 @@
         .slika-container video {
             max-width: 95vw;
             max-height: 95vh;
+            margin-right: auto;
+            margin-left: auto;
             width: 1000pt;
             height: auto;
             display: block;
@@ -74,22 +77,57 @@
     </style>
     
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-</head>
-<body>
 
-    <div class="meme-menu">
-        <a id="home" href="/" title="Domov">
-            <button><i class="bi bi-house-door-fill"></i></button>
-        </a>
-        <button id="fullscreen-toggle" onclick="preklopiFullscreen()" title="Celozaslonski način">
-            <i class="bi bi-fullscreen"></i>
-        </button>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+</head>
+
+
+<body class="bg-light text-dark">
+
+<nav class="navbar navbar-expand-lg navbar-light bg-white shadow sticky-top">
+  <div class="container-fluid">
+
+    <!-- LOGO + NASLOV -->
+    <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+      <img src="/static/logo.png" height="36">
+      MarinKino
+    </a>
+
+    <!-- HAMBURGER -->
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <!-- MENI -->
+    <div class="collapse navbar-collapse" id="mainNavbar">
+
+      <!-- LEVI MENI -->
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <li class="nav-item"><a class="nav-link" href="/meme"><strong>Šale & navdihi</strong></a></li>
+        <li class="nav-item"><a class="nav-link" href="/music">Glasba</a></li>
+        <li class="nav-item"><a class="nav-link" href="https://anzemarinko.github.io/pod_krinko">Pod krinko</a></li>
+      </ul>
+
+      <!-- DESNI DEL: UPORABNIK -->
+      <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-2">
+        <span class="text-secondary">
+          Bog daj, <strong>{{ current_user.id }}</strong>
+        </span>
+            
+        <a class="btn btn-sm btn-outline-secondary" id="fullscreen-toggle" onclick="preklopiFullscreen()" title="Celozaslonski način">
+            <i class="bi bi-fullscreen"></i> Celozaslonsko</a>
+        <a href="/logout" class="btn btn-sm btn-outline-info">Odjava</a>
+
         {% if current_user.is_admin %}
-        <button id="delete-btn" onclick="izbrisiMeme()" title="Izbriši meme">
-            <i class="bi bi-trash-fill"></i>
-        </button>
+        <a class="btn btn-sm btn-outline-secondary" id="delete-btn" onclick="izbrisiMeme()" title="Izbriši meme"><i class="bi bi-trash-fill"></i> Odstrani</a>
         {% endif %}
+      </div>
+
     </div>
+  </div>
+</nav>
 
     <div class="slika-container" id="mediaContainer">
         {% if meme_file_name.endswith('.mp4') %}
@@ -100,8 +138,8 @@
         {% else %}
             <img src="memes/{{ meme_file_name }}" alt="Naključna slika" id="slikaElement">
         {% endif %}
-        <button class="next-btn" id="nextButton" onclick="pojdiNaNaslednjega()">➤</button>
     </div>
+        <button class="next-btn" id="nextButton" onclick="pojdiNaNaslednjega()">➤</button>
 
 </body>
 
