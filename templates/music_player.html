@@ -16,11 +16,15 @@
 <!-- PLAYER -->
 <div id="player" class="p-3 shadow-sm">
 
-  <div id="nowPlaying" class="text-center mb-2 text-primary">
+  <div id="nowPlayingTitle" class="text-center mb-2 text-primary">
     Ni izbrane pesmi
   </div>
+  <div id="nowPlayingArtist" class="text-center mb-2 text-primary">
+  </div>
+  <div id="nowPlayingAlbum" class="text-center mb-2 text-primary">
+  </div>
 
-  <audio id="audio" preload="auto"></audio>
+  <audio id="audio" preload="metadata"></audio>
 
   <div class="d-flex justify-content-center gap-3 my-2">
     <button class="player-btn" onclick="prev()">
@@ -55,6 +59,10 @@
 
 <div id="albums-root"
      data-albums='{{ albums | tojson | safe }}'>
+</div>
+
+<div id="metadata-root"
+     data-music='{{ music_metadata | tojson | safe }}'>
 </div>
 
 <script defer src="/static/script/music_player.js"></script>

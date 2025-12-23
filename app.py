@@ -18,6 +18,8 @@ from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import glob
+from mutagen.mp3 import MP3
+from mutagen.easyid3 import EasyID3
 
 if not os.path.exists(CACHE_ROOT):
     os.mkdir(CACHE_ROOT)
@@ -518,10 +520,27 @@ def get_albums():
             music_albums.setdefault(album, []).append(s)
     return music_albums
 
+import pandas as pd
+music_metadata = {}
+for file in get_albums()["Vse"]:
+        try:
+            audio = MP3(os.path.join("music", file), ID3=EasyID3)
+
+        except Exception as e:
+            print(f"❌ Napaka pri {file}: {e}")
+            audio = {}
+
+        item = {
+            "title": audio.get("title", [file.split("/")[-1].replace(".mp3", "")])[0],
+            "artist": audio.get("artist", [""])[0] + " - " + audio.get("album", [""])[0],
+            "album": "/" + "/".join(file.split("/")[:-1])
+        }
+        music_metadata[file] = item
+
 @app.route("/music")
 @login_required
 def music():
-    return render_template("music_player.html", pagetitle="MarinKino - Glasba", is_music=True, albums=get_albums())
+    return render_template("music_player.html", pagetitle="MarinKino - Glasba", is_music=True, albums=get_albums(), music_metadata=music_metadata)
 
 @app.route("/music/<path:filename>")
 @login_required

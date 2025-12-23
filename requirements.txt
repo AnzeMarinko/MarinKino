@@ -8,6 +8,7 @@ cinemagoer
 google-cloud
 pysrt
 scipy
+pandas
 numpy
 numba
 torch
@@ -27,3 +28,4 @@ certbot
 Flask-WTF
 Flask-Limiter
 opensubtitlescom
+mutagen

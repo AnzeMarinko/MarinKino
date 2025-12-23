@@ -1,10 +1,14 @@
 const root = document.getElementById("albums-root");
 const albums = JSON.parse(root.dataset.albums);
+const metadata_root = document.getElementById("metadata-root");
+const music_metadata = JSON.parse(metadata_root.dataset.music);
 
 const albumListEl = document.getElementById("albumList");
 const trackListEl = document.getElementById("trackList");
 const audio = document.getElementById("audio");
-const nowPlaying = document.getElementById("nowPlaying");
+const nowPlayingTitle = document.getElementById("nowPlayingTitle");
+const nowPlayingArtist = document.getElementById("nowPlayingArtist");
+const nowPlayingAlbum = document.getElementById("nowPlayingAlbum");
 const progress = document.getElementById("seekBar");
 const timeDisplay = document.getElementById("timeDisplay");
 
@@ -36,7 +40,12 @@ function loadAlbum(name) {
     trackListEl.innerHTML = "";
     currentSongs.forEach((s,i)=>{
         const div = document.createElement("div");
-        div.textContent = s.split("/").join(" : ");
+        const trackMetadata = music_metadata[s];
+        const title = trackMetadata["title"];
+        const artist = trackMetadata["artist"];
+        const album = trackMetadata["album"];
+        div.innerHTML = `<i>${album}</i> : ${artist} : <b>${title}</b>`;
+
         div.className = "track-item" + (s===currentTrack?" active":"");
         div.onclick = ()=>playTrack(i);
         trackListEl.appendChild(div);
@@ -44,18 +53,61 @@ function loadAlbum(name) {
     scrollToActiveTrack();
 }
 
-// Play track
 function playTrack(i) {
     currentIndex = i;
     currentTrack = currentSongs[i];
+    const trackMetadata = music_metadata[currentTrack];
+
     localStorage.setItem("track", currentTrack);
-    nowPlaying.textContent = currentTrack.split("/").pop();
+
+    const title = trackMetadata["title"];
+    const artist = trackMetadata["artist"];
+    const album = trackMetadata["album"];
+
+    nowPlayingTitle.textContent = title;
+    nowPlayingArtist.textContent = artist;
+    nowPlayingAlbum.textContent = album;
+
     audio.src = "/music/" + currentTrack;
     audio.currentTime = 0;
-    audio.play().catch(()=>{});
+    audio.play().catch(() => {});
+
     highlightTrack();
     scrollToActiveTrack();
+
+    // === MEDIA SESSION (iPhone lock screen, Control Center) ===
+    if ("mediaSession" in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: title,
+            artist: artist,
+            album: album,
+            artwork: [
+                { src: "/static/logo.png", sizes: "96x96", type: "image/png" },
+                { src: "/static/logo.png", sizes: "192x192", type: "image/png" },
+                { src: "/static/logo.png", sizes: "512x512", type: "image/png" }
+            ]
+        });
+
+        navigator.mediaSession.setActionHandler("play", () => {
+            audio.play();
+            updatePlayBtn("true");
+        });
+
+        navigator.mediaSession.setActionHandler("pause", () => {
+            audio.pause();
+            updatePlayBtn("false");
+        });
+
+        navigator.mediaSession.setActionHandler("previoustrack", () => {
+            prev();
+        });
+
+        navigator.mediaSession.setActionHandler("nexttrack", () => {
+            next();
+        });
+            }
 }
+
 
 function highlightTrack() {
     document.querySelectorAll(".track-item").forEach((t, idx)=>{
@@ -75,6 +127,7 @@ function togglePlay() {
         updatePlayBtn("true")}
     else {
         audio.pause(); updatePlayBtn("false"); }}
+
 function next() {
     if(randomMode) playTrack(Math.floor(Math.random()*currentSongs.length));
     else if(currentIndex<currentSongs.length-1) playTrack(currentIndex+1);
@@ -119,23 +172,6 @@ function updatePlayBtn(playMode) {
         playIcon.className = "bi bi-play-fill";
     }
 }
-
-// EQ animacija glede na predvajanje
-const eqBars = document.querySelectorAll(".eq-bar");
-
-function updateEQ() {
-    eqBars.forEach((bar)=>{
-        if(!audio.paused && !audio.ended){
-            const h = Math.random()*20 + 5; // višina 5-25px
-            bar.style.height = h+"px";
-        } else {
-            bar.style.height = "5px"; // mirujoče
-        }
-    });
-}
-
-// Kličemo vsakih 100ms
-setInterval(updateEQ, 100);
 
 // Audio update
 audio.ontimeupdate = ()=>{

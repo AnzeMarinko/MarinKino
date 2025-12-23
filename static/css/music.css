@@ -64,11 +64,30 @@ body {
     align-items: center;
 }
 
-#nowPlaying {
+#nowPlayingTitle {
+    font-size: 24px;
+    text-align: center;
+    font-size: 1.5rem;       /* večji naslov */
+    font-weight: bold;
+    color: #0a6bfd;          /* modra */
+}
+
+#nowPlayingArtist {
+    font-size: 1.2rem;
+    font-style: italic;
+    color: #28a745;          /* zelena */
+    font-size: 24px;
+    text-align: center;
+}
+
+#nowPlayingAlbum {
+    font-size: 1rem;
+    color: #ffc107;          /* rumena/oranžna */
     font-size: 24px;
     margin-bottom: 10px;
     text-align: center;
 }
+
 
 #controls {
     margin-top: 20px;
