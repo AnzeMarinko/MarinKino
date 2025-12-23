@@ -78,14 +78,11 @@ button {
     padding: 8px 12px;
     margin-right: 5px;
     font-size: 20px;
-    background: #5a5a5a;
-    border: none;
-    color: white;
+    background: white;
+    border-color: black;
+    color: black;
     cursor: pointer;
     border-radius: 8px;
-}
-button:hover {
-    background: #555;
 }
 
 #seekBar {
@@ -106,14 +103,15 @@ button:hover {
     height: 52px;
     padding: 0;
 }
+@media (hover: hover) {
+    .btn-player:hover {
+        filter: brightness(0.92);
+    }
+}
 .btn-play {
     background: #87b7ff;
     color: black;
-}
-.btn-play.active:hover,
-.btn-play:hover {
-    background: #438eff;
-    color: white;
+    border: none;
 }
 .btn-play.active {
     background: #0a6bfd;
@@ -122,13 +120,9 @@ button:hover {
 .btn-rnd {
     background: #c7ffb9;
     color: black;
+    border: none;
 }
 .btn-rnd.active {
     background: #1e9700;
-    color: white;
-}
-.btn-rnd.active:hover,
-.btn-rnd:hover {
-    background: #96ff7c;
     color: white;
 }

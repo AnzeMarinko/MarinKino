@@ -83,8 +83,10 @@ function prev() { if(currentIndex>0) playTrack(currentIndex-1); }
 
 const shuffleBtn = document.getElementById("shuffleBtn");
 let randomMode = JSON.parse(localStorage.getItem("random") || "false");
+const shuffleIcon = document.getElementById("shuffleIcon");
 
 const playBtn = document.getElementById("playBtn");
+const playIcon = document.getElementById("playIcon");
 
 // Posodobimo gumb ob zagonu
 updateShuffleBtn();
@@ -98,13 +100,24 @@ function toggleRandom() {
 }
 
 function updateShuffleBtn() {
-    if(randomMode) shuffleBtn.classList.add("active");
-    else shuffleBtn.classList.remove("active");
+
+    if (randomMode) {
+        shuffleBtn.classList.add("active");
+        shuffleIcon.className = "bi bi-shuffle";
+    } else {
+        shuffleBtn.classList.remove("active");
+        shuffleIcon.className = "bi bi-arrow-right";
+    }
 }
 
 function updatePlayBtn(playMode) {
-    if(playMode == "true") playBtn.classList.add("active");
-    else playBtn.classList.remove("active");
+    if (playMode == "true") {
+        playBtn.classList.add("active");
+        playIcon.className = "bi bi-pause-fill";
+    } else {
+        playBtn.classList.remove("active");
+        playIcon.className = "bi bi-play-fill";
+    }
 }
 
 // EQ animacija glede na predvajanje

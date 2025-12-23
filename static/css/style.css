@@ -8,19 +8,6 @@ body {
     color: #333;
 }
 
-header {
-    background: #396ba5;
-    padding: 10px;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    text-align: right;
-    z-index: 150;
-    transition: top 0.3s ease-in-out; /* Animate slide in/out */
-    will-change: transform;
-}
-
 html, body {
     overflow-x: hidden;
 }
@@ -32,85 +19,12 @@ select {
     font-weight: bold;
 }
 
-.logo{
-    height: 100px;
-    width: 100px;
-    position: absolute;
-    border-bottom-left-radius: 5px;
-    border-bottom-right-radius: 5px;
-    background-color: #f79737;
-    padding: 10px;
-    box-shadow: 0 0 20px 0 rgba(0,0,0,0.3);
-    top: 0;
-    z-index: 1000;
-    margin-left: 10px;
-}
-
-.logo img{
-    width: 100%;
-}
-
-.popcorn{
-    height: 50px;
-    width: 50px;
-    position: absolute;
-    border-bottom-left-radius: 5px;
-    border-bottom-right-radius: 5px;
-    margin-left: 140px;
-    background-color: #f79737;
-    padding: 10px;
-    box-shadow: 0 0 20px 0 rgba(0,0,0,0.3);
-    top: 0;
-    z-index: 1000;
-}
-
-.popcorn img{
-    width: 100%;
-}
-
-.logo, .popcorn {
-    left: 0;
-}
-
-
-.group-selector {
-    max-width: 70%;
-    margin-left: auto;
-}
-
 h1 {
     margin-right: 20pt;
 }
 
 h2 {
     padding-top: 20px;
-}
-
-header form {
-    margin-bottom: 20px;
-    padding-right: 40px;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    border-radius: 8px;
-}
-
-header .user {
-    color: white;
-    margin-bottom: 20px;
-    padding-right: 40px;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    border-radius: 8px;
-}
-
-form.login {
-    margin-bottom: 20px;
-    padding-right: 40px;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    border-radius: 8px;
 }
 
 input, button {
@@ -313,40 +227,6 @@ footer li {
   text-decoration: underline;
 }
 
-/* RADIO GUMBI LEPI */
-.watch-toggle input {
-  display: none;
-}
-
-.watch-toggle label {
-  margin-right: 4px;
-}
-
-
-.group-selector {
-    padding-right: 40px;
-}
-
-.group-selector ul {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    list-style: none;
-    padding: 0;
-    justify-content: flex-end;
-  }
-  
-  .group-selector button {
-    text-decoration: none;
-    border-radius: 8px;
-    color: #333;
-    font-weight: bold;
-  }
-  
-  .group-selector button:hover {
-    background-color: #bbb;
-  }
-
 .genre-badge {
     border: none;
     color: white;
@@ -366,7 +246,6 @@ footer li {
 .genre-badge.druzinski {background-color: #92a8d1;}
 .genre-badge.akcija {background-color: #d9ad7c;}
 .genre-badge.domisljijski {background-color: #eeac99;}
-
 
 .movie-page {
     text-align: center;
@@ -450,10 +329,6 @@ button {
     background-position: bottom left;
 }
 
-.group-selector button {
-    padding: 5px;
-}
-
 button.subtitles {
     padding: 5px;
     font-size: 14px;
@@ -504,10 +379,6 @@ video, img {
     display: none; /* skrij radio gumb */
 }
 
-.izbira input[type="checkbox"] {
-    display: none; /* skrij radio gumb */
-}
-
 .izbira label {
     padding: 5px 10px;
     border: 1px solid #ccc;
@@ -520,25 +391,7 @@ video, img {
   align-items: center;       /* vertikalno */
 }
 
-.izbira span {
-    padding: 5px 10px;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    cursor: pointer;
-    user-select: none;
-    background-color: wheat;
-  display: flex;
-  justify-content: center;   /* horizontalno */
-  align-items: center;       /* vertikalno */
-}
-
 .izbira input[type="radio"]:checked + label {
-    background-color: #e8ffe8;
-    border-color: #4CAF50;
-    font-weight: bold;
-}
-
-.izbira input[type="checkbox"]:checked + span {
     background-color: #e8ffe8;
     border-color: #4CAF50;
     font-weight: bold;

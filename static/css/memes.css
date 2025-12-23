@@ -17,8 +17,8 @@ body {
 
 .slika-container img,
 .slika-container video {
-    max-width: 95vw;
-    max-height: 95vh;
+    max-width: 90vw;
+    max-height: 90vh;
     margin-right: auto;
     margin-left: auto;
     width: 1000pt;

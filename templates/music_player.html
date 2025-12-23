@@ -23,20 +23,20 @@
   <audio id="audio" preload="auto"></audio>
 
   <div class="d-flex justify-content-center gap-3 my-2">
-    <button class="btn btn-outline-secondary control-btn" onclick="prev()">
+    <button class="player-btn" onclick="prev()">
       <i class="bi bi-skip-backward-fill"></i>
     </button>
 
     <button id="playBtn" class="btn-player btn-play" onclick="togglePlay()">
-      <i class="bi bi-play-fill"></i>
+      <i id="playIcon" class="bi bi-play-fill"></i>
     </button>
 
-    <button class="btn btn-outline-secondary control-btn" onclick="next()">
+    <button class="player-btn" onclick="next()">
       <i class="bi bi-skip-forward-fill"></i>
     </button>
 
     <button id="shuffleBtn" class="btn-player btn-rnd" onclick="toggleRandom()">
-      <i class="bi bi-shuffle"></i>
+      <i id="shuffleIcon" class="bi bi-shuffle"></i>
     </button>
 
 {% if current_user.is_admin %}
