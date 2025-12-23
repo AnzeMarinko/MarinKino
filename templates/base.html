@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  {% include "partials/header.html" %}
+</head>
+<body class="bg-light text-dark">
+
+  {% include "partials/navbar.html" %}
+
+  {% block content %}{% endblock %}
+
+  {% if not fullscreenbutton and not is_music %}
+    {% include "partials/footer.html" %}
+  {% endif %}
+
+</body>
+</html>

@@ -1,0 +1,134 @@
+body {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Zgornja polovica: 50% */
+#browser {
+    flex: 1;
+    display: flex;
+    border-bottom: 2px solid #444;
+    overflow: hidden;
+}
+
+/* Albumi levo */
+#albums {
+    width: 25%;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+#albums h2 {
+    margin-top: 0;
+}
+
+.album-item {
+    padding: 8px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+.album-item:hover, .album-item.active {
+    color: white;
+    background-color: #ca8402;;
+}
+
+/* Pesmi desno */
+#tracks {
+    flex: 1;
+    background: #f8e0b2;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.track-item {
+    padding: 8px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+.track-item:hover, .track-item.active {
+    background: white;
+    color: black
+}
+
+/* Spodnja polovica: player */
+#player {
+    flex: 1;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    background: white;
+    box-sizing: border-box;
+    align-items: center;
+}
+
+#nowPlaying {
+    font-size: 24px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+#controls {
+    margin-top: 20px;
+}
+
+button {
+    padding: 8px 12px;
+    margin-right: 5px;
+    font-size: 20px;
+    background: #5a5a5a;
+    border: none;
+    color: white;
+    cursor: pointer;
+    border-radius: 8px;
+}
+button:hover {
+    background: #555;
+}
+
+#seekBar {
+    width: 100%;
+    margin-top: 10px;
+}
+
+#timeDisplay {
+    margin-top: 5px;
+    font-size: 14px;
+    text-align: right;
+}
+
+.btn-player {
+    font-size: 1.5rem;
+    border-radius: 50%;
+    width: 52px;
+    height: 52px;
+    padding: 0;
+}
+.btn-play {
+    background: #87b7ff;
+    color: black;
+}
+.btn-play.active:hover,
+.btn-play:hover {
+    background: #438eff;
+    color: white;
+}
+.btn-play.active {
+    background: #0a6bfd;
+    color: white;
+}
+.btn-rnd {
+    background: #c7ffb9;
+    color: black;
+}
+.btn-rnd.active {
+    background: #1e9700;
+    color: white;
+}
+.btn-rnd.active:hover,
+.btn-rnd:hover {
+    background: #96ff7c;
+    color: white;
+}

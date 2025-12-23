@@ -89,7 +89,10 @@ def login():
             return redirect(url_for('index'))
         else:
             error = 'Napačno uporabniško ime ali geslo.'
-    return render_template('login.html', error=error)
+    return render_template(
+        'login.html', error=error,
+        pagetitle="Prijava v MarinKino"
+        )
 
 @app.route('/register', methods=['GET', 'POST'])
 @login_required
@@ -111,7 +114,7 @@ def register():
             with open("users.json", 'w', encoding="utf-8") as f:
                 f.write(json.dumps(users, indent=4))
             return redirect(url_for('index'))
-    return render_template('register.html', error=error)
+    return render_template('register.html', pagetitle="Registracija v MarinKino", error=error)
 
 @app.route('/logout')
 @login_required
@@ -225,31 +228,33 @@ def movies_chunk():
 MOVIES_PER_PAGE = 40
 
 @app.route("/")
-@login_required
 def index():
-    user_data = get_user_progress_data(current_user.id)
     genre_filter = request.args.get('genre')
     sort = request.args.get('sort', "name-asc")
     onlyunwatched = request.args.get('onlyunwatched') == "on"
     movietype = request.args.get('movietype', "")
 
-    movies = copy(all_films.get(movietype, []))
-    movies = [add_watch_info(m, user_data) for m in movies]
+    if current_user.is_authenticated:
+        user_data = get_user_progress_data(current_user.id)
+        movies = copy(all_films.get(movietype, []))
+        movies = [add_watch_info(m, user_data) for m in movies]
 
-    if genre_filter:
-        movies = [m for m in movies if genre_filter in m.get('genres', [])]
-    if onlyunwatched:
-        movies = [m for m in movies if m["watch_ratio"] < 100]
+        if genre_filter:
+            movies = [m for m in movies if genre_filter in m.get('genres', [])]
+        if onlyunwatched:
+            movies = [m for m in movies if m["watch_ratio"] < 100]
 
-    movies = sorted(
-        movies,
-        key=lambda m: str_to_int(m["runtimes"]) if "runtime" in sort else m["title"],
-        reverse="desc" in sort
-    )
+        movies = sorted(
+            movies,
+            key=lambda m: str_to_int(m["runtimes"]) if "runtime" in sort else m["title"],
+            reverse="desc" in sort
+        )
 
-    # 🔥 Shrani seznam v session
-    movie_ids = [m["movie_id"] for m in movies]
-    session["movies_cache"] = movie_ids
+        # 🔥 Shrani seznam v session
+        movie_ids = [m["movie_id"] for m in movies]
+        session["movies_cache"] = movie_ids
+    else:
+        movies = []
 
     # Vrni prvi batch
     movies_page = movies[:MOVIES_PER_PAGE]
@@ -257,6 +262,7 @@ def index():
 
     return render_template(
         "index.html",
+        pagetitle="MarinKino",
         movies=movies_page,
         has_more=has_more,
         page=1,
@@ -318,7 +324,7 @@ def play_movie(movies_subfolder, movie_folder):
         for subs in subtitles:
             if "slo" in subs.lower() or "si" in subs.lower():
                 slosubs_file = subs
-        return render_template("player.html", is_collection=len(video_files) > 1, movie=film, known_genres=GENRES_MAPPING.values(), group_folder=movies_subfolder, 
+        return render_template("player.html", pagetitle=film["title"] + film["year"], is_collection=len(video_files) > 1, movie=film, known_genres=GENRES_MAPPING.values(), group_folder=movies_subfolder, 
                                folder=movie_folder, video_file=video_files[0], video_files=video_files, subtitles=subtitles, slosubs_file=slosubs_file, subtitle_buttons=subtitle_buttons)
     else:
         print("No video files!")
@@ -471,12 +477,12 @@ def meme():
         user_meme_count[current_user.id]["count"] = 0
     user_meme_count[current_user.id]["count"] += 1
     if user_meme_count[current_user.id]["count"] > user_meme_limit:
-        return render_template("limit_exceeded.html", section="šal")
+        return render_template("limit_exceeded.html", section="šal", pagetitle="Dovolj za danes v MarinKino")
 
     # Izberi naključno sliko
     izbrana = memes[meme_id]
     meme_id = (meme_id + 1) % len(memes)
-    return render_template("memes.html", meme_file_name=izbrana)
+    return render_template("memes.html", pagetitle="MarinKino - Šale in navdihi", fullscreenbutton=True, meme_file_name=izbrana)
 
 @app.route("/memes/<meme_file_name>")
 @login_required
@@ -515,7 +521,7 @@ def get_albums():
 @app.route("/music")
 @login_required
 def music():
-    return render_template("music_player.html", albums=get_albums())
+    return render_template("music_player.html", pagetitle="MarinKino - Glasba", is_music=True, albums=get_albums())
 
 @app.route("/music/<path:filename>")
 @login_required

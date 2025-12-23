@@ -1,203 +1,92 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ movie.title }}{{ movie.year }}</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-	<link rel="icon" href="/static/logo.png">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+{% extends "base.html" %}
 
-</head>
+{% block content %}
 
-
-<body class="bg-light text-dark">
-
-<nav class="navbar navbar-expand-lg navbar-light bg-white shadow sticky-top">
-  <div class="container-fluid">
-
-    <!-- LOGO + NASLOV -->
-    <a class="navbar-brand d-flex align-items-center gap-2" href="/">
-      <img src="/static/logo.png" height="36">
-      <strong>MarinKino</strong>
-    </a>
-
-    <!-- HAMBURGER -->
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
-      <span class="navbar-toggler-icon"></span>
-    </button>
-
-    <!-- MENI -->
-    <div class="collapse navbar-collapse" id="mainNavbar">
-
-      <!-- LEVI MENI -->
-      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-        <li class="nav-item"><a class="nav-link" href="/meme">Šale & navdihi</a></li>
-        <li class="nav-item"><a class="nav-link" href="/music">Glasba</a></li>
-        <li class="nav-item"><a class="nav-link" href="https://anzemarinko.github.io/pod_krinko">Pod krinko</a></li>
-      </ul>
-
-      <!-- DESNI DEL: UPORABNIK -->
-      <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-2">
-        <span class="text-secondary">
-          Bog daj <span id="greeting"></span>, <strong>{{ current_user.id }}</strong>
-        </span>
-
-        <a href="/logout" class="btn btn-sm btn-outline-info">Odjava</a>
-
-        {% if current_user.is_admin %}
-        <a href="/register" class="btn btn-sm btn-outline-warning">+ Uporabnik</a>
-        {% endif %}
-      </div>
-
-    </div>
-  </div>
-</nav>
-    <div class="movie-page">
-        <div class="description">
-            <div class="cover"><img src="/movies{{ movie.cover }}" alt="Poster"></div>
-            <h1>{{ movie.title }}{{ movie.year }}<div class="slosinh">{{ movie.slosinh }}</div></h1></br>
-            <div class="genres">
-                {% for genre in movie.genres %}
-                <span class="genre-badge {{ genre|lower|replace(' ', '-') if genre in known_genres else 'unknown' }}">{{ genre }}</span>
-                {% endfor %}
-            </div></br>
-            <hr>
-            <b>{{ movie.players }}</b></br>
-            <hr>{{ movie.description }}</br>
-            <hr>{{ movie.description_2 }}</br>
-            <hr>{{ movie.folder }}
-        {% if subtitle_buttons %}</br>
-            <hr>Podnapisi (izberete v predvajalniku med možnostmi): {% for subtitle in subtitle_buttons %}<button class="subtitles">{{ subtitle }}</button> {% endfor %}
-            {% endif %}</br>
-            <hr>{% if is_collection %}
-                <div>
-                    {% for video_file in video_files %}
-                        <button class="video-btn" style="--watch: {{ movie.watch_info[video_file]['watch_ratio']|default(0) }}%;" 
-                            onclick="playVideo('/movies/{{ group_folder }}/{{ folder }}/{{ video_file }}', {{ movie.watch_info[video_file]['last_play_time']|default(0) }}, this)">
-                            {{ video_file|replace('.mp4', '') }} ({{ movie.runtimes_by_files[video_file] }} min)
-                        </button>
-                    {% endfor %}
-                    </div>
-            {% endif %}
-        </div>
-
-    {% if not is_collection %}
-        <video id="videoPlayer" controls playsinline>
-
-            <source src="/movies/{{ group_folder }}/{{ folder }}/{{ video_file }}" type="video/mp4">
-            {% if slosubs_file %}
-                <track src="/movies/{{ group_folder }}/{{ folder }}/{{ slosubs_file }}" kind="subtitles" srclang="sl" label="{{ slosubs_file|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" default>
-            {% endif %}
-            
-            {% for subtitle in subtitles %}
-                {% if subtitle != slosubs_file %}
-                <track src="/movies/{{ group_folder }}/{{ folder }}/{{ subtitle }}" kind="subtitles" srclang="{{ subtitle|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" label="{{ subtitle|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}">
-                {% endif %}
+<main class="container">
+<div class="movie-page">
+    <div class="description">
+        <div class="cover"><img src="/movies{{ movie.cover }}" alt="Poster"></div>
+        <h1>{{ movie.title }}{{ movie.year }}<div class="slosinh">{{ movie.slosinh }}</div></h1></br>
+        <div class="genres">
+            {% for genre in movie.genres %}
+            <span class="genre-badge {{ genre|lower|replace(' ', '-') if genre in known_genres else 'unknown' }}">{{ genre }}</span>
             {% endfor %}
-            Tvoj brskalnik ne podpira videa.
-        </video>
-        <script>
-            const video = document.getElementById('videoPlayer');
-            const lastTime = {{ movie.last_play_time|default(0) }}; // v sekundah
-
-            video.addEventListener('loadedmetadata', () => {
-                if (lastTime < video.duration) {
-                    video.currentTime = lastTime;
-                }
-            });
-        </script>
-    {% else %}
-        <video id="videoPlayer" width="100%" controls playsinline>
-            <source id="videoSource" src="" type="video/mp4">
-            Tvoj brskalnik ne podpira videa.
-        </video>
-
-        <script>
-        function playVideo(src, startTime = 0, button) {
-            // Označi izbran gumb
-            document.querySelectorAll('.video-btn').forEach(btn => btn.classList.remove('selected'));
-            button.classList.add('selected');
-            
-            // Predvajaj video
-            const video = document.getElementById('videoPlayer');
-            const source = document.getElementById('videoSource');
-            source.src = src;
-            video.load();
-            video.addEventListener('loadedmetadata', function setStartTime() {
-                if (startTime < video.duration) {
-                    video.currentTime = startTime;
-                }
-                video.play();
-                video.removeEventListener('loadedmetadata', setStartTime);
-            });
-        }
-        </script>
-    {% endif %}
+        </div></br>
+        <hr>
+        <b>{{ movie.players }}</b></br>
+        <hr>{{ movie.description }}</br>
+        <hr>{{ movie.description_2 }}</br>
+        <hr>{{ movie.folder }}
+    {% if subtitle_buttons %}</br>
+        <hr>Podnapisi (izberete v predvajalniku med možnostmi): {% for subtitle in subtitle_buttons %}<button class="subtitles">{{ subtitle }}</button> {% endfor %}
+        {% endif %}</br>
+        <hr>{% if is_collection %}
+            <div>
+                {% for video_file in video_files %}
+                    <button class="video-btn" style="--watch: {{ movie.watch_info[video_file]['watch_ratio']|default(0) }}%;" 
+                        onclick="playVideo('/movies/{{ group_folder }}/{{ folder }}/{{ video_file }}', {{ movie.watch_info[video_file]['last_play_time']|default(0) }}, this)">
+                        {{ video_file|replace('.mp4', '') }} ({{ movie.runtimes_by_files[video_file] }} min)
+                    </button>
+                {% endfor %}
+                </div>
+        {% endif %}
     </div>
 
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    const video = document.getElementById("videoPlayer");
-    if (!video) return;
+{% if not is_collection %}
+    <video id="videoPlayer" controls playsinline>
 
-    video.addEventListener("dblclick", () => {
-        if (!document.fullscreenElement) {
-            // Vklopi celozaslonski način
-            if (video.requestFullscreen) {
-                video.requestFullscreen();
-            } else if (video.webkitRequestFullscreen) { // Safari
-                video.webkitRequestFullscreen();
-            } else if (video.msRequestFullscreen) { // IE11
-                video.msRequestFullscreen();
+        <source src="/movies/{{ group_folder }}/{{ folder }}/{{ video_file }}" type="video/mp4">
+        {% if slosubs_file %}
+            <track src="/movies/{{ group_folder }}/{{ folder }}/{{ slosubs_file }}" kind="subtitles" srclang="sl" label="{{ slosubs_file|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" default>
+        {% endif %}
+        
+        {% for subtitle in subtitles %}
+            {% if subtitle != slosubs_file %}
+            <track src="/movies/{{ group_folder }}/{{ folder }}/{{ subtitle }}" kind="subtitles" srclang="{{ subtitle|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" label="{{ subtitle|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}">
+            {% endif %}
+        {% endfor %}
+        Tvoj brskalnik ne podpira videa.
+    </video>
+    <script>
+        const video = document.getElementById('videoPlayer');
+        const lastTime = {{ movie.last_play_time|default(0) }}; // v sekundah
+
+        video.addEventListener('loadedmetadata', () => {
+            if (lastTime < video.duration) {
+                video.currentTime = lastTime;
             }
-        } else {
-            // Izhod iz celozaslonskega načina
-            if (document.exitFullscreen) {
-                document.exitFullscreen();
-            } else if (document.webkitExitFullscreen) { // Safari
-                document.webkitExitFullscreen();
-            } else if (document.msExitFullscreen) { // IE11
-                document.msExitFullscreen();
+        });
+    </script>
+{% else %}
+    <video id="videoPlayer" width="100%" controls playsinline>
+        <source id="videoSource" src="" type="video/mp4">
+        Tvoj brskalnik ne podpira videa.
+    </video>
+
+    <script>
+    function playVideo(src, startTime = 0, button) {
+        // Označi izbran gumb
+        document.querySelectorAll('.video-btn').forEach(btn => btn.classList.remove('selected'));
+        button.classList.add('selected');
+        
+        // Predvajaj video
+        const video = document.getElementById('videoPlayer');
+        const source = document.getElementById('videoSource');
+        source.src = src;
+        video.load();
+        video.addEventListener('loadedmetadata', function setStartTime() {
+            if (startTime < video.duration) {
+                video.currentTime = startTime;
             }
-        }
-    });
-
-    function playVideo(videoPath) {
-        const source = document.getElementById("videoSource");
-
-        source.src = videoPath;
-
-        video.load();       // ponastavi video z novimi viri
-        video.play();       // začne predvajanje
+            video.play();
+            video.removeEventListener('loadedmetadata', setStartTime);
+        });
     }
+    </script>
+{% endif %}
+</div>
 
-    // Nastavi interval (v milisekundah)
-    const intervalMillis = 20 * 1000;
-    const csrfToken = "{{ csrf_token() }}";
-    setInterval(() => {
-            if (video && !video.paused && !video.ended) {
-                fetch("/video-progress", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-CSRFToken": csrfToken
-                    },
-                    body: JSON.stringify({
-                        filename: video.currentSrc,
-                        currentTime: video.currentTime,
-                        duration: video.duration
-                    })
-                }).catch(() => {});
-                const selectedButton = document.querySelector('.video-btn.selected');
-                if (selectedButton) {
-                    selectedButton.style.setProperty('--watch', Math.round(video.currentTime / video.duration * 100) + '%');
-                }
-            }
-        }, intervalMillis);
-});
-</script>
+<script defer src="/static/script/movie_player.js"></script>
+</main>
 
-</body>
-</html>
+{% endblock %}

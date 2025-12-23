@@ -10,7 +10,6 @@ from priprava_filmov.download_subtitles import get_subtitles
 from priprava_filmov.translate_subtitles import translate
 from priprava_filmov.rescale_captions import rescale_captions, extract_audio
 from priprava_filmov.get_movie_metadata import MovieMetadata
-from priprava_filmov.prepare_user_interface import prepare_html
 from priprava_filmov.the_chosen_scrapper import scrappe_chosen
 
 def convert_audio_to_aac(filepath):
@@ -157,7 +156,6 @@ if __name__ == "__main__":
     if is_ffmpeg_installed():
         scrappe_chosen()
         all_films = check_folder(FILMS_ROOT, only_collect_metadata=False)
-        prepare_html(all_films)
         print("\n✅ Končano!\n")
     else:
         print("❌ FFmpeg ni nameščen! Namesti ga in poskusi znova.")

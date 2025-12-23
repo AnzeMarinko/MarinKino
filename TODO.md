@@ -1,6 +1,7 @@
 # TODO:
 
 popravi rclone
+izboljšaj gumbe v glasbi zaradi telefona
 
 Glasba:
 * naj bodo metapodatki (naslov, izvajalec ...) vidni
