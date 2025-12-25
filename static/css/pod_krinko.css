@@ -1,0 +1,472 @@
+:root {
+    --pod-krinko-temno: #323F47;
+    --pod-krinko: #525F67;
+    --gospod-v-belem: #FBD303;
+    --civilist: #4485C5;
+    --civilistka: #3EB9E3;
+    --neznanec: #6FD153;
+    --neznanka: #66C148;
+}
+
+html {
+    overscroll-behavior: none;
+}
+
+body {
+    margin: 0;
+    font-family: Monospace;
+    background: var(--pod-krinko-temno);
+    color: white;
+    overscroll-behavior: none;
+}
+
+h1 {
+    font-size: 40px;
+}
+
+li b {
+    font-size: 25px;
+}
+
+.menu {
+    background: var(--pod-krinko-temno);
+    text-align: right;
+    display: none;
+}
+
+section {
+    margin: auto;
+    margin-bottom: 10pt;
+    margin-top: 10pt;
+    width: 98%;
+    max-width: 1000px;
+}
+
+#nastavitve {
+    display: block;
+    /* Hidden by default */
+    text-align: center;
+}
+
+#igra {
+    display: none;
+    /* Hidden by default */
+    text-align: center;
+}
+
+#igra #kartice {
+    background: white;
+    border: 5px solid var(--pod-krinko-temno);
+    border-radius: 16px;
+}
+
+#igra #navodilo {
+    font-size: 16pt;
+}
+
+#igra #stanje {
+    font-size: 14pt;
+    padding-bottom: 10px;
+}
+
+.slidecontainer {
+    padding: 5px;
+    margin: auto;
+    width: 95%;
+    /* Width of the outside container */
+    font-size: 18px;
+    color: white;
+}
+
+input {
+    font-family: Monospace;
+    font-size: 14pt;
+    border-radius: 8px;
+}
+
+/* The slider itself */
+.slider {
+    -webkit-appearance: none;
+    /* Override default CSS styles */
+    appearance: none;
+    width: 95%;
+    margin: auto;
+    max-width: 500pt;
+    height: 25px;
+    /* Specified height */
+    background: #a2a2a2;
+    /* Grey background */
+    outline: none;
+    /* Remove outline */
+    -webkit-transition: .2s;
+    /* 0.2 seconds transition on hover */
+    transition: opacity .2s;
+    border-radius: 8px;
+}
+
+/* Mouse-over effects */
+.slider:hover {
+    background: #e2e2e2;
+    /* Grey background */
+}
+
+/* The slider handle (use -webkit- (Chrome, Opera, Safari, Edge) and -moz- (Firefox) to override default look) */
+.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    /* Override default look */
+    appearance: none;
+    width: 25px;
+    /* Set a specific slider handle width */
+    height: 25px;
+    /* Slider handle height */
+    background: var(--gospod-v-belem);
+    /* Green background */
+    cursor: pointer;
+    /* Cursor on hover */
+    border-radius: 8px;
+}
+
+.slider::-moz-range-thumb {
+    width: 25px;
+    /* Set a specific slider handle width */
+    height: 25px;
+    /* Slider handle height */
+    background: var(--gospod-v-belem);
+    /* Green background */
+    cursor: pointer;
+    /* Cursor on hover */
+    border-radius: 8px;
+}
+
+.nastavitve img {
+    width: 30px;
+    /* Set a specific slider handle width */
+    height: 30px;
+    /* Slider handle height */
+}
+
+#overlay {
+    position: fixed;
+    /* Sit on top of the page content */
+    display: none;
+    /* Hidden by default */
+    width: 100%;
+    /* Full width (cover the whole page) */
+    height: 100%;
+    /* Full height (cover the whole page) */
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #000000;
+    opacity: 0.7;
+    z-index: 2;
+    /* Specify a stack order in case you're using a different order for other elements */
+    cursor: pointer;
+    /* Add a pointer on hover */
+    text-align: center;
+}
+
+#overlay_izkljucitev {
+    display: none;
+    /* Hidden by default */
+    width: 100%;
+    /* Full width (cover the whole page) */
+    height: 100%;
+    /* Full height (cover the whole page) */
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    /* Specify a stack order in case you're using a different order for other elements */
+    cursor: pointer;
+    /* Add a pointer on hover */
+    text-align: center;
+}
+
+#text_izkljucitev {
+    padding: 10px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    border-radius: 8px;
+    font-size: 50px;
+    color: black;
+    background-color: white;
+    transform: translate(-50%, -50%);
+    -ms-transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+#overlay_rezultati {
+    display: none;
+    /* Hidden by default */
+    width: 100%;
+    /* Full width (cover the whole page) */
+    height: 100%;
+    /* Full height (cover the whole page) */
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    opacity: 1;
+    z-index: 2;
+    /* Specify a stack order in case you're using a different order for other elements */
+    cursor: pointer;
+    /* Add a pointer on hover */
+    text-align: center;
+}
+
+#text_rezultati {
+    margin: auto;
+    margin-top: 20pt;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 20px;
+    color: black;
+    background-color: white;
+}
+
+#overlay_image {
+    width: 50%;
+    max-width: 400px;
+}
+
+#navodila {
+    /* Sit on top of the page content */
+    display: none;
+    /* Hidden by default */
+    width: 100%;
+    /* Full width (cover the whole page) */
+    height: 100%;
+    /* Full height (cover the whole page) */
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--pod-krinko);
+    opacity: 0.95;
+    z-index: 2;
+    /* Specify a stack order in case you're using a different order for other elements */
+    cursor: pointer;
+    /* Add a pointer on hover */
+    border-radius: 8px;
+}
+
+#text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    font-size: 50px;
+    color: white;
+    transform: translate(-50%, -50%);
+    -ms-transform: translate(-50%, -50%);
+}
+
+#besedilo_navodil {
+    margin: 20px;
+    font-size: 20px;
+    color: white;
+}
+
+#ugibanje_beli {
+    display: none;
+    background-color: #dddddd;
+    border-radius: 8px;
+}
+
+/* buttons with image and name */
+
+.button {
+    margin: 10px 5px;
+    border: none;
+    width: 150px;
+    max-width: 45%;
+    color: white;
+    padding: 5pt;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 18px;
+    transition-duration: 0.4s;
+    cursor: pointer;
+    font-family: Monospace;
+    opacity: 1;
+    color: white;
+    border: 2px solid;
+    border-radius: 8px;
+    transition: all .3s;
+}
+
+.button_result {
+    margin: 5px 5px;
+    border: none;
+    width: 400px;
+    max-width: 90%;
+    color: white;
+    padding: 8px 12px;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    transition-duration: 0.4s;
+    cursor: pointer;
+    font-family: Monospace;
+    opacity: 1;
+    border: 2px solid;
+    border-radius: 8px;
+    transition: all .3s;
+
+    &:hover {
+        transform: scale(1.03);
+        color: black;
+        background-color: white;
+    }
+}
+
+.izkljuci:hover {
+    transform: scale(1.2);
+}
+
+.button img {
+    width: 100%;
+}
+
+.button:hover {
+    color: black;
+    background-color: white;
+    transform: scale(1.03);
+}
+
+.button:hover img {
+    transform: rotateY(180deg);
+}
+
+.button_neznanec:hover {
+    border-color: var(--neznanec);
+}
+
+.button_neznanec {
+    background-color: var(--neznanec);
+}
+
+.button_neznanec img {
+    content: url(static/pod_krinko_avatars/neznanec.png);
+}
+
+.button_neznanka:hover {
+    border-color: var(--neznanka);
+}
+
+.button_neznanka {
+    background-color: var(--neznanka);
+}
+
+.button_neznanka img {
+    content: url(static/pod_krinko_avatars/neznanka.png);
+}
+
+.button_civilist:hover {
+    border-color: var(--civilist);
+}
+
+.button_civilist {
+    background-color: var(--civilist);
+}
+
+.button_civilist img {
+    content: url(static/pod_krinko_avatars/civilist.png);
+}
+
+.button_civilistka:hover {
+    border-color: var(--civilistka);
+}
+
+.button_civilistka {
+    background-color: var(--civilistka);
+}
+
+.button_civilistka img {
+    content: url(static/pod_krinko_avatars/civilistka.png);
+}
+
+.button_beli:hover {
+    border-color: var(--gospod-v-belem);
+}
+
+.button_beli {
+    border-color: var(--gospod-v-belem);
+    color: black;
+    background-color: var(--gospod-v-belem);
+}
+
+.button_beli img {
+    content: url(static/pod_krinko_avatars/gospod_v_belem.png);
+}
+
+.button_agent:hover {
+    border-color: var(--pod-krinko);
+}
+
+.button_agent {
+    background-color: var(--pod-krinko);
+}
+
+.button_agent img {
+    content: url(static/pod_krinko_avatars/pod_krinko.png);
+}
+
+.button_menu:hover {
+    border-color: var(--pod-krinko);
+}
+
+.button_menu {
+    margin: 0px 0px;
+    width: 200pt;
+    padding: 10px 5px;
+    font-size: 14px;
+    background-color: var(--pod-krinko);
+}
+
+.button .name {
+    margin-bottom: 5px;
+}
+
+.izkljuci {
+    border-radius: 12px;
+    padding: 10px;
+    display: none;
+    background: var(--civilistka);
+    color: black;
+    align-items: center;
+    justify-content: center;
+    transition: all .3s;
+}
+
+.button_result img {
+    height: 30px;
+    transform: rotateY(180deg);
+}
+
+.button_result .name {
+    padding: 8px 12px;
+}
+
+.button_result .nove_tocke {
+    background-color: greenyellow;
+    color: black;
+}
+
+progress {
+    width: 80%;
+}
+
+footer {
+    text-align: center;
+}
+
+footer a {
+    text-decoration: none;  /* Odstrani podčrtavo */
+    color: var(--gospod-v-belem);         /* Ohranimo privzeto barvo gumba */
+    display: block;         /* Poskrbimo, da pokriva celoten gumb */
+}

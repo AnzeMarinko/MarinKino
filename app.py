@@ -567,6 +567,10 @@ def song_remove(filename):
 def favicon():
     return send_from_directory('static', 'logo.png')
 
+@app.route("/pod_krinko")
+def pod_krinko():
+    return render_template("pod_krinko.html")
+
 
 if __name__ == "__main__":
     print("Started server")
