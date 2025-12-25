@@ -25,6 +25,7 @@ memes/*.PNG
 memes/*.GIF
 memes/*.jpeg
 memes/*.webp
+memes/*.WEBP
 memes/*.png
 music/**/*.mp3
 music/**/*.m4a

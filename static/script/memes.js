@@ -64,36 +64,3 @@ function preklopiFullscreen() {
         }
     }
 }
-
-const nextBtn = document.getElementById('nextButton');
-const mediaContainer = document.getElementById('mediaContainer');
-
-// Prikaz gumbka samo, ko je miška/blizu sredine
-function checkPosition(event) {
-    const rect = mediaContainer.getBoundingClientRect();
-    const x = event.clientX || (event.touches ? event.touches[0].clientX : 0);
-    const y = event.clientY || (event.touches ? event.touches[0].clientY : 0);
-
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-
-    const distanceX = Math.abs(x - centerX);
-    const distanceY = Math.abs(y - centerY);
-
-    const toleranceX = rect.width * 0.25;  // 25% širine
-    const toleranceY = rect.height * 0.25; // 25% višine
-
-    if (distanceX < toleranceX && distanceY < toleranceY) {
-        nextBtn.style.opacity = 1;
-    } else {
-        nextBtn.style.opacity = 0;
-    }
-}
-
-// Za miško
-mediaContainer.addEventListener('mousemove', checkPosition);
-// Za mobilne naprave
-mediaContainer.addEventListener('touchmove', checkPosition);
-
-// Ob izhodu iz območja skrij gumb
-mediaContainer.addEventListener('mouseleave', () => nextBtn.style.opacity = 0);
