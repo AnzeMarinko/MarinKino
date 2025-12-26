@@ -5,6 +5,7 @@ output.wav
 *progress.json
 
 cache
+data/pod_krinko_besede.csv
 credentials/*.json
 .env
 users.json

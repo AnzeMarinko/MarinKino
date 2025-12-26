@@ -273,7 +273,7 @@ function overlay_display_mode(element, mode) {
     }
 }
 
-function izkljuci(element) {
+function dokončaj_izključitev(element) {
     var card = element.parentNode;
     var izkljuceni = parseInt(card.id.substring(4));
     element.style.display = "none";
@@ -287,7 +287,7 @@ function izkljuci(element) {
     document.getElementById("ugibanje_beli").style.display = "none";
     if (igralci[izkljuceni].vloga == "gospod-v-belem") {
         card.className = "button button_beli";
-        document.getElementById("overlay_image").src = "static/pod_krinko_avatars/gospod_v_belem.png";
+        document.getElementById("overlay_image").src = "/static/pod_krinko_avatars/gospod_v_belem.png";
         document.querySelector('input[id="ugibanje"]').value = ""
         document.getElementById("ugibanje_beli").style.display = "block";
         del_igre = deli_igre.BELI_UGIBA;
@@ -295,14 +295,14 @@ function izkljuci(element) {
         ugibajoci_beli = izkljuceni;
     } else if (igralci[izkljuceni].vloga == "vohun") {
         card.className = "button button_agent";
-        document.getElementById("overlay_image").src = "static/pod_krinko_avatars/pod_krinko.png";
+        document.getElementById("overlay_image").src = "/static/pod_krinko_avatars/pod_krinko.png";
     } else if (igralci[izkljuceni].vloga == "prebivalec") {
         if (igralci[izkljuceni].spol == "m") {
             card.className = "button button_civilist";
-            document.getElementById("overlay_image").src = "static/pod_krinko_avatars/civilist.png";
+            document.getElementById("overlay_image").src = "/static/pod_krinko_avatars/civilist.png";
         } else {
             card.className = "button button_civilistka";
-            document.getElementById("overlay_image").src = "static/pod_krinko_avatars/civilistka.png";
+            document.getElementById("overlay_image").src = "/static/pod_krinko_avatars/civilistka.png";
         }
     }
     document.getElementById("overlay_izkljucitev").style.display = "block";
@@ -313,67 +313,117 @@ function izkljuci(element) {
     igralci[izkljuceni].aktiven = false;
 }
 
-function start_new_game() {
+let playerToEliminate = null;
+let elementToEliminate = null;
+
+function izkljuci(element) {
+    elementToEliminate = element;
+    playerToEliminate = parseInt(element.parentNode.id.substring(4));
+    
+    const modalText = document.getElementById("modal-body-text");
+    modalText.innerHTML = `Ali res želite izločiti igralca <b>${igralci[playerToEliminate].ime}</b>?`;
+    
+    const myModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+    myModal.show();
+}
+
+// Dogodek za gumb v modalu
+document.getElementById("confirmEliminationBtn").onclick = function() {
+    const modalEl = document.getElementById('confirmModal');
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    modal.hide();
+    
+    // Tukaj pokliči svojo originalno logiko izključitve, ki si jo imel prej
+    dokončaj_izključitev(elementToEliminate); 
+};
+
+// Preveri podvojena imena (case-insensitive)
+function hasDuplicateNames(names) {
+    const lowerNames = names.map(n => n.toLowerCase());
+    return new Set(lowerNames).size !== lowerNames.length;
+}
+
+// Shranjevanje točk in nastavitev
+function saveGameState() {
+    const data = {
+        nPlayers: nPlayersSlider.value,
+        nUndercovers: nUndercoversSlider.value,
+        nWhites: nWhitesSlider.value,
+        tocke: igralci.map(p => ({ ime: p.ime, tocke: p.tocke }))
+    };
+    localStorage.setItem('podKrinko_data', JSON.stringify(data));
+}
+
+async function start_new_game() {
+    let namesInputElements = document.querySelectorAll('.nameInput input[type="text"]');
+    let names = Array.from(namesInputElements).map(i => i.value.trim());
+
+    if (names.some(n => n === "")) {
+        alert("Prosim, vnesi imena vseh igralcev.");
+        return;
+    }
+
+    if (hasDuplicateNames(names)) {
+        alert("Napaka: Dva igralca imata isto ime!");
+        return;
+    }
+
+    // --- Ostala logika za vloge (iz tvoje originalne kode) ---
     nerazdeljene_vloge = [];
-    for (var i = 0; i < nPlayers - nUndercovers - nWhites; i++) {
-        nerazdeljene_vloge.push("prebivalec");
-    }
-    for (var i = 0; i < nUndercovers; i++) {
-        nerazdeljene_vloge.push("vohun");
-    }
-    for (var i = 0; i < nWhites; i++) {
-        nerazdeljene_vloge.push("gospod-v-belem");
-    }
+    for (var i = 0; i < nPlayers - nUndercovers - nWhites; i++) nerazdeljene_vloge.push("prebivalec");
+    for (var i = 0; i < nUndercovers; i++) nerazdeljene_vloge.push("vohun");
+    for (var i = 0; i < nWhites; i++) nerazdeljene_vloge.push("gospod-v-belem");
+    
     isMrMeme = document.getElementById("nemec").checked ? Math.max(0, Math.ceil(Math.random() * nPlayers) - 1) : -1;
 
     for (var i = 0; i < nPlayers; i++) {
-        if (i == igralci.length) {
-            var name = document.getElementById(i.toString()).querySelector('input[id="name"]').value;
-            if (name.length == 0) {
-                alert("Dopolni manjkajoča imena!");
-                return 0
-            }
+        let currentName = names[i];
+        let currentGender = document.querySelector(`input[name="${i}"]:checked`).value;
+
+        // Posodobimo ali ustvarimo igralca
+        if (i >= igralci.length) {
             igralci.push({
-                ime: name,
-                spol: document.getElementById(i.toString()).querySelector('input[name="' + i.toString() + '"]:checked').value,
+                ime: currentName,
+                spol: currentGender,
                 tocke: 0,
                 vloga: randomItem(nerazdeljene_vloge),
                 aktiven: true,
                 videl_besedo: false,
-                nove_tocke: 0,
-            })
+                nove_tocke: 0
+            });
             kartice.insertAdjacentHTML("beforeend", hiddenCardTemplate);
             var last_div = document.getElementById("card-1");
             last_div.id = "card" + i.toString();
-            last_div.querySelector('div[class="name"]').innerHTML = name;
         } else {
+            igralci[i].ime = currentName;
+            igralci[i].spol = currentGender;
             igralci[i].vloga = randomItem(nerazdeljene_vloge);
             igralci[i].aktiven = true;
             igralci[i].videl_besedo = false;
             igralci[i].nove_tocke = 0;
             var last_div = document.getElementById("card" + i.toString());
         }
+        
+        last_div.querySelector('.name').innerHTML = currentName;
         last_div.style.opacity = 1;
-        if (igralci[i].spol == "m") {
-            last_div.className = "button button_neznanec";
-        } else {
-            last_div.className = "button button_neznanka";
-        }
+        last_div.className = (currentGender === "m") ? "button button_neznanec" : "button button_neznanka";
     }
-    if (pari_besed.length == 0) {
-        alert("Super ste, ostali smo brez besed &#128558;")
-    }
+
+    saveGameState(); // Shrani ob vsakem novem krogu
+    
+    // UI preklop
     document.getElementById("igra").style.display = "block";
     document.getElementById("menu").style.display = "block";
     document.getElementById("nastavitve").style.display = "none";
-
-    var besedi = randomItem(pari_besed)[0];
-    var i = Math.round(Math.random());
-    beseda_prebivalci = besedi[i];
-    if (nUndercovers > 0) {
-        beseda_vohuni = besedi[Math.abs(i - 1)];
-    };
+    
+    // Besede
+    const response = await fetch(`/pod_krinko/new_words`);
+    const besedi = await response.json();
+    beseda_prebivalci = besedi[0];
+    if (nUndercovers > 0) beseda_vohuni = besedi[1];
+    
     del_igre = deli_igre.IZBIRA_BESED;
+
     zmagovalci = {};
     change_badge_visibility("none");
     document.getElementById("navodilo").innerHTML = "Vsak igralec naj na skrivaj pogleda svojo besedo.";
@@ -381,6 +431,24 @@ function start_new_game() {
     document.getElementById("stanje_vohuni").innerHTML = "";
     document.getElementById("stanje_beli").innerHTML = "";
 }
+
+// Funkcija za nalaganje ob osvežitvi strani
+window.onload = function() {
+    const savedData = localStorage.getItem('podKrinkoData');
+    if (savedData) {
+        const data = JSON.parse(savedData);
+        nPlayersSlider.value = data.nPlayers;
+        set_number_of_players(); // To bo generiralo input polja
+        
+        data.igralci.forEach((savedPlayer, index) => {
+            const inputDiv = document.getElementById(index.toString());
+            if (inputDiv) {
+                inputDiv.querySelector('input[type="text"]').value = savedPlayer.ime;
+                inputDiv.querySelector(`input[value="${savedPlayer.spol}"]`).checked = true;
+            }
+        });
+    }
+};
 
 function pojdi_v_nastavitve() {
     if (confirm("Želite res nazaj v nastavitve?\nPodatki o igralcih se bodo ohranili,\n" +
@@ -466,3 +534,35 @@ function rezultati() {
     document.getElementById("overlay_rezultati").style.display = "block";
     document.getElementById("igra").style.display = "none";
 }
+
+// Pomožna funkcija za nalaganje zadnjih uporabljenih imen
+function nalozi_zadnja_imena() {
+    const savedData = localStorage.getItem('podKrinko_zadnjaImena');
+    if (savedData) {
+        const prejsnjaImena = JSON.parse(savedData);
+        const inputs = document.querySelectorAll('.nameInput input[type="text"]');
+        
+        prejsnjaImena.forEach((podatki, index) => {
+            if (index < inputs.length) {
+                inputs[index].value = podatki.ime;
+                // Nastavi še spol, če obstaja
+                const radioSpol = document.querySelector(`input[name="${index}"][value="${podatki.spol}"]`);
+                if (radioSpol) radioSpol.checked = true;
+            }
+        });
+    }
+}
+
+// To funkcijo pokliči znotraj start_new_game(), ko so imena validirana
+function shrani_imena_za_naslednjic() {
+    const trenutnaImena = igralci.map(p => ({ ime: p.ime, spol: p.spol }));
+    localStorage.setItem('podKrinko_zadnjaImena', JSON.stringify(trenutnaImena));
+}
+
+// Posodobljena funkcija set_number_of_players, da po generiranju polj poskusi vstaviti stara imena
+const original_set_players = set_number_of_players;
+set_number_of_players = function() {
+    original_set_players();
+    nalozi_zadnja_imena();
+};
+

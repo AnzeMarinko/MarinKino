@@ -351,7 +351,7 @@ input {
 }
 
 .button_neznanec img {
-    content: url(static/pod_krinko_avatars/neznanec.png);
+    content: url(/static/pod_krinko_avatars/neznanec.png);
 }
 
 .button_neznanka:hover {
@@ -363,7 +363,7 @@ input {
 }
 
 .button_neznanka img {
-    content: url(static/pod_krinko_avatars/neznanka.png);
+    content: url(/static/pod_krinko_avatars/neznanka.png);
 }
 
 .button_civilist:hover {
@@ -375,7 +375,7 @@ input {
 }
 
 .button_civilist img {
-    content: url(static/pod_krinko_avatars/civilist.png);
+    content: url(/static/pod_krinko_avatars/civilist.png);
 }
 
 .button_civilistka:hover {
@@ -387,7 +387,7 @@ input {
 }
 
 .button_civilistka img {
-    content: url(static/pod_krinko_avatars/civilistka.png);
+    content: url(/static/pod_krinko_avatars/civilistka.png);
 }
 
 .button_beli:hover {
@@ -401,7 +401,7 @@ input {
 }
 
 .button_beli img {
-    content: url(static/pod_krinko_avatars/gospod_v_belem.png);
+    content: url(/static/pod_krinko_avatars/gospod_v_belem.png);
 }
 
 .button_agent:hover {
@@ -413,7 +413,7 @@ input {
 }
 
 .button_agent img {
-    content: url(static/pod_krinko_avatars/pod_krinko.png);
+    content: url(/static/pod_krinko_avatars/pod_krinko.png);
 }
 
 .button_menu:hover {
@@ -469,4 +469,42 @@ footer a {
     text-decoration: none;  /* Odstrani podčrtavo */
     color: var(--gospod-v-belem);         /* Ohranimo privzeto barvo gumba */
     display: block;         /* Poskrbimo, da pokriva celoten gumb */
+}
+
+/* Prilagoditev Bootstrap vnosnih polj tvoji temi */
+.form-control {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid var(--pod-krinko) !important;
+    color: white !important;
+}
+
+.form-control:focus {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border-color: var(--gospod-v-belem) !important;
+    box-shadow: 0 0 0 0.25rem rgba(251, 211, 3, 0.2) !important;
+}
+
+/* Lepši drsniki (sliders) za temno temo */
+.slider {
+    background: #1a1f24;
+}
+
+/* Stil za modal */
+.modal-content {
+    background-color: var(--pod-krinko-temno) !important;
+}
+
+/* Izboljšava kartic igralcev */
+.button {
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+/* Boljši progres bar za rezultate */
+progress {
+    accent-color: var(--gospod-v-belem);
+    height: 12px;
 }

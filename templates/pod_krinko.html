@@ -10,7 +10,9 @@
     <meta name="description" content="Slovenska različica besedne igre Undercover">
     <meta name="author" content="Anže Marinko">
     <title>Pod krinko &#128372;</title>
-    <link rel="stylesheet" href="static/css/pod_krinko.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <link rel="stylesheet" href="/static/css/pod_krinko.css">
 
     <link rel="icon" type="image/x-icon" href="https://anzemarinko.duckdns.org/static/pod_krinko_favicon_io/favicon.ico">
 	<meta name="theme-color" content="#323F47">
@@ -32,7 +34,7 @@
 	<meta property="og:description" content="Slovenska različica besedne igre Undercover">
 </head>
 
-<body>
+<body data-bs-theme="dark">
     <section id="navodila" onclick="pravila_igre('none')">
         <div id="besedilo_navodil">
             <h1>Vloge:</h1>
@@ -76,16 +78,16 @@
         <h1>POD KRINKO &#128372;</h1>
 
         <div class="slidecontainer">
-            <img src="static/pod_krinko_avatars/civilist.png"><img src="static/pod_krinko_avatars/civilistka.png"> Število igralcev: <span
+            <img src="/static/pod_krinko_avatars/civilist.png"><img src="/static/pod_krinko_avatars/civilistka.png"> Število igralcev: <span
                 id="nPlayersText">10</span></br>
             <input type="range" min="3" max="20" value="3" class="slider" id="nPlayersSlider">
         </div>
         <div class="slidecontainer">
-            <img src="static/pod_krinko_avatars/pod_krinko.png"> Število vohunov: <span id="nUndercoversText">10</span></br>
+            <img src="/static/pod_krinko_avatars/pod_krinko.png"> Število vohunov: <span id="nUndercoversText">10</span></br>
             <input type="range" min="0" max="6" value="1" class="slider" id="nUndercoversSlider">
         </div>
         <div class="slidecontainer">
-            <img src="static/pod_krinko_avatars/gospod_v_belem.png"> Število gospodov v belem: <span id="nWhitesText">10</span></br>
+            <img src="/static/pod_krinko_avatars/gospod_v_belem.png"> Število gospodov v belem: <span id="nWhitesText">10</span></br>
             <input type="range" min="0" max="4" value="0" class="slider" id="nWhitesSlider">
         </div>
         <div class="slidecontainer">
@@ -99,11 +101,23 @@
             <div id="namesInput">
             </div>
             <script id="hidden-template" type="text/x-custom-template">
-				<div class="nameInput" id="-1">
-					<input type="text" id="name" name="name" size="10"/>
-					<img src="static/pod_krinko_avatars/neznanec.png"><input type="radio" id="m" name="spol" value="m" checked="checked">
-					<img src="static/pod_krinko_avatars/neznanka.png"><input type="radio" id="f" name="spol" value="f">
-				</div>
+                <div class="nameInput mb-2 p-3 border border-secondary rounded shadow-sm" id="-1" style="background-color: rgba(255,255,255,0.05);">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-7">
+                            <input type="text" class="form-control bg-dark text-white border-secondary" id="name" placeholder="Ime igralca">
+                        </div>
+                        <div class="col-5 d-flex justify-content-center align-items-center gap-3">
+                            <label class="d-flex align-items-center gap-1 cursor-pointer">
+                                <img src="static/pod_krinko_avatars/neznanec.png" width="24">
+                                <input type="radio" class="form-check-input mt-0" id="m" name="spol" value="m" checked>
+                            </label>
+                            <label class="d-flex align-items-center gap-1 cursor-pointer">
+                                <img src="static/pod_krinko_avatars/neznanka.png" width="24">
+                                <input type="radio" class="form-check-input mt-0" id="f" name="spol" value="f">
+                            </label>
+                        </div>
+                    </div>
+                </div>
 			</script>
         </div>
 
@@ -192,12 +206,29 @@
         </div>
     </section>
 
+    <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Izločitev igralca</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="modal-body-text">
+        Ali ste prepričani, da želite izločiti igralca?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Prekliči</button>
+        <button type="button" class="btn btn-danger" id="confirmEliminationBtn">Izloči!</button>
+      </div>
+    </div>
+  </div>
+</div>
+
     <footer>
         <p>Anže Marinko <a href="https://anzemarinko.duckdns.org">anzemarinko.duckdns.org</a></p>
     </footer>
 
-    <script src="static/script/pod_krinko_besede.js"></script>
-    <script src="static/script/pod_krinko.js"></script>
+    <script src="/static/script/pod_krinko.js"></script>
 </body>
 
 </html>

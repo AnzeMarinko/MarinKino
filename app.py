@@ -20,6 +20,7 @@ from flask_limiter.util import get_remote_address
 import glob
 from mutagen.mp3 import MP3
 from mutagen.easyid3 import EasyID3
+import pandas as pd
 
 if not os.path.exists(CACHE_ROOT):
     os.mkdir(CACHE_ROOT)
@@ -570,6 +571,14 @@ def favicon():
 @app.route("/pod_krinko")
 def pod_krinko():
     return render_template("pod_krinko.html")
+
+pod_krinko_words = pd.read_csv("data/pod_krinko_besede.csv", sep=";").to_dict(orient="split")["data"]
+
+@app.route("/pod_krinko/new_words")
+def pod_krinko_new_words():
+    new_words = copy(pod_krinko_words[random.randint(0, len(pod_krinko_words) - 1)])
+    random.shuffle(new_words)
+    return new_words
 
 
 if __name__ == "__main__":

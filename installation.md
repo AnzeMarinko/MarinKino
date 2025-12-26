@@ -7,6 +7,7 @@ Spodaj so celotna navodila za nastavitev okolja, da se ob zagonu računalnika za
 * Python 3.12
 * ffmpeg
 * rezerviran IP za strežnik
+* nastavljen fail2ban za nginx-404, nginx-botsearch in nginx-http-auth
 * TLC port forwarding za 80-80 (notranji in zunanji vhod) in 443-443 nastavljen na routerju za IP strežnika
 * na duckdns.org nastavljeno poddomeno za svojo stran.
 
@@ -29,6 +30,7 @@ source .venv/bin/activate
 
 ### 3. 📦 Namesti odvisnosti
 ```
+sudo apt update && sudo apt upgrade
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
