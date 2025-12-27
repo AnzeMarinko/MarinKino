@@ -1,6 +1,7 @@
 # TODO:
 
 popravi rclone
+nadzorna plošča koliko povprečno pogledajo
 
 Glasba:
 * naredi playlisto vsega kar bi rad imel (najprej Youtube music in nato še navaden Youtube)

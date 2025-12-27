@@ -5,7 +5,7 @@
 <main class="container">
 <div class="movie-page">
     <div class="description">
-        <div class="cover"><img src="/movies{{ movie.cover }}" alt="Poster"></div>
+        <div class="cover"><img src="/movies/file{{ movie.cover }}" alt="Poster"></div>
         <h1>{{ movie.title }}{{ movie.year }}<div class="slosinh">{{ movie.slosinh }}</div></h1></br>
         <div class="genres">
             {% for genre in movie.genres %}
@@ -23,7 +23,7 @@
             <div>
                 {% for video_file in video_files %}
                     <button class="video-btn" style="--watch: {{ movie.watch_info[video_file]['watch_ratio']|default(0) }}%;" 
-                        onclick="playVideo('/movies/{{ group_folder }}/{{ folder }}/{{ video_file }}', {{ movie.watch_info[video_file]['last_play_time']|default(0) }}, this)">
+                        onclick="playVideo('/movies/file/{{ group_folder }}/{{ folder }}/{{ video_file }}', {{ movie.watch_info[video_file]['last_play_time']|default(0) }}, this)">
                         {{ video_file|replace('.mp4', '') }} ({{ movie.runtimes_by_files[video_file] }} min)
                     </button>
                 {% endfor %}
@@ -34,14 +34,14 @@
 {% if not is_collection %}
     <video id="videoPlayer" controls playsinline>
 
-        <source src="/movies/{{ group_folder }}/{{ folder }}/{{ video_file }}" type="video/mp4">
+        <source src="/movies/file/{{ group_folder }}/{{ folder }}/{{ video_file }}" type="video/mp4">
         {% if slosubs_file %}
-            <track src="/movies/{{ group_folder }}/{{ folder }}/{{ slosubs_file }}" kind="subtitles" srclang="sl" label="{{ slosubs_file|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" default>
+            <track src="/movies/file/{{ group_folder }}/{{ folder }}/{{ slosubs_file }}" kind="subtitles" srclang="sl" label="{{ slosubs_file|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" default>
         {% endif %}
         
         {% for subtitle in subtitles %}
             {% if subtitle != slosubs_file %}
-            <track src="/movies/{{ group_folder }}/{{ folder }}/{{ subtitle }}" kind="subtitles" srclang="{{ subtitle|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" label="{{ subtitle|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}">
+            <track src="/movies/file/{{ group_folder }}/{{ folder }}/{{ subtitle }}" kind="subtitles" srclang="{{ subtitle|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" label="{{ subtitle|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}">
             {% endif %}
         {% endfor %}
         Tvoj brskalnik ne podpira videa.

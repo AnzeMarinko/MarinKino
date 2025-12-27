@@ -68,7 +68,7 @@ function playTrack(i) {
     nowPlayingArtist.textContent = artist;
     nowPlayingAlbum.textContent = album;
 
-    audio.src = "/music/" + currentTrack;
+    audio.src = "/music/file/" + currentTrack;
     audio.currentTime = 0;
     audio.play().catch(() => {});
 

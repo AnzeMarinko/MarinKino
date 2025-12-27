@@ -44,7 +44,7 @@ async function loadNextPage() {
     if (loading) return;
     loading = true;
 
-    const response = await fetch(`/movies_page?page=${currentPage}`);
+    const response = await fetch(`/movies/page?page=${currentPage}`);
     const data = await response.json();
 
     data.movies.forEach(movie => {
@@ -65,8 +65,8 @@ function renderMovieCard(movie) {
     wrapper.style = `--watch: ${movie.watch_ratio}%;`;
 
     wrapper.innerHTML = `
-        <a href="/play${movie.folder}">
-            <img src="/movies${movie.thumbnail}" alt="Poster" loading="lazy">
+        <a href="/movies/play${movie.folder}">
+            <img src="/movies/file${movie.thumbnail}" alt="Poster" loading="lazy">
         </a>
 
         <h3>${movie.title}${movie.year}
@@ -102,7 +102,7 @@ function renderMovieCard(movie) {
 
         <div class="buttons">
             <button class="runtime">${movie.runtimes} min</button>${movie.is_admin ? `
-            <form action="/remove${movie.folder}" method="post" onsubmit="return odstraniMovieCard(event, this);">
+            <form action="/movies/remove${movie.folder}" method="post" onsubmit="return odstraniMovieCard(event, this);">
                 <input type="hidden" name="csrf_token" value="${csrfToken}">
                 <button type="submit">Odstrani</button>
             </form>

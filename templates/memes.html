@@ -7,11 +7,11 @@
 <div class="slika-container" id="mediaContainer">
     {% if meme_file_name.endswith('.mp4') %}
         <video id="videoPlayer" controls autoplay playsinline>
-            <source src="memes/{{ meme_file_name }}" type="video/mp4">
+            <source src="memes/file/{{ meme_file_name }}" type="video/mp4">
             Tvoj brskalnik ne podpira videa.
         </video>
     {% else %}
-        <img src="memes/{{ meme_file_name }}" alt="Naključna slika" id="slikaElement">
+        <img src="memes/file/{{ meme_file_name }}" alt="Naključna slika" id="slikaElement">
     {% endif %}
 </div>
     <button class="next-btn" id="nextButton" onclick="pojdiNaNaslednjega()">➤</button>

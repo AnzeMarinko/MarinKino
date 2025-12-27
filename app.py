@@ -56,6 +56,68 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
+
+@app.after_request
+def log_response_info(response):   
+    request_parts = request.path[1:].split("/")
+    if len(request_parts):
+        if "static" in request_parts[0] or "progress" in request_parts[0] or "favicon.ico" in request_parts[0]:
+            return response
+        if "movies" in request_parts[0] and "file" in request_parts[1] and ".mp4" not in request_parts[-1]:
+            return response
+    user_id = current_user.id if current_user.is_authenticated else "anonymus"
+    timestamp = datetime.now().isoformat()[:16]
+    if not os.path.exists(f"access/routes/{date.today().isoformat()}"):
+        os.makedirs(f"access/routes/{date.today().isoformat()}")
+    with open(f"access/routes/{date.today().isoformat()}/{user_id}.log", "a", encoding="utf-8") as f:
+        f.write(f"{timestamp} | {request.method} | {request.path} | {response.status}\n")
+    return response
+
+# admin control panel
+@app.route("/admin")
+@login_required
+def admin_panel():
+    if not current_user.is_admin:
+        return redirect(url_for('index'))
+    last_system_log_file = None
+    for f in sorted(os.listdir("../MarinKinoCache/logs"), reverse=True):
+        if f.startswith("server_start_"):
+            last_system_log_file = f
+            break
+    if last_system_log_file:
+        with open(os.path.join("../MarinKinoCache/logs", last_system_log_file), "r", encoding="utf-8") as f:
+            system_log = "\n".join(f.read().split("\n")[-500:])
+    access_stats_users = {}
+    access_stats_routes = {}
+    for log_date in sorted(os.listdir("access/routes/"), reverse=True):
+        access_stats_users[log_date] = {}
+        access_stats_routes[log_date] = {}
+        for log_file in os.listdir(os.path.join("access/routes/", log_date)):
+            with open(os.path.join("access/routes/", log_date, log_file), "r", encoding="utf-8") as f:
+                lines = f.readlines()
+            user_id = log_file.replace(".log", "")
+            for line in lines:
+                route = line.split(" | ")[2]
+                status = line.split(" | ")[3].replace("\n", "")
+                if "/file/" in route:
+                    route = route.split("/file/")[0] + "/file/..."
+                if len(route.split("/")) > 3:
+                    route = "/".join(route.split("/")[:3]) + "/..."
+                access_stats_routes[log_date].setdefault(route, {})
+                access_stats_routes[log_date][route] = len(lines) if int(status.split(" ")[0]) < 400 else access_stats_routes[log_date][route]
+
+                access_stats_users[log_date].setdefault(status, {})
+                access_stats_users[log_date][status].setdefault(user_id, 0)
+                access_stats_users[log_date][status][user_id] += 1
+
+    access_stats_users = pd.DataFrame(access_stats_users).T
+    access_stats_users = access_stats_users[sorted(access_stats_users.columns)].fillna({}).to_dict()
+    access_stats_routes = pd.DataFrame(access_stats_routes).T
+    access_stats_routes = access_stats_routes[sorted(access_stats_routes.columns)].fillna(0).astype(int).T.to_dict()
+
+    return render_template("admin.html", pagetitle="MarinKino - Nadzorna plošča", system_log=system_log, access_stats_users=access_stats_users, access_stats_routes=access_stats_routes)
+    
+
 with open("users.json", 'r', encoding="utf-8") as f:
     users = json.loads(f.read())
     
@@ -115,7 +177,6 @@ def register():
             content = f"Nov uporabnik je bil registriran v MarinKino:\n\nUporabniško ime: {username}\nE-naslov: {email}\nGeslo: {password}\n\nLep pozdrav,\nMarinKino sistem"
             # send to my telegram bot
             os.system(f"curl -X POST https://api.telegram.org/bot{os.getenv('TELEGRAM_BOT_TOKEN')}/sendMessage -d chat_id={os.getenv('TELEGRAM_CHAT_ID')} -d text='{content}'")
-
             with open("users.json", 'w', encoding="utf-8") as f:
                 f.write(json.dumps(users, indent=4))
             return redirect(url_for('index'))
@@ -196,40 +257,6 @@ def get_user_progress_data(user_id):
         user_data = {}
     return user_data
 
-@app.route("/movies_chunk")
-@login_required
-def movies_chunk():
-    # Parametri za paginacijo
-    offset = int(request.args.get("offset", 0))
-    limit = int(request.args.get("limit", 50))
-
-    # Filtri
-    genre_filter = request.args.get('genre')
-    sort = request.args.get('sort', "name-asc")
-    onlyunwatched = request.args.get('onlyunwatched') == "on"
-    movietype = request.args.get('movietype', random.choice(list(group_folders.keys())))
-
-    # Vzameš vedno isti seznam — samo gradiš iz offset/limit
-    user_data = get_user_progress_data(current_user.id)
-    movies = copy(all_films[movietype])
-    movies = [add_watch_info(m, user_data) for m in movies]
-
-    if genre_filter:
-        movies = [m for m in movies if genre_filter in m.get('genres', [])]
-    if onlyunwatched:
-        movies = [m for m in movies if m["watch_ratio"] < 100]
-
-    # Sortiraj
-    movies = sorted(movies, key=lambda m: str_to_int(m["runtimes"]) if "runtime" in sort else m["title"], reverse="desc" in sort)
-
-    # Vrni samo chunk
-    chunk = movies[offset: offset + limit]
-
-    return {
-        "movies": chunk,
-        "has_more": offset + limit < len(movies)
-    }
-
 MOVIES_PER_PAGE = 40
 
 @app.route("/")
@@ -286,7 +313,7 @@ for group in all_films.values():
     for m in group:
         global_movie_index[m["movie_id"]] = m
 
-@app.route("/movies_page")
+@app.route("/movies/page")
 @login_required
 def movies_page():
     page = int(request.args.get('page', 1))
@@ -310,7 +337,7 @@ def movies_page():
 
 
 
-@app.route("/play/<movies_subfolder>/<movie_folder>")
+@app.route("/movies/play/<movies_subfolder>/<movie_folder>")
 @login_required
 def play_movie(movies_subfolder, movie_folder):
     user_data = get_user_progress_data(current_user.id)
@@ -335,7 +362,7 @@ def play_movie(movies_subfolder, movie_folder):
         print("No video files!")
         return 0
 
-@app.route("/remove/<movies_subfolder>/<movie_folder>", methods=['POST'])
+@app.route("/movies/remove/<movies_subfolder>/<movie_folder>", methods=['POST'])
 @login_required
 def remove_movie(movies_subfolder, movie_folder):
     global all_films
@@ -360,7 +387,7 @@ def remove_movie(movies_subfolder, movie_folder):
     shutil.rmtree(removing_folder)
     return "", 204
 
-@app.route("/movies/<movies_subfolder>/<movie_folder>/<filename>")
+@app.route("/movies/file/<movies_subfolder>/<movie_folder>/<filename>")
 @login_required
 def movie_file(movies_subfolder, movie_folder, filename):
     try:
@@ -471,7 +498,7 @@ def video_progress_change():
 user_meme_count = {}
 user_meme_limit = 33
 
-@app.route("/meme")
+@app.route("/memes")
 @login_required
 def meme():
     global meme_id
@@ -489,7 +516,7 @@ def meme():
     meme_id = (meme_id + 1) % len(memes)
     return render_template("memes.html", pagetitle="MarinKino - Šale in navdihi", fullscreenbutton=True, meme_file_name=izbrana)
 
-@app.route("/memes/<meme_file_name>")
+@app.route("/memes/file/<meme_file_name>")
 @login_required
 def meme_file(meme_file_name):
     try:
@@ -545,7 +572,7 @@ for file in get_albums()["Vse"]:
 def music():
     return render_template("music_player.html", pagetitle="MarinKino - Glasba", is_music=True, albums=get_albums(), music_metadata=music_metadata)
 
-@app.route("/music/<path:filename>")
+@app.route("/music/file/<path:filename>")
 @login_required
 def song(filename):
     try:

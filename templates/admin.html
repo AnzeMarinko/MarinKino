@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}{{ pagetitle }}{% endblock %}
+
+{% block content %}
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<h1>Nadzorna plošča</h1>  
+<h2>Ogled statistike dostopa</h2>
+<div>
+    <label for="status-select">Izberite status uporabnika:</label>
+    {% for status in access_stats_users.keys() %}
+        <input type="radio" name="status" value="{{ status }}" onchange="plotStatus('{{ status }}')"> {{ status }}
+    {% endfor %}
+</div>
+<div id="access-user-graph"></div>
+
+<div id="access-graph"></div>
+
+<script>
+    var accessDataUsers = {{ access_stats_users | tojson | safe }};  
+    var statuses = Object.keys(accessDataUsers);
+
+    function plotStatus(selectedStatusToPlot) {
+        var dates = Object.keys(accessDataUsers[selectedStatusToPlot]);
+        var userNames = Object.keys(accessDataUsers[selectedStatusToPlot][dates[0]]);
+        var data = [];
+        userNames.forEach(function(user) {
+                var yValues = dates.map(function(date) {
+                    return accessDataUsers[selectedStatusToPlot][date][user] || 0;
+            });
+            data.push({
+                x: dates,
+                y: yValues,
+                mode: 'lines+markers',
+                name: user
+            });
+        });
+        var layout_users = {
+            title: 'Dostop uporabnikov s statusom ' + selectedStatusToPlot + ' skozi čas',
+            xaxis: { title: 'Datum' },
+            yaxis: { title: 'Število dostopov' }
+        };
+        Plotly.newPlot('access-user-graph', data, layout_users);
+    };
+    // Prikaži začetni graf za prvi status
+    plotStatus(statuses[0]);
+
+    var accessData = {{ access_stats_routes | tojson | safe }};  
+    var dates = Object.keys(accessData);
+    var routeNames = Object.keys(accessData[dates[0]]);
+    var data = [];
+    routeNames.forEach(function(route) {
+        var yValues = dates.map(function(date) {
+            return accessData[date][route] || 0;
+        });
+        data.push({
+            x: dates,
+            y: yValues,
+            mode: 'lines+markers',
+            name: route
+        });
+    });
+    var layout = {
+        title: 'Dostop do poti skozi čas',
+        xaxis: { title: 'Datum' },
+        yaxis: { title: 'Število dostopov' }
+    };
+    Plotly.newPlot('access-graph', data, layout);
+
+</script>
+
+<h2>Zadnji log file</h2>
+<pre>
+{{ system_log }}
+</pre>  
+
+{% endblock %}
