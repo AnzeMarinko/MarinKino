@@ -5,16 +5,106 @@
 {% block content %}
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 <h1>Nadzorna plošča</h1>  
-<h2>Ogled statistike dostopa</h2>
-<div>
-    <label for="status-select">Izberite status uporabnika:</label>
-    {% for status in access_stats_users.keys() %}
-        <input type="radio" name="status" value="{{ status }}" onchange="plotStatus('{{ status }}')"> {{ status }}
-    {% endfor %}
-</div>
-<div id="access-user-graph"></div>
 
-<div id="access-graph"></div>
+<h2>Statistika ogledov filmov</h2>
+<div class="table-responsive">
+<table id="views-table" class="table table-striped table-hover table-bordered">
+        <thead class="thead-light">
+                <tr>
+                        <th>Uporabnik</th>
+                        {% for column in users_stats_columns %}
+                        <th>{{ column }}</th>
+                        {% endfor %}
+                </tr>
+        </thead>
+        <tbody>
+                {% for user, data in users_stats.items() %}
+                <tr>
+                        <td>{{ user }}</td>
+                        {% for column in users_stats_columns %}
+                        <td>{{ data[column] }}</td>
+                        {% endfor %}
+                </tr>
+                {% endfor %}
+        </tbody>
+</table>
+</div>
+
+<style>
+#views-table th.sortable { cursor: pointer; user-select: none; }
+.sort-indicator { margin-left: 6px; font-size: 0.8em; opacity: 0.85; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+    const table = document.getElementById('views-table');
+    if(!table) return;
+    const tbody = table.tBodies[0];
+    const headers = table.tHead.querySelectorAll('th');
+    headers.forEach(function(th, index){
+        th.classList.add('sortable');
+        const span = document.createElement('span');
+        span.className = 'sort-indicator';
+        th.appendChild(span);
+        th.addEventListener('click', function(){
+            const currentOrder = th.dataset.order === 'asc' ? 'desc' : 'asc';
+            headers.forEach(h => { delete h.dataset.order; const s = h.querySelector('.sort-indicator'); if(s) s.textContent = ''; });
+            th.dataset.order = currentOrder;
+            span.textContent = currentOrder === 'asc' ? '▲' : '▼';
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            rows.sort(function(a,b){
+                const aText = (a.cells[index] && a.cells[index].textContent.trim()) || '';
+                const bText = (b.cells[index] && b.cells[index].textContent.trim()) || '';
+                const aNum = parseFloat(aText.replace(/[^0-9\.\-]/g,''));
+                const bNum = parseFloat(bText.replace(/[^0-9\.\-]/g,''));
+                if(!isNaN(aNum) && !isNaN(bNum)){
+                    return currentOrder === 'asc' ? aNum - bNum : bNum - aNum;
+                }
+                return currentOrder === 'asc' ? aText.localeCompare(bText, undefined, {numeric:true, sensitivity:'base'}) : bText.localeCompare(aText, undefined, {numeric:true, sensitivity:'base'});
+            });
+            rows.forEach(r => tbody.appendChild(r));
+        });
+    });
+});
+</script>
+
+<h2>Ogled statistike dostopa</h2>
+<div class="row mb-3">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">Filtriraj po statusu</div>
+            <div class="card-body">
+                <div class="form-group">
+                    <label for="status-select">Izberite status uporabnika:</label>
+                    <div>
+                        {% for status in access_stats_users.keys() %}
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="status" id="status-{{ loop.index }}" value="{{ status }}" onchange="plotStatus('{{ status }}')" {% if loop.first %}checked{% endif %}>
+                                <label class="form-check-label" for="status-{{ loop.index }}">{{ status }}</label>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card mb-3">
+            <div class="card-header">Dostop uporabnikov</div>
+            <div class="card-body">
+                <div id="access-user-graph" style="min-height:320px; width:100%;"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Dostop do poti skozi čas</div>
+            <div class="card-body">
+                <div id="access-graph" style="min-height:320px; width:100%;"></div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
     var accessDataUsers = {{ access_stats_users | tojson | safe }};  
@@ -40,7 +130,7 @@
             xaxis: { title: 'Datum' },
             yaxis: { title: 'Število dostopov' }
         };
-        Plotly.newPlot('access-user-graph', data, layout_users);
+        Plotly.newPlot('access-user-graph', data, layout_users, {responsive: true});
     };
     // Prikaži začetni graf za prvi status
     plotStatus(statuses[0]);
@@ -65,13 +155,16 @@
         xaxis: { title: 'Datum' },
         yaxis: { title: 'Število dostopov' }
     };
-    Plotly.newPlot('access-graph', data, layout);
+    Plotly.newPlot('access-graph', data, layout, {responsive: true});
 
 </script>
 
 <h2>Zadnji log file</h2>
-<pre>
-{{ system_log }}
-</pre>  
+<div class="card">
+    <div class="card-header">Zadnji log file</div>
+    <div class="card-body p-2">
+        <pre class="mb-0 small text-muted" style="max-height:360px; overflow:auto; white-space:pre-wrap;">{{ system_log }}</pre>
+    </div>
+</div>
 
 {% endblock %}

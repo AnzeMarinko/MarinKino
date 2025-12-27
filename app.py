@@ -61,7 +61,7 @@ login_manager.login_view = 'login'
 def log_response_info(response):   
     request_parts = request.path[1:].split("/")
     if len(request_parts):
-        if "static" in request_parts[0] or "progress" in request_parts[0] or "favicon.ico" in request_parts[0]:
+        if "static" in request_parts[0] or "progress" in request_parts[0] or "favicon.ico" in request_parts[0] or ".well-known" in request_parts[0]:
             return response
         if "movies" in request_parts[0] and "file" in request_parts[1] and ".mp4" not in request_parts[-1]:
             return response
@@ -113,9 +113,51 @@ def admin_panel():
     access_stats_users = pd.DataFrame(access_stats_users).T
     access_stats_users = access_stats_users[sorted(access_stats_users.columns)].fillna({}).to_dict()
     access_stats_routes = pd.DataFrame(access_stats_routes).T
+    print(access_stats_routes[sorted(access_stats_routes.columns)].fillna(0))
     access_stats_routes = access_stats_routes[sorted(access_stats_routes.columns)].fillna(0).astype(int).T.to_dict()
 
-    return render_template("admin.html", pagetitle="MarinKino - Nadzorna plošča", system_log=system_log, access_stats_users=access_stats_users, access_stats_routes=access_stats_routes)
+    users_progress_files = glob.glob(os.path.join(CACHE_ROOT, "users", "*_films_progress.json"))
+    users_stats = {}
+    for user_progress_file in users_progress_files:
+        user_id = os.path.basename(user_progress_file).replace("_films_progress.json", "")
+        with open(user_progress_file, "r", encoding="utf-8") as f:
+            user_data = json.load(f)
+        total_watch_time = 0
+        watch_ratios = []
+        watched_count = 0
+        starting_count = 0
+        last_start_time = None
+        for video_file, progress in user_data.items():
+            watch_time = progress.get("total_play_time", 0)
+            duration = progress.get("duration", 0)
+            start_time = progress.get("start_time", [])                
+            if watch_time and duration:
+                watch_ratio = watch_time / duration * 100
+                watch_ratios.append(watch_ratio)
+                if watch_ratio >= 50:
+                    watched_count += 1
+                if watch_ratio > 3 and start_time:
+                    last_start_time = max(start_time) if start_time else last_start_time
+                    starting_count += len(start_time)
+            total_watch_time += watch_time
+
+        def seconds_to_str(seconds):
+            hours = int(seconds // 3600)
+            minutes = int((seconds % 3600) // 60)
+            return f"{hours}h {minutes}m"
+
+        users_stats[user_id] = {
+            "Skupen čas": seconds_to_str(total_watch_time),
+            "Število začetih": starting_count,
+            "Število ogledanih": watched_count,
+            "Povprečen delež ogleda": f"{round(sum(watch_ratios) / len(watch_ratios), 1) if watch_ratios else 0} %",
+            "Zadnji začetek ogleda": last_start_time if last_start_time else "-"
+        }
+    users_stats = pd.DataFrame(users_stats).T.sort_values(by=["Število ogledanih", "Skupen čas"], ascending=False)
+    users_stats, users_stats_columns = users_stats.to_dict(orient="index"), users_stats.columns
+
+    return render_template("admin.html", pagetitle="MarinKino - Nadzorna plošča", system_log=system_log, access_stats_users=access_stats_users,
+                           access_stats_routes=access_stats_routes, users_stats=users_stats, users_stats_columns=users_stats_columns)
     
 
 with open("users.json", 'r', encoding="utf-8") as f:
