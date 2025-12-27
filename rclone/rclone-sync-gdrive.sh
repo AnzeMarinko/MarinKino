@@ -8,6 +8,7 @@ set -e
 LOG_DIR="/home/marinko/Desktop/MarinKinoCache/rclone-logs"
 LOG_FILE="${LOG_DIR}/rclone_sync_$(date +'%Y-%m-%d_%H-%M').log"
 IGNORE_FILE="/home/marinko/Desktop/MarinKino/rclone/rclone-ignore.txt"
+RCLONE_CONF="/home/marinko/.config/rclone/rclone.conf"
 CACHE_DIR="/home/marinko/.cache/rclone"
 LOCK_FILE="/tmp/rclone-bisync-MarinKino.lock"
 
@@ -23,7 +24,7 @@ fi
 
 echo "▶️ START sync $(date)" >> "$LOG_FILE"
 
-/usr/bin/rclone --config "/home/marinko/.config/rclone/rclone.conf" sync "/home/marinko/Desktop/MarinKino" "gdrive:MarinKino" \
+/usr/bin/rclone --config "$RCLONE_CONF" sync "/home/marinko/Desktop/MarinKino" "gdrive:MarinKino" \
   --exclude-from "$IGNORE_FILE" \
   --drive-chunk-size 512M \
   --checkers=8 \
@@ -40,6 +41,7 @@ echo "▶️ START sync $(date)" >> "$LOG_FILE"
 ### ====== CLEAN LOGS ======
 
 MAX_LOGS=10
-ls -tp "$LOG_DIR" | grep -v '/$' | tail -n +$((MAX_LOGS+1)) | xargs -r rm --
+cd "$LOG_DIR"
+ls -t | grep -v '/$' | tail -n +$((MAX_LOGS+1)) | xargs -r rm --
 
 echo "✅ FINISHED $(date)" >> "$LOG_FILE"

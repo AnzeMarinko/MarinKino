@@ -103,8 +103,8 @@ def admin_panel():
                     route = route.split("/file/")[0] + "/file/..."
                 if len(route.split("/")) > 3:
                     route = "/".join(route.split("/")[:3]) + "/..."
-                access_stats_routes[log_date].setdefault(route, {})
-                access_stats_routes[log_date][route] = len(lines) if int(status.split(" ")[0]) < 400 else access_stats_routes[log_date][route]
+                access_stats_routes[log_date].setdefault(route, 0)
+                access_stats_routes[log_date][route] += 1
 
                 access_stats_users[log_date].setdefault(status, {})
                 access_stats_users[log_date][status].setdefault(user_id, 0)
@@ -113,7 +113,6 @@ def admin_panel():
     access_stats_users = pd.DataFrame(access_stats_users).T
     access_stats_users = access_stats_users[sorted(access_stats_users.columns)].fillna({}).to_dict()
     access_stats_routes = pd.DataFrame(access_stats_routes).T
-    print(access_stats_routes[sorted(access_stats_routes.columns)].fillna(0))
     access_stats_routes = access_stats_routes[sorted(access_stats_routes.columns)].fillna(0).astype(int).T.to_dict()
 
     users_progress_files = glob.glob(os.path.join(CACHE_ROOT, "users", "*_films_progress.json"))
