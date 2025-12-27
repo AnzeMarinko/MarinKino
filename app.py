@@ -79,7 +79,7 @@ def load_user(user_id):
     return None
 
 @app.route('/login', methods=['GET', 'POST'])
-@limiter.limit("5 per 15 minutes")
+@limiter.limit("10 per 15 minutes")
 def login():
     error = None  # spremenljivka za napako
     if request.method == 'POST':
@@ -106,14 +106,16 @@ def register():
         return redirect(url_for('index'))
     if request.method == 'POST':
         username = request.form['username']
-        password = request.form['password']
-        password2 = request.form['password2']
+        email = request.form['email']
         if username in users:
             error = 'Uporabniško ime zasedeno!'
-        elif len(password) < 4 or password != password2:
-            error = 'Geslo mora imeti vsaj 4 znake in mora biti pravilno ponovljeno!'
         else:
-            users[username] = {"password_hash": generate_password_hash(password), "user_id_hash": password}
+            password = ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=12))
+            users[username] = {"password_hash": generate_password_hash(password), "user_id_hash": password, "email": email}
+            content = f"Nov uporabnik je bil registriran v MarinKino:\n\nUporabniško ime: {username}\nE-naslov: {email}\nGeslo: {password}\n\nLep pozdrav,\nMarinKino sistem"
+            # send to my telegram bot
+            os.system(f"curl -X POST https://api.telegram.org/bot{os.getenv('TELEGRAM_BOT_TOKEN')}/sendMessage -d chat_id={os.getenv('TELEGRAM_CHAT_ID')} -d text='{content}'")
+
             with open("users.json", 'w', encoding="utf-8") as f:
                 f.write(json.dumps(users, indent=4))
             return redirect(url_for('index'))
@@ -575,6 +577,7 @@ def pod_krinko():
 pod_krinko_words = pd.read_csv("data/pod_krinko_besede.csv", sep=";").to_dict(orient="split")["data"]
 
 @app.route("/pod_krinko/new_words")
+@limiter.limit("10 per 15 minutes")
 def pod_krinko_new_words():
     new_words = copy(pod_krinko_words[random.randint(0, len(pod_krinko_words) - 1)])
     random.shuffle(new_words)
