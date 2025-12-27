@@ -23,7 +23,7 @@ fi
 
 echo "▶️ START sync $(date)" >> "$LOG_FILE"
 
-/usr/bin/rclone sync "/home/marinko/Desktop/MarinKino" "gdrive:MarinKino" \
+/usr/bin/rclone --config "/home/marinko/.config/rclone/rclone.conf" sync "/home/marinko/Desktop/MarinKino" "gdrive:MarinKino" \
   --exclude-from "$IGNORE_FILE" \
   --drive-chunk-size 512M \
   --checkers=8 \
@@ -39,6 +39,7 @@ echo "▶️ START sync $(date)" >> "$LOG_FILE"
 
 ### ====== CLEAN LOGS ======
 
+MAX_LOGS=10
 ls -tp "$LOG_DIR" | grep -v '/$' | tail -n +$((MAX_LOGS+1)) | xargs -r rm --
 
 echo "✅ FINISHED $(date)" >> "$LOG_FILE"
