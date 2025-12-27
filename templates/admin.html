@@ -109,8 +109,19 @@ document.addEventListener('DOMContentLoaded', function(){
 <script>
     var accessDataUsers = {{ access_stats_users | tojson | safe }};  
     var statuses = Object.keys(accessDataUsers);
+    var currentStatus = statuses[0] || null;
+
+    function getLegendLayout(containerId){
+        var el = document.getElementById(containerId);
+        var width = el ? el.clientWidth : window.innerWidth;
+        if(width < 576){
+            return { orientation: 'h', x: 0, y: 1.12, xanchor: 'left' };
+        }
+        return { orientation: 'v', x: 1.02, y: 1, xanchor: 'left' };
+    }
 
     function plotStatus(selectedStatusToPlot) {
+        currentStatus = selectedStatusToPlot;
         var dates = Object.keys(accessDataUsers[selectedStatusToPlot]);
         var userNames = Object.keys(accessDataUsers[selectedStatusToPlot][dates[0]]);
         var data = [];
@@ -122,7 +133,8 @@ document.addEventListener('DOMContentLoaded', function(){
                 x: dates,
                 y: yValues,
                 mode: 'lines+markers',
-                name: user
+                name: user,
+                showlegend: true
             });
         });
         var layout_users = {
@@ -130,6 +142,9 @@ document.addEventListener('DOMContentLoaded', function(){
             xaxis: { title: 'Datum' },
             yaxis: { title: 'Število dostopov' }
         };
+        var legendLayout = getLegendLayout('access-user-graph');
+        layout_users.legend = Object.assign({}, legendLayout, { traceorder: 'normal' });
+        layout_users.margin = legendLayout.orientation === 'h' ? {t:90, b:40, l:40, r:20} : {t:60, b:40, l:40, r:120};
         Plotly.newPlot('access-user-graph', data, layout_users, {responsive: true});
     };
     // Prikaži začetni graf za prvi status
@@ -138,24 +153,40 @@ document.addEventListener('DOMContentLoaded', function(){
     var accessData = {{ access_stats_routes | tojson | safe }};  
     var dates = Object.keys(accessData);
     var routeNames = Object.keys(accessData[dates[0]]);
-    var data = [];
-    routeNames.forEach(function(route) {
-        var yValues = dates.map(function(date) {
-            return accessData[date][route] || 0;
+    function renderRoutes(){
+        var data_routes = [];
+        routeNames.forEach(function(route) {
+            var yValues = dates.map(function(date) {
+                return accessData[date][route] || 0;
+            });
+            data_routes.push({
+                x: dates,
+                y: yValues,
+                mode: 'lines+markers',
+                name: route,
+                showlegend: true
+            });
         });
-        data.push({
-            x: dates,
-            y: yValues,
-            mode: 'lines+markers',
-            name: route
-        });
+        var layout = {
+            title: 'Dostop do poti skozi čas',
+            xaxis: { title: 'Datum' },
+            yaxis: { title: 'Število dostopov' }
+        };
+        var legendLayout = getLegendLayout('access-graph');
+        layout.legend = Object.assign({}, legendLayout, { traceorder: 'normal' });
+        layout.margin = legendLayout.orientation === 'h' ? {t:90, b:40, l:40, r:20} : {t:60, b:40, l:40, r:120};
+        Plotly.newPlot('access-graph', data_routes, layout, {responsive: true});
+    }
+    renderRoutes();
+
+    var resizeTimeout;
+    window.addEventListener('resize', function(){
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(function(){
+            if(currentStatus) plotStatus(currentStatus);
+            renderRoutes();
+        }, 200);
     });
-    var layout = {
-        title: 'Dostop do poti skozi čas',
-        xaxis: { title: 'Datum' },
-        yaxis: { title: 'Število dostopov' }
-    };
-    Plotly.newPlot('access-graph', data, layout, {responsive: true});
 
 </script>
 
