@@ -1,6 +1,7 @@
 import os
 import subprocess
 from .helpers import remove
+import logging
 
 def convert_single_file(input_file, output_file):
     """Uporabi ffmpeg za konverzijo v MP4 format."""
@@ -15,7 +16,7 @@ def convert_single_file(input_file, output_file):
         subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
         remove(input_file)
     except subprocess.CalledProcessError as e:
-        print(f"❌ Napaka pri pretvorbi {input_file}: {e}")
+        logging.error(f"❌ Napaka pri pretvorbi {input_file}: {e}")
 
 def concat_and_convert(files, new_file):
     temp_files = []

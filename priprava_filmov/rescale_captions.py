@@ -8,6 +8,7 @@ from numba import njit
 import pickle
 from scipy.optimize import differential_evolution
 import matplotlib.pyplot as plt
+import logging
 
 _model, _utils = None, None
 
@@ -42,7 +43,7 @@ def extract_audio(folder, video_path):
 
     voice_file = os.path.join(folder, ".detected-voice-activity.pkl")
     if not os.path.exists(voice_file):
-        print(f"⚙ Zaznavam govor: {video_path}")
+        logging.info(f"⚙ Zaznavam govor: {video_path}")
         wav_file = "output.wav"
         if os.path.exists(wav_file):
             os.remove(wav_file)
@@ -134,7 +135,7 @@ def aux_rescale_captions(subtitles, speech):
     best_a, best_b = res.x
     best_score = -res.fun
 
-    print(f"Scale: {best_a * 100:.3f} %, Shift: {best_b:.3f} s, Score improvement: {(best_score / current_score - 1) * 100:.2f} %")
+    logging.info(f"Scale: {best_a * 100:.3f} %, Shift: {best_b:.3f} s, Score improvement: {(best_score / current_score - 1) * 100:.2f} %")
 
     return best_a, best_b, aux_get_subtitle_audio
 
@@ -148,7 +149,7 @@ def rescale_captions(folder, subtitle_path, video_path, plot=False):
         if subtitles:
             if len(subtitles) < 200:
                 return None
-            print(f"⚙ Poravnavam podnapise: {video_path}")
+            logging.info(f"⚙ Poravnavam podnapise: {video_path}")
             scale, shift, aux_get_subtitle_audio = aux_rescale_captions(subtitles, speech)
             if abs(scale - 1) < 0.05 and abs(shift) < 10:
                 generate_srt(0, 1, subtitles, original_file)
@@ -167,5 +168,5 @@ def rescale_captions(folder, subtitle_path, video_path, plot=False):
                 plt.show()
             return audio, subtitles, speech
         else:
-            print("Empy subtitles:", folder)
+            logging.warning(f"Empy subtitles: {folder}")
 

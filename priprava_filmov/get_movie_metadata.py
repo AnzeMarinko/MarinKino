@@ -8,6 +8,7 @@ import subprocess
 from PIL import Image
 import re
 from difflib import SequenceMatcher
+import logging
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "credentials/gen-lang-client.json"
 TMDB_KEY = os.getenv("TMDB_KEY")
@@ -107,7 +108,7 @@ def get_movie_runtimes(folder, video_files):
             duration = int(round(float(result.stdout.strip()) / 60))
             runtimes.append(duration)
         except Exception as e:
-            print(f"{path} — napaka: {e}")
+            logging.error(f"{path} — napaka: {e}")
             runtimes.append(None)
     return runtimes
 
@@ -130,7 +131,7 @@ def get_movie_metadata(folder, film, video_files):
 
         if os.path.exists(film_cover_file) and [k for k in movie_metadata.keys() if k not in ["Film", "Title"]]:
             if "07-" in folder and sorted(list(movie_metadata["RuntimesByFiles"].keys())) != sorted(list(video_files)):
-                print(film)
+                logging.info(film)
                 runtimes = get_movie_runtimes(folder, video_files)
                 movie_metadata["RuntimesByFiles"] = {file: runtime for file, runtime in zip(video_files, runtimes)}
                 with open(film_readme_file, 'w', encoding="utf-8") as f:
@@ -141,15 +142,15 @@ def get_movie_metadata(folder, film, video_files):
             film_aux = movie_metadata["Film"]
 
     if "Collection" in folder:
-        print("Missing data for collection: " + film)
+        logging.error("Missing data for collection: " + film)
         return {}, "popcorn.png"
     
     search = tmdb_search_movie(film_aux, year=year)
     if len(search) == 0:
-        print("Missing data for: " + film)
+        logging.error("Missing data for: " + film)
         return {}, "popcorn.png"
     movie, score = best_tmdb_match(film_aux, search)
-    print(film, score)
+    logging.info(f"{film}, {score}")
     details = tmdb_movie_details(movie["id"])
     cover_url = tmdb_poster_url(details["poster_path"])
 
@@ -182,7 +183,7 @@ def get_movie_metadata(folder, film, video_files):
         with open(film_cover_file, 'wb') as handler:
             handler.write(img_data)
     else:
-        print("Missing cover image for: " + film)
+        logging.error("Missing cover image for: " + film)
 
     runtimes = get_movie_runtimes(folder, video_files)
     result["RuntimesByFiles"] = {file: runtime for file, runtime in zip(video_files, runtimes)}
@@ -195,7 +196,7 @@ def get_movie_metadata(folder, film, video_files):
         if runtimes[0]:
             runtime = runtimes[0]
     else:
-        print(f"{folder} has no videos.")
+        logging.error(f"{folder} has no videos.")
 
     if runtime:
         result["Runtimes"] = runtime
@@ -206,7 +207,7 @@ def get_movie_metadata(folder, film, video_files):
     return result, film_cover_file
 
 def translate_plots(folder):
-    print(f"Prevajam opis filma {folder}")
+    logging.info(f"Prevajam opis filma {folder}")
     film_readme_file = folder + '/readme.json'
     with open(film_readme_file, 'r', encoding="utf-8") as f:
         movie_metadata = json.loads(f.read())

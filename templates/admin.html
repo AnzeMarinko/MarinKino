@@ -55,8 +55,9 @@ document.addEventListener('DOMContentLoaded', function(){
             rows.sort(function(a,b){
                 const aText = (a.cells[index] && a.cells[index].textContent.trim()) || '';
                 const bText = (b.cells[index] && b.cells[index].textContent.trim()) || '';
-                const aNum = parseFloat(aText.replace(/[^0-9\.\-]/g,''));
-                const bNum = parseFloat(bText.replace(/[^0-9\.\-]/g,''));
+                const aNum = (aText[0] === '-' ? -1 : 1) * parseFloat(aText.replace(/[^0-9.]/g, ''));
+                const bNum = (bText[0] === '-' ? -1 : 1) * parseFloat(bText.replace(/[^0-9.]/g, ''));
+
                 if(!isNaN(aNum) && !isNaN(bNum)){
                     return currentOrder === 'asc' ? aNum - bNum : bNum - aNum;
                 }
@@ -75,7 +76,7 @@ document.addEventListener('DOMContentLoaded', function(){
             <div class="card-header">Filtriraj po statusu</div>
             <div class="card-body">
                 <div class="form-group">
-                    <label for="status-select">Izberite status uporabnika:</label>
+                    <label for="status-select">Izberite status odgovora:</label>
                     <div>
                         {% for status in access_stats_users.keys() %}
                             <div class="form-check form-check-inline">

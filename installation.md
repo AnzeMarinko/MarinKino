@@ -31,6 +31,7 @@ source .venv/bin/activate
 ### 3. 📦 Namesti odvisnosti
 ```
 sudo apt update && sudo apt upgrade
+sudo apt install redis-server
 pip install --upgrade pip
 pip install -r requirements.txt
 ```

@@ -3,6 +3,7 @@ import chardet
 from langdetect import detect
 from .helpers import remove
 import os
+import logging
 
 GEMINI_API_KEY = os.getenv("GEMINI_TOKEN")
 
@@ -25,13 +26,13 @@ def translate(input_srt_file, target_language="sl", target_language_short_name="
         # Zaznaj jezik podnapisov
         detected_lang = detect(tekst)
         if detected_lang == target_language:
-            print("✅ Podnapisi so že v ciljnem jeziku.")
+            logging.info("✅ Podnapisi so že v ciljnem jeziku.")
             output_srt_file = input_srt_file.replace(".srt", f"-{target_language_short_name}Subs.srt")
             with open(output_srt_file, 'w', encoding="utf-8") as file:
                 file.write(tekst)
             remove(input_srt_file)
         else:
-            print(f"🌍 Prevajam {input_srt_file} iz {detected_lang} v {target_language} ...\n")
+            logging.info(f"🌍 Prevajam {input_srt_file} iz {detected_lang} v {target_language} ...\n")
             gst.gemini_api_key = GEMINI_API_KEY
             gst.target_language = target_language_long_name
             gst.input_file = input_srt_file
@@ -40,7 +41,7 @@ def translate(input_srt_file, target_language="sl", target_language_short_name="
 
             gst.translate()
             os.rename(input_srt_file, input_srt_file.replace(".srt", f"-{detected_lang}Subs.srt"))
-            print(f"✅ Prevod zaključen: {output_srt_file}")
+            logging.info(f"✅ Prevod zaključen: {output_srt_file}")
 
         return {
             "input_language": detected_lang, 
@@ -53,5 +54,5 @@ def translate(input_srt_file, target_language="sl", target_language_short_name="
         if retry:
             os.chmod(input_srt_file, 0o777)
             return translate(input_srt_file, target_language, target_language_short_name, target_language_long_name, retry=0)
-        print(f"❌ Napaka pri prevajanju {input_srt_file}: {e}")
+        logging.error(f"❌ Napaka pri prevajanju {input_srt_file}: {e}")
         return None
