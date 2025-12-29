@@ -30,6 +30,34 @@
 </table>
 </div>
 
+
+<div class="card">
+    <div class="card-header">Mesečna statistika dostopa</div>
+    <div class="card-body p-2">
+        <div class="table-responsive">
+        <table class="table table-striped table-hover table-bordered mb-0">
+            <thead class="thead-light">
+                <tr>
+                    <th>Mesec</th>
+                    {% for column in monthly_columns %}
+                    <th>{{ column }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for month, data in access_stats_monthly.items() %}
+                <tr>
+                    <td>{{ month }}</td>
+                    {% for column in monthly_columns %}
+                    <td>{{ data[column] }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+
 <style>
 #views-table th.sortable { cursor: pointer; user-select: none; }
 .sort-indicator { margin-left: 6px; font-size: 0.8em; opacity: 0.85; }

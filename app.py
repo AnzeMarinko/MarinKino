@@ -68,14 +68,19 @@ def log_response_info(response):
     if len(request_parts):
         if "static" in request_parts[0] or "progress" in request_parts[0] or "favicon.ico" in request_parts[0] or ".well-known" in request_parts[0]:
             return response
-        if len(request_parts) > 1 and"movies" in request_parts[0] and "file" in request_parts[1] and ".mp4" not in request_parts[-1]:
+        if len(request_parts) > 1 and "movies/file/" in request.path:
             return response
     user_id = current_user.id if current_user.is_authenticated else "anonymus"
-    timestamp = datetime.now().isoformat()[:16]
-    if not os.path.exists(f"access/routes/{date.today().isoformat()}"):
-        os.makedirs(f"access/routes/{date.today().isoformat()}")
-    with open(f"access/routes/{date.today().isoformat()}/{user_id}.log", "a", encoding="utf-8") as f:
-        f.write(f"{timestamp} | {request.method} | {request.path} | {response.status}\n")
+    today = date.today().isoformat()
+    month = date.today().strftime("%Y-%m")
+    route = request.path.split("/file/")[0] + "/file/..." if "/file/" in request.path else request.path
+    if response.status_code < 400:
+        redis_client.hincrby(f"stats:monthly:{month}", request.method + " " + route, 1)
+
+    key = f"stats:daily:{today}:{user_id}:{response.status}"
+    redis_client.hincrby(key, request.method + " " + route, 1)
+    if not redis_client.exists(key):
+        redis_client.expire(key, 2592000) # Ključ bo sam izginil po 30 dneh
     return response
 
 # admin control panel
@@ -92,57 +97,110 @@ def admin_panel():
     if last_system_log_file:
         with open(os.path.join("../MarinKinoCache/logs", last_system_log_file), "r", encoding="utf-8") as f:
             system_log = "\n".join(f.read().split("\n")[-500:])
-    access_stats_users = {}
-    access_stats_routes = {}
-    for log_date in sorted(os.listdir("access/routes/"), reverse=True):
-        access_stats_users[log_date] = {}
-        access_stats_routes[log_date] = {}
-        for log_file in os.listdir(os.path.join("access/routes/", log_date)):
-            with open(os.path.join("access/routes/", log_date, log_file), "r", encoding="utf-8") as f:
-                lines = f.readlines()
-            user_id = log_file.replace(".log", "")
-            for line in lines:
-                route = line.split(" | ")[2]
-                status = line.split(" | ")[3].replace("\n", "")
-                if "/file/" in route:
-                    route = route.split("/file/")[0] + "/file/..."
-                if len(route.split("/")) > 3:
-                    route = "/".join(route.split("/")[:3]) + "/..."
-                access_stats_routes[log_date].setdefault(route, 0)
-                access_stats_routes[log_date][route] += 1
 
-                access_stats_users[log_date].setdefault(status, {})
-                access_stats_users[log_date][status].setdefault(user_id, 0)
-                access_stats_users[log_date][status][user_id] += 1
+    access_stats_users = {}  # {datum: {status: {user_id: count}}}
+    access_stats_routes = {} # {datum: {route: count}}
 
-    access_stats_users = pd.DataFrame(access_stats_users).T
-    access_stats_users = access_stats_users[sorted(access_stats_users.columns)].fillna({}).to_dict()
-    access_stats_routes = pd.DataFrame(access_stats_routes).T
-    access_stats_routes = access_stats_routes[sorted(access_stats_routes.columns)].fillna(0).astype(int).T.to_dict()
+    # Poiščemo vse ključe, ki ustrezajo tvojemu formatu stats:YYYY-MM-DD:*
+    for key in redis_client.scan_iter("stats:daily:*"):
+        # Razčlenimo ključ: stats, datum, user_id, status_code
+        parts = key.split(":")
+        if len(parts) < 5: continue
+        
+        log_date = parts[2]
+        user_id = parts[3]
+        status = parts[4]
 
-    users_progress_files = glob.glob(os.path.join(CACHE_ROOT, "users", "*_films_progress.json"))
+        # Pridobimo vse poti (poti so polja v hashu)
+        routes_data = redis_client.hgetall(key)
+        
+        # Inicializacija struktur za ta datum
+        access_stats_users.setdefault(log_date, {})
+        access_stats_users[log_date].setdefault(status, {})
+        access_stats_users[log_date][status].setdefault(user_id, 0)
+        
+        access_stats_routes.setdefault(log_date, {})
+
+        for route_method, count in routes_data.items():
+            count = int(count)
+            # Dodaj k statistiki uporabnika
+            access_stats_users[log_date][status][user_id] += count
+            
+            # Dodaj k statistiki poti
+            access_stats_routes[log_date].setdefault(route_method, 0)
+            access_stats_routes[log_date][route_method] += count
+
+    # Pretvorba v DataFrame za pravilno razvrščanje (kot si imel prej)
+    if access_stats_users:
+        df_users = pd.DataFrame(access_stats_users).T
+        access_stats_users = df_users[sorted(df_users.columns)].fillna({}).to_dict()
+    
+    if access_stats_routes:
+        df_routes = pd.DataFrame(access_stats_routes).T
+        access_stats_routes = df_routes[sorted(df_routes.columns)].fillna(0).astype(int).T.to_dict()
+
+    access_stats_monthly = {} # {mesec: {pot: count}}
+
+    # Poiščemo mesečne ključe
+    for key in redis_client.scan_iter("stats:monthly:*"):
+        month_label = key.split(":")[-1] # npr. "2025-12"
+        
+        # Pridobimo vse poti in njihove števce za ta mesec
+        monthly_data = redis_client.hgetall(key)
+        
+        access_stats_monthly[month_label] = {}
+        for route_method, count in monthly_data.items():
+            access_stats_monthly[month_label][route_method] = int(count)
+
+    if access_stats_monthly:
+        df_monthly = pd.DataFrame(access_stats_monthly).T.fillna(0).astype(int)
+        df_monthly = df_monthly[sorted(df_monthly.columns, reverse=True)].T
+        df_monthly['total'] = df_monthly.sum(axis=1)
+        df_monthly = df_monthly.sort_values(by='total', ascending=False).drop(columns=['total']).head(20).T
+        access_stats_monthly_dict = df_monthly.to_dict(orient="index")
+        monthly_columns = df_monthly.columns
+    else:
+        access_stats_monthly_dict = {}
+        monthly_columns = []
+
     users_stats = {}
-    for user_progress_file in users_progress_files:
-        user_id = os.path.basename(user_progress_file).replace("_films_progress.json", "")
-        with open(user_progress_file, "r", encoding="utf-8") as f:
-            user_data = json.load(f)
+    # Dobimo vse ključe, ki se začnejo s "prog:" (to so naši uporabniki)
+    user_prog_keys = redis_client.keys("prog:*")
+
+    for key in user_prog_keys:
+        user_id = key.split(":")[1]
+        # Pridobimo vse podatke o filmih za tega uporabnika (vsebuje JSON nize)
+        user_data_raw = redis_client.hgetall(key)
+        print(user_data_raw)
+        
         total_watch_time = 0
         watch_ratios = []
         watched_count = 0
         starting_count = 0
-        last_start_time = None
-        for video_file, progress in user_data.items():
+        last_start_time = "-"
+
+        for video_file, progress_json in user_data_raw.items():
+            progress = json.loads(progress_json)
+            
             watch_time = progress.get("total_play_time", 0)
             duration = progress.get("duration", 0)
-            start_time = progress.get("start_time", [])                
+            # Če boš v Redis dodajal tudi start_time (seznam), ga obdelaj tukaj
+            count_start_time = progress.get("count_start_time", 0) 
+            last_start_time = progress.get("last_start_time")
+
             if watch_time and duration:
-                watch_ratio = watch_time / duration * 100
-                watch_ratios.append(watch_ratio)
-                if watch_ratio >= 50:
+                ratio = (watch_time / duration) * 100
+                watch_ratios.append(ratio)
+                if ratio >= 50: # Recimo, da je 50% že ogledan film
                     watched_count += 1
-                if watch_ratio > 3 and start_time:
-                    last_start_time = max(start_time) if start_time else last_start_time
-                    starting_count += len(start_time)
+                
+                # Preverimo zadnji štart ogleda (če ga shranjuješ)
+                if count_start_time and last_start_time:
+                    starting_count += count_start_time
+                    current_max_start = last_start_time
+                    if last_start_time == "-" or current_max_start > last_start_time:
+                        last_start_time = current_max_start
+            
             total_watch_time += watch_time
 
         def seconds_to_str(seconds):
@@ -155,13 +213,21 @@ def admin_panel():
             "Število začetih": starting_count,
             "Število ogledanih": watched_count,
             "Povprečen delež ogleda": f"{round(sum(watch_ratios) / len(watch_ratios), 1) if watch_ratios else 0} %",
-            "Zadnji začetek ogleda": last_start_time if last_start_time else "-"
+            "Zadnji začetek ogleda": last_start_time
         }
-    users_stats = pd.DataFrame(users_stats).T.sort_values(by=["Število ogledanih", "Skupen čas"], ascending=False)
-    users_stats, users_stats_columns = users_stats.to_dict(orient="index"), users_stats.columns
+
+    # Pretvorba v DataFrame za lažje sortiranje in prikaz
+    if users_stats:
+        df_users = pd.DataFrame(users_stats).T.sort_values(by=["Število ogledanih", "Skupen čas"], ascending=False)
+        users_stats_dict = df_users.to_dict(orient="index")
+        users_stats_columns = df_users.columns
+    else:
+        users_stats_dict = {}
+        users_stats_columns = []
 
     return render_template("admin.html", pagetitle="MarinKino - Nadzorna plošča", system_log=system_log, access_stats_users=access_stats_users,
-                           access_stats_routes=access_stats_routes, users_stats=users_stats, users_stats_columns=users_stats_columns)
+                           access_stats_routes=access_stats_routes, users_stats=users_stats_dict, users_stats_columns=users_stats_columns,
+                           access_stats_monthly=access_stats_monthly_dict, monthly_columns=monthly_columns)
     
 
 with open("users.json", 'r', encoding="utf-8") as f:
@@ -297,13 +363,8 @@ def add_watch_info(movie, user_data):
     return movie
 
 def get_user_progress_data(user_id):
-    films_progress_file = os.path.join(CACHE_ROOT, "users", f"{user_id}_films_progress.json")
-    if os.path.exists(films_progress_file):
-        with open(films_progress_file, "r", encoding="utf-8") as f:
-            user_data = json.load(f)
-    else:
-        user_data = {}
-    return user_data
+    data = redis_client.hgetall(f"prog:{user_id}")
+    return {k: json.loads(v) for k, v in data.items()}
 
 MOVIES_PER_PAGE = 40
 
@@ -330,9 +391,13 @@ def index():
             reverse="desc" in sort
         )
 
-        # 🔥 Shrani seznam v session
+        # 🔥 Shrani seznam
         movie_ids = [m["movie_id"] for m in movies]
-        session["movies_cache"] = movie_ids
+        cache_key = f"cache:movies:{current_user.id}"
+        redis_client.delete(cache_key) # počistimo staro
+        if movie_ids:
+            redis_client.rpush(cache_key, *movie_ids) # shranimo seznam v Redis List
+            redis_client.expire(cache_key, 3600) # cache velja 1 uro
     else:
         movies = []
 
@@ -367,16 +432,14 @@ def movies_page():
     page = int(request.args.get('page', 1))
     MOVIES_PER_PAGE = 40
 
-    movie_ids = session.get("movies_cache", [])
+    cache_key = f"cache:movies:{current_user.id}"
     start = page * MOVIES_PER_PAGE
-    end = start + MOVIES_PER_PAGE
+    end = start + MOVIES_PER_PAGE - 1 # Redis range vključuje zadnji element
+    
+    page_ids = redis_client.lrange(cache_key, start, end)
+    movies_page = [global_movie_index[mid] for mid in page_ids if mid in global_movie_index]
 
-    page_ids = movie_ids[start:end]
-
-    # Pobere dejanske filme iz all_films (ki je globalen)
-    movies_page = [global_movie_index[mid] for mid in page_ids]   # razlozim spodaj
-
-    has_more = end < len(movie_ids)
+    has_more = end < redis_client.llen(cache_key) - 1
 
     return {"movies": [
         { **m, "is_admin": current_user.is_admin }
@@ -449,22 +512,13 @@ def movie_file(movies_subfolder, movie_folder, filename):
             if match:
                 start = int(match.group(1))
                 if start == 0:
-                
-                    films_progress_file = os.path.join(CACHE_ROOT, "users", f"{current_user.id}_films_progress.json")
-
-                    if os.path.exists(films_progress_file):
-                        with open(films_progress_file, "r", encoding="utf-8") as f:
-                            user_data = json.load(f)
-                    else:
-                        user_data = {}
-                    
                     full_filename = f"{movies_subfolder}/{movie_folder}/{filename}"
-                    if full_filename not in user_data.keys():
-                        user_data[full_filename] = {}
-                    user_data[full_filename]["start_time"] = user_data[full_filename].get("start_time", []) + [datetime.now(timezone.utc).isoformat()[:16]]
-
-                    with open(films_progress_file, "w", encoding="utf-8") as f:
-                        json.dump(user_data, f, indent=2)
+                    user_key = f"prog:{current_user.id}"
+                    data = redis_client.hget(user_key, full_filename)
+                    data = json.loads(data) if data else {}
+                    data["last_start_time"] = datetime.now(timezone.utc).isoformat()[:16]
+                    data["count_start_time"] = data.get("count_start_time", 0) + 1
+                    redis_client.hset(user_key, full_filename, json.dumps(data))
         return send_from_directory(os.path.join(FILMS_ROOT, movies_subfolder, movie_folder), filename, mimetype='video/mp4', conditional=True)
     elif "cover_thumb.jpg" in filename:
         response = make_response(
@@ -478,30 +532,33 @@ def movie_file(movies_subfolder, movie_folder, filename):
 @login_required
 def video_progress():
     data = json.loads(request.data)
-    filename = unquote(data['filename'].split("/movies/")[-1])
+    filename = unquote(data['filename'].split("/movies/file/")[-1])
     if filename == "unknown":
         return "", 204
+        
     current_time = round(data['currentTime'] - .49)
     duration = round(data['duration'], 1)
-    films_progress_file = os.path.join(CACHE_ROOT, "users", f"{current_user.id}_films_progress.json")
-
-    if os.path.exists(films_progress_file):
-        with open(films_progress_file, "r", encoding="utf-8") as f:
-            user_data = json.load(f)
-    else:
-        user_data = {}
     
-    if filename not in user_data.keys():
-        user_data[filename] = {}
-    if "duration" not in user_data[filename].keys():
-        user_data[filename]["duration"] = duration
-    from_last = current_time - user_data[filename].get("last_play_time", 0) 
+    # Redis ključ za uporabnika
+    user_key = f"prog:{current_user.id}"
+    
+    # Pridobimo prejšnji čas, da izračunamo skupni čas igranja
+    user_data = redis_client.hget(user_key, filename)
+    user_data = json.loads(user_data) if user_data else {}
+    
+    last_play_time = user_data.get("last_play_time", 0)
+    total_play_time = user_data.get("total_play_time", 0)
+    
+    from_last = current_time - last_play_time
     if 0 < from_last < 60:
-        user_data[filename]["total_play_time"] = user_data[filename].get("total_play_time", 0) + from_last 
-    user_data[filename]["last_play_time"] = current_time
+        total_play_time += from_last
 
-    with open(films_progress_file, "w", encoding="utf-8") as f:
-        json.dump(user_data, f, indent=2)
+    user_data["duration"] = duration
+    user_data["last_play_time"] = current_time
+    user_data["total_play_time"] = total_play_time
+
+    redis_client.hset(user_key, filename, json.dumps(user_data))
+    
     return '', 204
 
 
@@ -518,29 +575,22 @@ def video_progress_change():
     if selected_movie is None:
         return "", 204
     
-    films_progress_file = os.path.join(CACHE_ROOT, "users", f"{current_user.id}_films_progress.json")
-
-    if os.path.exists(films_progress_file):
-        with open(films_progress_file, "r", encoding="utf-8") as f:
-            user_data = json.load(f)
-    else:
-        user_data = {}
+    user_key = f"prog:{current_user.id}"
 
     for video_file in selected_movie["video_files"]:
         filename = os.path.join(selected_movie["folder"][1:], video_file)
-    
-        if filename not in user_data.keys():
-            user_data[filename] = {}
-        if "duration" not in user_data[filename].keys():
+        user_data = redis_client.hget(user_key, filename)
+        user_data = json.loads(user_data) if user_data else {}
+        
+        if "duration" not in user_data.keys():
             duration = selected_movie["runtimes_by_files"][video_file] * 60
-            user_data[filename]["duration"] = duration
+            user_data["duration"] = duration
         else:
-            duration = user_data[filename]["duration"]
+            duration = user_data["duration"]
             
-        user_data[filename]["last_play_time"] = 0 if int(data["izbor"]) == 0 else duration
+        user_data["last_play_time"] = 0 if int(data["izbor"]) == 0 else duration
+        redis_client.hset(user_key, filename, json.dumps(user_data))
 
-    with open(films_progress_file, "w", encoding="utf-8") as f:
-        json.dump(user_data, f, indent=2)
     return '', 204
 
 user_meme_count = {}
