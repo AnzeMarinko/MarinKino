@@ -3,7 +3,7 @@
 {% block title %}{{ pagetitle }}{% endblock %}
 
 {% block content %}
-<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-3.3.1.min.js"></script>
 <h1>Nadzorna plošča</h1>  
 
 <h2>Statistika ogledov filmov</h2>
@@ -29,34 +29,6 @@
         </tbody>
 </table>
 </div>
-
-
-<div class="card">
-    <div class="card-header">Mesečna statistika dostopa</div>
-    <div class="card-body p-2">
-        <div class="table-responsive">
-        <table class="table table-striped table-hover table-bordered mb-0">
-            <thead class="thead-light">
-                <tr>
-                    <th>Mesec</th>
-                    {% for column in monthly_columns %}
-                    <th>{{ column }}</th>
-                    {% endfor %}
-                </tr>
-            </thead>
-            <tbody>
-                {% for month, data in access_stats_monthly.items() %}
-                <tr>
-                    <td>{{ month }}</td>
-                    {% for column in monthly_columns %}
-                    <td>{{ data[column] }}</td>
-                    {% endfor %}
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        </div>
-    </div>
 
 <style>
 #views-table th.sortable { cursor: pointer; user-select: none; }
@@ -98,6 +70,35 @@ document.addEventListener('DOMContentLoaded', function(){
 </script>
 
 <h2>Ogled statistike dostopa</h2>
+
+<div class="card">
+    <div class="card-header">Mesečna statistika dostopa</div>
+    <div class="card-body p-2">
+        <div class="table-responsive">
+        <table class="table table-striped table-hover table-bordered mb-0">
+            <thead class="thead-light">
+                <tr>
+                    <th>Mesec</th>
+                    {% for column in monthly_columns %}
+                    <th>{{ column }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for month, data in access_stats_monthly.items() %}
+                <tr>
+                    <td>{{ month }}</td>
+                    {% for column in monthly_columns %}
+                    <td>{{ data[column] }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+
 <div class="row mb-3">
     <div class="col-md-4">
         <div class="card">
@@ -156,11 +157,16 @@ document.addEventListener('DOMContentLoaded', function(){
         var data = [];
         userNames.forEach(function(user) {
                 var yValues = dates.map(function(date) {
-                    return accessDataUsers[selectedStatusToPlot][date][user] || 0;
-            });
+                    return accessDataUsers[selectedStatusToPlot][date][user]?.["count"] || 0;
+                });
+                var meta = dates.map(function(date) {
+                    return accessDataUsers[selectedStatusToPlot][date][user]?.["routes"] || "";
+                });
             data.push({
                 x: dates,
                 y: yValues,
+                text: meta.map(r => 'Poti: ' + r.replace(/\n/g, '<br>')),
+                hovertemplate: '%{x}<br>Dostopi: %{y}<br>%{text}<extra></extra>',
                 mode: 'lines+markers',
                 name: user,
                 showlegend: true

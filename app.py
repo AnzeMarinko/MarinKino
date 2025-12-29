@@ -89,14 +89,6 @@ def log_response_info(response):
 def admin_panel():
     if not current_user.is_admin:
         return redirect(url_for('index'))
-    last_system_log_file = None
-    for f in sorted(os.listdir("../MarinKinoCache/logs"), reverse=True):
-        if f.startswith("server_start_"):
-            last_system_log_file = f
-            break
-    if last_system_log_file:
-        with open(os.path.join("../MarinKinoCache/logs", last_system_log_file), "r", encoding="utf-8") as f:
-            system_log = "\n".join(f.read().split("\n")[-500:])
 
     access_stats_users = {}  # {datum: {status: {user_id: count}}}
     access_stats_routes = {} # {datum: {route: count}}
@@ -115,25 +107,25 @@ def admin_panel():
         routes_data = redis_client.hgetall(key)
         
         # Inicializacija struktur za ta datum
-        access_stats_users.setdefault(log_date, {})
-        access_stats_users[log_date].setdefault(status, {})
-        access_stats_users[log_date][status].setdefault(user_id, 0)
-        
         access_stats_routes.setdefault(log_date, {})
+        access_stats_users.setdefault(status, {})
+        access_stats_users[status].setdefault(log_date, {})
+        access_stats_users[status][log_date].setdefault(user_id, {
+            "routes": "\n".join([v[1] for v in sorted([(count, f"{count}x {route_method}") for route_method, count in routes_data.items()], reverse=True)[:10]]), 
+            "count": 0})
 
         for route_method, count in routes_data.items():
             count = int(count)
             # Dodaj k statistiki uporabnika
-            access_stats_users[log_date][status][user_id] += count
+            access_stats_users[status][log_date][user_id]["count"] += count
             
             # Dodaj k statistiki poti
-            access_stats_routes[log_date].setdefault(route_method, 0)
-            access_stats_routes[log_date][route_method] += count
+            if status.startswith("2") or status.startswith("3"):
+                access_stats_routes[log_date].setdefault(route_method, 0)
+                access_stats_routes[log_date][route_method] += count
 
-    # Pretvorba v DataFrame za pravilno razvrščanje (kot si imel prej)
     if access_stats_users:
-        df_users = pd.DataFrame(access_stats_users).T
-        access_stats_users = df_users[sorted(df_users.columns)].fillna({}).to_dict()
+        access_stats_users = {k: v for k, v in sorted(list(access_stats_users.items())) if v}
     
     if access_stats_routes:
         df_routes = pd.DataFrame(access_stats_routes).T
@@ -171,7 +163,6 @@ def admin_panel():
         user_id = key.split(":")[1]
         # Pridobimo vse podatke o filmih za tega uporabnika (vsebuje JSON nize)
         user_data_raw = redis_client.hgetall(key)
-        print(user_data_raw)
         
         total_watch_time = 0
         watch_ratios = []
@@ -186,7 +177,7 @@ def admin_panel():
             duration = progress.get("duration", 0)
             # Če boš v Redis dodajal tudi start_time (seznam), ga obdelaj tukaj
             count_start_time = progress.get("count_start_time", 0) 
-            last_start_time = progress.get("last_start_time")
+            current_max_start = progress.get("last_start_time")
 
             if watch_time and duration:
                 ratio = (watch_time / duration) * 100
@@ -195,9 +186,8 @@ def admin_panel():
                     watched_count += 1
                 
                 # Preverimo zadnji štart ogleda (če ga shranjuješ)
-                if count_start_time and last_start_time:
+                if count_start_time and current_max_start:
                     starting_count += count_start_time
-                    current_max_start = last_start_time
                     if last_start_time == "-" or current_max_start > last_start_time:
                         last_start_time = current_max_start
             
@@ -224,6 +214,15 @@ def admin_panel():
     else:
         users_stats_dict = {}
         users_stats_columns = []
+
+    last_system_log_file = None
+    for f in sorted(os.listdir("../MarinKinoCache/logs"), reverse=True):
+        if f.startswith("server_start_"):
+            last_system_log_file = f
+            break
+    if last_system_log_file:
+        with open(os.path.join("../MarinKinoCache/logs", last_system_log_file), "r", encoding="utf-8") as f:
+            system_log = "\n".join(f.read().split("\n")[-500:])
 
     return render_template("admin.html", pagetitle="MarinKino - Nadzorna plošča", system_log=system_log, access_stats_users=access_stats_users,
                            access_stats_routes=access_stats_routes, users_stats=users_stats_dict, users_stats_columns=users_stats_columns,
@@ -496,7 +495,7 @@ def remove_movie(movies_subfolder, movie_folder):
         except Exception as e:
             logging.error(f"Napaka pri brisanju {path}: {e}")
     shutil.rmtree(removing_folder)
-    return "", 204
+    return {"status": "success", "folder": removing_folder}
 
 @app.route("/movies/file/<movies_subfolder>/<movie_folder>/<filename>")
 @login_required
