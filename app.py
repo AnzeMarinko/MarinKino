@@ -287,7 +287,7 @@ def register():
         else:
             password = ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=12))
             users[username] = {"password_hash": generate_password_hash(password), "email": email}
-            content = f"Nov uporabnik je bil registriran v MarinKino:\n\nUporabniško ime: {username}\nE-naslov: {email}\nGeslo: {password}\n\nLep pozdrav,\nMarinKino sistem"
+            content = f"Nov uporabnik je bil registriran v MarinKino:\n\nVstopna stran: anzemarinko.duckdns.org\nUporabniško ime: {username}\nE-naslov: {email}\nGeslo: {password}\n\nLep pozdrav,\nMarinKino sistem"
             # send to my telegram bot
             requests.post(f"https://api.telegram.org/bot{os.getenv('TELEGRAM_BOT_TOKEN')}/sendMessage", data={"chat_id": os.getenv('TELEGRAM_CHAT_ID'), "text": content})
             with open("users.json", 'w', encoding="utf-8") as f:
@@ -706,7 +706,8 @@ pod_krinko_words = pd.read_csv("data/pod_krinko_besede.csv", sep=";").to_dict(or
 def pod_krinko_new_words():
     new_words = copy(pod_krinko_words[random.randint(0, len(pod_krinko_words) - 1)])
     random.shuffle(new_words)
-    return new_words
+    word_1, word_2 = new_words[0], new_words[1]
+    return [word_1.strip().lower(), word_2.strip().lower()]
 
 
 if __name__ == "__main__":

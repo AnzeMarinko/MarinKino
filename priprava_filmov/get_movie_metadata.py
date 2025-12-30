@@ -130,7 +130,7 @@ def get_movie_metadata(folder, film, video_files):
             movie_metadata = json.loads(f.read()) 
 
         if os.path.exists(film_cover_file) and [k for k in movie_metadata.keys() if k not in ["Film", "Title"]]:
-            if "07-" in folder and sorted(list(movie_metadata["RuntimesByFiles"].keys())) != sorted(list(video_files)):
+            if "0x-" in folder and sorted(list(movie_metadata["RuntimesByFiles"].keys())) != sorted(list(video_files)):
                 logging.info(film)
                 runtimes = get_movie_runtimes(folder, video_files)
                 movie_metadata["RuntimesByFiles"] = {file: runtime for file, runtime in zip(video_files, runtimes)}

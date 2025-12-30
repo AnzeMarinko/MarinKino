@@ -24,7 +24,7 @@ import pyautogui
 import logging
 
 URLS = {
-    # "21. Anglež z omleto": ("movies/07-neurejeni-filmi/Zelenjavcki.Collection", "https://sf.strp2p.com/#ow6i9", 26 * 60),
+    # "21. Anglež z omleto": ("movies/0x-neurejeni-filmi/Zelenjavcki.Collection", "https://sf.strp2p.com/#ow6i9", 26 * 60),
 }
 
 def start_recording(output_path, duration):
