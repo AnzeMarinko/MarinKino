@@ -636,20 +636,17 @@ def meme_remove(meme_file_name):
     os.remove(path)
     return "", 204
 
-def get_albums():
-    music_albums = {}
-    music_files = sorted([f[6:] for f in glob.iglob("music/**/*.mp3", recursive=True)])
-    for s in music_files:
-        parts = s.split("/")[:-1]
-        music_albums.setdefault("Vse", []).append(s)
-        for i in range(len(parts)):
-            album = " - ".join(parts[:i+1]).title()
-            music_albums.setdefault(album, []).append(s)
-    return music_albums
-
-import pandas as pd
+music_albums = {}
+music_files = [f[6:] for f in glob.iglob("music/**/*.mp3", recursive=True)]
+for s in music_files:
+    parts = s.split("/")[:-1]
+    music_albums.setdefault("Vse", []).append(s)
+    for i in range(len(parts)):
+        album = " - ".join(parts[:i+1]).title()
+        music_albums.setdefault(album, []).append(s)
+        
 music_metadata = {}
-for file in get_albums()["Vse"]:
+for file in music_albums["Vse"]:
         try:
             audio = MP3(os.path.join("music", file), ID3=EasyID3)
         except HeaderNotFoundError as e:
@@ -664,11 +661,13 @@ for file in get_albums()["Vse"]:
             "album": "/" + "/".join(file.split("/")[:-1])
         }
         music_metadata[file] = item
+music_metadata = {k: v for k, v in sorted(music_metadata.items(), key=lambda item: (item[1]["album"], item[1]["artist"], item[1]["title"]))}
+music_albums = {k: sorted(music_albums[k], key=lambda x: (music_metadata[x]["album"], music_metadata[x]["artist"], music_metadata[x]["title"])) for k in sorted(music_albums.keys())}
 
 @app.route("/music")
 @login_required
 def music():
-    return render_template("music_player.html", pagetitle="MarinKino - Glasba", is_music=True, albums=get_albums(), music_metadata=music_metadata)
+    return render_template("music_player.html", pagetitle="MarinKino - Glasba", is_music=True, albums=music_albums, music_metadata=music_metadata)
 
 @app.route("/music/file/<path:filename>")
 @login_required
