@@ -37,6 +37,18 @@ function loadAlbum(name) {
     currentSongs = albums[name];
     renderAlbums();
 
+    if (currentSongs.length === 0) {
+        trackListEl.innerHTML = "<i>Ni pesmi v tej zbirki.</i>";
+        nowPlayingTitle.textContent = "-";
+        nowPlayingArtist.textContent = "-";
+        nowPlayingAlbum.textContent = "-";
+        audio.src = "";
+        return;
+    } else if (!currentSongs.includes(currentTrack)) {
+        currentTrack = currentSongs[Math.floor(Math.random() * currentSongs.length)];
+    }
+    currentIndex = currentSongs.indexOf(currentTrack);
+
     trackListEl.innerHTML = "";
     currentSongs.forEach((s,i)=>{
         const div = document.createElement("div");
@@ -215,6 +227,5 @@ function izbrisiPesem() {
 }
 
 // Initialize
-renderAlbums();
-if(currentTrack && currentSongs.length>0) playTrack(currentIndex||0);
-else loadAlbum(currentAlbum);
+loadAlbum(currentAlbum);
+if(currentSongs.length>0) playTrack(currentIndex||0);

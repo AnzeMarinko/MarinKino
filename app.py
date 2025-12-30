@@ -662,7 +662,7 @@ for file in music_albums["Vse"]:
         }
         music_metadata[file] = item
 music_metadata = {k: v for k, v in sorted(music_metadata.items(), key=lambda item: (item[1]["album"], item[1]["artist"], item[1]["title"]))}
-music_albums = {k: sorted(music_albums[k], key=lambda x: (music_metadata[x]["album"], music_metadata[x]["artist"], music_metadata[x]["title"])) for k in sorted(music_albums.keys())}
+music_albums = {k: sorted(music_albums[k], key=lambda x: (music_metadata[x]["album"].lower(), music_metadata[x]["artist"].lower(), music_metadata[x]["title"].lower())) for k in sorted(music_albums.keys())}
 
 @app.route("/music")
 @login_required
