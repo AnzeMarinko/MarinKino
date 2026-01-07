@@ -20,17 +20,6 @@ function odstraniMovieCard(event, form) {
     return false; 
 }
 
-function getGreeting() {
-    const hour = new Date().getHours();
-
-    if (hour < 5)      return "lahko noč";
-    if (hour < 10)     return "dobro jutro";
-    if (hour < 18)     return "dober dan";
-    return "dober večer";
-}
-
-document.getElementById("greeting").textContent = getGreeting();
-
 let currentPage = 0;
 let loading = false;
 

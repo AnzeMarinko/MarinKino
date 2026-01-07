@@ -267,6 +267,7 @@ video {
     border-radius: 12px;
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     max-width: 100%;
+    width : 500px;
 }
 
 
@@ -303,6 +304,7 @@ video {
     margin-right: 10px;
     font-size: 0.9rem;
     max-width: 500px;
+    min-width: 50%;
     color: #333;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     border-radius: 12px;

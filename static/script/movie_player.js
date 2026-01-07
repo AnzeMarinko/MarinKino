@@ -25,15 +25,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 
-    function playVideo(videoPath) {
-        const source = document.getElementById("videoSource");
-
-        source.src = videoPath;
-
-        video.load();       // ponastavi video z novimi viri
-        video.play();       // začne predvajanje
-    }
-
     // Nastavi interval (v milisekundah)
     const intervalMillis = 20 * 1000;
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');

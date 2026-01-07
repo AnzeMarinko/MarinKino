@@ -69,6 +69,17 @@ V mape movies, memes in music postavi datoteke ter postavi rclone sinhronizacijo
 0 7 * * * /home/marinko/Desktop/MarinKino/rclone/rclone-sync-gdrive.sh
 ```
 
+### 8. Nastavi omejitve IP-jem, ki iščejo luknje
+```
+sudo apt install fail2ban
+sudo cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
+```
+S pomočjo umetne inteligence (npr. ChatGPT) uredi nginx-404, nginx-http-auth ipd.
+```
+sudo nano /etc/fail2ban/jail.local
+sudo systemctl restart fail2ban
+sudo fail2ban-client status
+```
 
 ## Konfiguracija zagonskega programa
 

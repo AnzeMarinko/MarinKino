@@ -72,6 +72,8 @@ def create_thumbnail(src, height=250, quality=85):
     if "popcorn.png" in src:
         return src
     dst = src.replace("cover_image.jpg", "cover_thumb.jpg")
+    if os.path.exists(dst):
+        return dst
     img = Image.open(src)
     w, h = img.size
     ratio = height / float(h)

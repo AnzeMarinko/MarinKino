@@ -26,6 +26,19 @@
       <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-2">
         <span class="text-secondary">
           Bog daj <span id="greeting"></span>, <strong>{{ current_user.id }}</strong>
+          <script>
+            function getGreeting() {
+                const hour = new Date().getHours();
+
+                if (hour < 5)      return "lahko noč";
+                if (hour < 10)     return "dobro jutro";
+                if (hour < 18)     return "dober dan";
+                return "dober večer";
+            }
+
+            document.getElementById("greeting").textContent = getGreeting();
+            </script>
+
         </span>
           
         {% if fullscreenbutton %}

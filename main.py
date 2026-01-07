@@ -3,7 +3,7 @@ import json
 import tqdm
 import subprocess
 import logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - [%(levelname)s] - %(message)s',
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - 1 - [%(levelname)s] - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S')
 
 from priprava_filmov.config import FILMS_ROOT, IZJEME, CACHE_ROOT

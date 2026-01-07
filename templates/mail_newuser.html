@@ -1,0 +1,66 @@
+{% extends "mail_base.html" %}
+
+{% block content %}
+
+<table width="100%" cellpadding="0" cellspacing="0">
+<tr>
+<td align="center" style="padding:16px;">
+
+<table width="100%" style="max-width:600px;background:#ffffff;border-radius:8px;padding:20px;">
+<tr>
+<td align="center">
+
+<img src="https://anzemarinko.duckdns.org/static/logo.png"
+     width="140"
+     style="margin-bottom:20px;max-width:100%;height:auto;"
+     alt="MarinKino">
+
+</td>
+</tr>
+
+<tr>
+<td style="font-family:Arial,sans-serif;font-size:17px;line-height:1.6;color:#111;">
+
+<h2 style="margin-top:0;color:#f59e0b;font-size:22px;">
+Dobrodošli v MarinKino
+</h2>
+
+<p>Vaš uporabniški račun je bil uspešno ustvarjen.</p>
+
+<p>
+<b>Uporabniško ime:</b> {{ username }}<br>
+<b>Geslo:</b> {{ password }}
+</p>
+
+<a href="https://anzemarinko.duckdns.org"
+   style="display:block;
+          margin:24px 0;
+          padding:14px 18px;
+          font-size:18px;
+          background:#f59e0b;
+          color:#ffffff;
+          text-decoration:none;
+          border-radius:6px;
+          text-align:center;">
+Prijava v MarinKino
+</a>
+
+<p style="font-size:14px;color:#666;">
+Če gumba ne vidite, obiščite:
+<br>
+https://anzemarinko.duckdns.org
+</p>
+
+            <p>Lep pozdrav,<br>MarinKino sistem</p>
+
+            <p style="font-size:12px;color:#666;">
+            To je samodejno sporočilo.
+            </p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+
+{% endblock %}

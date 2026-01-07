@@ -23,6 +23,9 @@ from mutagen.easyid3 import EasyID3
 import pandas as pd
 import requests
 import logging
+import smtplib
+from email.message import EmailMessage
+import ssl
 import redis
 redis_client = redis.Redis(host='localhost', port=6379, decode_responses=True)
 
@@ -49,6 +52,10 @@ app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=365)
 Compress(app)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1)
 csrf = CSRFProtect(app)
+app.config['WTF_CSRF_TIME_LIMIT'] = None
+
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
 
 limiter = Limiter(
     key_func=get_remote_address,
@@ -222,7 +229,21 @@ def admin_panel():
             break
     if last_system_log_file:
         with open(os.path.join("../MarinKinoCache/logs", last_system_log_file), "r", encoding="utf-8") as f:
-            system_log = "\n".join(f.read().split("\n")[-500:])
+            lines = [l.split(" - ") for l in f.read().split("\n")]
+            new_lines = []
+            last_line = lines[0]
+            for line in lines[1:]:
+                if len(last_line) < 4 or len(line) < 4 or line[3] != last_line[3] or line[2] != last_line[2]:
+                    new_lines.append(" - ".join(last_line))
+                    last_line = line
+                else:
+                    last_line[0] = last_line[0].split(" <-> ")[0] + " <-> " + line[0]
+                    last_line[1] = str(int(last_line[1].replace("x", "")) + int(line[1])) + "x"
+            new_lines.append(" - ".join(last_line))
+
+            system_log = "\n".join(new_lines[-500:])
+        with open(os.path.join("../MarinKinoCache/logs", last_system_log_file), "w", encoding="utf-8") as f:
+            f.write("\n".join(new_lines))
 
     return render_template("admin.html", pagetitle="MarinKino - Nadzorna plošča", system_log=system_log, access_stats_users=access_stats_users,
                            access_stats_routes=access_stats_routes, users_stats=users_stats_dict, users_stats_columns=users_stats_columns,
@@ -270,6 +291,43 @@ def login():
         pagetitle="Prijava v MarinKino"
         )
 
+
+def send_mail(to, cc=None, bcc=None, subject="", text="", html=""):
+    msg = EmailMessage()
+
+    msg["From"] = f"MarinKino <{os.getenv('MAIL_USERNAME')}>"
+    msg["To"] = ", ".join(to) if isinstance(to, list) else to
+
+    if cc:
+        msg["Cc"] = ", ".join(cc)
+    if bcc:
+        msg["Bcc"] = ", ".join(bcc)
+
+    msg["Subject"] = subject
+
+    # fallback text (zelo priporočeno)
+    msg.set_content(text)
+
+    # HTML verzija
+    if html:
+        msg.add_alternative(html, subtype="html")
+
+    recipients = []
+    for field in (to, cc, bcc):
+        if field:
+            recipients += field if isinstance(field, list) else [field]
+
+    context = ssl.create_default_context()
+
+    with smtplib.SMTP("smtp.gmail.com", 587) as server:
+        server.starttls(context=context)
+        server.login(
+            os.getenv("GMAIL_USERNAME"),
+            os.getenv("GMAIL_TOKEN")
+        )
+        server.send_message(msg, to_addrs=recipients)
+
+
 @app.route('/register', methods=['GET', 'POST'])
 @login_required
 def register():
@@ -282,8 +340,8 @@ def register():
         email = request.form['email']
         if username in users:
             error = 'Uporabniško ime zasedeno!'
-        elif not re.match(r'^[a-zA-Z0-9_.-]+$', username):
-            error = 'Uporabniško ime sme vsebovati le črke, številke, pike, podčrtaje in vezaje!'
+        elif username is None or not re.match(r'^[a-zA-Z0-9_.-]+$', username) or len(username) < 3 or len(username) > 30:
+            error = 'Uporabniško ime sme vsebovati le črke, številke, pike, podčrtaje in vezaje ter mora biti dolgo od 3 do 30 znakov!'
         else:
             password = ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=12))
             users[username] = {"password_hash": generate_password_hash(password), "email": email}
@@ -292,6 +350,12 @@ def register():
             requests.post(f"https://api.telegram.org/bot{os.getenv('TELEGRAM_BOT_TOKEN')}/sendMessage", data={"chat_id": os.getenv('TELEGRAM_CHAT_ID'), "text": content})
             with open("users.json", 'w', encoding="utf-8") as f:
                 f.write(json.dumps(users, indent=4))
+            send_mail(
+                to=[email],
+                subject="Dostop do MarinKino",
+                text=content,
+                html=render_template("mail_newuser.html", username=username, password=password)
+            )
             return redirect(url_for('index'))
     return render_template('register.html', pagetitle="Registracija v MarinKino", error=error)
 
@@ -518,7 +582,17 @@ def movie_file(movies_subfolder, movie_folder, filename):
                     data["last_start_time"] = datetime.now(timezone.utc).isoformat()[:16]
                     data["count_start_time"] = data.get("count_start_time", 0) + 1
                     redis_client.hset(user_key, full_filename, json.dumps(data))
-        return send_from_directory(os.path.join(FILMS_ROOT, movies_subfolder, movie_folder), filename, mimetype='video/mp4', conditional=True)
+        try:
+            response = send_from_directory(
+                os.path.join(FILMS_ROOT, movies_subfolder, movie_folder), 
+                filename, 
+                mimetype='video/mp4', 
+                conditional=True
+            )
+            response.direct_passthrough = True 
+            return response
+        except Exception:
+            return "", 204 # Tiho vrnemo prazen odgovor
     elif "cover_thumb.jpg" in filename:
         response = make_response(
             send_from_directory(os.path.join(FILMS_ROOT, movies_subfolder, movie_folder), filename, conditional=True)
