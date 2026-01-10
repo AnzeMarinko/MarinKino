@@ -8,10 +8,6 @@
 
 <p>Za registracijo novega uporabnika vnesite željeno uporabniško ime in e-naslov. Geslo bo samodejno ustvarjeno in poslano na Telegram.</p>
 
-{% if error %}
-    <div class="alert alert-danger text-center">{{ error }}</div>
-{% endif %}
-
 <form method="post" autocomplete="on">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     

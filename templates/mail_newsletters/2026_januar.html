@@ -1,0 +1,185 @@
+{% extends "mail_base.html" %}
+
+{% block content %}
+<tr>
+  <td align="center" style="padding:16px;">
+  <h2 style="margin:0;color:#f59e0b;font-size:22px;">
+    Januarski filmski izbor
+  </h2>
+
+  <p style="margin:6px 0 0;color:#666;font-size:14px;">
+    Pozdravljen {{ username }}, tu so trije filmi, ki jih priporočam
+  </p>
+</td>
+</tr>
+
+<!-- ===== FILM 1 (drama/akcija) ===== -->
+<tr>
+<td style="padding:14px;border-top:1px solid #eee;">
+
+<table width="100%" cellpadding="0" cellspacing="0">
+
+<!-- SLIKA (mobile: full width) -->
+<tr>
+<td align="center">
+  <img src="https://via.placeholder.com/300x450"
+       style="width:100%;max-width:220px;height:auto;
+              border-radius:8px;display:block;margin-bottom:10px;"
+       alt="Naslovnica: Film 1">
+</td>
+</tr>
+
+<!-- VSEBINA -->
+<tr>
+<td>
+
+  <h3 style="margin:0 0 6px;color:#111;font-size:18px;">
+    Film naslov 1 (Cinderela man?)
+  </h3>
+
+  <p style="margin:0 0 6px;font-size:14px;color:#555;">
+    🎬 <b>Žanr:</b> Drama · Akcija<br>
+    ⏱ <b>Dolžina:</b> 2h 10min
+  </p>
+
+  <p style="margin:0 0 12px;font-size:15px;color:#444;line-height:1.5;">
+    Kratek opis filma, ki gledalca pritegne in mu pove,
+    zakaj je ta film vreden ogleda.
+  </p>
+
+  <!-- GUMB (mobile-friendly) -->
+  <a href="https://anzemarinko.duckdns.org"
+     style="display:block;
+            width:100%;
+            padding:14px 0;
+            background:#f59e0b;
+            color:#ffffff;
+            font-size:16px;
+            font-weight:bold;
+            text-decoration:none;
+            border-radius:6px;
+            text-align:center;">
+     🎬 Poglej film
+  </a>
+
+</td>
+</tr>
+
+</table>
+</td>
+</tr>
+
+<!-- ===== FILM 2 (komedija) ===== -->
+<tr>
+<td style="padding:14px;border-top:1px solid #eee;">
+<table width="100%" cellpadding="0" cellspacing="0">
+
+<tr>
+<td align="center">
+  <img src="https://via.placeholder.com/300x450"
+       style="width:100%;max-width:220px;height:auto;
+              border-radius:8px;display:block;margin-bottom:10px;"
+       alt="Naslovnica: Film 2">
+</td>
+</tr>
+
+<tr>
+<td>
+  <h3 style="margin:0 0 6px;color:#111;font-size:18px;">
+    Film naslov 2 (Superintelligence?)
+  </h3>
+
+  <p style="margin:0 0 6px;font-size:14px;color:#555;">
+    🎬 <b>Žanr:</b> Komedija<br>
+    ⏱ <b>Dolžina:</b> 1h 45min
+  </p>
+
+  <p style="margin:0 0 12px;font-size:15px;color:#444;line-height:1.5;">
+    Lahkotna komedija za sproščen večer.
+  </p>
+
+  <a href="https://anzemarinko.duckdns.org"
+     style="display:block;width:100%;padding:14px 0;
+            background:#f59e0b;color:#fff;font-size:16px;
+            font-weight:bold;text-decoration:none;
+            border-radius:6px;text-align:center;">
+    😂 Poglej film
+  </a>
+</td>
+</tr>
+
+</table>
+</td>
+</tr>
+
+<!-- ===== FILM 3 (risanka/krščanski) ===== -->
+<tr>
+<td style="padding:14px;border-top:1px solid #eee;">
+<table width="100%" cellpadding="0" cellspacing="0">
+
+<tr>
+<td align="center">
+  <img src="https://via.placeholder.com/300x450"
+       style="width:100%;max-width:220px;height:auto;
+              border-radius:8px;display:block;margin-bottom:10px;"
+       alt="Naslovnica: Film 3">
+</td>
+</tr>
+
+<tr>
+<td>
+  <h3 style="margin:0 0 6px;color:#111;font-size:18px;">
+    Film naslov 3 (The star?)
+  </h3>
+
+  <p style="margin:0 0 6px;font-size:14px;color:#555;">
+    🎬 <b>Žanr:</b> Triler<br>
+    ⏱ <b>Dolžina:</b> 2h
+  </p>
+
+  <p style="margin:0 0 12px;font-size:15px;color:#444;line-height:1.5;">
+    Napet triler, ki te drži do zadnje minute.
+  </p>
+
+  <a href="https://anzemarinko.duckdns.org"
+     style="display:block;width:100%;padding:14px 0;
+            background:#f59e0b;color:#fff;font-size:16px;
+            font-weight:bold;text-decoration:none;
+            border-radius:6px;text-align:center;">
+    🔥 Poglej film
+  </a>
+</td>
+</tr>
+
+</table>
+</td>
+</tr>
+
+<!-- ===== MEME ===== -->
+<tr>
+<td style="padding:14px;border-top:1px solid #eee;">
+<table width="100%" cellpadding="0" cellspacing="0">
+
+<tr>
+<td align="center">
+  <a href="https://anzemarinko.duckdns.org/memes">
+    <img src="https://anzemarinko.duckdns.org/newsletter_image/file/2026_januar/meme.jpg"
+       style="width:100%;max-width:220px;height:auto;
+              border-radius:8px;display:block;margin-bottom:10px;"
+       alt="Šala"></a>
+</td>
+</tr>
+
+</table>
+</td>
+</tr>
+
+<!-- FOOTER -->
+<tr>
+<td align="center" style="padding:14px;font-size:12px;color:#666;border-top:1px solid #eee;">
+  Ta email si prejel, ker imaš račun na MarinKino.<br>
+  © MarinKino (Anže Marinko)
+</td>
+</tr>
+
+{% endblock %}

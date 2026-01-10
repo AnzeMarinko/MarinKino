@@ -6,10 +6,6 @@
 <div  style="max-width: 500px; margin: auto;">
 <h2 class="text-center mb-3">Prijava</h2>
 
-  {% if error %}
-      <div class="alert alert-danger text-center">{{ error }}</div>
-  {% endif %}
-
   <form method="post" autocomplete="on">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       
@@ -27,6 +23,8 @@
           <button type="submit" class="btn btn-warning btn-lg">Prijavi se</button>
       </div>
   </form>
+
+    <p><a href="{{ url_for('forgot_password') }}">Pozabljeno geslo?</a></p>
 
 </div>
 </main>

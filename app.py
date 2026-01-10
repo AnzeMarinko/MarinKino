@@ -1,4 +1,4 @@
-from flask import Flask, session, render_template, send_from_directory, request, redirect, url_for, make_response
+from flask import Flask, session, render_template, flash, send_from_directory, request, redirect, url_for, make_response
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from waitress import serve
 from datetime import timedelta, datetime, timezone, date
@@ -9,6 +9,7 @@ from copy import copy
 import json
 import random
 import shutil
+import secrets
 from urllib.parse import unquote
 from flask_compress import Compress
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -67,7 +68,7 @@ limiter.init_app(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
-
+login_manager.login_message = None
 
 @app.after_request
 def log_response_info(response):   
@@ -258,6 +259,7 @@ class User(UserMixin):
     def __init__(self, username):
         self.id = username
         self.is_admin = users[username].get("is_admin", False)
+        self.email = users[username].get("email", "")
 
 def safe_path(base_folder, filename):
     path = pathlib.Path(base_folder) / filename
@@ -286,8 +288,9 @@ def login():
             return redirect(url_for('index'))
         else:
             error = 'Napačno uporabniško ime ali geslo.'
+            flash(error, "error")
     return render_template(
-        'login.html', error=error,
+        'login.html', 
         pagetitle="Prijava v MarinKino"
         )
 
@@ -328,6 +331,20 @@ def send_mail(to, cc=None, bcc=None, subject="", text="", html=""):
         server.send_message(msg, to_addrs=recipients)
 
 
+def save_users():
+    global users
+    with open("users.json", 'w', encoding="utf-8") as f:
+        f.write(json.dumps(users, indent=4))
+
+
+def find_user_by_email(email):
+    if not email:
+        return None
+    for username, data in users.items():
+        if data.get("email", "").lower() == email.lower():
+            return username
+    return None
+
 @app.route('/register', methods=['GET', 'POST'])
 @login_required
 def register():
@@ -340,6 +357,8 @@ def register():
         email = request.form['email']
         if username in users:
             error = 'Uporabniško ime zasedeno!'
+        elif find_user_by_email(email) is not None:
+            error = 'E-naslov je že registriran!'
         elif username is None or not re.match(r'^[a-zA-Z0-9_.-]+$', username) or len(username) < 3 or len(username) > 30:
             error = 'Uporabniško ime sme vsebovati le črke, številke, pike, podčrtaje in vezaje ter mora biti dolgo od 3 do 30 znakov!'
         else:
@@ -357,7 +376,89 @@ def register():
                 html=render_template("mail_newuser.html", username=username, password=password)
             )
             return redirect(url_for('index'))
-    return render_template('register.html', pagetitle="Registracija v MarinKino", error=error)
+    if error:
+        flash(error, "error")
+    return render_template('register.html', pagetitle="Registracija v MarinKino")
+
+
+@app.route('/forgot_password', methods=['GET', 'POST'])
+@limiter.limit("5 per 10 minutes")
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip()
+        username = find_user_by_email(email)
+        if username:
+            token = secrets.token_urlsafe(32)
+            expiry = (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()
+            users[username]['reset_token'] = token
+            users[username]['reset_expiry'] = expiry
+            save_users()
+            reset_link = url_for('reset_password', token=token, _external=True)
+            try:
+                send_mail(
+                    to=[email],
+                    subject="MarinKino - Ponastavitev gesla",
+                    text=f"Za ponastavitev gesla za uporabnika {username} uporabite to povezavo: {reset_link} (povezava poteče čez 30 minut)",
+                    html=render_template('mail_reset_password.html', reset_link=reset_link, username=username, expiry_minutes=30)
+                )
+            except Exception:
+                # If mail sending fails, we still silently continue (do not reveal existence)
+                pass
+        # Generic response to avoid user enumeration
+        flash("Če uporabnik z navedenim e-naslovom obstaja, mu je bila poslana povezava za ponastavitev gesla.", "info")
+        return redirect(url_for('login'))
+    return render_template('forgot_password.html', pagetitle="Pozabljeno geslo")
+
+
+@app.route('/reset_password/<token>', methods=['GET', 'POST'])
+@limiter.limit("10 per 10 minutes")
+def reset_password(token):
+    # find user by token
+    username = None
+    user_data = None
+    for u, data in users.items():
+        if data.get('reset_token') == token:
+            username = u
+            user_data = data
+            break
+    if not username or not user_data:
+        # redirect to index and add error message:
+        flash("Neveljavna ali potekla povezava za ponastavitev gesla.", "error")
+        return redirect(url_for('login'))
+
+    expiry_iso = user_data.get('reset_expiry')
+    try:
+        expiry_dt = datetime.fromisoformat(expiry_iso)
+    except Exception:
+        expiry_dt = datetime.now(timezone.utc) - timedelta(seconds=1)
+
+    if expiry_dt < datetime.now(timezone.utc):
+        users[username].pop('reset_token', None)
+        users[username].pop('reset_expiry', None)
+        save_users()
+        flash("Povezava za ponastavitev gesla je potekla.", "error")
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        new_password = request.form.get('password', '')
+        input_username = request.form.get('username', '')
+        form_token = request.form.get('token', '')
+        if form_token != token:
+            flash("Neveljavna zahteva.", "error")
+            return render_template('reset_password.html', token=token)
+        if username != input_username:
+            flash("Uporabniško ime se ne ujema.", "error")
+            return render_template('reset_password.html', token=token)
+        if not new_password or len(new_password) < 6:
+            flash("Geslo mora vsebovati vsaj 6 znakov.", "error")
+            return render_template('reset_password.html', token=token)
+        users[username]['password_hash'] = generate_password_hash(new_password)
+        users[username].pop('reset_token', None)
+        users[username].pop('reset_expiry', None)
+        save_users()
+        flash("Geslo je bilo uspešno ponastavljeno. Sedaj se lahko prijavite.", "success")
+        return redirect(url_for('login'))
+    return render_template('reset_password.html', token=token, pagetitle="Ponastavi geslo")
 
 @app.route('/logout')
 @login_required
@@ -478,7 +579,7 @@ def index():
         selected_genre=genre_filter,
         sort=sort,
         onlyunwatched=onlyunwatched,
-        group_folders=group_folders,
+        group_folders={k: v for k, v in group_folders.items() if (current_user.is_authenticated and current_user.is_admin) or "neurejen" not in k.lower()},
         known_genres=GENRES_MAPPING.values()
     )
 
@@ -781,6 +882,19 @@ def pod_krinko_new_words():
     random.shuffle(new_words)
     word_1, word_2 = new_words[0], new_words[1]
     return [word_1.strip().lower(), word_2.strip().lower()]
+    
+
+@app.route("/newsletter_image/file/<path:filename>")
+def newsletter_image(filename):
+    try:
+        path = safe_path("newsletter_images", filename)
+    except ValueError:
+        return "", 404
+    return send_from_directory("newsletter_images", filename, conditional=True)
+
+@app.route("/test")
+def test():
+    return render_template("mail_newsletters/2026_januar.html", username=current_user.id if current_user.is_authenticated else "uporabnik", pagetitle="Testni mail")
 
 
 if __name__ == "__main__":

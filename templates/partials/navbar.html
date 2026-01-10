@@ -71,3 +71,42 @@
 {% if not current_user.is_authenticated %}
 <a href="/login"><div class="alert alert-danger text-center" style="background-color: orange;">Potrebna prijava!</div></a>
 {% endif %}
+
+<div id="flash-container" class="position-fixed top-0 start-50 translate-middle-x mt-3" style="z-index: 1055;">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ 'danger' if category == 'error' else category }} fade show flash-message" role="alert">
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endwith %}
+</div>
+<style>
+.flash-message {
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.flash-message.fade-out {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const messages = document.querySelectorAll(".flash-message");
+
+  messages.forEach((msg, index) => {
+    // koliko časa je vidno (ms)
+    const isError = msg.classList.contains("alert-danger");
+    const visibleTime = ( isError ? 5000 : 3000 ) + index * 500;
+
+    setTimeout(() => {
+      msg.classList.add("fade-out");
+
+      setTimeout(() => {
+        msg.remove();
+      }, 700); // mora biti > CSS transition
+    }, visibleTime);
+  });
+});
+</script>
