@@ -168,5 +168,7 @@ def rescale_captions(folder, subtitle_path, video_path, plot=False):
                 plt.show()
             return audio, subtitles, speech
         else:
+            with open(original_file, "w", encoding="UTF-8") as f:
+                f.write("")
             logging.warning(f"Empy subtitles: {folder}")
 

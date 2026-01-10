@@ -1,17 +1,25 @@
 <!DOCTYPE html>
 <html lang="sl">
 <head>
-  {% include "partials/header.html" %}
-</head>
-<body class="bg-light text-dark">
-
-  {% include "partials/navbar.html" %}
-
-  {% block content %}{% endblock %}
-
-  {% if not fullscreenbutton and not is_music %}
-    {% include "partials/footer.html" %}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {% if not is_for_mail %}
+    {% include "partials/header.html" %}
   {% endif %}
+</head>
+
+{% if not is_for_mail %}
+  <body class="bg-light text-dark">
+    {% include "partials/navbar.html" %}
+{% else %}
+  <body style="font-family: Arial, sans-serif; background:#f4f4f4;">
+{% endif %}
+
+{% block content %}{% endblock %}
+
+{% if not is_for_mail and not fullscreenbutton and not is_music %}
+    {% include "partials/footer.html" %}
+{% endif %}
 
 </body>
 </html>

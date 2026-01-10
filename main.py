@@ -6,7 +6,7 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - 1 - [%(levelname)s] - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S')
 
-from priprava_filmov.config import FILMS_ROOT, IZJEME, CACHE_ROOT
+from priprava_filmov.config import FILMS_ROOT, IZJEME
 from priprava_filmov.helpers import is_ffmpeg_installed, remove
 from priprava_filmov.video_converter import concat_and_convert, convert_single_file
 from priprava_filmov.download_subtitles import get_subtitles

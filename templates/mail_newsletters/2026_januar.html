@@ -1,6 +1,21 @@
-{% extends "mail_base.html" %}
+{% extends "base.html" %}
 
 {% block content %}
+  <table width="100%" cellpadding="0" cellspacing="0">
+  <tr>
+  <td align="center" style="padding:8px;">
+
+      <table width="100%" style="max-width:600px;background:#ffffff;border-radius:8px;padding:10px;">
+      <tr>
+      <td align="center" style="padding:16px;">
+
+            <a href="https://anzemarinko.duckdns.org"><img src="https://anzemarinko.duckdns.org/static/logo.png"
+                width="100"
+                style="margin-bottom:10px;max-width:100%;height:auto;"
+                alt="MarinKino"></a>
+
+      </td>
+      </tr>
 <tr>
   <td align="center" style="padding:16px;">
   <h2 style="margin:0;color:#f59e0b;font-size:22px;">
@@ -8,7 +23,7 @@
   </h2>
 
   <p style="margin:6px 0 0;color:#666;font-size:14px;">
-    Pozdravljen {{ username }}, tu so trije filmi, ki jih priporočam
+    Pozdravljen <b>{{ username }}</b>, tu so trije filmi, ki jih priporočam
   </p>
 </td>
 </tr>
@@ -163,7 +178,7 @@
 <tr>
 <td align="center">
   <a href="https://anzemarinko.duckdns.org/memes">
-    <img src="https://anzemarinko.duckdns.org/newsletter_image/file/2026_januar/meme.jpg"
+    <img src="https://anzemarinko.duckdns.org/newsletter_image/file/2026_januar/meme.jpg?user={{ username }}"
        style="width:100%;max-width:220px;height:auto;
               border-radius:8px;display:block;margin-bottom:10px;"
        alt="Šala"></a>
@@ -182,4 +197,8 @@
 </td>
 </tr>
 
+     </table>
+  </td>
+  </tr>
+  </table>
 {% endblock %}

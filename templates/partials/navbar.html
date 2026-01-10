@@ -17,9 +17,10 @@
 
       <!-- LEVI MENI -->
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-        <li class="nav-item"><a class="nav-link" href="/memes">Šale & navdihi</a></li>
-        <li class="nav-item"><a class="nav-link" href="/music">Glasba</a></li>
+        <li class="nav-item"><a class="nav-link" href="/memes" {% if not current_user.is_authenticated %} style="opacity: 0.5;" {% endif %}>Šale & navdihi</a></li>
+        <li class="nav-item"><a class="nav-link" href="/music" {% if not current_user.is_authenticated %} style="opacity: 0.5;" {% endif %}>Glasba</a></li>
         <li class="nav-item"><a class="nav-link" href="/pod_krinko">Pod krinko</a></li>
+        <li class="nav-item"><a class="nav-link" href="/help" {% if not current_user.is_authenticated %} style="opacity: 0.5;" {% endif %}>Pomoč</a></li>
       </ul>
 
       <!-- DESNI DEL: UPORABNIK -->

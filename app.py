@@ -4,7 +4,7 @@ from waitress import serve
 from datetime import timedelta, datetime, timezone, date
 import os
 import re
-from main import check_folder, FILMS_ROOT, CACHE_ROOT
+from main import check_folder, FILMS_ROOT
 from copy import copy
 import json
 import random
@@ -29,11 +29,6 @@ from email.message import EmailMessage
 import ssl
 import redis
 redis_client = redis.Redis(host='localhost', port=6379, decode_responses=True)
-
-if not os.path.exists(CACHE_ROOT):
-    os.mkdir(CACHE_ROOT)
-if not os.path.exists(os.path.join(CACHE_ROOT, "users")):
-    os.mkdir(os.path.join(CACHE_ROOT, "users"))
 
 GENRES_MAPPING = {
     "Comedy": "Komedija",
@@ -295,7 +290,21 @@ def login():
         )
 
 
-def send_mail(to, cc=None, bcc=None, subject="", text="", html=""):
+def save_users():
+    global users
+    with open("users.json", 'w', encoding="utf-8") as f:
+        f.write(json.dumps(users, indent=4))
+
+
+def find_user_by_email(email):
+    if not email:
+        return None
+    for username, data in users.items():
+        if data.get("email", "").lower() == email.lower():
+            return username
+    return None
+
+def send_mail(to, cc=None, bcc=None, subject="", text="", html="", batch_id=""):
     msg = EmailMessage()
 
     msg["From"] = f"MarinKino <{os.getenv('MAIL_USERNAME')}>"
@@ -320,30 +329,43 @@ def send_mail(to, cc=None, bcc=None, subject="", text="", html=""):
         if field:
             recipients += field if isinstance(field, list) else [field]
 
+    base = f"mail:{date.today().isoformat()[:7]}:{batch_id}"
+    # add recipients to Redis set
+    redis_client.sadd(f"{base}:recipients", *recipients)
     context = ssl.create_default_context()
 
-    with smtplib.SMTP("smtp.gmail.com", 587) as server:
-        server.starttls(context=context)
-        server.login(
-            os.getenv("GMAIL_USERNAME"),
-            os.getenv("GMAIL_TOKEN")
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
+            server.starttls(context=context)
+            server.login(
+                os.getenv("GMAIL_USERNAME"),
+                os.getenv("GMAIL_TOKEN")
+            )
+
+            # send_message VRNE dict zavrnjenih naslovov
+            failed = server.send_message(
+                msg,
+                to_addrs=recipients
+            )
+
+            for email in recipients:
+                if email in (failed or {}):
+                    code, reason = failed[email]
+                    redis_client.hset(
+                        f"{base}:errors",
+                        find_user_by_email(email) or email,
+                        f"{code} {reason}"
+                    )
+
+    except smtplib.SMTPException as e:
+        # globalni SMTP error (npr. auth, timeout)
+        redis_client.hset(
+            f"{base}:errors",
+            f"smtp_exception_{datetime.utcnow().isoformat()}",
+            str(e)
         )
-        server.send_message(msg, to_addrs=recipients)
+        raise
 
-
-def save_users():
-    global users
-    with open("users.json", 'w', encoding="utf-8") as f:
-        f.write(json.dumps(users, indent=4))
-
-
-def find_user_by_email(email):
-    if not email:
-        return None
-    for username, data in users.items():
-        if data.get("email", "").lower() == email.lower():
-            return username
-    return None
 
 @app.route('/register', methods=['GET', 'POST'])
 @login_required
@@ -363,7 +385,7 @@ def register():
             error = 'Uporabniško ime sme vsebovati le črke, številke, pike, podčrtaje in vezaje ter mora biti dolgo od 3 do 30 znakov!'
         else:
             password = ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=12))
-            users[username] = {"password_hash": generate_password_hash(password), "email": email}
+            users[username] = {"password_hash": generate_password_hash(password), "email": email, "incoming_date": date.today().isoformat()}
             content = f"Nov uporabnik je bil registriran v MarinKino:\n\nVstopna stran: anzemarinko.duckdns.org\nUporabniško ime: {username}\nE-naslov: {email}\nGeslo: {password}\n\nLep pozdrav,\nMarinKino sistem"
             # send to my telegram bot
             requests.post(f"https://api.telegram.org/bot{os.getenv('TELEGRAM_BOT_TOKEN')}/sendMessage", data={"chat_id": os.getenv('TELEGRAM_CHAT_ID'), "text": content})
@@ -373,7 +395,15 @@ def register():
                 to=[email],
                 subject="Dostop do MarinKino",
                 text=content,
-                html=render_template("mail_newuser.html", username=username, password=password)
+                html=render_template("mail_newuser.html", username=username, password=password, is_for_mail=True),
+                batch_id="new_user_credentials"
+            )
+            send_mail(
+                to=[email],
+                subject="Uporaba MarinKino",
+                text="https://anzemarinko.duckdns.org/help",
+                html=render_template("mail_user_intro.html", username=username, is_for_mail=True),
+                batch_id="new_user_introduction"
             )
             return redirect(url_for('index'))
     if error:
@@ -399,7 +429,8 @@ def forgot_password():
                     to=[email],
                     subject="MarinKino - Ponastavitev gesla",
                     text=f"Za ponastavitev gesla za uporabnika {username} uporabite to povezavo: {reset_link} (povezava poteče čez 30 minut)",
-                    html=render_template('mail_reset_password.html', reset_link=reset_link, username=username, expiry_minutes=30)
+                    html=render_template('mail_reset_password.html', reset_link=reset_link, username=username, expiry_minutes=30),
+                    batch_id="reset_password"
                 )
             except Exception:
                 # If mail sending fails, we still silently continue (do not reveal existence)
@@ -890,11 +921,45 @@ def newsletter_image(filename):
         path = safe_path("newsletter_images", filename)
     except ValueError:
         return "", 404
+    user = current_user.id if current_user.is_authenticated else request.args.get("user", "guest")
+    if user in users:
+        redis_client.incr(f"newsletter_views:{date.today().isoformat()[:7]}:{user}")
     return send_from_directory("newsletter_images", filename, conditional=True)
+
+@app.route("/help")
+@login_required
+def help():
+    return render_template("mail_user_intro.html", is_for_mail=False, username=current_user.id if current_user.is_authenticated else "gost", pagetitle="Navodila za uporabo MarinKino")
+
+@app.route('/send_admin_emails', methods=['GET', 'POST'])
+@login_required
+def send_admin_emails():
+    if not current_user.is_admin:
+        return redirect(url_for('index'))
+    if request.method == 'POST':
+        data = json.loads(request.data)
+        whole_list = data.get('whole_list') == "true"
+        list_of_emailed_users = [current_user.id] if not whole_list else list(users.keys())
+        for username in list_of_emailed_users:
+            email = users.get(username, {}).get("email")
+            if email:
+                # TODO: ob pošiljanju mailov spreminjaj ta klic funkcije
+                # if whole_list:
+                #     return {"error": "Pošiljanje mailov vsem uporabnikom je začasno onemogočeno."}
+                send_mail(
+                    to=[email],
+                    subject="Uporaba MarinKino",
+                    text="https://anzemarinko.duckdns.org/help",
+                    html=render_template("mail_user_intro.html", username=username, is_for_mail=True),
+                    batch_id="new_user_introduction"
+                )
+        return {"sent": len(list_of_emailed_users), "emails": list_of_emailed_users, "time": datetime.now().isoformat()}
+    return render_template('admin_mailing.html', pagetitle="Pošiljanje mailov uporabnikom MarinKino")
 
 @app.route("/test")
 def test():
-    return render_template("mail_newsletters/2026_januar.html", username=current_user.id if current_user.is_authenticated else "uporabnik", pagetitle="Testni mail")
+    is_for_mail = request.args.get("is_for_mail", "true") == "true"
+    return render_template("mail_newsletters/2026_januar.html", is_for_mail=True, username=current_user.id if current_user.is_authenticated else "uporabnik", pagetitle="Testni mail")
 
 
 if __name__ == "__main__":

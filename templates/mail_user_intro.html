@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <table width="100%" cellpadding="0" cellspacing="0">
+  <tr>
+  <td align="center" style="padding:8px;">
+
+      <table width="100%" style="max-width:600px;background:#ffffff;border-radius:8px;padding:10px;">
+      <tr>
+      <td align="center" style="padding:16px;">
+
+            <a href="https://anzemarinko.duckdns.org"><img src="https://anzemarinko.duckdns.org/static/logo.png"
+                width="100"
+                style="margin-bottom:10px;max-width:100%;height:auto;"
+                alt="MarinKino"></a>
+
+      </td>
+      </tr>
+<tr>
+  <td align="center" style="padding:16px;">
+  <h2 style="margin:0;color:#f59e0b;font-size:22px;">
+    Kratka navodila
+  </h2>
+
+  <p style="margin:6px 0 0;color:#666;font-size:14px;">
+    Dobrodošel <b>{{ username }}</b> med uporabniki storitve MarinKino. 
+    Tu so kratka navodila za uporabo.
+  </p>
+</td>
+</tr>
+
+<!-- ===== NAMEN STRANI ===== -->
+<tr>
+<td style="padding:14px;border-top:1px solid #eee;">
+<table width="100%" cellpadding="0" cellspacing="0">
+
+<tr>
+<td>
+  <h3 style="margin:0 0 6px;color:#111;font-size:18px;">
+    O strani
+  </h3>
+
+  <p style="margin:0 0 6px;font-size:14px;color:#555;">
+    <b style="color:#f59e0b;font-size:16px;">Kaj je MarinKino?</b> To je domači kino, ki vam omogoča enostavno izbiro in ogled filmov kar v brskalniku. 
+    Vsi filmi imajo slovenske podnapise ali zvok (originalno ali sinhronizirano). Ideja je podobna Netflix-u, Sloflix-u 
+    in podobnim stranem, le da je ta stran brezplačna,
+brez oglasov. Glavna razlika pa je v izboru filmov. Ti so večinoma po vsebini bolj kvalitetni. Skoraj ni grozljivk, 
+precej manj nasilja in opazno več filmov s krščansko vsebino. Poleg tega vsebuje tudi veliko zbirko šal v obliki slik (meme), 
+nekaj glasbe in kakšno družabno igro.</p>
+<p style="margin:0 0 6px;font-size:14px;color:#555;">
+    <b style="color:#f59e0b;font-size:16px;">Kdo vzdržuje stran?</b> Vse filme, šale in glasbo ter spletno stran sem pripravil Anže Marinko s pomočjo ChatGPT in 
+    idejami prijateljev. Priprava opisov in podnapisov je v veliki meri avtomatizirana in za prevode opisov, podnapisov in 
+    poravnavo podnapisov z zvokom uporablja umetno inteligenco.</p>
+<p style="margin:0 0 6px;font-size:14px;color:#555;">
+    <b style="color:#f59e0b;font-size:16px;">Kako lahko prispevam?</b> Celoten projekt mi je hobi z vidika časa, stroška pa praktično nimam (beri: 3 € na leto za vse skupaj 
+    za vse uporabnike skupaj). Bom pa vesel kakšnega predloga za dobre filme, predloga za izboljšave strani ali opozorila, če je kakšen 
+    film ali podnapis moteče slab.</p>
+<p style="margin:0 0 6px;font-size:14px;color:#555;">
+    <b style="color:#f59e0b;font-size:16px;">Kdo lahko stran uporablja?</b> Stran je namenjena moji širši družini in prijateljem. Za novega uporabnika se obrnite name.
+  </p>
+</td>
+</tr>
+
+</table>
+</td>
+</tr>
+
+<!-- ===== GLAVNI MENI ===== -->
+<tr>
+<td style="padding:14px;border-top:1px solid #eee;">
+
+<table width="100%" cellpadding="0" cellspacing="0">
+
+<!-- VSEBINA -->
+<tr>
+<td>
+
+  <h3 style="margin:0 0 6px;color:#111;font-size:18px;">
+    Uporaba strani
+  </h3>
+
+  <p style="margin:0 0 12px;font-size:15px;color:#444;">
+    Na vrhu strani takoj opazimo različne vrste razvedrila. 
+    Gumb MarinKino je za filme, zraven pa so tudi šale, 
+    glasba in družabna igra Pod krinko. Vsak dan si lahko ogledamo le omejeno število šal, 
+    ostalih omejitev za prijavljene uporabnike stran nima. Vabljeni, da se razgledate po vseh vrstah razvedrila.
+  </p>
+
+  <img src="https://anzemarinko.duckdns.org/newsletter_image/file/new_user_introduction/meni.png"
+        style="width:100%;max-width:800px;height:auto;
+                border-radius:8px;display:block;margin-bottom:10px;"
+        alt="Meni">
+
+  <p style="margin:0 0 12px;font-size:15px;color:#444;">
+    V meniju za filtriranje in razvrščanje filmov moramo izbrati tip filmov, lahko pa izberemo tudi zvrst, način razvrščanja 
+    in ali vam prikazuje pogledane filme. Storitev vam bo sama beležila, kakšen delež vsakega filma ste si že ogledali in kot pogledanega označila
+    vsakega, ki ga boste pogledali do konca. Pod filmom lahko tudi vidimo, do kako daleč smo si film že ogledali. Ob izbiri filma pa lahko tudi 
+    ročno označite film kot (ne)pogledan in ga stem ob vklopljenem filtru skrijete iz prikaza.
+  </p>
+
+  <img src="https://anzemarinko.duckdns.org/newsletter_image/file/new_user_introduction/filmi.png"
+        style="width:100%;max-width:800px;height:auto;
+                border-radius:8px;display:block;margin-bottom:10px;"
+        alt="Filmi">
+
+  <img src="https://anzemarinko.duckdns.org/newsletter_image/file/new_user_introduction/izbira_filma.png"
+        style="width:100%;max-width:800px;height:auto;
+                border-radius:8px;display:block;margin-bottom:10px;"
+        alt="Izbira filma">
+
+  <p style="margin:0 0 12px;font-size:15px;color:#444;">
+    Tipov filmov je več. Poleg animiranih, slovenskih in drugih filmov imamo tudi filme o naravi (Planet Earth), serijo The Chosen in zbirke risank.
+    Pri zbirkah risank si izberemo epizodo in tudi vidimo, do kam smo jo že pogledali.
+  </p>
+
+  <img src="https://anzemarinko.duckdns.org/newsletter_image/file/new_user_introduction/izbira_epizode_risanke.png"
+        style="width:100%;max-width:800px;height:auto;
+                border-radius:8px;display:block;margin-bottom:10px;"
+        alt="Izbira epizode">
+
+</td>
+</tr>
+
+</table>
+</td>
+</tr>
+
+<!-- ===== FILMI ===== -->
+<tr>
+<td style="padding:14px;border-top:1px solid #eee;">
+<table width="100%" cellpadding="0" cellspacing="0">
+
+<tr>
+<td>
+  <h3 style="margin:0 0 6px;color:#111;font-size:18px;">
+    Spodbuda
+  </h3>
+
+  <p style="margin:0 0 12px;font-size:15px;color:#444;">
+    Vabljen, da si stran dodaš v zaznamke in jo kakšen večer uporabiš za razvedrilo/zmenek/... 
+    Že v naprej hvala za uporabo. Brez vas, uporabnikov, stran nima smisla.
+  </p>
+
+  <a href="https://anzemarinko.duckdns.org"
+     style="display:block;width:100%;padding:14px 0;
+            background:#f59e0b;color:#fff;font-size:16px;
+            font-weight:bold;text-decoration:none;
+            border-radius:6px;text-align:center;">
+    Odpri stran
+  </a>
+</td>
+</tr>
+
+</table>
+</td>
+</tr>
+
+<!-- ===== MEME ===== -->
+<tr>
+<td style="padding:14px;border-top:1px solid #eee;">
+<table width="100%" cellpadding="0" cellspacing="0">
+
+<tr>
+<td align="center">
+  <a href="https://anzemarinko.duckdns.org/memes">
+    <img src="https://anzemarinko.duckdns.org/newsletter_image/file/new_user_introduction/meme.png?user={{ username }}"
+       style="width:100%;max-width:220px;height:auto;
+              border-radius:8px;display:block;margin-bottom:10px;"
+       alt="Šala"></a>
+</td>
+</tr>
+
+</table>
+</td>
+</tr>
+
+<!-- FOOTER -->
+<tr>
+<td align="center" style="padding:14px;font-size:12px;color:#666;border-top:1px solid #eee;">
+  Ta email si prejel, ker imaš račun na MarinKino.<br>
+  © MarinKino (Anže Marinko)
+</td>
+</tr>
+
+     </table>
+  </td>
+  </tr>
+  </table>
+{% endblock %}

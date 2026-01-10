@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}{{ pagetitle }}{% endblock %}
+
+{% block content %}
+
+<main class="container">
+<div  style="max-width: 500px; margin: auto;">
+<h2 class="text-center mb-3">Pošiljanje mailov uporabnikom</h2>
+
+<button class="btn btn-sm btn-outline-info" onclick="poslji_maile('false')">
+  Test sebi
+</button>
+
+<button class="btn btn-sm btn-outline-warning" onclick="poslji_maile('true')">
+  Vsem
+</button>
+
+<div id="results" class="mb-3"></div>
+<div id="emails" class="mb-3"></div>
+</div>
+</main>
+
+<script>
+    function poslji_maile(whole_list='false') {
+    if (!confirm('Ali res želiš poslati mail ' + (whole_list == 'true' ? 'vsem uporabnikom' : 'testno sebi') + '?')) {
+        return false;
+    }
+    const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    fetch("/send_admin_emails", { method: 'POST',
+            body: JSON.stringify({ whole_list: whole_list }),
+        headers: {
+            'X-CSRFToken': token
+        } })
+        .then(resp => resp.json())
+        .then(data => {console.log('Mail poslan!', data);
+            document.getElementById('results').innerHTML = '<div class="alert alert-success">Poslani maili: ' + data.sent + '<br>Čas pošiljanja: ' + data.time + '</div>';
+            document.getElementById('emails').innerHTML = '<pre>' + data.emails.join('\n') + '</pre>';
+        })
+        .catch(err => console.error(err));
+
+    return false; 
+}
+</script>
+{% endblock %}
