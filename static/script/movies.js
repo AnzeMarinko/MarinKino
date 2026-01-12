@@ -173,3 +173,20 @@ document.querySelectorAll('.movie-card').forEach(card => {
         desc.style.top = '0';
     });
 });
+
+document.addEventListener("DOMContentLoaded", function () {
+    const checkbox = document.getElementById("onlyunwatched");
+    if (!checkbox) return;
+
+    // preberi shranjeno vrednost
+    const saved = localStorage.getItem("onlyunwatched");
+
+    if (saved !== null) {
+        checkbox.checked = saved === "true";
+    }
+
+    // ko uporabnik klikne, shrani
+    checkbox.addEventListener("change", function () {
+        localStorage.setItem("onlyunwatched", checkbox.checked);
+    });
+});

@@ -32,6 +32,8 @@
 </table>
 </div>
 
+<b>{{ users_count }} uporabnikov z e-mail naslovi:</b> {{ emails }}
+
 <style>
 #views-table th.sortable { cursor: pointer; user-select: none; }
 .sort-indicator { margin-left: 6px; font-size: 0.8em; opacity: 0.85; }
@@ -155,7 +157,7 @@ document.addEventListener('DOMContentLoaded', function(){
     function plotStatus(selectedStatusToPlot) {
         currentStatus = selectedStatusToPlot;
         var dates = Object.keys(accessDataUsers[selectedStatusToPlot]);
-        var userNames = Object.keys(accessDataUsers[selectedStatusToPlot][dates[0]]);
+        var userNames = {{ users | tojson | safe }}; 
         var data = [];
         userNames.forEach(function(user) {
                 var yValues = dates.map(function(date) {
@@ -164,6 +166,7 @@ document.addEventListener('DOMContentLoaded', function(){
                 var meta = dates.map(function(date) {
                     return accessDataUsers[selectedStatusToPlot][date][user]?.["routes"] || "";
                 });
+                if (yValues.every(v => v === 0)) return;
             data.push({
                 x: dates,
                 y: yValues,

@@ -6,7 +6,25 @@
 <div class="container my-4">
   <form method="get" class="row g-2 align-items-end bg-white p-3 rounded shadow">
 
+    <!-- SEARCH -->
     <div class="col-md-3">
+      <div class="input-group">
+        <span class="input-group-text bg-white">
+          <i class="bi bi-search text-secondary"></i>
+        </span>
+        <input
+          type="text"
+          name="q"
+          value="{{ request.args.get('q','') }}"
+          class="form-control border-start-0"
+          placeholder="Išči film…"
+          autocomplete="off"
+        >
+      </div>
+    </div>
+
+    <!-- TIP FILMOV -->
+    <div class="col-md-2">
       <select class="form-select" name="movietype">
         <option value="">-- Tip filmov --</option>
         {% for group in group_folders %}
@@ -17,6 +35,7 @@
       </select>
     </div>
 
+    <!-- ŽANR -->
     <div class="col-md-2">
       <select class="form-select" name="genre">
         <option value="">-- Žanr --</option>
@@ -28,38 +47,39 @@
       </select>
     </div>
 
-    <div class="col-md-3">
+    <!-- SORT -->
+    <div class="col-md-2">
       <select class="form-select" name="sort">
-        <option value="name-asc">Ime ↑</option>
-        <option value="name-desc">Ime ↓</option>
-        <option value="runtime-asc">Dolžina ↑</option>
-        <option value="runtime-desc">Dolžina ↓</option>
+        <option value="">Naključni vrstni red</option>
+        <option value="name-asc" {% if sort == "name-asc" %}selected{% endif %}>Ime ↑</option>
+        <option value="name-desc" {% if sort == "name-desc" %}selected{% endif %}>Ime ↓</option>
+        <option value="runtime-asc" {% if sort == "runtime-asc" %}selected{% endif %}>Dolžina ↑</option>
+        <option value="runtime-desc" {% if sort == "runtime-desc" %}selected{% endif %}>Dolžina ↓</option>
       </select>
     </div>
 
-    
+    <!-- SKRIJ POGLEDANO -->
     <div class="col-md-2 d-flex align-items-end" style="margin-bottom: 4px;">
-        <input type="checkbox"
-                class="btn-check"
-                id="onlyunwatched"
-                name="onlyunwatched"
-                {% if onlyunwatched %}checked{% endif %}>
-
-        <label class="btn btn-outline-secondary w-100"
-                for="onlyunwatched">
-            Skrij pogledano
-        </label>
+      <input type="checkbox"
+            class="btn-check"
+            id="onlyunwatched"
+            name="onlyunwatched"
+            {% if onlyunwatched %}checked{% endif %}>
+      <label class="btn btn-outline-secondary w-100" for="onlyunwatched">
+        Skrij pogledano
+      </label>
     </div>
 
-
-    <div class="col-md-2">
-        {% if current_user.is_authenticated %}
-        <button class="btn btn-orange w-100">Pripravi</button>
-        {% endif %}
+    <!-- SUBMIT -->
+    <div class="col-md-1">
+      {% if current_user.is_authenticated %}
+      <button class="btn btn-orange w-100">Pripravi</button>
+      {% endif %}
     </div>
 
   </form>
 </div>
+
 
  <div class="movie-grid" id="movie-grid"></div>
 

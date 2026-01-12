@@ -7,6 +7,7 @@ import re
 from main import check_folder, FILMS_ROOT
 from copy import copy
 import json
+import difflib
 import random
 import shutil
 import secrets
@@ -31,14 +32,15 @@ import redis
 redis_client = redis.Redis(host='localhost', port=6379, decode_responses=True)
 
 GENRES_MAPPING = {
-    "Comedy": "Komedija",
     "Drama": "Drama",
+    "Comedy": "Komedija",
     "Romance": "Romanca",
-    "Adventure": "Pustolovski",
     "Family": "Druzinski",
+    "Adventure": "Pustolovski",
     "Action": "Akcija",
     "Fantasy": "Domisljijski",
 }
+
 FILMS_PER_PAGE = 50
 
 app = Flask(__name__, static_url_path='/static', static_folder='static')
@@ -77,6 +79,8 @@ def log_response_info(response):
     today = date.today().isoformat()
     month = date.today().strftime("%Y-%m")
     route = request.path.split("/file/")[0] + "/file/..." if "/file/" in request.path else request.path
+    route = route.split("/reset_password/")[0] + "/reset_password/..." if "/reset_password/" in route else route
+
     if response.status_code < 400:
         redis_client.hincrby(f"stats:monthly:{month}", request.method + " " + route, 1)
 
@@ -104,7 +108,7 @@ def admin_panel():
         
         log_date = parts[2]
         user_id = parts[3]
-        status = parts[4]
+        status = parts[4][0] + "xx"
 
         # Pridobimo vse poti (poti so polja v hashu)
         routes_data = redis_client.hgetall(key)
@@ -241,7 +245,8 @@ def admin_panel():
         with open(os.path.join("../MarinKinoCache/logs", last_system_log_file), "w", encoding="utf-8") as f:
             f.write("\n".join(new_lines))
 
-    return render_template("admin.html", pagetitle="MarinKino - Nadzorna plošča", system_log=system_log, access_stats_users=access_stats_users,
+    return render_template("admin.html", pagetitle="MarinKino - Nadzorna plošča", system_log=system_log, access_stats_users=access_stats_users, users=list(users.keys()) + ["anonymus"],
+                           emails=", ".join([e for u in users for e in users[u].get("emails", [])]), users_count=len(users),
                            access_stats_routes=access_stats_routes, users_stats=users_stats_dict, users_stats_columns=users_stats_columns,
                            access_stats_monthly=access_stats_monthly_dict, monthly_columns=monthly_columns)
     
@@ -254,7 +259,7 @@ class User(UserMixin):
     def __init__(self, username):
         self.id = username
         self.is_admin = users[username].get("is_admin", False)
-        self.email = users[username].get("email", "")
+        self.emails = users[username].get("emails", [])
 
 def safe_path(base_folder, filename):
     path = pathlib.Path(base_folder) / filename
@@ -280,8 +285,10 @@ def login():
             user = User(username)
             login_user(user, remember=True)
             session.permanent = True
+            redis_client.incr(f"auth:login:{date.today().isoformat()[:7]}:{username}")
             return redirect(url_for('index'))
         else:
+            redis_client.incr(f"auth:reject:{date.today().isoformat()[:7]}:{username}")
             error = 'Napačno uporabniško ime ali geslo.'
             flash(error, "error")
     return render_template(
@@ -300,8 +307,9 @@ def find_user_by_email(email):
     if not email:
         return None
     for username, data in users.items():
-        if data.get("email", "").lower() == email.lower():
-            return username
+        for aux_email in data.get("emails", []):
+            if aux_email.lower() == email.lower():
+                return username
     return None
 
 def send_mail(to, cc=None, bcc=None, subject="", text="", html="", batch_id=""):
@@ -375,31 +383,35 @@ def register():
     if not current_user.is_admin:
         return redirect(url_for('index'))
     if request.method == 'POST':
-        username = request.form['username']
-        email = request.form['email']
+        username = request.form['username'].strip()
+        email = request.form["email"].strip()
+        email2 = request.form.get("email2", '').strip()
         if username in users:
             error = 'Uporabniško ime zasedeno!'
         elif find_user_by_email(email) is not None:
-            error = 'E-naslov je že registriran!'
+            error = f'E-naslov {email} je že registriran!'
+        elif find_user_by_email(email2) is not None:
+            error = f'E-naslov {email2} je že registriran!'
         elif username is None or not re.match(r'^[a-zA-Z0-9_.-]+$', username) or len(username) < 3 or len(username) > 30:
             error = 'Uporabniško ime sme vsebovati le črke, številke, pike, podčrtaje in vezaje ter mora biti dolgo od 3 do 30 znakov!'
         else:
             password = ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=12))
-            users[username] = {"password_hash": generate_password_hash(password), "email": email, "incoming_date": date.today().isoformat()}
-            content = f"Nov uporabnik je bil registriran v MarinKino:\n\nVstopna stran: anzemarinko.duckdns.org\nUporabniško ime: {username}\nE-naslov: {email}\nGeslo: {password}\n\nLep pozdrav,\nMarinKino sistem"
+            emails = [email] + ([email2] if email2 else [])
+            users[username] = {"password_hash": generate_password_hash(password), "emails": emails, "incoming_date": date.today().isoformat()}
+            content = f"Nov uporabnik je bil registriran v MarinKino:\n\nVstopna stran: anzemarinko.duckdns.org\nUporabniško ime: {username}\nE-naslov: {' + '.join(emails)}\nGeslo: {password}\n\nLep pozdrav,\nMarinKino sistem"
             # send to my telegram bot
             requests.post(f"https://api.telegram.org/bot{os.getenv('TELEGRAM_BOT_TOKEN')}/sendMessage", data={"chat_id": os.getenv('TELEGRAM_CHAT_ID'), "text": content})
             with open("users.json", 'w', encoding="utf-8") as f:
                 f.write(json.dumps(users, indent=4))
             send_mail(
-                to=[email],
+                to=emails,
                 subject="Dostop do MarinKino",
                 text=content,
                 html=render_template("mail_newuser.html", username=username, password=password, is_for_mail=True),
                 batch_id="new_user_credentials"
             )
             send_mail(
-                to=[email],
+                to=emails,
                 subject="Uporaba MarinKino",
                 text="https://anzemarinko.duckdns.org/help",
                 html=render_template("mail_user_intro.html", username=username, is_for_mail=True),
@@ -415,7 +427,7 @@ def register():
 @limiter.limit("5 per 10 minutes")
 def forgot_password():
     if request.method == 'POST':
-        email = request.form.get('email', '').strip()
+        email = request.form.get("email", '').strip()
         username = find_user_by_email(email)
         if username:
             token = secrets.token_urlsafe(32)
@@ -424,12 +436,13 @@ def forgot_password():
             users[username]['reset_expiry'] = expiry
             save_users()
             reset_link = url_for('reset_password', token=token, _external=True)
+            redis_client.incr(f"auth:forgot:{date.today().isoformat()[:7]}:{username}")
             try:
                 send_mail(
-                    to=[email],
+                    to=users[username].get("emails", []),
                     subject="MarinKino - Ponastavitev gesla",
-                    text=f"Za ponastavitev gesla za uporabnika {username} uporabite to povezavo: {reset_link} (povezava poteče čez 30 minut)",
-                    html=render_template('mail_reset_password.html', reset_link=reset_link, username=username, expiry_minutes=30),
+                    text=f"Za ponastavitev gesla za uporabnika {username} uporabite to povezavo: {reset_link} (povezava poteče čez 30 minut). Zaprosil je nekdo za vaš naslov {email}.",
+                    html=render_template('mail_reset_password.html', reset_link=reset_link, username=username, expiry_minutes=30, email=email, is_for_mail=True),
                     batch_id="reset_password"
                 )
             except Exception:
@@ -454,6 +467,7 @@ def reset_password(token):
             break
     if not username or not user_data:
         # redirect to index and add error message:
+        redis_client.incr(f"auth:reset_token_invalid:{date.today().isoformat()[:7]}:{username}")
         flash("Neveljavna ali potekla povezava za ponastavitev gesla.", "error")
         return redirect(url_for('login'))
 
@@ -468,6 +482,7 @@ def reset_password(token):
         users[username].pop('reset_expiry', None)
         save_users()
         flash("Povezava za ponastavitev gesla je potekla.", "error")
+        redis_client.incr(f"auth:reset_token_expired:{date.today().isoformat()[:7]}:{username}")
         return redirect(url_for('login'))
 
     if request.method == 'POST':
@@ -476,9 +491,11 @@ def reset_password(token):
         form_token = request.form.get('token', '')
         if form_token != token:
             flash("Neveljavna zahteva.", "error")
+            redis_client.incr(f"auth:reset_token_invalid:{date.today().isoformat()[:7]}:{username}")
             return render_template('reset_password.html', token=token)
         if username != input_username:
             flash("Uporabniško ime se ne ujema.", "error")
+            redis_client.incr(f"auth:reset_username_invalid:{date.today().isoformat()[:7]}:{username}")
             return render_template('reset_password.html', token=token)
         if not new_password or len(new_password) < 6:
             flash("Geslo mora vsebovati vsaj 6 znakov.", "error")
@@ -487,6 +504,7 @@ def reset_password(token):
         users[username].pop('reset_token', None)
         users[username].pop('reset_expiry', None)
         save_users()
+        redis_client.incr(f"auth:reset_successful:{date.today().isoformat()[:7]}:{username}")
         flash("Geslo je bilo uspešno ponastavljeno. Sedaj se lahko prijavite.", "success")
         return redirect(url_for('login'))
     return render_template('reset_password.html', token=token, pagetitle="Ponastavi geslo")
@@ -561,30 +579,64 @@ def get_user_progress_data(user_id):
     data = redis_client.hgetall(f"prog:{user_id}")
     return {k: json.loads(v) for k, v in data.items()}
 
+def fuzzy_match(query, title):
+    return difflib.SequenceMatcher(None, query, title.lower()).ratio()
+
+
 MOVIES_PER_PAGE = 40
 
 @app.route("/")
 def index():
-    genre_filter = request.args.get('genre')
-    sort = request.args.get('sort', "name-asc")
-    onlyunwatched = request.args.get('onlyunwatched') == "on"
-    movietype = request.args.get('movietype', "")
-
     if current_user.is_authenticated:
+        user_key = f"user_settings:{current_user.id}"
+        movies_settings = redis_client.hget(user_key, "movies")
+        movies_settings = json.loads(movies_settings) if movies_settings else {}
+
+        new_settings = {}
+        genre_filter = request.args.get('genre', movies_settings.get("genre", ""))
+        sort = request.args.get('sort', movies_settings.get("sort", ""))
+        onlyunwatched = request.args.get('onlyunwatched')
+        movietype = request.args.get('movietype', movies_settings.get("movietype", ""))
+        new_settings["genre"] = genre_filter
+        new_settings["sort"] = sort
+        new_settings["movietype"] = movietype
+        redis_client.hset(user_key, "movies", json.dumps(new_settings))
+        
+        search_query = request.args.get("q", "").strip().lower()
+
         user_data = get_user_progress_data(current_user.id)
-        movies = copy(all_films.get(movietype, []))
+        movies = copy(all_films.get(movietype, [m for movies_list in all_films.values() for m in movies_list]))
         movies = [add_watch_info(m, user_data) for m in movies]
 
         if genre_filter:
             movies = [m for m in movies if genre_filter in m.get('genres', [])]
-        if onlyunwatched:
+        if onlyunwatched == "on":
             movies = [m for m in movies if m["watch_ratio"] < 100]
 
-        movies = sorted(
-            movies,
-            key=lambda m: str_to_int(m["runtimes"]) if "runtime" in sort else m["title"],
-            reverse="desc" in sort
-        )
+        if sort:
+            movies = sorted(
+                movies,
+                key=lambda m: str_to_int(m["runtimes"]) if "runtime" in sort else m["title"],
+                reverse="desc" in sort
+            )
+        else:
+            random.shuffle(movies)
+
+        if search_query:
+            scored = []
+
+            for m in movies:
+                title = m["title"].lower()
+                score = fuzzy_match(search_query, title)
+
+                if search_query in title:
+                    score += 0.3  # direkten match dobi boost
+
+                if score > 0.4:   # prag – nastavi po okusu
+                    m["_score"] = score
+                    scored.append(m)
+
+            movies = sorted(scored, key=lambda x: x["_score"], reverse=True)
 
         # 🔥 Shrani seznam
         movie_ids = [m["movie_id"] for m in movies]
@@ -594,6 +646,10 @@ def index():
             redis_client.rpush(cache_key, *movie_ids) # shranimo seznam v Redis List
             redis_client.expire(cache_key, 3600) # cache velja 1 uro
     else:
+        genre_filter = request.args.get('genre')
+        sort = request.args.get('sort')
+        onlyunwatched = request.args.get('onlyunwatched')
+        movietype = request.args.get('movietype')
         movies = []
 
     # Vrni prvi batch
@@ -609,7 +665,7 @@ def index():
         selected_movietype=movietype,
         selected_genre=genre_filter,
         sort=sort,
-        onlyunwatched=onlyunwatched,
+        onlyunwatched=onlyunwatched == "on",
         group_folders={k: v for k, v in group_folders.items() if (current_user.is_authenticated and current_user.is_admin) or "neurejen" not in k.lower()},
         known_genres=GENRES_MAPPING.values()
     )
@@ -941,13 +997,13 @@ def send_admin_emails():
         whole_list = data.get('whole_list') == "true"
         list_of_emailed_users = [current_user.id] if not whole_list else list(users.keys())
         for username in list_of_emailed_users:
-            email = users.get(username, {}).get("email")
-            if email:
+            emails = users.get(username, {}).get("emails", [])
+            if emails:
                 # TODO: ob pošiljanju mailov spreminjaj ta klic funkcije
                 # if whole_list:
                 #     return {"error": "Pošiljanje mailov vsem uporabnikom je začasno onemogočeno."}
                 send_mail(
-                    to=[email],
+                    to=emails,
                     subject="Uporaba MarinKino",
                     text="https://anzemarinko.duckdns.org/help",
                     html=render_template("mail_user_intro.html", username=username, is_for_mail=True),
@@ -957,9 +1013,10 @@ def send_admin_emails():
     return render_template('admin_mailing.html', pagetitle="Pošiljanje mailov uporabnikom MarinKino")
 
 @app.route("/test")
+@login_required
 def test():
     is_for_mail = request.args.get("is_for_mail", "true") == "true"
-    return render_template("mail_newsletters/2026_januar.html", is_for_mail=True, username=current_user.id if current_user.is_authenticated else "uporabnik", pagetitle="Testni mail")
+    return render_template("mail_newsletters/2026_januar.html", is_for_mail=is_for_mail, username=current_user.id if current_user.is_authenticated else "uporabnik", pagetitle="Testni mail")
 
 
 if __name__ == "__main__":

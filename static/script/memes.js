@@ -1,23 +1,4 @@
 
-let refreshing = true;
-const refreshInterval = setInterval(() => {
-    if (refreshing) {
-        location.reload();
-    }
-}, 30 * 1000);
-
-// Ustavi osvežitev ob interakciji
-const container = document.getElementById('mediaContainer');
-container.addEventListener('mousedown', () => refreshing = false);
-container.addEventListener('touchstart', () => refreshing = false);
-
-const video = document.getElementById('videoPlayer');
-if (video) {
-    video.addEventListener('playing', () => refreshing = false);
-    video.addEventListener('pause', () => refreshing = true);
-    video.addEventListener('ended', () => refreshing = true);
-}
-
 function izbrisiMeme(meme_file_name) {
     const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     if (confirm("Res želiš izbrisati ta meme?")) {
