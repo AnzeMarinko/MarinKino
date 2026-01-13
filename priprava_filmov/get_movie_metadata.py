@@ -9,6 +9,7 @@ from PIL import Image
 import re
 from difflib import SequenceMatcher
 import logging
+from langdetect import detect
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "credentials/gen-lang-client.json"
 TMDB_KEY = os.getenv("TMDB_KEY")
@@ -18,7 +19,7 @@ def tmdb_get(path, params=None):
     if params is None:
         params = {}
     params["api_key"] = TMDB_KEY
-    params["language"] = "en-US"
+    params["language"] = "sl-SI"
     r = requests.get(f"{TMDB_URL}{path}", params=params, timeout=10)
     r.raise_for_status()
     return r.json()
@@ -118,6 +119,16 @@ def get_movie_runtimes(folder, video_files):
 def get_movie_metadata(folder, film, video_files):
     film_readme_file = os.path.join(folder, 'readme.json')
     film_cover_file = os.path.join(folder, 'cover_image.jpg')
+
+    if os.path.exists(film_readme_file):
+        with open(film_readme_file, 'r', encoding="utf-8") as f:
+            movie_metadata = json.loads(f.read()) 
+        return movie_metadata, film_cover_file
+
+    if "Collection" in folder:
+        logging.error("Missing data for collection: " + film)
+        return {}, "popcorn.png"
+
     result = {"Film": film}
     film_aux = re.sub(r'\b(19|20)\d{2}\b', '', film)
     film_aux = re.sub(r'\s+', ' ', film_aux).strip()
@@ -126,26 +137,6 @@ def get_movie_metadata(folder, film, video_files):
         year = int(match.group(1))
     else:
         year = None
-
-    if os.path.exists(film_readme_file):
-        with open(film_readme_file, 'r', encoding="utf-8") as f:
-            movie_metadata = json.loads(f.read()) 
-
-        if os.path.exists(film_cover_file) and [k for k in movie_metadata.keys() if k not in ["Film", "Title"]]:
-            if "0x-" in folder and sorted(list(movie_metadata["RuntimesByFiles"].keys())) != sorted(list(video_files)):
-                logging.info(film)
-                runtimes = get_movie_runtimes(folder, video_files)
-                movie_metadata["RuntimesByFiles"] = {file: runtime for file, runtime in zip(video_files, runtimes)}
-                with open(film_readme_file, 'w', encoding="utf-8") as f:
-                    json.dump(movie_metadata, f, ensure_ascii=False, indent=4)    
-            return movie_metadata, film_cover_file
-        else:
-            result = movie_metadata
-            film_aux = movie_metadata["Film"]
-
-    if "Collection" in folder:
-        logging.error("Missing data for collection: " + film)
-        return {}, "popcorn.png"
     
     search = tmdb_search_movie(film_aux, year=year)
     if len(search) == 0:
@@ -157,11 +148,9 @@ def get_movie_metadata(folder, film, video_files):
     cover_url = tmdb_poster_url(details["poster_path"])
 
     result["Title"] = details.get("title")
+    result["OriginalTitle"] = details.get("original_title")
     result["Year"] = details.get("release_date", "")[:4]
-    result["Rating"] = details.get("vote_average")
-    result["Votes"] = details.get("vote_count")
-    result["Plot"] = details.get("overview")
-    result["Kind"] = "movie"
+    result["Plot"] = details.get("overview", "")
     result["Genres"] = [g["name"] for g in details.get("genres", [])]
     result["Runtimes"] = details.get("runtime")
     result["Players"] = tmdb_cast(details["id"])
@@ -177,8 +166,8 @@ def get_movie_metadata(folder, film, video_files):
     if langs:
         result["Language"] = langs[0]["english_name"]
 
-    result["Plot outline - translated"] = translate_text(result.get("Plot outline", ""))
-    result["Plot - translated"] = translate_text(result.get("Plot", ""))
+    if detect(result["Plot"]) != "sl":
+        result["Plot - translated"] = translate_text(result.get("Plot", ""))
 
     if cover_url:
         img_data = requests.get(cover_url).content
@@ -208,20 +197,6 @@ def get_movie_metadata(folder, film, video_files):
             
     return result, film_cover_file
 
-def translate_plots(folder):
-    logging.info(f"Prevajam opis filma {folder}")
-    film_readme_file = folder + '/readme.json'
-    with open(film_readme_file, 'r', encoding="utf-8") as f:
-        movie_metadata = json.loads(f.read())
-
-    if movie_metadata.get("Plot outline - translated") == None:
-        movie_metadata["Plot outline - translated"] = translate_text(movie_metadata.get("Plot outline", ""))
-    if movie_metadata.get("Plot - translated") == None:
-        movie_metadata["Plot - translated"] = translate_text(movie_metadata.get("Plot", ""))
-    
-    with open(film_readme_file, 'w', encoding="utf-8") as f:
-        json.dump(movie_metadata, f, ensure_ascii=False, indent=4) 
-
 class MovieMetadata:
     def __init__(self, folder):
         film_name = os.path.basename(folder)
@@ -245,6 +220,7 @@ class MovieMetadata:
         self.thumbnail = create_thumbnail(cover)
         self.film_name = metadata.get("Film", film_name)
         self.title = metadata.get("Title", film_name)
+        self.original_title = metadata.get("OriginalTitle", "")
         self.genres = metadata.get("Genres", [])
         self.year = metadata.get("Year", "")
         self.runtimes = metadata.get("Runtimes", "")
@@ -252,6 +228,4 @@ class MovieMetadata:
         self.players = metadata.get("Players", "")
         if isinstance(self.players, list):
             self.players = "; ".join(self.players)
-        self.plot_1 = html.unescape(metadata.get("Plot outline - translated", metadata.get("Plot outline", "")))
-        self.plot_2 = html.unescape(metadata.get("Plot - translated", metadata.get("Plot", "")))
-
+        self.plot = html.unescape(metadata.get("Plot - translated", metadata.get("Plot", "")))

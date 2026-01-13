@@ -1,12 +1,15 @@
 #!/bin/bash
 
 # === Nastavitve ===
-LOG_DIR="/home/marinko/Desktop/MarinKinoCache/logs"
+LOG_DIR="/home/marinko/Desktop/MarinKino/cache/logs/server"
 PROJECT_DIR="/home/marinko/Desktop/MarinKino"
 PYTHON_APP="$PROJECT_DIR/app.py"
 
 # Ustvari log mapo, če še ne obstaja
 mkdir -p "$LOG_DIR"
+
+# --- Pobriši stare loge, starejše od 7 dni ---
+find "$LOG_DIR" -type f -name "*.txt" -mtime +7 -delete
 
 # Datum za ime log datoteke
 LOGDATE=$(date +"%Y-%m-%d_%H-%M")

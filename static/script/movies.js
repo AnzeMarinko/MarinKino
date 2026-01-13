@@ -29,6 +29,53 @@ const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute
 // Glavni container
 const grid = document.getElementById("movie-grid");
 
+function attachHover(card) {
+    const desc = card.querySelector('.description');
+    if (!desc) return;
+
+    card.addEventListener('mouseenter', () => {
+        // Najprej ponastavi pozicijo
+        desc.style.left = '100%';
+        desc.style.right = 'auto';
+        desc.style.top = '0';
+
+        // Pokaži začasno, da lahko izmerimo velikost
+        desc.style.opacity = '1';
+        desc.style.pointerEvents = 'auto';
+
+        const rect = desc.getBoundingClientRect();
+        const overflowRight = rect.right > window.innerWidth;
+        const overflowBottom = rect.bottom > window.innerHeight;
+
+        // Če gre izven desnega roba, pokaži levo
+        if (overflowRight) {
+            desc.style.left = 'auto';
+            desc.style.right = '100%';
+        }
+
+        // Če gre izven spodnjega roba, prestavi opis navzgor
+        if (overflowBottom) {
+            const shift = rect.bottom - window.innerHeight + 10; // nekaj dodatnega prostora
+            desc.style.top = `-${shift}px`;
+        }
+
+        const rect_new = desc.getBoundingClientRect();
+        const overflowLeft = rect_new.left < 0;
+
+        // Če gre izven levega roba, zozaj
+        if (overflowLeft) {
+            desc.style.width = `${rect_new.right - 5}px`;
+        }
+    });
+
+    card.addEventListener('mouseleave', () => {
+        desc.style.opacity = '0';
+        desc.style.pointerEvents = 'none';
+        desc.style.top = '0';
+    });
+}
+
+
 async function loadNextPage() {
     if (loading) return;
     loading = true;
@@ -39,6 +86,7 @@ async function loadNextPage() {
     data.movies.forEach(movie => {
         const card = renderMovieCard(movie);
         grid.appendChild(card);
+        attachHover(card);
     });
 
     if (data.has_more) {
@@ -58,7 +106,7 @@ function renderMovieCard(movie) {
             <img src="/movies/file${movie.thumbnail}" alt="Poster" loading="lazy">
         </a>
 
-        <h3>${movie.title}${movie.year}
+        <h3><b>${movie.title}</b>${movie.year}<br><i style="opacity: 0.5;">${movie.original_title}</i>
             <div class="slosinh">${movie.slosinh}</div>
         </h3>
 
@@ -70,8 +118,7 @@ function renderMovieCard(movie) {
 
         <div class="description">
             <b>${movie.players}</b><br>
-            <hr>${movie.description}<br>
-            <hr>${movie.description_2 || ""}
+            <hr>${movie.description}
 
             ${movie.subtitle_buttons?.length ? `
                 <br><hr>Podnapisi:
@@ -135,43 +182,6 @@ document.addEventListener("change", (e) => {
             el.style.setProperty('--watch', izbor + '%');
         });
     }
-});
-
-document.querySelectorAll('.movie-card').forEach(card => {
-    const desc = card.querySelector('.description');
-
-    card.addEventListener('mouseenter', () => {
-        // Najprej ponastavi pozicijo
-        desc.style.left = '100%';
-        desc.style.right = 'auto';
-        desc.style.top = '0';
-
-        // Pokaži začasno, da lahko izmerimo velikost
-        desc.style.opacity = '1';
-        desc.style.pointerEvents = 'auto';
-
-        const rect = desc.getBoundingClientRect();
-        const overflowRight = rect.right > window.innerWidth;
-        const overflowBottom = rect.bottom > window.innerHeight;
-
-        // Če gre izven desnega roba, pokaži levo
-        if (overflowRight) {
-            desc.style.left = 'auto';
-            desc.style.right = '100%';
-        }
-
-        // Če gre izven spodnjega roba, prestavi opis navzgor
-        if (overflowBottom) {
-            const shift = rect.bottom - window.innerHeight + 10; // nekaj dodatnega prostora
-            desc.style.top = `-${shift}px`;
-        }
-    });
-
-    card.addEventListener('mouseleave', () => {
-        desc.style.opacity = '0';
-        desc.style.pointerEvents = 'none';
-        desc.style.top = '0';
-    });
 });
 
 document.addEventListener("DOMContentLoaded", function () {

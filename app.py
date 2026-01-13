@@ -39,7 +39,15 @@ GENRES_MAPPING = {
     "Adventure": "Pustolovski",
     "Action": "Akcija",
     "Fantasy": "Domisljijski",
-}
+    'Mystery': "Mystery", 
+    'Musical': "Musical",
+    'Sci-Fi': "Sci-Fi", 
+    'Western': "Western", 
+    'Documentary': "Dokumentarni",
+    'Biography': "Biografija",
+    'History': "Zgodovinski",  
+    'War': "Vojni", 
+    }
 
 FILMS_PER_PAGE = 50
 
@@ -520,11 +528,11 @@ all_films = [{
         "cover": m.cover.replace(FILMS_ROOT, ""), 
         "thumbnail": m.thumbnail.replace(FILMS_ROOT, ""), 
         "title": m.title, 
+        "original_title": m.original_title, 
         "year": f" ({m.year})" if m.year else "", 
         "folder": m.folder.replace(FILMS_ROOT, ""),
         "group_folder": m.folder.replace(FILMS_ROOT, "").split(os.sep)[1],
-        "description": m.plot_2,
-        "description_2": m.plot_1,
+        "description": m.plot,
         "players": m.players.replace(";", ","),
         "runtimes": m.runtimes,
         "runtimes_by_files": m.runtimes_by_files,
@@ -627,9 +635,10 @@ def index():
 
             for m in movies:
                 title = m["title"].lower()
-                score = fuzzy_match(search_query, title)
+                original_title = m["original_title"].lower()
+                score = max(fuzzy_match(search_query, title), fuzzy_match(search_query, original_title) if original_title else 0)
 
-                if search_query in title:
+                if search_query in title or search_query in original_title:
                     score += 0.3  # direkten match dobi boost
 
                 if score > 0.4:   # prag – nastavi po okusu

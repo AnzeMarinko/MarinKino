@@ -6,7 +6,7 @@
 <div class="movie-page">
     <div class="description">
         <div class="cover"><img src="/movies/file{{ movie.cover }}" alt="Poster"></div>
-        <h1>{{ movie.title }}{{ movie.year }}<div class="slosinh">{{ movie.slosinh }}</div></h1></br>
+        <h1><b>{{ movie.title }}</b>{{ movie.year }}<br><i style="opacity: 0.5;">{{ movie.original_title }}</i><div class="slosinh">{{ movie.slosinh }}</div></h1></br>
         <div class="genres">
             {% for genre in movie.genres %}
             <span class="genre-badge {{ genre|lower|replace(' ', '-') if genre in known_genres else 'unknown' }}">{{ genre }}</span>
@@ -14,8 +14,7 @@
         </div></br>
         <hr>
         <b>{{ movie.players }}</b></br>
-        <hr>{{ movie.description }}</br>
-        <hr>{{ movie.description_2 }}
+        <hr>{{ movie.description }}
     {% if subtitle_buttons %}</br>
         <hr>Podnapisi (izberete v predvajalniku med možnostmi): {% for subtitle in subtitle_buttons %}<button class="subtitles">{{ subtitle }}</button> {% endfor %}
         {% endif %}</br>

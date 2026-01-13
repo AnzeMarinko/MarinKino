@@ -4,7 +4,7 @@
 # ========================================
 
 # --- Nastavitve ---
-LOG_DIR="/home/marinko/Desktop/MarinKinoCache/logs"
+LOG_DIR="/home/marinko/Desktop/MarinKino/cache/logs/duckdns"
 ENV_FILE="/home/marinko/Desktop/MarinKino/.env"
 
 # Ustvari log mapo, če še ne obstaja

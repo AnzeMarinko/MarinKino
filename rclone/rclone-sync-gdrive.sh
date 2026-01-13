@@ -5,7 +5,7 @@
 set -e
 
 # Nastavitve poti
-LOG_DIR="/home/marinko/Desktop/MarinKinoCache/rclone-logs"
+LOG_DIR="/home/marinko/Desktop/MarinKino/cache/logs/rclone"
 LOG_FILE="${LOG_DIR}/rclone_sync_$(date +'%Y-%m-%d_%H-%M').log"
 IGNORE_FILE="/home/marinko/Desktop/MarinKino/rclone/rclone-ignore.txt"
 RCLONE_CONF="/home/marinko/.config/rclone/rclone.conf"
