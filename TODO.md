@@ -1,5 +1,6 @@
 # TODO:
 
+* uredi vso kodo, mape ... dodaj .env.example ...
 * postavi vse v docker-compose (flask, postgresql, nginx, certbot, fail2ban) https://gemini.google.com/u/1/app/036b4492a1b2d79c
 
 Glasba:

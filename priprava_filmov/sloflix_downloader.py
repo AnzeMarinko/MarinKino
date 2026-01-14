@@ -23,6 +23,8 @@ import webbrowser
 import pyautogui
 import logging
 
+log = logging.getLogger(__name__)
+
 URLS = {
     # "21. Anglež z omleto": ("movies/0x-neurejeni-filmi/Zelenjavcki.Collection", "https://sf.strp2p.com/#ow6i9", 26 * 60),
 }
@@ -38,13 +40,13 @@ def start_recording(output_path, duration):
     """
     if duration > 0:
         ffmpeg_cmd += f" -t {duration}"
-    logging.info(f"Začenjam snemanje: {output_path}")
+    log.info(f"Začenjam snemanje: {output_path}")
     process = subprocess.Popen(shlex.split(ffmpeg_cmd))
-    logging.info(f"Recording... Saving to {output_path}")
+    log.info(f"Recording... Saving to {output_path}")
     time.sleep(duration)
     process.terminate()
     process.wait()
-    logging.info("Recording stopped. (CTRL+C to stop before next)")
+    log.info("Recording stopped. (CTRL+C to stop before next)")
 
 if __name__ == "__main__":
     for name, (output_dir, url, duration) in URLS.items():

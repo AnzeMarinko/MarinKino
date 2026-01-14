@@ -9,10 +9,11 @@ import logging
 from playwright.async_api import async_playwright
 import time
 import asyncio
+log = logging.getLogger(__name__)
 
-user_name = "anzemarinko"
-password = "qitcyx-kixtim-6kyqhY"
-chosen_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwczovL2Zyb250cm93LmNjL3VzZXJfaWQiOjE4MDM5ODE5OTAyNywiaXAiOiI0Ni4yNDguNzAuMTY4IiwiaHR0cHM6Ly9mcm9udHJvdy5jYy9jaGFubmVsX2lkIjoxMjg4NDkwMTg5NSwicm9sZSI6Ik1FTUJFUiIsImdlbyI6IlNJIiwibGFuZ3VhZ2UiOiJTTCIsImRldmljZV9pZCI6IjcyYzE1ZmUzLTE4N2ItNDIyZC1iMTlmLTcyYjA1NjhhNWViYiIsImRldmljZV9vcyI6IkxpbnV4IiwiZGV2aWNlX29zX3ZlcnNpb24iOiJ1bmtub3duIiwiZGV2aWNlX3R5cGUiOiJXRUIiLCJkZXZpY2VfdmVyc2lvbiI6IjIuNy43MzEiLCJtYW51ZmFjdHVyZXIiOiJ1bmtub3duIiwieHNvdXJjZSI6IkRFRkFVTFQiLCJpc3MiOiJodHRwczovL2FwaS5mcm9udHJvdy5jYyIsImF1ZCI6WyJodHRwczovL2FwaS5mcm9udHJvdy5jYyJdLCJleHAiOjE3NjE0NDE2NDEsImlhdCI6MTc2MTQyMDA0MSwianRpIjoiYjRhMWQyYjAtOWM5Yy00N2ViLWJkY2UtODlmZWM2ZDY3YmNjIn0.x5WDgvSfE27nZpC_xHpyGlY9wS0XozDfT26TteDNS2M"
+user_name = os.getenv("CHOSEN_USERNAME")
+password = os.getenv("CHOSEN_PASSWORD")
+chosen_token = os.getenv("CHOSEN_TOKEN")
 
 logging.basicConfig(level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",

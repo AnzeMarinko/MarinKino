@@ -6,8 +6,7 @@
 <div class="container my-4">
   <form method="get" class="row g-2 align-items-end bg-white p-3 rounded shadow">
 
-    <!-- SEARCH -->
-    <div class="col-md-3">
+    <div class="col-12 col-md-6 col-lg-3">
       <div class="input-group">
         <span class="input-group-text bg-white">
           <i class="bi bi-search text-secondary"></i>
@@ -23,8 +22,18 @@
       </div>
     </div>
 
-    <!-- TIP FILMOV -->
-    <div class="col-md-2">
+    <div class="col-6 col-md-5 col-lg-2">
+      <input type="checkbox"
+            class="btn-check"
+            id="onlyunwatched"
+            name="onlyunwatched"
+            {% if onlyunwatched %}checked{% endif %}>
+      <label class="btn btn-outline-secondary w-100 text-nowrap" for="onlyunwatched">
+        Skrij pogledano
+      </label>
+    </div>
+
+    <div class="col-6 col-md-3 col-lg-2">
       <select class="form-select" name="movietype">
         <option value="">-- Tip filmov --</option>
         {% for group in group_folders %}
@@ -35,8 +44,7 @@
       </select>
     </div>
 
-    <!-- ŽANR -->
-    <div class="col-md-2">
+    <div class="col-6 col-md-3 col-lg-2">
       <select class="form-select" name="genre">
         <option value="">-- Žanr --</option>
         {% for genre in known_genres %}
@@ -47,8 +55,7 @@
       </select>
     </div>
 
-    <!-- SORT -->
-    <div class="col-md-2">
+    <div class="col-6 col-md-4 col-lg-2">
       <select class="form-select" name="sort">
         <option value="">Naključni vrstni red</option>
         <option value="name-asc" {% if sort == "name-asc" %}selected{% endif %}>Ime ↑</option>
@@ -58,20 +65,7 @@
       </select>
     </div>
 
-    <!-- SKRIJ POGLEDANO -->
-    <div class="col-md-2 d-flex align-items-end" style="margin-bottom: 4px;">
-      <input type="checkbox"
-            class="btn-check"
-            id="onlyunwatched"
-            name="onlyunwatched"
-            {% if onlyunwatched %}checked{% endif %}>
-      <label class="btn btn-outline-secondary w-100" for="onlyunwatched">
-        Skrij pogledano
-      </label>
-    </div>
-
-    <!-- SUBMIT -->
-    <div class="col-md-1">
+    <div class="col-12 col-md-3 col-lg-1">
       {% if current_user.is_authenticated %}
       <button class="btn btn-orange w-100">Pripravi</button>
       {% endif %}

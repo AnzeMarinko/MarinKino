@@ -10,6 +10,8 @@ from scipy.optimize import differential_evolution
 import matplotlib.pyplot as plt
 import logging
 
+log = logging.getLogger(__name__)
+
 _model, _utils = None, None
 
 def get_pipeline():
@@ -43,7 +45,7 @@ def extract_audio(folder, video_path):
 
     voice_file = os.path.join(folder, ".detected-voice-activity.pkl")
     if not os.path.exists(voice_file):
-        logging.info(f"⚙ Zaznavam govor: {video_path}")
+        log.info(f"⚙ Zaznavam govor: {video_path}")
         wav_file = "output.wav"
         if os.path.exists(wav_file):
             os.remove(wav_file)
@@ -135,7 +137,7 @@ def aux_rescale_captions(subtitles, speech):
     best_a, best_b = res.x
     best_score = -res.fun
 
-    logging.info(f"Scale: {best_a * 100:.3f} %, Shift: {best_b:.3f} s, Score improvement: {(best_score / current_score - 1) * 100:.2f} %")
+    log.info(f"Scale: {best_a * 100:.3f} %, Shift: {best_b:.3f} s, Score improvement: {(best_score / current_score - 1) * 100:.2f} %")
 
     return best_a, best_b, aux_get_subtitle_audio
 
@@ -149,7 +151,7 @@ def rescale_captions(folder, subtitle_path, video_path, plot=False):
         if subtitles:
             if len(subtitles) < 200:
                 return None
-            logging.info(f"⚙ Poravnavam podnapise: {video_path}")
+            log.info(f"⚙ Poravnavam podnapise: {video_path}")
             scale, shift, aux_get_subtitle_audio = aux_rescale_captions(subtitles, speech)
             if abs(scale - 1) < 0.05 and abs(shift) < 10:
                 generate_srt(0, 1, subtitles, original_file)
@@ -170,5 +172,5 @@ def rescale_captions(folder, subtitle_path, video_path, plot=False):
         else:
             with open(original_file, "w", encoding="UTF-8") as f:
                 f.write("")
-            logging.warning(f"Empy subtitles: {folder}")
+            log.warning(f"Empy subtitles: {folder}")
 

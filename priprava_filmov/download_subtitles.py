@@ -7,6 +7,7 @@ import os
 import time
 import io
 import logging
+log = logging.getLogger(__name__)
 
 OPENSUBTITLESCOM_TOKEN = os.getenv("OPENSUBTITLESCOM_TOKEN")
 OPENSUBTITLESCOM_PASSWORD = os.getenv("OPENSUBTITLESCOM_PASSWORD")
@@ -32,7 +33,7 @@ def search_opensubtitles(imdb_id, languages=("sl", "en")):
                         "release": s.release,
                     })
         except Exception as e:
-            logging.error(f"OpenSubtitles error: {e}")
+            log.error(f"OpenSubtitles error: {e}")
             msg = str(e).lower()
             if "429" in msg or "too many" in msg:
                 return results, "RateLimitError"
@@ -102,7 +103,7 @@ def download_podnapisi_safe(url, extract_path):
     r = session.get(url + "/download", timeout=10)
     with zipfile.ZipFile(io.BytesIO(r.content)) as z:
         z.extractall(extract_path)
-    logging.info("Podnapisi so shranjeni")
+    log.info("Podnapisi so shranjeni")
 
 
 
@@ -123,6 +124,6 @@ def get_subtitles(title, year, imdb_id, path):
             download_podnapisi_safe(sub["link"], path)
         return True
 
-    logging.error(f"❌ No subtitles found: {title}")
+    log.error(f"❌ No subtitles found: {title}")
     return False
 

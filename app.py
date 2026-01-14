@@ -68,8 +68,7 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1)
 csrf = CSRFProtect(app)
 app.config['WTF_CSRF_TIME_LIMIT'] = None
 
-log = logging.getLogger('werkzeug')
-log.setLevel(logging.ERROR)
+log = logging.getLogger(__name__)
 
 limiter = Limiter(
     key_func=get_remote_address,
@@ -239,12 +238,12 @@ def admin_panel():
         users_stats_columns = []
 
     last_system_log_file = None
-    for f in sorted(os.listdir("../MarinKinoCache/logs"), reverse=True):
+    for f in sorted(os.listdir("cache/logs/server"), reverse=True):
         if f.startswith("server_start_"):
             last_system_log_file = f
             break
     if last_system_log_file:
-        with open(os.path.join("../MarinKinoCache/logs", last_system_log_file), "r", encoding="utf-8") as f:
+        with open(os.path.join("cache/logs/server", last_system_log_file), "r", encoding="utf-8") as f:
             lines = [l.split(" - ") for l in f.read().split("\n")]
             new_lines = []
             last_line = lines[0]
@@ -258,7 +257,7 @@ def admin_panel():
             new_lines.append(" - ".join(last_line))
 
             system_log = "\n".join(new_lines[-500:])
-        with open(os.path.join("../MarinKinoCache/logs", last_system_log_file), "w", encoding="utf-8") as f:
+        with open(os.path.join("cache/logs/server", last_system_log_file), "w", encoding="utf-8") as f:
             f.write("\n".join(new_lines))
 
     return render_template("admin.html", pagetitle="MarinKino - Nadzorna plošča", system_log=system_log, access_stats_users=access_stats_users, users=list(users.keys()) + ["anonymus"],
@@ -723,7 +722,7 @@ def play_movie(movies_subfolder, movie_folder):
 
     film_candidates = [f for f in all_films[movies_subfolder] if os.path.sep + os.path.join("", movies_subfolder, movie_folder) == f["folder"]]
     if len(film_candidates) != 1:
-        logging.error(f"Got {len(film_candidates)} candidates!")
+        log.error(f"Got {len(film_candidates)} candidates!")
         return 0
     film = add_watch_info(film_candidates[0], user_data)
     video_files = film["video_files"]
@@ -738,7 +737,7 @@ def play_movie(movies_subfolder, movie_folder):
         return render_template("player.html", pagetitle=film["title"] + film["year"], is_collection=len(video_files) > 1, movie=film, known_genres=known_genres, group_folder=movies_subfolder, 
                                folder=movie_folder, video_file=video_files[0], video_files=video_files, subtitles=subtitles, slosubs_file=slosubs_file, subtitle_buttons=subtitle_buttons)
     else:
-        logging.error("No video files!")
+        log.error("No video files!")
         return 0
 
 @app.route("/movies/remove/<movies_subfolder>/<movie_folder>", methods=['POST'])
@@ -762,7 +761,7 @@ def remove_movie(movies_subfolder, movie_folder):
                 
                 shutil.rmtree(path)
         except Exception as e:
-            logging.error(f"Napaka pri brisanju {path}: {e}")
+            log.error(f"Napaka pri brisanju {path}: {e}")
     shutil.rmtree(removing_folder)
     return {"status": "success", "folder": removing_folder}
 
@@ -931,7 +930,7 @@ for file in music_albums["Vse"]:
         except HeaderNotFoundError as e:
             audio = {}
         except Exception as e:
-            logging.error(f"❌ Napaka pri {file}: {e}")
+            log.error(f"❌ Napaka pri {file}: {e}")
             audio = {}
 
         item = {
@@ -1037,7 +1036,7 @@ def test():
 
 
 if __name__ == "__main__":
-    logging.info("Started server")
+    log.info("Started server")
     try:
         serve(app, host="0.0.0.0", port=5000, threads=8)
     except OSError:

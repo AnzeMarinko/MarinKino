@@ -3,8 +3,9 @@ import json
 import tqdm
 import subprocess
 import logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - 1 - [%(levelname)s] - %(message)s',
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - 1 - [%(levelname)s] - %(name)s: %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S')
+log = logging.getLogger(__name__)
 
 from priprava_filmov.config import FILMS_ROOT, IZJEME
 from priprava_filmov.helpers import is_ffmpeg_installed, remove
@@ -29,7 +30,7 @@ def convert_audio_to_aac(filepath):
         return None
 
     temp_filepath = filepath + ".tmp.mp4"
-    logging.info(f"Pretvarjam: {filepath} → {temp_filepath}")
+    log.info(f"Pretvarjam: {filepath} → {temp_filepath}")
     command = [
         "ffmpeg", "-i", filepath,
         "-c:v", "copy",
@@ -73,12 +74,12 @@ def check_folder(folder, only_collect_metadata=True):
         new_file = os.path.join(folder, os.path.basename(folder) + ".mp4")
         if videos and not os.path.exists(new_file):
             if len(videos) > 1 and len(videos) < 7 and len(set(f[1] for f in videos)) == 1 and "Odprava.Zelenega.Zmaja.1976" not in folder:
-                logging.info(f"🔄 Združujem {len(videos)} videoposnetkov v {new_file}...")
+                log.info(f"🔄 Združujem {len(videos)} videoposnetkov v {new_file}...")
                 concat_and_convert(videos, new_file)
             elif len(videos) == 1:
                 input_file, ext = videos[0]
                 if ext.lower() != "mp4":
-                    logging.info(f"🎬 Pretvarjam {input_file} -> {new_file}")
+                    log.info(f"🎬 Pretvarjam {input_file} -> {new_file}")
                     convert_single_file(input_file, new_file)
                 elif not os.path.exists(new_file):
                     os.rename(input_file, new_file)
@@ -87,7 +88,7 @@ def check_folder(folder, only_collect_metadata=True):
                     new_file = f.replace("." + end, ".mp4")
                     if not os.path.exists(new_file):
                         if end not in "mp4":
-                            logging.info(f"🎬 Pretvarjam {f} -> {new_file}")
+                            log.info(f"🎬 Pretvarjam {f} -> {new_file}")
                             convert_single_file(f, new_file)
 
         files = [(os.path.join(folder, f), f.split(".")[-1]) for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
@@ -97,13 +98,13 @@ def check_folder(folder, only_collect_metadata=True):
                     
             if len(subtitles) == 1:
                 if "subtitles-SloSubs.srt".lower() not in subtitles[0].lower():
-                    logging.info(f"🌍 Prevajam {folder}")
+                    log.info(f"🌍 Prevajam {folder}")
                     new_file = os.path.join(folder, "subtitles.srt")
                     os.rename(subtitles[0], new_file)
                     translate(new_file)
             elif len(subtitles) > 1:
                 if os.path.join(folder, "subtitles.srt") in subtitles or os.path.join(folder, "subtitles-SloSubs-auto.srt") not in subtitles or len(subtitles) > 2:
-                    logging.warning(f"⚠️⚠️ Več podnapisov v mapi: {folder}")
+                    log.warning(f"⚠️⚠️ Več podnapisov v mapi: {folder}")
             
             if "slosinh" not in os.path.basename(folder).lower() and "slovenski-filmi" not in folder:
                 extract_audio(folder, videos[0][0])
@@ -116,7 +117,7 @@ def check_folder(folder, only_collect_metadata=True):
             if len(subtitles) == 0:
                 film_name = os.path.basename(folder).lower()
                 if "slosinh" not in film_name and "slovenski-filmi" not in folder:
-                    logging.info(f"Pridobivam podnapise za: {folder}")
+                    log.info(f"Pridobivam podnapise za: {folder}")
                     if os.path.exists(os.path.join(folder, "readme.json")):
                         with open(os.path.join(folder, "readme.json"), "r") as f:
                             metadata = json.loads(f.read())
@@ -128,7 +129,7 @@ def check_folder(folder, only_collect_metadata=True):
             aux_folder_name = folder_name.lower().split("sub")
             if len(aux_folder_name) > 1:
                 if aux_folder_name[1] not in ["", "s"]:
-                    logging.info(aux_folder_name)
+                    log.info(aux_folder_name)
                 else:
                     new_folder_name = ".".join(folder_name.split(".")[:-1])
                     folder = os.path.join(par_folder, new_folder_name)
@@ -159,6 +160,6 @@ if __name__ == "__main__":
     if is_ffmpeg_installed():
         scrappe_chosen()
         all_films = check_folder(FILMS_ROOT, only_collect_metadata=False)
-        logging.info("\n✅ Končano!\n")
+        log.info("\n✅ Končano!\n")
     else:
-        logging.error("❌ FFmpeg ni nameščen! Namesti ga in poskusi znova.")
+        log.error("❌ FFmpeg ni nameščen! Namesti ga in poskusi znova.")

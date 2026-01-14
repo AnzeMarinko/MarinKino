@@ -11,6 +11,8 @@ from difflib import SequenceMatcher
 import logging
 from langdetect import detect
 
+log = logging.getLogger(__name__)
+
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "credentials/gen-lang-client.json"
 TMDB_KEY = os.getenv("TMDB_KEY")
 TMDB_URL = "https://api.themoviedb.org/3"
@@ -161,7 +163,7 @@ def get_movie_runtimes(folder, video_files):
             duration = int(round(float(result.stdout.strip()) / 60))
             runtimes.append(duration)
         except Exception as e:
-            logging.error(f"{path} — napaka: {e}")
+            log.error(f"{path} — napaka: {e}")
             runtimes.append(None)
     return runtimes
 
@@ -176,7 +178,7 @@ def get_movie_metadata(folder, film, video_files):
         return movie_metadata, film_cover_file
 
     if "Collection" in folder:
-        logging.error("Missing data for collection: " + film)
+        log.error("Missing data for collection: " + film)
         return {}, "static/logo.png"
 
     result = {"Film": film}
@@ -190,12 +192,12 @@ def get_movie_metadata(folder, film, video_files):
     
     search = tmdb_search_movie(film_aux, year=year)
     if len(search) == 0:
-        logging.error(f"Missing data for: {film} ({film_aux}, {year})")
+        log.error(f"Missing data for: {film} ({film_aux}, {year})")
         return {}, "static/logo.png"
     movie, score = best_tmdb_match(film_aux, search)
     if movie is None:
         return {}, "static/logo.png"
-    logging.info(f"{film}, {score}")
+    log.info(f"{film}, {score}")
     details = tmdb_movie_details(movie["id"])
     cover_url = tmdb_poster_url(details["poster_path"])
 
@@ -216,7 +218,7 @@ def get_movie_metadata(folder, film, video_files):
         with open(film_cover_file, 'wb') as handler:
             handler.write(img_data)
     else:
-        logging.error("Missing cover image for: " + film)
+        log.error("Missing cover image for: " + film)
         film_cover_file = "static/logo.png"
 
 
@@ -231,7 +233,7 @@ def get_movie_metadata(folder, film, video_files):
         if runtimes[0]:
             runtime = runtimes[0]
     else:
-        logging.error(f"{folder} has no videos.")
+        log.error(f"{folder} has no videos.")
 
     if runtime:
         result["Runtimes"] = runtime
