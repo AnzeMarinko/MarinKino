@@ -34,20 +34,28 @@ redis_client = redis.Redis(host='localhost', port=6379, decode_responses=True)
 GENRES_MAPPING = {
     "Drama": "Drama",
     "Comedy": "Komedija",
-    "Romance": "Romanca",
+    "Romance": "Romantika",
+    "Romanca": "Romantika",
     "Family": "Druzinski",
-    "Adventure": "Pustolovski",
+    "Adventure": "Pustolovscina",
+    "Pustolovski": "Pustolovscina",
     "Action": "Akcija",
-    "Fantasy": "Domisljijski",
-    'Mystery': "Mystery", 
-    'Musical': "Musical",
-    'Sci-Fi': "Sci-Fi", 
-    'Western': "Western", 
+    "Fantasy": "Fantazijski",
+    "Domisljijski": "Fantazijski",
+    'Mystery': "Misterij",
+    'Western': "Vestern", 
+    'Musical': "Glasbeni", 
+    'Music': "Glasbeni", 
     'Documentary': "Dokumentarni",
     'Biography': "Biografija",
     'History': "Zgodovinski",  
     'War': "Vojni", 
     }
+
+known_genres = []
+for g in GENRES_MAPPING.values():
+    if g not in known_genres:
+        known_genres.append(g)
 
 FILMS_PER_PAGE = 50
 
@@ -537,7 +545,7 @@ all_films = [{
         "runtimes": m.runtimes,
         "runtimes_by_files": m.runtimes_by_files,
         "slosinh": " Sinhronizirano" if m.slosinh else "",
-        "genres": [GENRES_MAPPING.get(g, g) for g in m.genres], 
+        "genres": [GENRES_MAPPING.get(g, g.replace("č", "c").replace("š", "s").replace("ž", "z").replace(" ", "")) for g in m.genres], 
         "video_files": m.video_files,
         "subtitles": m.subtitles,
         "subtitle_buttons": [subtitle.replace(".vtt", "").lower().replace("subs", "").replace("subtitles-", "").replace("_", "").replace("si", "slo").title().replace("-Auto", " - Avtomatski prevod") for subtitle in m.subtitles],
@@ -676,7 +684,7 @@ def index():
         sort=sort,
         onlyunwatched=onlyunwatched == "on",
         group_folders={k: v for k, v in group_folders.items() if (current_user.is_authenticated and current_user.is_admin) or "neurejen" not in k.lower()},
-        known_genres=GENRES_MAPPING.values()
+        known_genres=known_genres
     )
 
 # Global lookup: movie_id -> movie object
@@ -727,7 +735,7 @@ def play_movie(movies_subfolder, movie_folder):
         for subs in subtitles:
             if "slo" in subs.lower() or "si" in subs.lower():
                 slosubs_file = subs
-        return render_template("player.html", pagetitle=film["title"] + film["year"], is_collection=len(video_files) > 1, movie=film, known_genres=GENRES_MAPPING.values(), group_folder=movies_subfolder, 
+        return render_template("player.html", pagetitle=film["title"] + film["year"], is_collection=len(video_files) > 1, movie=film, known_genres=known_genres, group_folder=movies_subfolder, 
                                folder=movie_folder, video_file=video_files[0], video_files=video_files, subtitles=subtitles, slosubs_file=slosubs_file, subtitle_buttons=subtitle_buttons)
     else:
         logging.error("No video files!")

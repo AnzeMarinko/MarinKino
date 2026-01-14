@@ -15,11 +15,11 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "credentials/gen-lang-client.json
 TMDB_KEY = os.getenv("TMDB_KEY")
 TMDB_URL = "https://api.themoviedb.org/3"
 
-def tmdb_get(path, params=None):
+def tmdb_get(path, params=None, lang="sl-SI"):
     if params is None:
         params = {}
     params["api_key"] = TMDB_KEY
-    params["language"] = "sl-SI"
+    params["language"] = lang
     r = requests.get(f"{TMDB_URL}{path}", params=params, timeout=10)
     r.raise_for_status()
     return r.json()
@@ -30,7 +30,10 @@ def tmdb_search_movie(title, year=None):
         params["year"] = year
 
     data = tmdb_get("/search/movie", params)
-
+    results = data.get("results", [])
+    if results:
+        return results
+    data = tmdb_get("/search/movie", params, lang="en-US")
     return data.get("results", [])
 
 def best_tmdb_match(query, results):
@@ -43,21 +46,68 @@ def best_tmdb_match(query, results):
     return best, score
 
 def tmdb_movie_details(tmdb_id):
-    return tmdb_get(f"/movie/{tmdb_id}")
+    # 1. Pridobi slovenske podatke
+    data_sl = tmdb_get(f"/movie/{tmdb_id}", lang="sl-SI")
+    
+    # Preverimo, če imamo opis in poster
+    has_overview = bool(data_sl.get("overview"))
+    has_poster = bool(data_sl.get("poster_path"))
+    
+    # Če imamo vse, vrnemo slovenske podatke
+    if has_overview and has_poster:
+        return data_sl
+
+    # 2. Če kaj manjka, pridobimo angleške podatke
+    try:
+        data_en = tmdb_get(f"/movie/{tmdb_id}", lang="en-US")
+    except Exception:
+        # Če angleški klic ne uspe, vrnemo kar imamo (SL)
+        return data_sl
+
+    # 3. Združevanje (Merge):
+    # Osnova je slovenski objekt (da ohranimo slovenski naslov, če obstaja)
+    merged_data = data_sl.copy()
+
+    # Če manjka slovenski opis, vzemi angleškega
+    if not has_overview:
+        merged_data["overview"] = data_en.get("overview", "")
+    
+    # Če manjka slovenski naslov (redko, a mogoče), vzemi angleškega ali originalnega
+    if not merged_data.get("title"):
+        merged_data["title"] = data_en.get("title", data_en.get("original_title"))
+
+    # Če manjka pot do slike v slovenščini, vzemi angleško
+    if not has_poster:
+        merged_data["poster_path"] = data_en.get("poster_path")
+        
+    # Če manjkajo žanri v slovenščini (včasih se zgodi), vzemi angleške
+    if not merged_data.get("genres"):
+        merged_data["genres"] = data_en.get("genres", [])
+
+    return merged_data
 
 def tmdb_poster_url(poster_path, size="w500"):
     if not poster_path:
         return None
     return f"https://image.tmdb.org/t/p/{size}{poster_path}"
 
-def tmdb_cast(tmdb_id, limit=10):
+def tmdb_cast(tmdb_id, limit=7):
+    # Igralci se redko razlikujejo glede na jezik, a vseeno:
     data = tmdb_get(f"/movie/{tmdb_id}/credits")
-    cast = data.get("cast", [])[:limit]
-    return [p["name"] for p in cast]
+    cast = data.get("cast", [])
+    
+    # Če je seznam prazen, poskusi EN (čeprav TMDB običajno vrne igralce ne glede na jezik)
+    if not cast:
+        data = tmdb_get(f"/movie/{tmdb_id}/credits", lang="en-US")
+        cast = data.get("cast", [])
+        
+    return [p["name"] for p in cast[:limit]]
 
 def get_imdb_id_from_tmdb(tmdb_id):
-    return tmdb_get(f"/movie/{tmdb_id}/external_ids").get("imdb_id")
-
+    imdb_id = tmdb_get(f"/movie/{tmdb_id}/external_ids").get("imdb_id")
+    if imdb_id is None:
+        imdb_id = tmdb_get(f"/movie/{tmdb_id}/external_ids", lang="en-US").get("imdb_id")
+    return imdb_id
 
 
 translate_client = translate.Client()
@@ -127,10 +177,10 @@ def get_movie_metadata(folder, film, video_files):
 
     if "Collection" in folder:
         logging.error("Missing data for collection: " + film)
-        return {}, "popcorn.png"
+        return {}, "static/logo.png"
 
     result = {"Film": film}
-    film_aux = re.sub(r'\b(19|20)\d{2}\b', '', film)
+    film_aux = re.sub(r'\b(19|20)\d{2}\b', '', film.replace("Collection", ""))
     film_aux = re.sub(r'\s+', ' ', film_aux).strip()
     match = re.search(r'(?<!\d)(19\d{2}|20\d{2})(?!\d)', film)
     if match:
@@ -140,9 +190,11 @@ def get_movie_metadata(folder, film, video_files):
     
     search = tmdb_search_movie(film_aux, year=year)
     if len(search) == 0:
-        logging.error("Missing data for: " + film)
-        return {}, "popcorn.png"
+        logging.error(f"Missing data for: {film} ({film_aux}, {year})")
+        return {}, "static/logo.png"
     movie, score = best_tmdb_match(film_aux, search)
+    if movie is None:
+        return {}, "static/logo.png"
     logging.info(f"{film}, {score}")
     details = tmdb_movie_details(movie["id"])
     cover_url = tmdb_poster_url(details["poster_path"])
@@ -156,17 +208,7 @@ def get_movie_metadata(folder, film, video_files):
     result["Players"] = tmdb_cast(details["id"])
     result["imdb_id"] = get_imdb_id_from_tmdb(details["id"])
 
-    # country
-    countries = details.get("production_countries", [])
-    if countries:
-        result["Country"] = countries[0]["name"]
-
-    # language
-    langs = details.get("spoken_languages", [])
-    if langs:
-        result["Language"] = langs[0]["english_name"]
-
-    if detect(result["Plot"]) != "sl":
+    if result["Plot"] and detect(result["Plot"]) != "sl":
         result["Plot - translated"] = translate_text(result.get("Plot", ""))
 
     if cover_url:
@@ -175,6 +217,8 @@ def get_movie_metadata(folder, film, video_files):
             handler.write(img_data)
     else:
         logging.error("Missing cover image for: " + film)
+        film_cover_file = "static/logo.png"
+
 
     runtimes = get_movie_runtimes(folder, video_files)
     result["RuntimesByFiles"] = {file: runtime for file, runtime in zip(video_files, runtimes)}
@@ -229,3 +273,4 @@ class MovieMetadata:
         if isinstance(self.players, list):
             self.players = "; ".join(self.players)
         self.plot = html.unescape(metadata.get("Plot - translated", metadata.get("Plot", "")))
+        self.imdb_id = metadata.get("imdb_id", "")

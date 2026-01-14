@@ -242,11 +242,11 @@ footer li {
 
 .genre-badge.komedija {background-color: #ffcc5c;}
 .genre-badge.drama {background-color: #6b5b95;}
-.genre-badge.romanca {background-color: #ff6f69;}
-.genre-badge.pustolovski {background-color: #86af49;}
+.genre-badge.romantika {background-color: #ff6f69;}
+.genre-badge.pustolovscina {background-color: #86af49;}
 .genre-badge.druzinski {background-color: #92a8d1;}
 .genre-badge.akcija {background-color: #d9ad7c;}
-.genre-badge.domisljijski {background-color: #eeac99;}
+.genre-badge.fantazijski {background-color: #eeac99;}
 
 .movie-page {
     text-align: center;
