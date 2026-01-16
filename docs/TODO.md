@@ -1,7 +1,9 @@
 # TODO:
 
 * uredi vso kodo, mape ... dodaj .env.example ...
-* postavi vse v docker-compose (flask, postgresql, nginx, certbot, fail2ban) https://gemini.google.com/u/1/app/036b4492a1b2d79c
+* pridobi manjkajoče slovenske originalne podnapise
+* postavi vse v docker-compose (python app, nginx, certbot, redis) https://gemini.google.com/u/1/app/036b4492a1b2d79c, fail2ban pa izven
+* uredi navodila za uporabo (/help) in za inštalacijo (instalation.md)
 
 Glasba:
 * naredi playlisto vsega kar bi rad imel (najprej Youtube music in nato še navaden Youtube)

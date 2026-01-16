@@ -96,6 +96,9 @@ def check_folder(folder, only_collect_metadata=True):
 
         if len(videos) == 1:
                     
+            if "slosinh" not in os.path.basename(folder).lower() and "slovenski-filmi" not in folder:
+                extract_audio(folder, videos[0][0])
+
             if len(subtitles) == 1:
                 if "subtitles-SloSubs.srt".lower() not in subtitles[0].lower():
                     log.info(f"🌍 Prevajam {folder}")
@@ -105,9 +108,14 @@ def check_folder(folder, only_collect_metadata=True):
             elif len(subtitles) > 1:
                 if os.path.join(folder, "subtitles.srt") in subtitles or os.path.join(folder, "subtitles-SloSubs-auto.srt") not in subtitles or len(subtitles) > 2:
                     log.warning(f"⚠️⚠️ Več podnapisov v mapi: {folder}")
+                elif os.path.join(folder, "subtitles-SloSubs-auto.srt") in subtitles:
+                    if os.path.exists(os.path.join(folder, "readme.json")):
+                        with open(os.path.join(folder, "readme.json"), "r") as f:
+                            metadata = json.loads(f.read())
+                        if metadata.get("imdb_id"):
+                            log.info(f"Pridobivam podnapise za: {folder}")
+                            get_subtitles(metadata["Title"], metadata["Year"], metadata["imdb_id"], folder)
             
-            if "slosinh" not in os.path.basename(folder).lower() and "slovenski-filmi" not in folder:
-                extract_audio(folder, videos[0][0])
             for subtitle in os.listdir(folder):
                 if subtitle.split(".")[-1].lower() == "srt":
                     rescale_captions(folder, os.path.join(folder, subtitle), videos[0][0])

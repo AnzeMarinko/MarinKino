@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "marinkino"
+version = "1.0.0"
+description = "Private movie library web app"
+readme = "README.md"
+requires-python = ">=3.12"
+
+dependencies = [
+  "huggingface-hub",
+  "python-dotenv",
+  "Flask",
+  "flask-login",
+  "requests",
+  "beautifulsoup4",
+  "cinemagoer",
+  "google-cloud",
+  "pysrt",
+  "scipy",
+  "pandas",
+  "numpy",
+  "numba",
+  "torch",
+  "torchaudio",
+  "matplotlib",
+  "gemini-srt-translator",
+  "google-cloud-translate",
+  "chardet",
+  "langdetect",
+  "waitress",
+  "tqdm",
+  "m3u8",
+  "playwright",
+  "pyautogui",
+  "flask-compress",
+  "certbot",
+  "Flask-WTF",
+  "Flask-Limiter",
+  "opensubtitlescom",
+  "mutagen",
+  "redis"
+]

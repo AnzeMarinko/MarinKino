@@ -18,7 +18,7 @@ Preko strani pa je dostopno tudi:
 * družabna igra Pod krinko (slovenska verzija igre Undercover).
 
 ## Nastavitev
-[Nastavitev MarinKino serverja](installation.md)
+[Nastavitev MarinKino serverja](docs/installation.md)
 
 V primeru napak, pomanjkljivosti navodil ali slabega delovanja priprave filmov in strežnika bom vesel predlogov.
 

@@ -3,7 +3,7 @@
 # === Nastavitve ===
 LOG_DIR="/home/marinko/Desktop/MarinKino/cache/logs/server"
 PROJECT_DIR="/home/marinko/Desktop/MarinKino"
-PYTHON_APP="$PROJECT_DIR/app.py"
+PYTHON_APP="$PROJECT_DIR/app/app.py"
 
 # Ustvari log mapo, če še ne obstaja
 mkdir -p "$LOG_DIR"
