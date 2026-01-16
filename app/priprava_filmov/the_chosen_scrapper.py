@@ -22,7 +22,7 @@ logging.basicConfig(level=logging.INFO,
 videos = {}
 for season in [1, 2, 3, 4, 5]:
     # preberemo iz lokalno shranjenega html, ki se odpre kot seznam epizod v izbrani sezoni
-    with open(f"movies/06-the-chosen/seasons-metadata/{season}.html", "r") as f:
+    with open(f"data/movies/06-the-chosen/seasons-metadata/{season}.html", "r") as f:
         soup = BeautifulSoup(f.read(), "lxml")
 
     episodes = soup.find_all("img")

@@ -557,7 +557,7 @@ all_films = {g: [f for f in all_films if f["group_folder"] == g] for g in group_
 
 
 # Seznam vseh memov v mapi
-memes = os.listdir("memes")
+memes = os.listdir("data/memes")
 # Filtriramo le veljavne slikovne datoteke
 memes = [slika for slika in memes if slika.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', "mp4"))]
 random.shuffle(memes)
@@ -895,12 +895,12 @@ def meme():
 @login_required
 def meme_file(meme_file_name):
     try:
-        path = safe_path("memes", meme_file_name)
+        path = safe_path("../data/memes", meme_file_name)
     except ValueError:
         return "", 404
     if path.endswith(".mp4"):
-        return send_from_directory("memes", meme_file_name, mimetype='video/mp4', conditional=True)
-    return send_from_directory("memes", meme_file_name, conditional=True)
+        return send_from_directory("../data/memes", meme_file_name, mimetype='video/mp4', conditional=True)
+    return send_from_directory("../data/memes", meme_file_name, conditional=True)
 
 @app.route("/meme/delete/<meme_file_name>", methods=["DELETE"])
 @login_required
@@ -908,14 +908,14 @@ def meme_remove(meme_file_name):
     if not current_user.is_admin:
         return "", 204
     try:
-        path = safe_path("memes", meme_file_name)
+        path = safe_path("../data/memes", meme_file_name)
     except ValueError:
         return "", 404
     os.remove(path)
     return "", 204
 
 music_albums = {}
-music_files = [f[6:] for f in glob.iglob("music/**/*.mp3", recursive=True)]
+music_files = [f[11:] for f in glob.iglob("data/music/**/*.mp3", recursive=True)]
 for s in music_files:
     parts = s.split("/")[:-1]
     music_albums.setdefault("Vse", []).append(s)
@@ -926,7 +926,7 @@ for s in music_files:
 music_metadata = {}
 for file in music_albums["Vse"]:
         try:
-            audio = MP3(os.path.join("music", file), ID3=EasyID3)
+            audio = MP3(os.path.join("data/music", file), ID3=EasyID3)
         except HeaderNotFoundError as e:
             audio = {}
         except Exception as e:
@@ -951,10 +951,10 @@ def music():
 @login_required
 def song(filename):
     try:
-        path = safe_path("music", filename)
+        path = safe_path("../data/music", filename)
     except ValueError:
         return "", 404
-    return send_from_directory("music", filename, conditional=True)
+    return send_from_directory("../data/music", filename, conditional=True)
 
 @app.route("/music/delete/<path:filename>", methods=["DELETE"])
 @login_required
@@ -962,7 +962,7 @@ def song_remove(filename):
     if not current_user.is_admin:
         return "", 204
     try:
-        path = safe_path("music", filename)
+        path = safe_path("../data/music", filename)
     except ValueError:
         return "", 404
     os.remove(path)
@@ -990,13 +990,13 @@ def pod_krinko_new_words():
 @app.route("/newsletter_image/file/<path:filename>")
 def newsletter_image(filename):
     try:
-        path = safe_path("newsletter_images", filename)
+        path = safe_path("../data/newsletter_images", filename)
     except ValueError:
         return "", 404
     user = current_user.id if current_user.is_authenticated else request.args.get("user", "guest")
     if user in users:
         redis_client.incr(f"newsletter_views:{date.today().isoformat()[:7]}:{user}")
-    return send_from_directory("newsletter_images", filename, conditional=True)
+    return send_from_directory("../data/newsletter_images", filename, conditional=True)
 
 @app.route("/help")
 @login_required
