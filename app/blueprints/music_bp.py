@@ -1,0 +1,70 @@
+from flask import Blueprint, render_template, send_from_directory
+from flask_login import login_required, current_user
+import logging
+import glob
+from mutagen.mp3 import MP3, HeaderNotFoundError
+from mutagen.easyid3 import EasyID3
+import os
+from utils import safe_path
+
+log = logging.getLogger(__name__)
+
+music_bp = Blueprint('music', __name__)
+
+# Initialize music
+music_albums = {}
+music_files = [f[11:] for f in glob.iglob("data/music/**/*.mp3", recursive=True)]
+for s in music_files:
+    parts = s.split("/")[:-1]
+    music_albums.setdefault("Vse", []).append(s)
+    for i in range(len(parts)):
+        album = " - ".join(parts[:i+1]).title()
+        music_albums.setdefault(album, []).append(s)
+        
+music_metadata = {}
+for file in music_albums["Vse"]:
+        try:
+            audio = MP3(os.path.join("data/music", file), ID3=EasyID3)
+        except HeaderNotFoundError as e:
+            audio = {}
+        except Exception as e:
+            log.error(f"❌ Napaka pri {file}: {e}")
+            audio = {}
+
+        item = {
+            "title": audio.get("title", [file.split("/")[-1].replace(".mp3", "")])[0],
+            "artist": audio.get("artist", [""])[0] + " - " + audio.get("album", [""])[0],
+            "album": "/" + "/".join(file.split("/")[:-1])
+        }
+        music_metadata[file] = item
+music_metadata = {k: v for k, v in sorted(music_metadata.items(), key=lambda item: (item[1]["album"], item[1]["artist"], item[1]["title"]))}
+music_albums = {k: sorted(music_albums[k], key=lambda x: (music_metadata[x]["album"].lower(), music_metadata[x]["artist"].lower(), music_metadata[x]["title"].lower())) for k in sorted(music_albums.keys())}
+
+
+@music_bp.route("/music")
+@login_required
+def music():
+    return render_template("music_player.html", pagetitle="MarinKino - Glasba", is_music=True, albums=music_albums, music_metadata=music_metadata)
+
+
+@music_bp.route("/music/file/<path:filename>")
+@login_required
+def song(filename):
+    try:
+        path = safe_path("../data/music", filename)
+    except ValueError:
+        return "", 404
+    return send_from_directory("../data/music", filename, conditional=True)
+
+
+@music_bp.route("/music/delete/<path:filename>", methods=["DELETE"])
+@login_required
+def song_remove(filename):
+    if not current_user.is_admin:
+        return "", 204
+    try:
+        path = safe_path("../data/music", filename)
+    except ValueError:
+        return "", 404
+    os.remove(path)
+    return "", 204

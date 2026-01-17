@@ -7,14 +7,14 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - 1 - [%(levelname)s
     datefmt='%Y-%m-%d %H:%M:%S')
 log = logging.getLogger(__name__)
 
-from .config import FILMS_ROOT, IZJEME
-from .helpers import is_ffmpeg_installed, remove
-from .video_converter import concat_and_convert, convert_single_file
-from .download_subtitles import get_subtitles
-from .translate_subtitles import translate
-from .rescale_captions import rescale_captions, extract_audio
-from .get_movie_metadata import MovieMetadata
-from .the_chosen_scrapper import scrappe_chosen
+from movies_preparation.config import FILMS_ROOT, IZJEME
+from movies_preparation.helpers import is_ffmpeg_installed, remove
+from movies_preparation.video_converter import concat_and_convert, convert_single_file
+from movies_preparation.download_subtitles import get_subtitles
+from movies_preparation.translate_subtitles import translate
+from movies_preparation.rescale_captions import rescale_captions, extract_audio
+from movies_preparation.get_movie_metadata import MovieMetadata
+from movies_preparation.the_chosen_scrapper import scrappe_chosen
 
 def convert_audio_to_aac(filepath):
     """Uporabi ffmpeg za konverzijo v MP4 format."""

@@ -10,7 +10,6 @@ log = logging.getLogger(__name__)
 GEMINI_API_KEY = os.getenv("GEMINI_TOKEN")
 
 gst.gemini_api_key = GEMINI_API_KEY
-print(gst.listmodels())
 
 def translate(input_srt_file, target_language="sl", target_language_short_name="Slo", target_language_long_name="Slovenian", retry=1):
     try:

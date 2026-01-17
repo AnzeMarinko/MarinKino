@@ -217,7 +217,7 @@ async def get_master_url(video_id):
 
 def scrappe_video_data(season, episode, video_id, cover_url, title, description, runtime, target_video_height=1440):
 
-    folder = f"movies/06-the-chosen/Season_{season}-Episode_{episode}"
+    folder = f"data/movies/06-the-chosen/Season_{season}-Episode_{episode}"
     if not os.path.exists(folder):
         os.mkdir(folder)
 

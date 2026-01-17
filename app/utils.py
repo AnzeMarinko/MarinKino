@@ -1,0 +1,98 @@
+from flask_login import UserMixin
+from email.message import EmailMessage
+from datetime import date
+import ssl
+import smtplib
+import redis
+import os
+import json
+import logging
+import pathlib
+
+log = logging.getLogger(__name__)
+redis_client = redis.Redis(host='localhost', port=6379, decode_responses=True)
+
+def safe_path(base_folder, filename):
+    path = pathlib.Path(base_folder) / filename
+    path = path.resolve()
+    if not str(path).startswith(str(pathlib.Path(base_folder).resolve())):
+        raise ValueError("Nevaren path")
+    return str(path)
+
+
+# Load users
+with open("users.json", 'r', encoding="utf-8") as f:
+    users = json.loads(f.read())
+
+
+class User(UserMixin):
+    def __init__(self, username):
+        self.id = username
+        self.is_admin = users.get(username, {}).get("is_admin", False)
+        self.emails = users.get(username, {}).get("emails", [])
+
+
+def find_user_by_email(email, users_dict):
+    if not email:
+        return None
+    for username, data in users_dict.items():
+        for aux_email in data.get("emails", []):
+            if aux_email.lower() == email.lower():
+                return username
+    return None
+
+
+def send_mail(to, cc=None, bcc=None, subject="", text="", html="", batch_id=""):
+    """Send email using Gmail SMTP"""
+    msg = EmailMessage()
+
+    msg["From"] = f"MarinKino <{os.getenv('MAIL_USERNAME')}>"
+    msg["To"] = ", ".join(to) if isinstance(to, list) else to
+
+    if cc:
+        msg["Cc"] = ", ".join(cc)
+    if bcc:
+        msg["Bcc"] = ", ".join(bcc)
+
+    msg["Subject"] = subject
+
+    msg.set_content(text)
+
+    if html:
+        msg.add_alternative(html, subtype="html")
+
+    recipients = []
+    for field in (to, cc, bcc):
+        if field:
+            recipients += field if isinstance(field, list) else [field]
+
+    base = f"mail:{date.today().isoformat()[:7]}:{batch_id}"
+    redis_client.sadd(f"{base}:recipients", *recipients)
+    context = ssl.create_default_context()
+
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
+            server.starttls(context=context)
+            server.login(
+                os.getenv("GMAIL_USERNAME"),
+                os.getenv("GMAIL_TOKEN")
+            )
+
+            failed = server.send_message(msg, to_addrs=recipients)
+
+            for email in recipients:
+                if email in (failed or {}):
+                    code, reason = failed[email]
+                    redis_client.hset(
+                        f"{base}:errors",
+                        find_user_by_email(email, {}) or email,
+                        f"{code} {reason}"
+                    )
+
+    except smtplib.SMTPException as e:
+        redis_client.hset(
+            f"{base}:errors",
+            f"smtp_exception_{date.today().isoformat()}",
+            str(e)
+        )
+        raise
