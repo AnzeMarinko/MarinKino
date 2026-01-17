@@ -1,19 +1,13 @@
-from flask import Flask, session, render_template, request, redirect, url_for, jsonify
-from flask_login import LoginManager, login_required, current_user
+from flask import Flask, request
+from flask_login import LoginManager, current_user
 from waitress import serve
-from datetime import timedelta, datetime, date
+from datetime import timedelta, date
 import os
-import json
-import random
-from copy import copy
 from flask_compress import Compress
 from werkzeug.middleware.proxy_fix import ProxyFix
-import pathlib
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-import glob
-import pandas as pd
 import logging
 import redis
 
@@ -25,7 +19,7 @@ from blueprints import (
     music_bp, 
     misc_bp, init_misc_bp,
 )
-from utils import User, users, send_mail, find_user_by_email
+from utils import User, users, send_mail
 
 redis_client = redis.Redis(host='localhost', port=6379, decode_responses=True)
 
@@ -114,4 +108,4 @@ if __name__ == "__main__":
     try:
         serve(app, host="0.0.0.0", port=5000, threads=8)
     except OSError:
-        app.run(host="localhost", port=5050)
+        app.run(host="0.0.0.0", port=5050)

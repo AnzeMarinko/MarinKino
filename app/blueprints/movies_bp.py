@@ -8,7 +8,7 @@ import shutil
 import logging
 from copy import copy
 from urllib.parse import unquote
-from movies_preparation.main import check_folder, FILMS_ROOT
+from prepare_movies import check_folder, FILMS_ROOT
 import random
 import difflib
 from utils import safe_path, redis_client

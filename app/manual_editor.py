@@ -1,6 +1,6 @@
 from flask import Flask, render_template, send_from_directory
 import os
-from main import check_folder, FILMS_ROOT
+from prepare_movies import check_folder, FILMS_ROOT
 from copy import copy
 from flask_compress import Compress
 import pandas as pd

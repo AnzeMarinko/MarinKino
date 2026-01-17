@@ -65,15 +65,15 @@ def register():
         email2 = request.form.get("email2", '').strip()
         if username in users:
             error = 'Uporabniško ime zasedeno!'
-        elif find_user_by_email(email) is not None:
+        elif find_user_by_email(email, users) is not None:
             error = f'E-naslov {email} je že registriran!'
-        elif find_user_by_email(email2) is not None:
+        elif find_user_by_email(email2, users) is not None:
             error = f'E-naslov {email2} je že registriran!'
         elif username is None or not re.match(r'^[a-zA-Z0-9_.-]+$', username) or len(username) < 3 or len(username) > 30:
             error = 'Uporabniško ime sme vsebovati le črke, številke, pike, podčrtaje in vezaje ter mora biti dolgo od 3 do 30 znakov!'
         else:
             import random
-            password = ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=12))
+            password = ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-+_!=?<>', k=12))
             emails = [email] + ([email2] if email2 else [])
             users[username] = {"password_hash": generate_password_hash(password), "emails": emails, "incoming_date": date.today().isoformat()}
             content = f"Nov uporabnik je bil registriran v MarinKino:\n\nVstopna stran: anzemarinko.duckdns.org\nUporabniško ime: {username}\nE-naslov: {' + '.join(emails)}\nGeslo: {password}\n\nLep pozdrav,\nMarinKino sistem"
@@ -103,7 +103,7 @@ def register():
 def forgot_password():
     if request.method == 'POST':
         email = request.form.get("email", '').strip()
-        username = find_user_by_email(email)
+        username = find_user_by_email(email, users)
         if username:
             token = secrets.token_urlsafe(32)
             expiry = (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()

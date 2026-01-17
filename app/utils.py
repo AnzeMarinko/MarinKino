@@ -1,16 +1,18 @@
-from flask_login import UserMixin
-from email.message import EmailMessage
-from datetime import date
-import ssl
-import smtplib
-import redis
-import os
 import json
 import logging
+import os
 import pathlib
+import smtplib
+import ssl
+from datetime import date
+from email.message import EmailMessage
+
+import redis
+from flask_login import UserMixin
 
 log = logging.getLogger(__name__)
-redis_client = redis.Redis(host='localhost', port=6379, decode_responses=True)
+redis_client = redis.Redis(host="localhost", port=6379, decode_responses=True)
+
 
 def safe_path(base_folder, filename):
     path = pathlib.Path(base_folder) / filename
@@ -21,7 +23,7 @@ def safe_path(base_folder, filename):
 
 
 # Load users
-with open("users.json", 'r', encoding="utf-8") as f:
+with open("users.json", "r", encoding="utf-8") as f:
     users = json.loads(f.read())
 
 
@@ -42,7 +44,9 @@ def find_user_by_email(email, users_dict):
     return None
 
 
-def send_mail(to, cc=None, bcc=None, subject="", text="", html="", batch_id=""):
+def send_mail(
+    to, cc=None, bcc=None, subject="", text="", html="", batch_id=""
+):
     """Send email using Gmail SMTP"""
     msg = EmailMessage()
 
@@ -73,10 +77,7 @@ def send_mail(to, cc=None, bcc=None, subject="", text="", html="", batch_id=""):
     try:
         with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
             server.starttls(context=context)
-            server.login(
-                os.getenv("GMAIL_USERNAME"),
-                os.getenv("GMAIL_TOKEN")
-            )
+            server.login(os.getenv("GMAIL_USERNAME"), os.getenv("GMAIL_TOKEN"))
 
             failed = server.send_message(msg, to_addrs=recipients)
 
@@ -85,14 +86,14 @@ def send_mail(to, cc=None, bcc=None, subject="", text="", html="", batch_id=""):
                     code, reason = failed[email]
                     redis_client.hset(
                         f"{base}:errors",
-                        find_user_by_email(email, {}) or email,
-                        f"{code} {reason}"
+                        find_user_by_email(email, users) or email,
+                        f"{code} {reason}",
                     )
 
     except smtplib.SMTPException as e:
         redis_client.hset(
             f"{base}:errors",
             f"smtp_exception_{date.today().isoformat()}",
-            str(e)
+            str(e),
         )
         raise
