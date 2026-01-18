@@ -1,8 +1,7 @@
 # TODO:
 
 * pridobi manjkajoče slovenske originalne podnapise
-* postavi vse v docker-compose (python app, nginx, certbot, redis) https://gemini.google.com/u/1/app/036b4492a1b2d79c, fail2ban pa izven
-* uredi navodila za uporabo (/help) in za inštalacijo (instalation.md)
+* uredi navodila za uporabo (/help) in za inštalacijo (instalation.md), configuration (fail2ban, nginx) ...
 
 Glasba:
 * naredi playlisto vsega kar bi rad imel (najprej Youtube music in nato še navaden Youtube)

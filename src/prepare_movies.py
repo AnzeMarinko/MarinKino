@@ -5,14 +5,20 @@ import subprocess
 
 import tqdm
 
+from movies_preparation.config import FILMS_ROOT, IZJEME, LOG_FILENAME
+
+file_handler = logging.FileHandler(LOG_FILENAME, encoding="utf-8")
+console_handler = logging.StreamHandler()
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - 1 - [%(levelname)s] - %(name)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=[file_handler, console_handler],
 )
+logging.getLogger("waitress.queue").setLevel(logging.WARNING)
 log = logging.getLogger(__name__)
 
-from movies_preparation.config import FILMS_ROOT, IZJEME
 from movies_preparation.download_subtitles import get_subtitles
 from movies_preparation.get_movie_metadata import MovieMetadata
 from movies_preparation.helpers import is_ffmpeg_installed, remove
@@ -185,6 +191,7 @@ def check_folder(folder, only_collect_metadata=True):
                         if (
                             "Tinder" not in folder
                             and "Identical" not in folder
+                            and "Stuck.In.Love" not in folder
                         ):
                             with open(
                                 os.path.join(folder, "readme.json"), "r"

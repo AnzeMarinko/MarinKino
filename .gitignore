@@ -36,3 +36,4 @@ data/music/**/*.m4a
 data/music/**/*.wma
 user-interface.html
 .tmp.driveupload
+redis_data

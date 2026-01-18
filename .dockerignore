@@ -1,0 +1,30 @@
+# --- Velike mape (bodo "mountane" preko volumes) ---
+data/
+cache/
+
+# --- Python prevedene datoteke in smeti ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+build/
+dist/
+*.egg-info/
+
+# --- Lokalno virtualno okolje (v kontejnerju ga ne rabimo) ---
+venv/
+.venv/
+env/
+
+# --- Git zgodovina (nepotrebno in veliko) ---
+.git/
+.gitignore
+
+# --- Občutljivi podatki (gesla, API ključi) ---
+.env
+
+# --- Docker datoteke (jih ne rabimo znotraj same slike) ---
+Dockerfile
+docker-compose.yml
+docker-compose.override.yml

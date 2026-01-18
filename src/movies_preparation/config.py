@@ -1,0 +1,27 @@
+import os
+from datetime import datetime
+
+from dotenv import load_dotenv
+
+# Naloži .env datoteko
+load_dotenv()
+
+FILMS_ROOT = "data/movies"
+FLASK_ENV = os.getenv("FLASK_ENV", "development")
+
+if FLASK_ENV == "production":
+    LOG_DIR = "/app/cache/logs/server"
+else:
+    LOG_DIR = os.path.join(os.getcwd(), "cache", "logs", "server")
+
+if not os.path.exists(LOG_DIR):
+    try:
+        os.makedirs(LOG_DIR)
+    except OSError as e:
+        print(f"Napaka pri ustvarjanju mape {LOG_DIR}: {e}")
+timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+LOG_FILENAME = os.path.join(
+    LOG_DIR, f"server_start_{FLASK_ENV}_{timestamp}.log"
+)
+
+IZJEME = {}

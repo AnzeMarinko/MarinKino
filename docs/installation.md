@@ -17,10 +17,24 @@ Spodaj so celotna navodila za nastavitev okolja, da se ob zagonu računalnika za
 ```
 git clone https://github.com/AnzeMarinko/MarinKino.git
 cd repozitorij
-chmod +x ./duckdns_refresh.sh
-chmod +x ./start_server.sh
-chmod +x ./rclone/rclone-sync-gdrive.sh
+chmod +x ./scripts/duckdns_refresh.sh
+chmod +x ./scripts/start_server.sh
+chmod +x ./scripts/rclone/rclone-sync-gdrive.sh
+chmod +x ./scripts/docker-setup.sh
 ```
+
+```
+sudo apt-get update
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo systemctl enable docker
+sudo ./scripts/docker-setup.sh
+sudo chmod -R 777 cache
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
+... navodila za posodabljanje docker image ob spremembah v kodi in kako testirati lokalno
 
 ### 2. 🐍 Ustvari virtualno okolje
 ```
@@ -48,7 +62,7 @@ python app.py
 ```
 
 Po potrebi popravi poti v kodi.
-Dodaj `users.json` z vsaj enim administratorjem.
+Dodaj `data/users.json` z vsaj enim administratorjem.
 
 ### 6. Posodabljaj svoj IP na DuckDNS
 

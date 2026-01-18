@@ -1,0 +1,45 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: marinkino-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - ./redis_data:/data
+    command: redis-server --dir /data --dbfilename dump.rdb --appendonly no
+    networks:
+      - marinkino-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: marinkino-app
+    env_file:
+      - .env
+    environment:
+      - FLASK_ENV=production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+      - ./cache:/app/cache
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - marinkino-network
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+
+networks:
+  marinkino-network:
+    driver: bridge

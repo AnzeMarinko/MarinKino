@@ -11,7 +11,11 @@ import redis
 from flask_login import UserMixin
 
 log = logging.getLogger(__name__)
-redis_client = redis.Redis(host="localhost", port=6379, decode_responses=True)
+redis_client = redis.Redis(
+    host=os.getenv("REDIS_HOST", "localhost"),
+    port=int(os.getenv("REDIS_PORT", "6379")),
+    decode_responses=True,
+)
 
 
 def safe_path(base_folder, filename):
@@ -23,7 +27,7 @@ def safe_path(base_folder, filename):
 
 
 # Load users
-with open("users.json", "r", encoding="utf-8") as f:
+with open("data/users.json", "r", encoding="utf-8") as f:
     users = json.loads(f.read())
 
 
