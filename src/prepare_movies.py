@@ -119,11 +119,7 @@ def check_folder(folder, only_collect_metadata=True):
     if not only_collect_metadata and "06-the-chosen" not in folder:
         for video, form in videos:
             if form == "mp4":
-                with open("tmp_current_file.txt", "w") as f:
-                    f.write(video)
                 convert_audio_to_aac(video)
-        if os.path.exists("tmp_current_file.txt"):
-            remove("tmp_current_file.txt")
 
         new_file = os.path.join(folder, os.path.basename(folder) + ".mp4")
         if videos and not os.path.exists(new_file):
@@ -175,6 +171,7 @@ def check_folder(folder, only_collect_metadata=True):
                     new_file = os.path.join(folder, "subtitles.srt")
                     os.rename(subtitles[0], new_file)
                     translate(new_file)
+
             elif len(subtitles) > 1:
                 if (
                     os.path.join(folder, "subtitles.srt") in subtitles
@@ -183,28 +180,6 @@ def check_folder(folder, only_collect_metadata=True):
                     or len(subtitles) > 2
                 ):
                     log.warning(f"⚠️⚠️ Več podnapisov v mapi: {folder}")
-                elif (
-                    os.path.join(folder, "subtitles-SloSubs-auto.srt")
-                    in subtitles
-                ):
-                    if os.path.exists(os.path.join(folder, "readme.json")):
-                        if (
-                            "Tinder" not in folder
-                            and "Identical" not in folder
-                            and "Stuck.In.Love" not in folder
-                        ):
-                            with open(
-                                os.path.join(folder, "readme.json"), "r"
-                            ) as f:
-                                metadata = json.loads(f.read())
-                            if metadata.get("imdb_id"):
-                                log.info(f"Pridobivam podnapise za: {folder}")
-                                get_subtitles(
-                                    metadata["Title"],
-                                    metadata["Year"],
-                                    metadata["imdb_id"],
-                                    folder,
-                                )
 
             for subtitle in os.listdir(folder):
                 if subtitle.split(".")[-1].lower() == "srt":
@@ -258,7 +233,20 @@ def check_folder(folder, only_collect_metadata=True):
 
     output_films = []
     if len(videos) or "Collection" in folder:
-        output_films.append(MovieMetadata(folder))
+        metadata = MovieMetadata(folder)
+        output_films.append(metadata)
+        if "0x-neurejeni-filmi" in folder and "SloSubs-auto" in "".join(
+            metadata.subtitles
+        ):
+            if metadata.imdb_id:
+                log.info(f"Pridobivam slovenske podnapise za: {folder}")
+                get_subtitles(
+                    metadata.title,
+                    metadata.year,
+                    metadata.imdb_id,
+                    folder,
+                    languages=["sl"],
+                )
 
     subfolders = [
         os.path.join(folder, f)

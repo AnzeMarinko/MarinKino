@@ -5,7 +5,7 @@ services:
     ports:
       - "6380:6379"
     volumes:
-      - ./redis_data:/data
+      - ./data/redis_data:/data
     command: redis-server --dir /data --dbfilename dump.rdb --appendonly no
     networks:
       - marinkino-network
