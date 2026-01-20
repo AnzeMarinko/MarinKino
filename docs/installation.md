@@ -4,12 +4,12 @@ Spodaj so celotna navodila za nastavitev okolja, da se ob zagonu računalnika za
 
 ## Zahteve sistema
 * Računalnik, ki teče na Linux (recimo Ubuntu 24.04)
-* Python 3.12
-* ffmpeg
 * rezerviran IP za strežnik
 * nastavljen fail2ban za nginx-404, nginx-botsearch in nginx-http-auth
 * TLC port forwarding za 80-80 (notranji in zunanji vhod) in 443-443 nastavljen na routerju za IP strežnika
 * na duckdns.org nastavljeno poddomeno za svojo stran.
+
+* za razvoj pa tudi Python 3.12 in ffmpeg
 
 ## Nastavitev programa
 
@@ -24,17 +24,27 @@ chmod +x ./scripts/docker-setup.sh
 ```
 
 ```
+# naloži docker
 sudo apt-get update
 curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh
 sudo systemctl enable docker
+
+# zgradi docker compose z našo aplikacijo
 sudo ./scripts/docker-setup.sh
 sudo chmod -R 777 cache
+
+# dodaj pravice za docker brez sudo
 sudo usermod -aG docker $USER
 newgrp docker
 ```
 
-... navodila za posodabljanje docker image ob spremembah v kodi in kako testirati lokalno
+... navodila za posodabljanje docker image ob spremembah v kodi:
+docker compose restart app
+ali pa (če so še kakšne ne s src kodo povezane spremembe - requirements, .env ... ipd.)
+docker compose up -d --build
+
+kako testirati lokalno
 
 ### 2. 🐍 Ustvari virtualno okolje
 ```
@@ -47,7 +57,7 @@ source .venv/bin/activate
 sudo apt update && sudo apt upgrade
 sudo apt install redis-server
 pip install --upgrade pip
-pip install -r requirements.txt
+pip install -e .
 ```
 ### 4. Posodobi ključe
 Posodobi datoteki `.env` and `credentials/gen-lang-client.json` in poženi
@@ -93,48 +103,6 @@ S pomočjo umetne inteligence (npr. ChatGPT) uredi nginx-404, nginx-http-auth ip
 sudo nano /etc/fail2ban/jail.local
 sudo systemctl restart fail2ban
 sudo fail2ban-client status
-```
-
-## Konfiguracija zagonskega programa
-
-Naredimo `systemd` servis `marinkino.service`, da bo tvoja Flask/Waitress aplikacija tekla kot storitev ob zagonu sistema.
-### 1. Ustvari servisno datoteko
-
-Ustvari datoteko:
-```
-sudo nano /etc/systemd/system/marinkino.service
-```
-
-Vsebina (prilagodi poti, ime uporabnika ...!):
-```
-[Unit]
-Description=MarinKino Flask Server
-After=network.target
-Requires=local-fs.target
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=/home/marinko/Desktop/MarinKino
-
-# Zažene tvojo skripto
-ExecStart=/bin/bash /home/marinko/Desktop/MarinKino/start_server.sh
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
-Pomembno:
-* WorkingDirectory mora kazati na mapo, kjer je tvoja aplikacija.
-* ExecStart mora kazati na Python znotraj tvojega venv.
-
-### 2. Zaženi zagonsko aplikacijo
-```
-sudo systemctl daemon-reload
-sudo systemctl enable marinkino.service
-sudo systemctl start marinkino.service
-systemctl status marinkino.service
 ```
 
 ## Postavi NGINX + CERTBOT (DuckDNS) HTTPS server

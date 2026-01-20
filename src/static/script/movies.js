@@ -84,9 +84,11 @@ async function loadNextPage() {
     const data = await response.json();
 
     data.movies.forEach(movie => {
-        const card = renderMovieCard(movie);
-        grid.appendChild(card);
-        attachHover(card);
+        if ((localStorage.getItem("onlyunwatched") !== "true") | (movie.watch_ratio < 100)) {
+            const card = renderMovieCard(movie);
+            grid.appendChild(card);
+            attachHover(card);
+        }
     });
 
     if (data.has_more) {
@@ -149,15 +151,17 @@ function renderMovieCard(movie) {
     return wrapper;
 }
 
-// Infinite scroll trigger
-window.addEventListener("scroll", () => {
-    if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 100) {
-        loadNextPage();
-    }
-});
+if (grid) {
+    // Infinite scroll trigger
+    window.addEventListener("scroll", () => {
+        if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 100) {
+            loadNextPage();
+        }
+    });
 
-// Zaženi prvo nalaganje
-loadNextPage();
+    // Zaženi prvo nalaganje
+    loadNextPage();
+}
 
 document.addEventListener("change", (e) => {
     if (e.target.matches('.izbira input[type="radio"]')) {
@@ -199,4 +203,55 @@ document.addEventListener("DOMContentLoaded", function () {
     checkbox.addEventListener("change", function () {
         localStorage.setItem("onlyunwatched", checkbox.checked);
     });
+});
+
+document.addEventListener("DOMContentLoaded", function () {
+    const video = document.getElementById("videoPlayer");
+    if (!video) return;
+
+    video.addEventListener("dblclick", () => {
+        if (!document.fullscreenElement) {
+            // Vklopi celozaslonski način
+            if (video.requestFullscreen) {
+                video.requestFullscreen();
+            } else if (video.webkitRequestFullscreen) { // Safari
+                video.webkitRequestFullscreen();
+            } else if (video.msRequestFullscreen) { // IE11
+                video.msRequestFullscreen();
+            }
+        } else {
+            // Izhod iz celozaslonskega načina
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) { // Safari
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) { // IE11
+                document.msExitFullscreen();
+            }
+        }
+    });
+
+    // Nastavi interval (v milisekundah)
+    const intervalMillis = 20 * 1000;
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    setInterval(() => {
+            if (video && !video.paused && !video.ended) {
+                fetch("/video-progress", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": csrfToken
+                    },
+                    body: JSON.stringify({
+                        filename: video.currentSrc,
+                        currentTime: video.currentTime,
+                        duration: video.duration
+                    })
+                }).catch(() => {});
+                const selectedButton = document.querySelector('.video-btn.selected');
+                if (selectedButton) {
+                    selectedButton.style.setProperty('--watch', Math.round(video.currentTime / video.duration * 100) + '%');
+                }
+            }
+        }, intervalMillis);
 });

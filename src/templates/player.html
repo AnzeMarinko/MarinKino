@@ -26,7 +26,26 @@
                         {{ video_file|replace('.mp4', '') }} ({{ movie.runtimes_by_files[video_file] }} min)
                     </button>
                 {% endfor %}
-                </div>
+                </div></br>
+        <hr>
+        {% else %}
+
+            <div class="izbira" movie-id="{{ movie.movie_id }}">
+                <input type="radio" id="opcija1-{{ movie.movie_id }}" name="izbor-{{ movie.movie_id }}" value="0">
+                <label for="opcija1-{{ movie.movie_id }}">Nepogledano</label>
+
+                <input type="radio" id="opcija2-{{ movie.movie_id }}" name="izbor-{{ movie.movie_id }}" value="100">
+                <label for="opcija2-{{ movie.movie_id }}">Pogledano</label>
+            </div>
+        
+            {% if current_user.is_admin %}
+            <div class="buttons">
+                <form action="/movies/remove{{ movie.folder }}" method="post" onsubmit="return odstraniMovieCard(event, this);">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit">Odstrani</button>
+                </form>
+            </div>
+            {% endif %}
         {% endif %}
     </div>
 
@@ -84,7 +103,7 @@
 {% endif %}
 </div>
 
-<script defer src="/static/script/movie_player.js"></script>
+<script defer src="/static/script/movies.js"></script>
 </main>
 
 {% endblock %}

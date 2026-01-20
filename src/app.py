@@ -36,10 +36,12 @@ app.config["WTF_CSRF_TIME_LIMIT"] = None
 
 log = logging.getLogger(__name__)
 
+redis_host = os.getenv("REDIS_HOST", "localhost")
+redis_port = int(os.getenv("REDIS_PORT", "6379"))
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=[],
-    storage_uri="redis://localhost:6379",
+    storage_uri=f"redis://{redis_host}:{redis_port}",
 )
 limiter.init_app(app)
 

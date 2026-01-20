@@ -52,24 +52,22 @@ def admin_panel():
                         v[1]
                         for v in sorted(
                             [
-                                (count, f"{count}x {route_method}")
+                                (int(count), f"{count}x {route_method}")
                                 for route_method, count in routes_data.items()
                             ],
                             reverse=True,
                         )[:10]
                     ]
                 ),
-                "count": 0,
+                "count": sum([int(count) for count in routes_data.values()]),
             },
         )
 
         for route_method, count in routes_data.items():
-            count = int(count)
-            access_stats_users[status][log_date][user_id]["count"] += count
-
             if status.startswith("2") or status.startswith("3"):
-                access_stats_routes[log_date].setdefault(route_method, 0)
-                access_stats_routes[log_date][route_method] += count
+                route = "/" + "/".join(route_method.split("/")[1:2])
+                access_stats_routes[log_date].setdefault(route, 0)
+                access_stats_routes[log_date][route] += int(count)
 
     if access_stats_users:
         access_stats_users = {
@@ -92,7 +90,10 @@ def admin_panel():
         monthly_data = redis_client.hgetall(key)
         access_stats_monthly[month_label] = {}
         for route_method, count in monthly_data.items():
-            access_stats_monthly[month_label][route_method] = int(count)
+            route = "/" + "/".join(route_method.split("/")[1:3])
+            access_stats_monthly[month_label][route] = access_stats_monthly[
+                month_label
+            ].get(route, 0) + int(count)
 
     if access_stats_monthly:
         df_monthly = pd.DataFrame(access_stats_monthly).T.fillna(0).astype(int)
@@ -130,24 +131,25 @@ def admin_panel():
 
             watch_time = progress.get("total_play_time", 0)
             duration = progress.get("duration", 0)
-            count_start_time = progress.get("count_start_time", 0)
             current_max_start = progress.get("last_start_time")
 
             if watch_time and duration:
                 ratio = (watch_time / duration) * 100
+                if ratio < 5:
+                    continue
                 watch_ratios.append(ratio)
-                if ratio >= 50:
+                starting_count += 1
+                if ratio >= 70:
                     watched_count += 1
 
-                if count_start_time and current_max_start:
-                    starting_count += count_start_time
+                if current_max_start:
                     if (
                         last_start_time == "-"
                         or current_max_start > last_start_time
                     ):
                         last_start_time = current_max_start
 
-            total_watch_time += watch_time
+                total_watch_time += watch_time
 
         def seconds_to_str(seconds):
             hours = int(seconds // 3600)

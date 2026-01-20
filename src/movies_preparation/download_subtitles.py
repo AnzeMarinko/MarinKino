@@ -1,17 +1,20 @@
-import requests
-from bs4 import BeautifulSoup
-import zipfile
-import re
-from opensubtitlescom import OpenSubtitles
-import os
-import time
 import io
 import logging
+import os
+import re
+import time
+import zipfile
+
+import requests
+from bs4 import BeautifulSoup
+from opensubtitlescom import OpenSubtitles
+
 log = logging.getLogger(__name__)
 
 OPENSUBTITLESCOM_TOKEN = os.getenv("OPENSUBTITLESCOM_TOKEN")
 OPENSUBTITLESCOM_PASSWORD = os.getenv("OPENSUBTITLESCOM_PASSWORD")
 osub = OpenSubtitles("MarinKino", OPENSUBTITLESCOM_TOKEN)
+
 
 def search_opensubtitles(imdb_id, languages=("sl", "en")):
     osub.login("anzem", OPENSUBTITLESCOM_PASSWORD)
@@ -24,20 +27,23 @@ def search_opensubtitles(imdb_id, languages=("sl", "en")):
                 order_by="download_count",
                 order_direction="desc",
             )
-            for s in subs.data[:5]:
+            for s in subs.data[:3]:
                 if len(s.files) == 1:
-                    results.append({
-                        "lang": lang,
-                        "downloads": s.download_count,
-                        "url": s.files[0].get("file_id"),
-                        "release": s.release,
-                    })
+                    results.append(
+                        {
+                            "lang": lang,
+                            "downloads": s.download_count,
+                            "url": s.files[0].get("file_id"),
+                            "release": s.release,
+                        }
+                    )
         except Exception as e:
             log.error(f"OpenSubtitles error: {e}")
             msg = str(e).lower()
             if "429" in msg or "too many" in msg:
                 return results, "RateLimitError"
     return results, None
+
 
 def download_opensubtitles(sub, i, path):
     data = osub.download(sub["url"])
@@ -48,10 +54,13 @@ def download_opensubtitles(sub, i, path):
 
 
 session = requests.Session()
-session.headers.update({
-    "User-Agent": "Mozilla/5.0",
-    "Accept-Language": "sl-SI,sl;q=0.9,en;q=0.8",
-})
+session.headers.update(
+    {
+        "User-Agent": "Mozilla/5.0",
+        "Accept-Language": "sl-SI,sl;q=0.9,en;q=0.8",
+    }
+)
+
 
 def fetch_html(url, tries=5):
     for i in range(tries):
@@ -64,13 +73,16 @@ def fetch_html(url, tries=5):
         time.sleep(1.5 * (i + 1))
     return None
 
+
 def search_podnapisi_safe(title, year):
-    title = re.sub(r'[^\w]+', ' ', title.lower().replace(".slosinh", ""), flags=re.UNICODE)
-    title = re.sub(r'\b(19|20)\d{2}\b', '', title).strip()
+    title = re.sub(
+        r"[^\w]+", " ", title.lower().replace(".slosinh", ""), flags=re.UNICODE
+    )
+    title = re.sub(r"\b(19|20)\d{2}\b", "", title).strip()
 
     base = "https://www.podnapisi.net"
     url = f"{base}/sl/subtitles/search/advanced?keywords={title.replace(' ', '+')}"
-    
+
     html = fetch_html(url)
     if not html:
         return []
@@ -91,13 +103,16 @@ def search_podnapisi_safe(title, year):
         if year and str(year) not in aux_title:
             continue
 
-        results.append({
-            "lang": lang.text.strip(),
-            "title": aux_title,
-            "link": base + title_link["href"]
-        })
+        results.append(
+            {
+                "lang": lang.text.strip(),
+                "title": aux_title,
+                "link": base + title_link["href"],
+            }
+        )
 
     return results[:5]
+
 
 def download_podnapisi_safe(url, extract_path):
     r = session.get(url + "/download", timeout=10)
@@ -106,14 +121,13 @@ def download_podnapisi_safe(url, extract_path):
     log.info("Podnapisi so shranjeni")
 
 
-
-def get_subtitles(title, year, imdb_id, path):
+def get_subtitles(title, year, imdb_id, path, languages=["sl", "en"]):
     # 1. OpenSubtitles
-    subs, err = search_opensubtitles(imdb_id)
+    subs, err = search_opensubtitles(imdb_id, languages)
     if subs:
         for i, sub in enumerate(subs):
             download_opensubtitles(sub, i, path)
-        return 
+        return
     elif err == "RateLimitError":
         return err
 
@@ -126,4 +140,3 @@ def get_subtitles(title, year, imdb_id, path):
 
     log.error(f"❌ No subtitles found: {title}")
     return False
-

@@ -143,7 +143,7 @@ def add_watch_info(movie, user_data):
             "watch_ratio": watch_ratio,
         }
         movie["last_play_time"] = last_play_time
-    movie["watch_ratio"] = total_play_time / total_duration * 100
+    movie["watch_ratio"] = int(total_play_time / total_duration * 100)
     return movie
 
 
