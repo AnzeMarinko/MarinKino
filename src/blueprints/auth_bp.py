@@ -22,6 +22,7 @@ from utils import find_user_by_email, redis_client
 log = logging.getLogger(__name__)
 
 auth_bp = Blueprint("auth", __name__)
+DUCKDNS_DOMAIN = os.getenv("DUCKDNS_DOMAIN")
 
 # Shared utilities (imported from main app)
 users = {}
@@ -109,7 +110,7 @@ def register():
                 "emails": emails,
                 "incoming_date": date.today().isoformat(),
             }
-            content = f"Nov uporabnik je bil registriran v MarinKino:\n\nVstopna stran: anzemarinko.duckdns.org\nUporabniško ime: {username}\nE-naslov: {' + '.join(emails)}\nGeslo: {password}\n\nLep pozdrav,\nMarinKino sistem"
+            content = f"Nov uporabnik je bil registriran v MarinKino:\n\nVstopna stran: {DUCKDNS_DOMAIN}\nUporabniško ime: {username}\nE-naslov: {' + '.join(emails)}\nGeslo: {password}\n\nLep pozdrav,\nMarinKino sistem"
             requests.post(
                 f"https://api.telegram.org/bot{os.getenv('TELEGRAM_BOT_TOKEN')}/sendMessage",
                 data={
@@ -133,7 +134,7 @@ def register():
             send_mail(
                 to=emails,
                 subject="Uporaba MarinKino",
-                text="https://anzemarinko.duckdns.org/help",
+                text=f"https://{DUCKDNS_DOMAIN}/help",
                 html=render_template(
                     "mail_user_intro.html", username=username, is_for_mail=True
                 ),

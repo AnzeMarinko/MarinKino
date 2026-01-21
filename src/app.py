@@ -45,6 +45,16 @@ limiter = Limiter(
 )
 limiter.init_app(app)
 
+
+# add variables to all template rendering
+@app.context_processor
+def inject_global_variables():
+    return {
+        "current_year": date.today().year,
+        "domain": os.getenv("DUCKDNS_DOMAIN"),
+    }
+
+
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "auth.login"

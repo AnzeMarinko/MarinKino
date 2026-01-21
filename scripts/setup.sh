@@ -1,15 +1,52 @@
 #!/bin/bash
 
-# Nastavitve
-DOMAIN="anzemarinko.duckdns.org"
-EMAIL="anze.marinko96@gmail.com"
+set -e
 
-echo "🚀 Začenjam avtomatsko vzpostavitev za $DOMAIN..."
+echo "🐳 MarinKino Docker Setup"
+echo "========================"
+
+# Nastavitve
+if [ -f .env ]; then
+    export $(grep -v '^#' .env | xargs)
+else
+    echo "❌ NAPAKA: Datoteka .env ne obstaja!"
+    exit 1
+fi
+
+# Preverimo, če sta spremenljivki nastavljeni
+if [ -z "$DUCKDNS_DOMAIN" ] || [ -z "$GMAIL_USERNAME" ]; then
+    echo "❌ NAPAKA: V .env datoteki manjkata DUCKDNS_DOMAIN ali GMAIL_USERNAME!"
+    echo "Prepričaj se, da imaš v .env zapisano:"
+    echo "DUCKDNS_DOMAIN=tvoja-poddomena.duckdns.org"
+    echo "GMAIL_USERNAME=tvoj-naslov@gmail.com"
+    exit 1
+else
+    EMAIL="$GMAIL_USERNAME"
+    DOMAIN="$DUCKDNS_DOMAIN"
+fi
+
+echo "🚀 Začenjam avtomatsko vzpostavitev za $DOMAIN ($EMAIL)..."
+
+chmod +x ./scripts/duckdns_refresh.sh
+chmod +x ./scripts/rclone/rclone-sync-gdrive.sh
+
+# 1. Pridobimo trenutni crontab (če ne obstaja, ustvarimo praznega)
+crontab -l > mycron 2>/dev/null || touch mycron
+
+# 2. Dodajanje DuckDNS osveževanja (vsakih 10 min). Če že obstaja, preskoči
+if ! grep -q "duckdns" mycron; then
+    echo "*/10 * * * * cd $(pwd) && ./scripts/duckdns_refresh.sh > /dev/null" >> mycron
+    echo "✅ Dodano DuckDNS osveževanje."
+    echo "🦆 Prvič osvežujem DuckDNS IP naslov ... (To lahko traja nekaj minut)"
+    ./scripts/duckdns_refresh.sh
+fi
 
 # 1. Ustvarimo začasno HTTP konfiguracijo (samo za verifikacijo)
-echo "📝 Generiram začasno HTTP konfiguracijo..."
+mkdir -p cache/logs/server
 mkdir -p configuration/nginx/conf
 mkdir -p configuration/certbot/conf
+
+echo "📝 Generiram začasno HTTP konfiguracijo..."
 cat > configuration/nginx/conf/app.conf <<EOF
 server {
     listen 80;
@@ -28,7 +65,7 @@ sleep 10
 
 # 3. Zaženemo Certbot
 echo "🔑 Zahtevam certifikat..."
-docker compose run --rm certbot certonly --webroot --webroot-path /var/www/certbot \
+docker compose run --rm --entrypoint "certbot" certbot certonly --webroot --webroot-path /var/www/certbot \
     -d $DOMAIN \
     --email $EMAIL \
     --agree-tos \
@@ -75,7 +112,25 @@ EOF
 
 # 5. Ponovno naložimo Nginx in zaženemo še aplikacijo
 echo "🔄 Ponovno nalagam Nginx in zaganjam aplikacijo..."
-docker compose restart nginx
-docker compose up -d
+docker compose down
+docker compose up -d --build
 
-echo "🎉 KONČANO! Tvoja aplikacija je dostopna na https://$DOMAIN"
+# 2. Obnavljanje certifikata (vsakih 12 ur)
+if ! grep -q "certbot renew" mycron; then
+    # cd v mapo projekta, poskus obnove in osvežitev Nginxa
+    echo "0 */12 * * * cd $(pwd) && docker compose run --rm certbot renew && docker compose exec nginx nginx -s reload" >> mycron
+    echo "✅ Dodano: Samodejno podaljševanje certifikata."
+fi
+
+# 4. Namestitev novega crontaba in brisanje začasne datoteke
+crontab mycron
+rm mycron
+
+echo "📅 Cron opravila so aktivna. Preveriš jih z: crontab -l"
+
+echo "⏳ Počakajmo, da se vse zažene ..."
+sleep 5
+
+echo "✅🎉 KONČANO! Tvoja aplikacija je dostopna na https://$DOMAIN"
+echo "Poglej log-e: docker compose logs -f"
+echo "Ustavi celotno storitev: docker compose down"

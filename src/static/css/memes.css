@@ -39,7 +39,7 @@ body {
     border: none;
     border-radius: 50%;
     font-size: 32px;
-    padding: 40vh 40vw;
+    padding: 30vh 30vw;
     cursor: pointer;
     opacity: 0;
 }

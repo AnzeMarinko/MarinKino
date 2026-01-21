@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from copy import copy
 from datetime import date, datetime
 
@@ -19,6 +20,7 @@ from utils import redis_client, safe_path
 log = logging.getLogger(__name__)
 
 misc_bp = Blueprint("misc", __name__)
+DUCKDNS_DOMAIN = os.getenv("DUCKDNS_DOMAIN")
 
 # Global variables
 users = {}
@@ -116,7 +118,7 @@ def send_admin_emails():
                 send_mail(
                     to=emails,
                     subject="Uporaba MarinKino",
-                    text="https://anzemarinko.duckdns.org/help",
+                    text=f"https://{DUCKDNS_DOMAIN}/help",
                     html=render_template(
                         template_name + ".html",
                         username=username,

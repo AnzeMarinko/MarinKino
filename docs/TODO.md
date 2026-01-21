@@ -1,7 +1,9 @@
 # TODO:
 
 * dodaj pytest
-* uredi navodila za uporabo (/help) in za inštalacijo (instalation.md), configuration (fail2ban, nginx) ...
+* avtomatiziraj fail2ban nastavitev
+* če še ne obstaja, avtomatsko dodaj users.json z enim adminom in enim slabim geslom za začetek, potem lahko on ročno spremeni ime administratorja in spremeni geslo preko strani (pozabljeno geslo)
+* uredi navodila za uporabo (/help), README in za inštalacijo (instalation.md) ...
 
 Glasba:
 * naredi playlisto vsega kar bi rad imel (najprej Youtube music in nato še navaden Youtube)

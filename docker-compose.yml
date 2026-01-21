@@ -59,6 +59,9 @@ services:
   certbot:
     image: certbot/certbot
     container_name: marinkino-certbot
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     volumes:
       - ./configuration/certbot/www:/var/www/certbot:rw
       - ./configuration/certbot/conf:/etc/letsencrypt:rw
