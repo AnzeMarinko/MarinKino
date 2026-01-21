@@ -1,6 +1,5 @@
 # TODO:
 
-* uredi navodila za uporabo (/help), README ...
 * dodaj pytest
 
 Glasba:
