@@ -36,10 +36,35 @@ services:
         condition: service_healthy
     networks:
       - marinkino-network
-    ports:
-      - "5000:5000"
     restart: unless-stopped
 
+  nginx:
+    image: nginx:alpine
+    container_name: marinkino-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./configuration/nginx/conf:/etc/nginx/conf.d:ro
+      - ./configuration/certbot/www:/var/www/certbot:ro
+      - ./configuration/certbot/conf:/etc/letsencrypt:ro
+    networks:
+      - marinkino-network
+    restart: unless-stopped
+    # Nginx se ponovno naloži vsakih 6 ur, da pobere nove certifikate
+    command: '/bin/sh -c ''while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g "daemon off;"'''
+    depends_on:
+      - app
+
+  certbot:
+    image: certbot/certbot
+    container_name: marinkino-certbot
+    volumes:
+      - ./configuration/certbot/www:/var/www/certbot:rw
+      - ./configuration/certbot/conf:/etc/letsencrypt:rw
+    # Ta ukaz preverja certifikate vsakih 12 ur
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    
 networks:
   marinkino-network:
     driver: bridge

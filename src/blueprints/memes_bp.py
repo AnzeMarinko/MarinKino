@@ -1,14 +1,16 @@
-from flask import Blueprint, render_template, send_from_directory
-from flask_login import login_required, current_user
-from datetime import date
-import os
 import logging
+import os
 import random
+from datetime import date
+
+from flask import Blueprint, render_template, send_from_directory
+from flask_login import current_user, login_required
+
 from utils import safe_path
 
 log = logging.getLogger(__name__)
 
-memes_bp = Blueprint('memes', __name__)
+memes_bp = Blueprint("memes", __name__)
 
 # Global variables
 meme_id = 0
@@ -17,8 +19,15 @@ user_meme_limit = 33
 
 # Initialize memes
 memes = os.listdir("data/memes")
-memes = [slika for slika in memes if slika.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', "mp4"))]
+memes = [
+    slika
+    for slika in memes
+    if slika.lower().endswith(
+        (".png", ".jpg", ".jpeg", ".gif", ".webp", "mp4")
+    )
+]
 random.shuffle(memes)
+
 
 @memes_bp.route("/memes")
 @login_required
@@ -31,11 +40,20 @@ def meme():
         user_meme_count[current_user.id]["count"] = 0
     user_meme_count[current_user.id]["count"] += 1
     if user_meme_count[current_user.id]["count"] > user_meme_limit:
-        return render_template("limit_exceeded.html", section="šal", pagetitle="Dovolj za danes v MarinKino")
+        return render_template(
+            "limit_exceeded.html",
+            section="šal",
+            pagetitle="Dovolj za danes v MarinKino",
+        )
 
     izbrana = memes[meme_id]
     meme_id = (meme_id + 1) % len(memes)
-    return render_template("memes.html", pagetitle="MarinKino - Šale in navdihi", fullscreenbutton=True, meme_file_name=izbrana)
+    return render_template(
+        "memes.html",
+        pagetitle="MarinKino - Šale in navdihi",
+        fullscreenbutton=True,
+        meme_file_name=izbrana,
+    )
 
 
 @memes_bp.route("/memes/file/<meme_file_name>")
@@ -46,8 +64,15 @@ def meme_file(meme_file_name):
     except ValueError:
         return "", 404
     if path.endswith(".mp4"):
-        return send_from_directory("../data/memes", meme_file_name, mimetype='video/mp4', conditional=True)
-    return send_from_directory("../data/memes", meme_file_name, conditional=True)
+        return send_from_directory(
+            "../data/memes",
+            meme_file_name,
+            mimetype="video/mp4",
+            conditional=True,
+        )
+    return send_from_directory(
+        "../data/memes", meme_file_name, conditional=True
+    )
 
 
 @memes_bp.route("/meme/delete/<meme_file_name>", methods=["DELETE"])

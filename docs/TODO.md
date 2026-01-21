@@ -1,6 +1,6 @@
 # TODO:
 
-* pridobi manjkajoče slovenske originalne podnapise
+* dodaj pytest
 * uredi navodila za uporabo (/help) in za inštalacijo (instalation.md), configuration (fail2ban, nginx) ...
 
 Glasba:

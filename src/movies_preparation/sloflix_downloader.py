@@ -1,7 +1,7 @@
 """
-Skripta za snemanje videov s Sloflix 
+Skripta za snemanje videov s Sloflix
 - ali drugih podobnih ponudnikov video vsebin
-  (najbrž tudi YouTube ipd. z morebitno kakšno spremembo kode, 
+  (najbrž tudi YouTube ipd. z morebitno kakšno spremembo kode,
   da se zares začne predvajanje v celozaslonskem načinu)
 
 Spodaj nastavite ime mape OUTPUT_DIR, kamor se bodo videi shranili in
@@ -15,19 +15,22 @@ Predvajanju zvoka se lahko izognete z uporabo slušalk, da se ne uporabijo glavn
 Morebitni podnapisi bodo avtomatsko "zapečeni" v sliko videa. Zaslon je lahko izklopljen,
 ampak računalnik ne sme v način spanja ali zaklenjenega zaslona ipd.
 """
+
+import logging
 import os
-import time
 import shlex
 import subprocess
+import time
 import webbrowser
+
 import pyautogui
-import logging
 
 log = logging.getLogger(__name__)
 
 URLS = {
     # "21. Anglež z omleto": ("movies/0x-neurejeni-filmi/Zelenjavcki.Collection", "https://sf.strp2p.com/#ow6i9", 26 * 60),
 }
+
 
 def start_recording(output_path, duration):
     ffmpeg_cmd = f"""
@@ -48,6 +51,7 @@ def start_recording(output_path, duration):
     process.wait()
     log.info("Recording stopped. (CTRL+C to stop before next)")
 
+
 if __name__ == "__main__":
     for name, (output_dir, url, duration) in URLS.items():
         filename = os.path.join(output_dir, f"{name}.mp4")
@@ -60,12 +64,13 @@ if __name__ == "__main__":
             pyautogui.moveTo(x, y)  # pojdi z miško nekam sredi okna
             pyautogui.click()  # pritisni za začetek predvajanja
             pyautogui.moveTo(0, y)  # umakni miško na rob
-            time.sleep(1) # počakaj, da se naloži
-            pyautogui.press('f11') # celozaslonski način
+            time.sleep(1)  # počakaj, da se naloži
+            pyautogui.press("f11")  # celozaslonski način
             time.sleep(1)
             start_recording(
-                filename,
-                duration=duration + 30  # trajanje v sekundah
-                ) 
-            pyautogui.hotkey('ctrl', 'w') # zapri zavihek
-            time.sleep(180)  # počakaj, če bo uporabnik pritisnil CTRL+C za izhod
+                filename, duration=duration + 30  # trajanje v sekundah
+            )
+            pyautogui.hotkey("ctrl", "w")  # zapri zavihek
+            time.sleep(
+                180
+            )  # počakaj, če bo uporabnik pritisnil CTRL+C za izhod

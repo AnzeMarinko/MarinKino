@@ -4,6 +4,8 @@ __pycache__
 .env
 cache/logs
 credentials/*.json
+configuration/nginx
+configuration/certbot
 
 data/users.json
 data/redis_data/dump.rdb

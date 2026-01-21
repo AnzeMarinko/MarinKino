@@ -1,20 +1,28 @@
-import time
-import subprocess
-import os
 import logging
+import os
+import subprocess
+import time
+
 log = logging.getLogger(__name__)
+
 
 def is_ffmpeg_installed():
     """Preveri, če je ffmpeg nameščen."""
     try:
-        subprocess.run(["ffmpeg", "-version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+        subprocess.run(
+            ["ffmpeg", "-version"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=True,
+        )
         return True
     except FileNotFoundError:
         return False
 
+
 def remove(file):
     """Varno odstrani datoteko ali direktorij."""
-    
+
     if os.path.isdir(file):
         log.error(f"❌ Napaka pri brisanju {file}. To je mapa in ne datoteka.")
     else:
@@ -25,5 +33,6 @@ def remove(file):
             try:
                 os.remove(file)
             except PermissionError:
-                log.error(f"❌ Napaka pri brisanju {file}. Poskusi ročno odstraniti.")
-            
+                log.error(
+                    f"❌ Napaka pri brisanju {file}. Poskusi ročno odstraniti."
+                )
