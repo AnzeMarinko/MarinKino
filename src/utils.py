@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import pathlib
+import random
 import smtplib
 import ssl
 from datetime import date
@@ -9,6 +10,7 @@ from email.message import EmailMessage
 
 import redis
 from flask_login import UserMixin
+from werkzeug.security import generate_password_hash
 
 log = logging.getLogger(__name__)
 redis_client = redis.Redis(
@@ -27,7 +29,27 @@ def safe_path(base_folder, filename):
 
 
 # Load users
-with open("data/users.json", "r", encoding="utf-8") as f:
+users_file = "data/users.json"
+if not os.path.exists(users_file):
+    # make admin user
+    password = "".join(
+        random.choices(
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-+_!=?<>",
+            k=12,
+        )
+    )
+    users = {
+        "admin": {
+            "is_admin": True,
+            "initial_password": password,
+            "password_hash": generate_password_hash(password),
+            "emails": [os.getenv("GMAIL_USERNAME")],
+            "incoming_date": date.today().isoformat(),
+        }
+    }
+    with open(users_file, "w", encoding="utf-8") as f:
+        f.write(json.dumps(users, indent=4))
+with open(users_file, "r", encoding="utf-8") as f:
     users = json.loads(f.read())
 
 
