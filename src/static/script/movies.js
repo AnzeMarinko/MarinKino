@@ -97,10 +97,9 @@ async function loadNextPage() {
     }
 }
 
-// Render funkcija, ki ustvari DOM strukturo enako tvojemu Jinja templatu
 function renderMovieCard(movie) {
     const wrapper = document.createElement("div");
-    wrapper.className = `movie-card ${movie.movie_id}`;
+    wrapper.className = `movie-card ${movie.movie_id} ${movie.is_recommended ? "glowing" : ""}`;
     wrapper.style = `--watch: ${movie.watch_ratio}%;`;
 
     wrapper.innerHTML = `

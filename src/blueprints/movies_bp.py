@@ -20,7 +20,7 @@ from flask import (
 )
 from flask_login import current_user, login_required
 
-from prepare_movies import FILMS_ROOT, check_folder
+from movies_preparation import FILMS_ROOT, check_folder
 from utils import redis_client, safe_path
 
 log = logging.getLogger(__name__)
@@ -96,6 +96,7 @@ all_films = [
             for subtitle in m.subtitles
         ],
         "movie_id": f"mov_{i}",
+        "is_recommended": m.is_recommended,
     }
     for i, m in enumerate(all_films)
 ]

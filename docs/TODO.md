@@ -1,6 +1,10 @@
 # TODO:
 
-* dodaj pytest
+* dodaj pytest (https://gemini.google.com/u/1/app/e130f713237e3fb2)
+* ko poženem prepare_movies se metadata, ki je v json shranijo v SQL bazo in se potem v app.py samo to uporablja (od tam briše ipd.). naj ima ta skripta tudi svoj flask za pregled delovanja, ročno spreminjanje vrednosti v jsonih
+* dodaj filter za priporočene filme (onlyrecommended) in možnost označevanja za admin-a
+* pošlji prve predloge filmov na mail
+* nov release v1.2.0 glede na commit messages
 
 Glasba:
 * naredi playlisto vsega kar bi rad imel (najprej Youtube music in nato še navaden Youtube)

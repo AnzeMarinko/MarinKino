@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import datetime
 
@@ -24,4 +25,14 @@ LOG_FILENAME = os.path.join(
     LOG_DIR, f"server_start_{FLASK_ENV}_{timestamp}.log"
 )
 
-IZJEME = {}
+file_handler = logging.FileHandler(LOG_FILENAME, encoding="utf-8")
+console_handler = logging.StreamHandler()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - 1 - [%(levelname)s] - %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=[file_handler, console_handler],
+)
+logging.getLogger("waitress.queue").setLevel(logging.WARNING)
+log = logging.getLogger(__name__)

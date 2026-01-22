@@ -5,7 +5,7 @@ import chardet
 import gemini_srt_translator as gst
 from langdetect import detect
 
-from .helpers import remove
+from ..helpers import remove
 
 log = logging.getLogger(__name__)
 

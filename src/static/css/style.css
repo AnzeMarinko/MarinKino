@@ -411,3 +411,12 @@ video, img {
     margin-bottom: 1rem;
     font-weight: bold;
 }
+
+.glowing {
+  box-shadow: 0 0 15px 5px rgba(0, 123, 255, 0.5);
+  transition: box-shadow 0.3s ease-in-out;
+}
+
+.glowing:hover {
+  box-shadow: 0 0 20px rgba(247, 151, 55, 0.8);
+}

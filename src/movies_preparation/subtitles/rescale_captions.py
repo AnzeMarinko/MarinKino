@@ -54,6 +54,21 @@ def extract_subtitles(srt_file):
     return out_subs
 
 
+def convert_srt_to_vtt(srt_path):
+    with (
+        open(srt_path, "r", encoding="utf-8") as srt_file,
+        open(
+            srt_path[:-5] + srt_path[-5:].replace(".srt", ".vtt"),
+            "w",
+            encoding="utf-8",
+        ) as vtt_file,
+    ):
+        vtt_file.write("WEBVTT\n\n")
+        for line in srt_file:
+            # Zamenjaj vejico z decimalno piko
+            vtt_file.write(line.replace(",", "."))
+
+
 def extract_audio(folder, video_path):
 
     voice_file = os.path.join(folder, ".detected-voice-activity.pkl")
@@ -193,13 +208,14 @@ def aux_rescale_captions(subtitles, speech):
     best_score = -res.fun
 
     log.info(
-        f"Scale: {best_a * 100:.3f} %, Shift: {best_b:.3f} s, Score improvement: {(best_score / current_score - 1) * 100:.2f} %"
+        f"Scale: {best_a * 100:.3f} %, Shift: {best_b:.3f} s, "
+        f"Score improvement: {(best_score / current_score - 1) * 100:.2f} %"
     )
 
     return best_a, best_b, aux_get_subtitle_audio
 
 
-def rescale_captions(folder, subtitle_path, video_path, plot=False):
+def rescale_subtitles(folder, subtitle_path, video_path, plot=False):
     file_name = os.path.basename(subtitle_path)
     original_file = subtitle_path.replace(
         file_name, "." + file_name + ".original"
@@ -208,38 +224,41 @@ def rescale_captions(folder, subtitle_path, video_path, plot=False):
         audio, speech = extract_audio(folder, video_path)
         subtitles = extract_subtitles(subtitle_path)
         if subtitles:
-            if len(subtitles) < 200:
-                return None
-            log.info(f"⚙ Poravnavam podnapise: {video_path}")
-            scale, shift, aux_get_subtitle_audio = aux_rescale_captions(
-                subtitles, speech
-            )
-            if abs(scale - 1) < 0.05 and abs(shift) < 10:
-                generate_srt(0, 1, subtitles, original_file)
-                last_sub_end = subtitles[-1][1]
-                subtitles.append(
-                    (
-                        last_sub_end + 1,
-                        last_sub_end + 20,
-                        f"Podnapisi avtomatsko raztegnjeni za {(scale-1) * 100:.1f} %\nin zamaknjeni za {shift:.1f} sekund.",
+            if len(subtitles) >= 200:
+                log.info(f"⚙ Poravnavam podnapise: {video_path}")
+                scale, shift, aux_get_subtitle_audio = aux_rescale_captions(
+                    subtitles, speech
+                )
+                if abs(scale - 1) < 0.05 and abs(shift) < 10:
+                    generate_srt(0, 1, subtitles, original_file)
+                    last_sub_end = subtitles[-1][1]
+                    subtitles.append(
+                        (
+                            last_sub_end + 1,
+                            last_sub_end + 20,
+                            f"Podnapisi avtomatsko raztegnjeni za "
+                            f"{(scale-1) * 100:.1f} %\nin zamaknjeni "
+                            f"za {shift:.1f} sekund.",
+                        )
                     )
-                )
-                generate_srt(shift, scale, subtitles, subtitle_path)
-                return None
-            if plot:
-                plt.figure()
-                plt.plot(audio, label="audio")
-                plt.plot(aux_get_subtitle_audio(1, 0) * 0.8, label="subtitles")
-                plt.plot(
-                    aux_get_subtitle_audio(scale, shift) * 0.7,
-                    label="best subtitles",
-                )
-                plt.plot(speech * 0.6, label="speech")
-                plt.legend()
-                plt.title(os.path.basename(folder).replace(".", " "))
-                plt.show()
-            return audio, subtitles, speech
+                    generate_srt(shift, scale, subtitles, subtitle_path)
+                    if plot:
+                        plt.figure()
+                        plt.plot(audio, label="audio")
+                        plt.plot(
+                            aux_get_subtitle_audio(1, 0) * 0.8,
+                            label="subtitles",
+                        )
+                        plt.plot(
+                            aux_get_subtitle_audio(scale, shift) * 0.7,
+                            label="best subtitles",
+                        )
+                        plt.plot(speech * 0.6, label="speech")
+                        plt.legend()
+                        plt.title(os.path.basename(folder).replace(".", " "))
+                        plt.show()
         else:
             with open(original_file, "w", encoding="UTF-8") as f:
                 f.write("")
             log.warning(f"Empy subtitles: {folder}")
+    convert_srt_to_vtt(subtitle_path)

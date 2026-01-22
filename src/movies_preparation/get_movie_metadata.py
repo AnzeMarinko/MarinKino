@@ -5,6 +5,7 @@ import os
 import re
 import subprocess
 from difflib import SequenceMatcher
+from pathlib import Path
 
 import requests
 from google.cloud import translate_v2 as translate
@@ -275,43 +276,50 @@ def get_movie_metadata(folder, film, video_files):
 
 
 class MovieMetadata:
-    def __init__(self, folder):
-        film_name = os.path.basename(folder)
+    SUPPORTED_VIDEO = {".avi", ".mp4", ".mkv", ".vob"}
 
+    def __init__(self, folder):
         self.folder = folder
-        film_name = (
-            film_name.split(".SLOS")[0]
-            .split(".SLOs")[0]
-            .split(".SLoS")[0]
-            .split(".SloS")[0]
-            .split(".EngS")[0]
-            .split(".ENGS")[0]
-            .split(".CROS")[0]
-            .replace(".", " ")
-            .replace("-", " ")
+        self.path = Path(folder)
+        self.folder_str = str(folder)
+
+        # Očistimo ime filma
+        # replace(".", " ") bi lahko pokvaril kratice, zato čistimo le ločila
+        raw_name = self.path.name.replace(".", " ").replace("-", " ")
+        self.title = " ".join(raw_name.split()).title()
+
+        # Vsebino mape preberemo samo enkrat za večjo hitrost
+        folder_contents = (
+            list(self.path.iterdir()) if self.path.exists() else []
         )
+
+        # Filtriranje datotek z uporabo pathlib suffixov (ki vključujejo piko)
         self.video_files = sorted(
             [
-                os.path.basename(f)
-                for f in os.listdir(folder)
-                if f.split(".")[-1] in {"avi", "mp4", "mkv", "vob"}
+                f.name
+                for f in folder_contents
+                if f.is_file() and f.suffix.lower() in self.SUPPORTED_VIDEO
             ]
         )
+
         self.subtitles = [
-            os.path.basename(f)
-            for f in os.listdir(folder)
-            if f.split(".")[-1] == "vtt"
+            f.name
+            for f in folder_contents
+            if f.is_file() and f.suffix.lower() == ".vtt"
         ]
-        self.slosinh = "sinh" in os.path.basename(folder).lower()
+
+        # Logične zastavice
+        self.slosinh = "sinh" in self.path.name.lower()
+        self.is_collection = ".collection" in self.path.name.lower()
 
         metadata, cover = get_movie_metadata(
-            folder, film_name, self.video_files
+            folder, self.title, self.video_files
         )
 
         self.cover = cover
         self.thumbnail = create_thumbnail(cover)
-        self.film_name = metadata.get("Film", film_name)
-        self.title = metadata.get("Title", film_name)
+        self.film_name = metadata.get("Film", self.title)
+        self.title = metadata.get("Title", self.title)
         self.original_title = metadata.get("OriginalTitle", "")
         self.genres = metadata.get("Genres", [])
         self.year = metadata.get("Year", "")
@@ -324,3 +332,4 @@ class MovieMetadata:
             metadata.get("Plot - translated", metadata.get("Plot", ""))
         )
         self.imdb_id = metadata.get("imdb_id", "")
+        self.is_recommended = metadata.get("is_recommended", False)
