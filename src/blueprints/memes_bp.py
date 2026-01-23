@@ -84,5 +84,7 @@ def meme_remove(meme_file_name):
         path = safe_path("../data/memes", meme_file_name)
     except ValueError:
         return "", 404
+    if not os.path.exists(path):
+        return "", 404
     os.remove(path)
     return "", 204

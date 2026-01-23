@@ -210,7 +210,7 @@ def reset_password(token):
         flash(
             "Neveljavna ali potekla povezava za ponastavitev gesla.", "error"
         )
-        return redirect(url_for("auth.login"))
+        return redirect(url_for("auth.login"), code=400)
 
     expiry_iso = user_data.get("reset_expiry")
     try:
@@ -226,7 +226,7 @@ def reset_password(token):
         redis_client.incr(
             f"auth:reset_token_expired:{date.today().isoformat()[:7]}:{username}"
         )
-        return redirect(url_for("auth.login"))
+        return redirect(url_for("auth.login"), code=400)
 
     if request.method == "POST":
         new_password = request.form.get("password", "")

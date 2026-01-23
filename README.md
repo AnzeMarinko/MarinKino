@@ -19,5 +19,6 @@ Preko strani pa je dostopno tudi:
 ## Navodila za razvijalce
 * [Nastavitev MarinKino serverja](docs/installation.md)
 * [Dodajanje novih vsebin](docs/adding_data.md)
+* [Avtomatsko testiranje API-ja](docs/pytest.md)
 
 V primeru napak, pomanjkljivosti navodil ali slabega delovanja priprave filmov in strežnika bom vesel predlogov.

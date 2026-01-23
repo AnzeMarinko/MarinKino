@@ -488,7 +488,7 @@ def video_progress():
     data = json.loads(request.data)
     filename = unquote(data["filename"].split("/movies/file/")[-1])
     if filename == "unknown":
-        return "", 204
+        return "", 404
 
     current_time = round(data["currentTime"] - 0.49)
     duration = round(data["duration"], 1)

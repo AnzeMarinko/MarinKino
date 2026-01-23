@@ -28,6 +28,7 @@ fi
 echo "🚀 Začenjam avtomatsko vzpostavitev za $DOMAIN ($EMAIL)..."
 
 chmod +x ./scripts/duckdns_refresh.sh
+chmod +x ./scripts/run_tests.sh
 chmod +x ./scripts/rclone/rclone-sync-gdrive.sh
 
 # 1. Pridobimo trenutni crontab (če ne obstaja, ustvarimo praznega)

@@ -108,5 +108,7 @@ def song_remove(filename):
         path = safe_path("../data/music", filename)
     except ValueError:
         return "", 404
+    if not os.path.exists(path):
+        return "", 404
     os.remove(path)
     return "", 204
