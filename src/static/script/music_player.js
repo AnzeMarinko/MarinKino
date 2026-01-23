@@ -80,22 +80,42 @@ function playTrack(i) {
     nowPlayingArtist.textContent = artist;
     nowPlayingAlbum.textContent = album;
 
+    // 1. Nastavi vir
     audio.src = "/music/file/" + currentTrack;
-    audio.currentTime = 0;
-    audio.play().catch(() => {});
+    
+    // 2. Eksplicitno naloži (pomaga na iOS)
+    audio.load(); 
+
+    // 3. Obravnavaj Play Promise
+    const playPromise = audio.play();
+
+    if (playPromise !== undefined) {
+        playPromise.then(_ => {
+            // Predvajanje se je uspešno začelo
+            updatePlayBtn("true");
+            
+            // Nastavi Media Session šele ko se dejansko začne predvajati
+            updateMediaSession(title, artist, album);
+        })
+        .catch(error => {
+            console.error("Napaka pri predvajanju:", error);
+            // Če je napaka, posodobi gumb na "pause", da uporabnik vidi, da ne igra
+            updatePlayBtn("false");
+        });
+    }
 
     highlightTrack();
     scrollToActiveTrack();
+}
 
-    // === MEDIA SESSION (iPhone lock screen, Control Center) ===
+// Ločena funkcija za Media Session (da je koda bolj čista)
+function updateMediaSession(title, artist, album) {
     if ("mediaSession" in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata({
             title: title,
             artist: artist,
             album: album,
             artwork: [
-                { src: "/static/logo.png", sizes: "96x96", type: "image/png" },
-                { src: "/static/logo.png", sizes: "192x192", type: "image/png" },
                 { src: "/static/logo.png", sizes: "512x512", type: "image/png" }
             ]
         });
@@ -104,20 +124,13 @@ function playTrack(i) {
             audio.play();
             updatePlayBtn("true");
         });
-
         navigator.mediaSession.setActionHandler("pause", () => {
             audio.pause();
             updatePlayBtn("false");
         });
-
-        navigator.mediaSession.setActionHandler("previoustrack", () => {
-            prev();
-        });
-
-        navigator.mediaSession.setActionHandler("nexttrack", () => {
-            next();
-        });
-            }
+        navigator.mediaSession.setActionHandler("previoustrack", prev);
+        navigator.mediaSession.setActionHandler("nexttrack", next);
+    }
 }
 
 
@@ -225,6 +238,22 @@ function izbrisiPesem() {
         });
     }
 }
+
+audio.addEventListener('waiting', () => {
+    console.log("Audio se nalaga...");
+    // Tukaj lahko dodaš kakšen "loading spinner" na UI
+});
+
+audio.addEventListener('playing', () => {
+    console.log("Audio igra.");
+});
+
+// Zelo pomembno: Poskusi ponovno predvajati, če se zatakne
+audio.addEventListener('stalled', () => {
+   console.log("Povezava je prekinjena, poskušam ponovno naložiti.");
+   audio.load();
+   audio.play().catch(e => console.error(e));
+});
 
 // Initialize
 loadAlbum(currentAlbum);

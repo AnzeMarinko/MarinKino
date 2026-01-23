@@ -84,7 +84,7 @@ async function loadNextPage() {
     const data = await response.json();
 
     data.movies.forEach(movie => {
-        if ((localStorage.getItem("onlyunwatched") !== "true") | (movie.watch_ratio < 100)) {
+        if (((localStorage.getItem("onlyunwatched") !== "true") | (movie.watch_ratio < 100)) & ((localStorage.getItem("onlyrecommended") !== "true") | (movie.recommendation_level != ""))) {
             const card = renderMovieCard(movie);
             grid.appendChild(card);
             attachHover(card);
@@ -99,7 +99,7 @@ async function loadNextPage() {
 
 function renderMovieCard(movie) {
     const wrapper = document.createElement("div");
-    wrapper.className = `movie-card ${movie.movie_id} ${movie.is_recommended ? "glowing" : ""}`;
+    wrapper.className = `movie-card ${movie.movie_id} ${movie.recommendation_level}`;
     wrapper.style = `--watch: ${movie.watch_ratio}%;`;
 
     wrapper.innerHTML = `
@@ -128,13 +128,22 @@ function renderMovieCard(movie) {
 
             <br><hr>
 
-            <div class="izbira" movie-id="${movie.movie_id}">
+            <div class="selectors izbira" movie-id="${movie.movie_id}">
                 <input type="radio" id="opcija1-${movie.movie_id}" name="izbor-${movie.movie_id}" value="0">
                 <label for="opcija1-${movie.movie_id}">Nepogledano</label>
 
                 <input type="radio" id="opcija2-${movie.movie_id}" name="izbor-${movie.movie_id}" value="100">
                 <label for="opcija2-${movie.movie_id}">Pogledano</label>
             </div>
+            ${movie.is_admin ? `
+            <hr><div class="selectors priporocilo" movie-folder="${movie.folder}">
+                <input type="radio" id="priporocilo1-${movie.movie_id}" name="priporocaj-${movie.movie_id}" value="">
+                <label for="priporocilo1-${movie.movie_id}">Odstrani priporočilo</label>
+                <input type="radio" id="priporocilo2-${movie.movie_id}" name="priporocaj-${movie.movie_id}" value="recommend">
+                <label for="priporocilo2-${movie.movie_id}">Priporoči</label>
+                <input type="radio" id="priporocilo3-${movie.movie_id}" name="priporocaj-${movie.movie_id}" value="warm-recommend">
+                <label for="priporocilo3-${movie.movie_id}">Toplo priporoči</label>
+            </div>` : ""}
         </div>
 
         <div class="buttons">
@@ -163,10 +172,10 @@ if (grid) {
 }
 
 document.addEventListener("change", (e) => {
-    if (e.target.matches('.izbira input[type="radio"]')) {
+    if (e.target.matches('.selectors.izbira input[type="radio"]')) {
 
         const radio = e.target;
-        const skupina = radio.closest(".izbira");
+        const skupina = radio.closest(".selectors.izbira");
         const movieId = skupina.getAttribute("movie-id");
         const izbor = radio.value;
 
@@ -184,23 +193,62 @@ document.addEventListener("change", (e) => {
         document.querySelectorAll('.' + movieId).forEach(el => {
             el.style.setProperty('--watch', izbor + '%');
         });
+    } else if ((e.target.matches('.selectors.priporocilo input[type="radio"]'))) {
+
+        const radio = e.target;
+        const skupina = radio.closest(".selectors.priporocilo");
+        const movieFolder = skupina.getAttribute("movie-folder");
+        const recommendation_level = radio.value;
+
+        const token = document.querySelector('meta[name="csrf-token"]').content;
+
+        fetch("/movies/recommend", {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRFToken': token
+            },
+            body: JSON.stringify({ recommendation_level, movieFolder })
+        });
+
     }
 });
 
 document.addEventListener("DOMContentLoaded", function () {
-    const checkbox = document.getElementById("onlyunwatched");
-    if (!checkbox) return;
+    const onlyunwatched_checkbox = document.getElementById("onlyunwatched");
+    const onlyunwatched_label = document.getElementById("onlyunwatchedlabel");
+    if (!onlyunwatched_checkbox) return;
 
     // preberi shranjeno vrednost
-    const saved = localStorage.getItem("onlyunwatched");
+    const onlyunwatched_saved = localStorage.getItem("onlyunwatched");
 
-    if (saved !== null) {
-        checkbox.checked = saved === "true";
+    if (onlyunwatched_saved !== null) {
+        onlyunwatched_checkbox.checked = onlyunwatched_saved === "true";
     }
+    onlyunwatched_label.innerHTML = onlyunwatched_checkbox.checked ? "Prikaži pogledano" : "Skrij pogledano"
 
     // ko uporabnik klikne, shrani
-    checkbox.addEventListener("change", function () {
-        localStorage.setItem("onlyunwatched", checkbox.checked);
+    onlyunwatched_checkbox.addEventListener("change", function () {
+        onlyunwatched_label.innerHTML = onlyunwatched_checkbox.checked ? "Prikaži pogledano" : "Skrij pogledano"
+        localStorage.setItem("onlyunwatched", onlyunwatched_checkbox.checked);
+    });
+
+    const onlyrecommended_checkbox = document.getElementById("onlyrecommended");
+    const onlyrecommended_label = document.getElementById("onlyrecommendedlabel");
+    if (!onlyrecommended_checkbox) return;
+
+    // preberi shranjeno vrednost
+    const onlyrecommended_saved = localStorage.getItem("onlyrecommended");
+
+    if (onlyrecommended_saved !== null) {
+        onlyrecommended_checkbox.checked = onlyrecommended_saved === "true";
+    }
+    onlyrecommended_label.innerHTML = onlyrecommended_checkbox.checked ? "Tudi brez priporočil" : "Samo priporočeni"
+
+    // ko uporabnik klikne, shrani
+    onlyrecommended_checkbox.addEventListener("change", function () {
+        onlyrecommended_label.innerHTML = onlyrecommended_checkbox.checked ? "Tudi brez priporočil" : "Samo priporočeni"
+        localStorage.setItem("onlyrecommended", onlyrecommended_checkbox.checked);
     });
 });
 

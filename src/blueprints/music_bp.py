@@ -88,7 +88,15 @@ def song(filename):
         path = safe_path("../data/music", filename)
     except ValueError:
         return "", 404
-    return send_from_directory("../data/music", filename, conditional=True)
+    response = send_from_directory("../data/music", filename, conditional=True)
+    response.headers["Accept-Ranges"] = "bytes"
+    if filename.endswith(".mp3"):
+        response.headers["Content-Type"] = "audio/mpeg"
+    elif filename.endswith(".m4a"):
+        response.headers["Content-Type"] = "audio/mp4"
+    elif filename.endswith(".wav"):
+        response.headers["Content-Type"] = "audio/wav"
+    return response
 
 
 @music_bp.route("/music/delete/<path:filename>", methods=["DELETE"])

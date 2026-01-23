@@ -372,17 +372,17 @@ video, img {
     max-width: 100%;
 }
 
-.izbira {
+.selectors {
     display: flex;
     gap: 1rem;
     font-family: sans-serif;
 }
 
-.izbira input[type="radio"] {
+.selectors input[type="radio"] {
     display: none; /* skrij radio gumb */
 }
 
-.izbira label {
+.selectors label {
     padding: 5px 10px;
     border: 1px solid #ccc;
     border-radius: 8px;
@@ -400,6 +400,12 @@ video, img {
     font-weight: bold;
 }
 
+.priporocilo input[type="radio"]:checked + label {
+    background-color: #e0b5ff;
+    border-color: #8c46bf;
+    font-weight: bold;
+}
+
 .video-btn.selected {
     background-color: #4CAF50;
     color: white;
@@ -412,11 +418,12 @@ video, img {
     font-weight: bold;
 }
 
-.glowing {
+.recommend {
   box-shadow: 0 0 15px 5px rgba(0, 123, 255, 0.5);
   transition: box-shadow 0.3s ease-in-out;
 }
 
-.glowing:hover {
-  box-shadow: 0 0 20px rgba(247, 151, 55, 0.8);
+.warm-recommend {
+  box-shadow: 0 0 20px 10px rgba(247, 151, 55, 0.8);
+  transition: box-shadow 0.3s ease-in-out;
 }

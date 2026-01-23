@@ -5,7 +5,6 @@ import os
 import random
 import re
 import shutil
-from copy import copy
 from datetime import datetime, timezone
 from urllib.parse import unquote
 
@@ -57,9 +56,8 @@ for g in GENRES_MAPPING.values():
 MOVIES_PER_PAGE = 40
 
 # Initialize films
-all_films = check_folder(FILMS_ROOT)
-all_films = [
-    {
+all_films = {
+    m.folder.replace(FILMS_ROOT, ""): {
         "cover": m.cover.replace(FILMS_ROOT, ""),
         "thumbnail": m.thumbnail.replace(FILMS_ROOT, ""),
         "title": m.title,
@@ -96,25 +94,21 @@ all_films = [
             for subtitle in m.subtitles
         ],
         "movie_id": f"mov_{i}",
-        "is_recommended": m.is_recommended,
+        "recommendation_level": m.recommendation_level,
     }
-    for i, m in enumerate(all_films)
-]
+    for i, m in enumerate(check_folder(FILMS_ROOT))
+}
 
-groups = [f["group_folder"] for f in all_films]
+groups = [f["group_folder"] for f in all_films.values()]
 group_folders = {
     g: g[3:].replace("-", " ").title() + f" ({groups.count(g)})"
     for g in sorted(list(set(groups)))
 }
-all_films = {
-    g: [f for f in all_films if f["group_folder"] == g]
-    for g in group_folders.keys()
-}
+recommendation_levels = ["", "recommend", "warm-recommend"]
 
 global_movie_index = {}
-for group in all_films.values():
-    for m in group:
-        global_movie_index[m["movie_id"]] = m
+for m in all_films.values():
+    global_movie_index[m["movie_id"]] = m
 
 
 def get_user_progress_data(user_id):
@@ -177,6 +171,7 @@ def index():
         )
         sort = request.args.get("sort", movies_settings.get("sort", ""))
         onlyunwatched = request.args.get("onlyunwatched")
+        onlyrecommended = request.args.get("onlyrecommended")
         movietype = request.args.get(
             "movietype", movies_settings.get("movietype", "")
         )
@@ -188,18 +183,19 @@ def index():
         search_query = request.args.get("q", "").strip().lower()
 
         user_data = get_user_progress_data(current_user.id)
-        movies = copy(
-            all_films.get(
-                movietype,
-                [m for movies_list in all_films.values() for m in movies_list],
-            )
-        )
+        movies = [
+            m
+            for m in all_films.values()
+            if (m["group_folder"] == movietype) or (movietype == "")
+        ]
         movies = [add_watch_info(m, user_data) for m in movies]
 
         if genre_filter:
             movies = [m for m in movies if genre_filter in m.get("genres", [])]
         if onlyunwatched == "on":
             movies = [m for m in movies if m["watch_ratio"] < 100]
+        if onlyrecommended == "on":
+            movies = [m for m in movies if m["recommendation_level"]]
 
         if sort:
             movies = sorted(
@@ -248,6 +244,7 @@ def index():
         genre_filter = request.args.get("genre")
         sort = request.args.get("sort")
         onlyunwatched = request.args.get("onlyunwatched")
+        onlyrecommended = request.args.get("onlyrecommended")
         movietype = request.args.get("movietype")
         movies = []
 
@@ -264,6 +261,7 @@ def index():
         selected_genre=genre_filter,
         sort=sort,
         onlyunwatched=onlyunwatched == "on",
+        onlyrecommended=onlyrecommended == "on",
         group_folders={
             k: v
             for k, v in group_folders.items()
@@ -305,16 +303,13 @@ def movies_page():
 def play_movie(movies_subfolder, movie_folder):
     user_data = get_user_progress_data(current_user.id)
 
-    film_candidates = [
-        f
-        for f in all_films[movies_subfolder]
-        if os.path.sep + os.path.join("", movies_subfolder, movie_folder)
-        == f["folder"]
-    ]
-    if len(film_candidates) != 1:
-        log.error(f"Got {len(film_candidates)} candidates!")
+    film_candidate = all_films.get(
+        os.path.sep + os.path.join("", movies_subfolder, movie_folder)
+    )
+    if film_candidate is None:
+        log.error("There is no film candidates!")
         return 0
-    film = add_watch_info(film_candidates[0], user_data)
+    film = add_watch_info(film_candidate, user_data)
     video_files = film["video_files"]
     subtitles = film["subtitles"]
     subtitle_buttons = film["subtitle_buttons"]
@@ -354,11 +349,10 @@ def remove_movie(movies_subfolder, movie_folder):
     removing_folder = os.path.sep + os.path.join(
         "", movies_subfolder, movie_folder
     )
-    all_films[movies_subfolder] = [
-        f
-        for f in all_films[movies_subfolder]
-        if removing_folder != f["folder"]
-    ]
+    if removing_folder not in all_films.keys():
+        log.error(f"Manjka film za odstranjevanje: {removing_folder}")
+        return {"status": "missing", "folder": removing_folder}
+    all_films.pop(removing_folder)
     removing_folder = os.path.join(
         "../" + FILMS_ROOT, movies_subfolder, movie_folder
     )
@@ -378,7 +372,50 @@ def remove_movie(movies_subfolder, movie_folder):
         except Exception as e:
             log.error(f"Napaka pri brisanju {path}: {e}")
     shutil.rmtree(removing_folder)
+    log.info(f"Film {removing_folder} odstranjen")
     return {"status": "success", "folder": removing_folder}
+
+
+@movies_bp.route("/movies/recommend", methods=["POST"])
+@login_required
+def remcommend_movie():
+    global all_films
+    if not current_user.is_admin:
+        return redirect(url_for("movies.index"))
+    data = json.loads(request.data)
+
+    recommendation_level = data["recommendation_level"]
+    recommending_folder = data["movieFolder"]
+    if recommending_folder not in all_films.keys():
+        log.error(f"Manjka film za predlog: {recommending_folder}")
+        return {"status": "missing", "folder": recommending_folder}
+
+    if recommendation_level not in recommendation_levels:
+        log.error(f"Neveljaven nivo priporočila: {recommendation_level}")
+        return {
+            "status": "invalid_level",
+            "recommendation_level": recommendation_level,
+        }
+
+    all_films[recommending_folder][
+        "recommendation_level"
+    ] = recommendation_level
+    recommending_metadata_file = os.path.join(
+        FILMS_ROOT, recommending_folder[1:], "readme.json"
+    )
+    with open(recommending_metadata_file, "r", encoding="utf-8") as f:
+        movie_metadata = json.loads(f.read())
+    movie_metadata["recommendation_level"] = recommendation_level
+    with open(recommending_metadata_file, "w", encoding="utf-8") as f:
+        json.dump(movie_metadata, f, ensure_ascii=False, indent=4)
+    log.info(
+        f"Filmu {recommending_folder} nastavljen nivo priporočila: '{recommendation_level}'"
+    )
+    return {
+        "status": "success",
+        "folder": recommending_folder,
+        "recommendation_level": recommendation_level,
+    }
 
 
 @movies_bp.route("/movies/file/<movies_subfolder>/<movie_folder>/<filename>")
@@ -482,11 +519,10 @@ def video_progress():
 def video_progress_change():
     data = json.loads(request.data)
     selected_movie = None
-    for fs in all_films.values():
-        for f in fs:
-            if f["movie_id"] == data["movieId"]:
-                selected_movie = f
-                break
+    for f in all_films.values():
+        if f["movie_id"] == data["movieId"]:
+            selected_movie = f
+            break
     if selected_movie is None:
         return "", 204
 

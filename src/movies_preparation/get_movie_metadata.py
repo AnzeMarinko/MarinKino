@@ -332,4 +332,4 @@ class MovieMetadata:
             metadata.get("Plot - translated", metadata.get("Plot", ""))
         )
         self.imdb_id = metadata.get("imdb_id", "")
-        self.is_recommended = metadata.get("is_recommended", False)
+        self.recommendation_level = metadata.get("recommendation_level", "")

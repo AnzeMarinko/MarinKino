@@ -5,7 +5,7 @@
 <main class="container">
 <div class="movie-page">
     <div class="description">
-        <div class="cover"><img src="/movies/file{{ movie.cover }}" alt="Poster"></div>
+        <div class="cover"><img src="/movies/file{{ movie.cover }}" alt="Poster" class="{{ movie.recommendation_level }}"></div>
         <h1><b>{{ movie.title }}</b>{{ movie.year }}<br><i style="opacity: 0.5;">{{ movie.original_title }}</i><div class="slosinh">{{ movie.slosinh }}</div></h1></br>
         <div class="genres">
             {% for genre in movie.genres %}
@@ -30,7 +30,7 @@
         <hr>
         {% else %}
 
-            <div class="izbira" movie-id="{{ movie.movie_id }}">
+            <div class="selectors izbira" movie-id="{{ movie.movie_id }}">
                 <input type="radio" id="opcija1-{{ movie.movie_id }}" name="izbor-{{ movie.movie_id }}" value="0">
                 <label for="opcija1-{{ movie.movie_id }}">Nepogledano</label>
 
@@ -40,6 +40,15 @@
         
             {% if current_user.is_admin %}
             <div class="buttons">
+                <hr>
+                <div class="selectors priporocilo" movie-folder="{{ movie.folder }}">
+                    <input type="radio" id="priporocilo1-{{ movie.movie_id }}" name="priporocaj-{{ movie.movie_id }}" value="">
+                    <label for="priporocilo1-{{ movie.movie_id }}">Odstrani priporočilo</label>
+                    <input type="radio" id="priporocilo2-{{ movie.movie_id }}" name="priporocaj-{{ movie.movie_id }}" value="recommend">
+                    <label for="priporocilo2-{{ movie.movie_id }}">Priporoči</label>
+                    <input type="radio" id="priporocilo3-{{ movie.movie_id }}" name="priporocaj-{{ movie.movie_id }}" value="warm-recommend">
+                    <label for="priporocilo3-{{ movie.movie_id }}">Toplo priporoči</label>
+                </div><hr>
                 <form action="/movies/remove{{ movie.folder }}" method="post" onsubmit="return odstraniMovieCard(event, this);">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit">Odstrani</button>
