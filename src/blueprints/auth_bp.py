@@ -17,7 +17,7 @@ from flask import (
 from flask_login import current_user, login_required, login_user, logout_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from utils import find_user_by_email, redis_client
+from utils import find_user_by_email, redis_client, users_file
 
 log = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ def init_auth_bp(_users, _User, _send_mail):
 
 def save_users():
     global users
-    with open("data/users.json", "w", encoding="utf-8") as f:
+    with open(users_file, "w", encoding="utf-8") as f:
         import json
 
         f.write(json.dumps(users, indent=4))

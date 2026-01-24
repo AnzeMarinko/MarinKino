@@ -2,52 +2,39 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Primerjava</title>
+<title>Urejanje Podatkov</title>
 
 <style>
-body {
-  font-family: system-ui, sans-serif;
-  margin: 20px;
-}
+body { font-family: system-ui, sans-serif; margin: 20px; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; } /* Fixed layout for better textareas */
+th { background: #eee; padding: 10px; text-align: left; }
+td { border: 1px solid #ccc; padding: 10px; vertical-align: top; }
 
-table {
+/* Stari stolpec - dodamo hover efekt da uporabnik ve, da je kisljiv */
+td.old-val { cursor: pointer; background: #fafafa; width: 40%; }
+td.old-val:hover { background: #e6f7ff; }
+td.old-val:active { background: #cceeff; }
+
+/* Novi stolpec - prostor za urejanje */
+td.new-val { width: 45%; }
+
+img { max-width: 150px; display: block; margin-bottom: 5px; }
+
+/* Stil za vnosna polja */
+textarea, input[type="text"] {
   width: 100%;
-  border-collapse: collapse;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 14px;
+  padding: 8px;
+  border: 1px solid #aaa;
+  border-radius: 4px;
 }
+textarea { min-height: 80px; resize: vertical; }
 
-th {
-  background: #eee;
-  padding: 10px;
-}
-
-td {
-  border: 1px solid #ccc;
-  padding: 10px;
-  vertical-align: top;
-  cursor: pointer;
-}
-
-td.selected {
-  background: #cde7ff;
-  outline: 3px solid #3390ff;
-}
-
-img {
-  max-width: 220px;
-  display: block;
-  margin-bottom: 10px;
-}
-
-.nav {
-  margin-top: 20px;
-  display: flex;
-  justify-content: space-between;
-}
-
-button {
-  padding: 10px 20px;
-  font-size: 16px;
-}
+.nav { margin-top: 20px; display: flex; justify-content: space-between; position: sticky; bottom: 0; background: white; padding: 10px; border-top: 1px solid #eee;}
+button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #333; color: white; border: none; border-radius: 4px;}
+button:hover { background: #555; }
 </style>
 </head>
 
@@ -55,98 +42,127 @@ button {
 
 <h2 id="counter"></h2>
 
+<table>
+<thead>
+<tr>
+  <th style="width: 15%">Polje</th>
+  <th style="width: 40%">Staro (Klikni za kopiranje)</th>
+  <th style="width: 45%">Novo (Uredi tukaj)</th>
+</tr>
+</thead>
+<tbody id="rows"></tbody>
+</table>
+
 <div class="nav">
   <button onclick="prev()">← Nazaj</button>
   <button onclick="saveAndNext()">Shrani & Naprej →</button>
 </div>
 
-<table>
-<thead>
-<tr>
-  <th>Polje</th>
-  <th>Staro</th>
-  <th>Novo (TMDB)</th>
-</tr>
-</thead>
-
-<tbody id="rows"></tbody>
-</table>
+<img id="cover">
 
 <script>
-const movies = {{ movies|tojson }};
+// Simulacija podatkov, če nismo v Flasku (odstrani ta del v produkciji)
+const movies = {{ movies|tojson }}; 
+
 let index = 0;
 
 const fields = [
   ["title", "Naslov"],
   ["original_title", "Originalni Naslov"],
-  ["year", "Letnica"],
-  ["description", "Opis"],
-  ["players", "Igralci"],
-  ["genres", "Zvrsti"],
-  ["cover", "Slika"]
 ];
-
-let selected = {};
 
 function render() {
   const m = movies[index];
   document.getElementById("counter").innerText =
-    `Film ${m.old.folder} (${index+1} / ${movies.length})`;
+    `Film ${m.folder} (${index+1} / ${movies.length})`;
 
+   document.getElementById("cover").src = `/movies/file${m.cover}`
+
+  const rows = document.getElementById("rows");
   rows.innerHTML = "";
-  selected = {};
 
   for (const [key, label] of fields) {
     const tr = document.createElement("tr");
 
+    // --- Labela ---
     const tdLabel = document.createElement("td");
     tdLabel.innerText = label;
+    tdLabel.style.fontWeight = "bold";
     tr.appendChild(tdLabel);
 
+    // --- Stara vrednost (Read-only + Copy trigger) ---
     const tdOld = document.createElement("td");
-    const tdNew = document.createElement("td");
+    tdOld.className = "old-val";
+    
+    // Priprava vsebine za staro polje
+    let oldContentDisplay = "";
+    let oldContentValue = m[key] || "";
 
-    if (key === "cover") {
-      tdOld.innerHTML = `<img src="/movies/file${m.old.cover}">`;
-      tdNew.innerHTML = `<img src="/movies/file${m.new.cover}">`;
-    } else {
-      tdOld.innerText = m.old[key] || "";
-      tdNew.innerText = m.new[key] || "";
-    }
-
-    tdOld.onclick = () => choose(key, "old", tdOld, tdNew);
-    tdNew.onclick = () => choose(key, "new", tdNew, tdOld);
-
+    oldContentDisplay = m[key] || "";
+    tdOld.innerHTML = oldContentDisplay;
     tr.appendChild(tdOld);
+
+    // --- Nova vrednost (Editable) ---
+    const tdNew = document.createElement("td");
+    tdNew.className = "new-val";
+
+    let inputElement;
+    const initialValue = m[key] || ""; // Začnemo z TMDB vrednostjo
+
+    if (key === "description" || key === "players") {
+      // Večvrstično polje za dolge tekste
+      inputElement = document.createElement("textarea");
+    } else {
+      // Enovrstično za ostalo
+      inputElement = document.createElement("input");
+      inputElement.type = "text";
+    }
+    
+    inputElement.value = initialValue;
+    inputElement.id = `input-${key}`; // ID za lažje branje kasneje
+    
+    tdNew.appendChild(inputElement);
     tr.appendChild(tdNew);
     rows.appendChild(tr);
 
-    // default: izberi stare
-    choose(key, "old", tdOld, tdNew);
+    // --- Logika kopiranja ---
+    // Ko klikneš staro celico, se vsebina prepiše v input na desni
+    tdOld.onclick = () => {
+      const input = document.getElementById(`input-${key}`);
+      input.value = oldContentValue;
+      
+      // Vizualni feedback (kratek utrip)
+      input.style.backgroundColor = "#e6f7ff";
+      setTimeout(() => input.style.backgroundColor = "white", 300);
+    };
   }
 }
 
-function choose(field, value, on, off) {
-  selected[field] = value;
-  on.classList.add("selected");
-  off.classList.remove("selected");
-}
-
 function saveAndNext() {
+  // Zberemo podatke neposredno iz input polj
+  const finalData = {};
+  
+  for (const [key, label] of fields) {
+    const input = document.getElementById(`input-${key}`);
+    finalData[key] = input.value; // Vzamemo trenutno napisano vrednost
+  }
+
+  // Pošljemo na backend
   fetch("/save_decision", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({
-      index: index,
-      fields: selected
+      folder: movies[index].folder,
+      data: finalData
     })
   });
 
   if (index < movies.length - 1) {
     index++;
     render();
+    window.scrollTo(0, 0); // Skoči na vrh
   } else {
-    alert("Konec 🎉");
+    alert("Konec obdelave! 🎉");
   }
 }
 
@@ -154,9 +170,11 @@ function prev() {
   if (index > 0) {
     index--;
     render();
+    window.scrollTo(0, 0);
   }
 }
 
+// Inicializacija
 render();
 </script>
 

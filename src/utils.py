@@ -28,8 +28,12 @@ def safe_path(base_folder, filename):
     return str(path)
 
 
+FLASK_ENV = os.getenv("FLASK_ENV", "development")
+
 # Load users
-users_file = "data/users.json"
+users_file = (
+    "data/users.json" if FLASK_ENV == "production" else "data/test_users.json"
+)
 if not os.path.exists(users_file):
     # make admin user
     password = "".join(

@@ -21,20 +21,20 @@ let currentIndex = -1;
 // Render albumi
 function renderAlbums() {
     albumListEl.innerHTML = "";
-    Object.keys(albums).forEach(a => {
+    albums.forEach(a => {
         const div = document.createElement("div");
-        div.textContent = a;
-        div.className = "album-item" + (a===currentAlbum?" active":"");
+        div.textContent = a["name"];
+        div.className = "album-item" + (a["name"]===currentAlbum?" active":"");
         div.onclick = () => loadAlbum(a);
         albumListEl.appendChild(div);
     });
 }
 
 // Load album
-function loadAlbum(name) {
-    currentAlbum = name;
-    localStorage.setItem("album", name);
-    currentSongs = albums[name];
+function loadAlbum(album) {
+    currentAlbum = album["name"];
+    localStorage.setItem("album", currentAlbum);
+    currentSongs = album["songs"];
     renderAlbums();
 
     if (currentSongs.length === 0) {
@@ -255,6 +255,13 @@ audio.addEventListener('stalled', () => {
    audio.play().catch(e => console.error(e));
 });
 
+let initialAlbum = albums[0]
+albums.forEach(a => {
+    if (a["name"]===currentAlbum) {
+        initialAlbum = a;
+    }
+});
+
 // Initialize
-loadAlbum(currentAlbum);
+loadAlbum(initialAlbum);
 if(currentSongs.length>0) playTrack(currentIndex||0);

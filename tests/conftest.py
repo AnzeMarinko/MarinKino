@@ -17,7 +17,7 @@ from werkzeug.security import generate_password_hash
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from app import app
-from utils import User, redis_client
+from utils import User, redis_client, users
 
 
 @pytest.fixture
@@ -106,21 +106,22 @@ def mock_users(monkeypatch, test_users, mock_send_mail):
     from blueprints.auth_bp import init_auth_bp
     from blueprints.misc_bp import init_misc_bp
 
-    users = test_users.copy()
+    additional_users = test_users.copy()
+    new_users = {**additional_users, **users}
 
     # Mock User class to add is_admin property
     class MockUser(User):
         def __init__(self, user_id):
             super().__init__(user_id)
-            self.is_admin = users.get(user_id, {}).get("is_admin", False)
+            self.is_admin = new_users.get(user_id, {}).get("is_admin", False)
 
     # Patch User class in utils module
     monkeypatch.setattr("utils.User", MockUser)
 
     # Initialize blueprints with test data
-    init_auth_bp(users, MockUser, mock_send_mail)
-    init_admin_bp(users)
-    init_misc_bp(users, mock_send_mail)
+    init_auth_bp(new_users, MockUser, mock_send_mail)
+    init_admin_bp(new_users)
+    init_misc_bp(new_users, mock_send_mail)
 
     return users
 
@@ -138,5 +139,4 @@ def admin_client(client, mock_users, mock_redis):
     """Create an authenticated test client with admin user"""
     with client.session_transaction() as sess:
         sess["_user_id"] = "admin_user"
-        sess["is_admin"] = True
     return client

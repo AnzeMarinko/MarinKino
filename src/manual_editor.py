@@ -1,8 +1,6 @@
 import json
 import os
-from pathlib import Path
 
-import pandas as pd
 from flask import Flask, jsonify, render_template, request, send_from_directory
 from flask_compress import Compress
 
@@ -15,26 +13,14 @@ Compress(app)
 
 def movie_to_dict(m):
     return {
-        # "cover": m.cover.replace(FILMS_ROOT, ""),
-        "cover": m.cover,
+        "cover": m.cover.replace(FILMS_ROOT, ""),
         "title": m.title,
         "original_title": m.original_title,
-        "year": m.year,
         "folder": m.folder,
-        "description": m.plot,
-        "players": m.players,
-        "genres": m.genres,
-        "imdb_id": m.imdb_id,
     }
 
 
-all_films = [
-    {"old": movie_to_dict(m), "new": movie_to_dict(m_new)}
-    for m, m_new in zip(
-        check_folder(FILMS_ROOT, use_new=False)[::-1],
-        check_folder(FILMS_ROOT, use_new=True)[::-1],
-    )
-]
+all_films = [movie_to_dict(m) for m in check_folder(FILMS_ROOT)[::-1]]
 
 
 @app.route("/")
@@ -45,100 +31,76 @@ def index():
 @app.route("/movies/file/<movies_subfolder>/<movie_folder>/<filename>")
 def movie_file(movies_subfolder, movie_folder, filename):
     return send_from_directory(
-        os.path.join(FILMS_ROOT, movies_subfolder, movie_folder),
+        os.path.join("../" + FILMS_ROOT, movies_subfolder, movie_folder),
         filename,
         conditional=True,
     )
 
 
-DECISIONS_FILE = Path("cache/decisions.json")
-
-DECISIONS = {}
-if DECISIONS_FILE.exists():
-    if open(DECISIONS_FILE).read():
-        DECISIONS = json.load(open(DECISIONS_FILE))
-
-
 @app.route("/save_decision", methods=["POST"])
 def save_decision():
     data = request.json
-    idx = str(data["index"])
-    DECISIONS[idx] = data["fields"]
+    new_metadata = data["data"]
+    film_readme_file = os.path.join(data["folder"], "readme.json")
+    with open(film_readme_file, "r", encoding="utf-8") as f:
+        movie_metadata = json.loads(f.read())
 
-    with open(DECISIONS_FILE, "w", encoding="utf-8") as f:
-        json.dump(DECISIONS, f, indent=2, ensure_ascii=False)
+    movie_metadata["Title"] = new_metadata["title"].strip()
+    movie_metadata["OriginalTitle"] = new_metadata["original_title"].strip()
+
+    with open(film_readme_file, "w", encoding="utf-8") as f:
+        json.dump(movie_metadata, f, ensure_ascii=False, indent=4)
 
     return jsonify({"status": "ok"})
 
 
-keeping_names = ["imdb_id", "Runtimes", "RuntimesByFiles"]
-changing_names = [
-    "Title",
-    "OriginalTitle",
-    "Year",
-    "Plot",
-    "Genres",
-    "Players",
+"""
+from mutagen.mp3 import MP3
+from mutagen.easyid3 import EasyID3
+import os
+import glob
+
+music_files = [
+    f[11:] for f in glob.iglob("data/music/**/*.mp3", recursive=True)
 ]
 
+path = os.path.join("data/music", music_files[0])
 
-def change():
-    for idx in list(DECISIONS.keys()):
-        movie = all_films[int(idx)]
-        new_metadata = movie["old"]
-        for k, v in DECISIONS[idx].items():
-            if v == "new":
-                if k == "cover":
-                    new_file = movie["new"][k]
-                    old_file = movie["old"][k]
-                    if "logo.png" not in new_file:
-                        if "logo.png" not in old_file:
-                            os.remove(old_file)
-                            os.rename(new_file, old_file)
-                        else:
-                            os.rename(
-                                new_file,
-                                new_file.replace("new_cover", "cover"),
-                            )
-                else:
-                    new_metadata[k] = movie["new"][k]
-        film_readme_file = os.path.join(new_metadata["folder"], "readme.json")
-        with open(film_readme_file, "r", encoding="utf-8") as f:
-            movie_metadata = json.loads(f.read())
+# Naložimo datoteko
+audio = MP3(path, ID3=EasyID3)
 
-        new_movie_metadata = {}
-        new_movie_metadata["Film"] = movie_metadata["Film"]
-        new_movie_metadata["Title"] = new_metadata["title"]
-        new_movie_metadata["OriginalTitle"] = new_metadata["original_title"]
-        new_movie_metadata["Year"] = new_metadata["year"]
-        new_movie_metadata["Plot"] = new_metadata["description"]
-        new_movie_metadata["Genres"] = new_metadata["genres"]
-        new_movie_metadata["Players"] = new_metadata["players"]
-        new_movie_metadata["imdb_id"] = new_metadata["imdb_id"]
-        new_movie_metadata["Runtimes"] = movie_metadata.get("Runtimes", "")
-        new_movie_metadata["RuntimesByFiles"] = movie_metadata.get(
-            "RuntimesByFiles", {}
-        )
+item = {
+    "title": ", ".join(audio.get("title", [file.split("/")[-1].replace(".mp3", "")])),
+    "artist": ", ".join(audio.get("artist", [""]))
+    + " - "
+    + ", ".join(audio.get("album", [""])),
+    "album": "/" + "/".join(file.split("/")[:-1]),
+    "albumartist": ", ".join(audio.get("albumartist", [""])),
+    "genre": ", ".join(audio.get("genre", [""])),
+    "composer": ", ".join(audio.get("composer", [""])),
+}
 
-        with open(film_readme_file, "w", encoding="utf-8") as f:
-            json.dump(new_movie_metadata, f, ensure_ascii=False, indent=4)
+# TODO: vmes popravi metapodatke preko flask
 
-        if os.path.exists(
-            os.path.join(new_metadata["folder"], "new_cover_thumb.jpg")
-        ):
-            os.remove(
-                os.path.join(new_metadata["folder"], "new_cover_thumb.jpg")
-            )
-        if os.path.exists(
-            os.path.join(new_metadata["folder"], "new_readme.json")
-        ):
-            os.remove(os.path.join(new_metadata["folder"], "new_readme.json"))
-        DECISIONS.pop(idx)
-        with open(DECISIONS_FILE, "w", encoding="utf-8") as f:
-            json.dump(DECISIONS, f, indent=2, ensure_ascii=False)
+audio["title"] = "Moj novi naslov"
+audio["artist"] = "Popravljen izvajalec"
+audio["album"] = "Najboljši hiti"
 
+# Primer z več vrednosti (npr. dva žanra) - bo mutagen sam pretvoril vse v sezname tudi če daš samo en string
+audio["genre"] = ["Pop", "Rock"]
 
-# change()
+# 2. BRISANJE VREDNOSTI
+# Če želite podatek popolnoma odstraniti, uporabite 'del' ali 'pop'
+if "composer" in audio:
+    del audio["composer"]
+
+# 3. SHRANJEVANJE (KLJUČNO!)
+# Brez tega klica spremembe ostanejo le v pomnilniku.
+audio.save() 
+
+print("Podatki uspešno shranjeni!")
+"""
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)

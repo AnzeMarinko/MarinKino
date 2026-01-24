@@ -56,17 +56,20 @@ music_metadata = {
         ),
     )
 }
-music_albums = {
-    k: sorted(
-        music_albums[k],
-        key=lambda x: (
-            music_metadata[x]["album"].lower(),
-            music_metadata[x]["artist"].lower(),
-            music_metadata[x]["title"].lower(),
+music_albums = [
+    {
+        "name": k,
+        "songs": sorted(
+            music_albums[k],
+            key=lambda x: (
+                music_metadata[x]["album"].lower(),
+                music_metadata[x]["artist"].lower(),
+                music_metadata[x]["title"].lower(),
+            ),
         ),
-    )
-    for k in sorted(music_albums.keys())
-}
+    }
+    for k in ["Vse"] + sorted([m for m in music_albums.keys() if m != "Vse"])
+]
 
 
 @music_bp.route("/music")

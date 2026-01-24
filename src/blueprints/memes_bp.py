@@ -23,7 +23,7 @@ memes = [
     slika
     for slika in memes
     if slika.lower().endswith(
-        (".png", ".jpg", ".jpeg", ".gif", ".webp", "mp4")
+        (".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp4")
     )
 ]
 random.shuffle(memes)

@@ -1,6 +1,6 @@
 # TODO:
 
-* ko poženem prepare_movies se metadata, ki je v json shranijo v SQL bazo in se potem v app.py samo to uporablja (od tam briše ipd.). naj ima ta skripta tudi svoj flask za pregled delovanja, ročno spreminjanje vrednosti v jsonih
+* s flask ročno uredi še glasbo (po več naenkrat recimo, v nekem smiselnem redu)
 * pošlji prve predloge filmov na mail in dodaj, da se zadnji predlog pošlje tudi novemu uporabniku
 * nov release v1.2.0 glede na commit messages
 
