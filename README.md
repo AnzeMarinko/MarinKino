@@ -10,8 +10,8 @@ To je repozitorij za domači kino. Preko HTTPS serverja so tako filmi z domačeg
 > Mimogrede: Filme sem uredil in osnovno stran za izbiro filmov pripravil že preden je ven prišel Sloflix, ki je na nek način podobna stvar. Poleg osebnega zadovoljstva ob učenju novega in pripravi celotnega lastnega sistema je namen te strani predvsem zbirka vsebinsko kvalitetnih filmov in risank brez oglasov.
 
 Preko strani pa je dostopno tudi:
-* šale (meme) in spodbude, ki sem jih zbiral skozi leta. Del šal je seveda časovno specifičen predvsem zaradi zborovskih in koronskih let.
-* zbirka kvalitetne glasbe brez oglasov (slovenske, klasične, krščanske, rokerske, ...). Stran z glasbo je že pripravljena, je pa izbor pesmi še potreben pregleda, saj sem pesmi počasi zbiral skozi leta in je vmes tudi, kaj vsebinsko nekvalitetnega, kar mi je bilo v nekem času zanimivo. Marsikatera zvrst, ki je nisem toliko poslušal, pa tudi manjka.
+* zbirka čez 2000 šal (meme) in spodbud, ki sem jih zbiral skozi leta. Del šal je seveda časovno specifičen predvsem zaradi zborovskih in koronskih let.
+* zbirka glasbe z okrog 1000 pesmimi brez oglasov (slovenske, klasične, krščanske, rokerske, ...). Stran z glasbo je že pripravljena, je pa izbor pesmi še potreben pregleda, saj sem pesmi počasi zbiral skozi leta in je vmes tudi, kaj vsebinsko nekvalitetnega, kar mi je bilo v nekem času zanimivo. Marsikatera zvrst, ki je nisem toliko poslušal, pa tudi manjka.
 * družabna igra Pod krinko (slovenska verzija igre Undercover).
 
 > Stran je dostopna preko [anzemarinko.duckdns.org](https://anzemarinko.duckdns.org). Je pa večina vsebin zaklenjenih le za prijavljene uporabnike.

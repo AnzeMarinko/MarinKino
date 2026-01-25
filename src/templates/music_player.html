@@ -2,6 +2,16 @@
 
 {% block content %}
 
+<style>
+    #searchInput {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background-color: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+</style>
+
 <div id="browser">
     <div id="albums">
         <h2>Albumi</h2>
@@ -9,6 +19,7 @@
     </div>
     <div id="tracks">
         <h2>Pesmi</h2>
+        <input type="search" id="searchInput" placeholder="Iskanje po naslovu, izvajalcu, albumu..." class="form-control mb-2">
         <div id="trackList"></div>
     </div>
 </div>

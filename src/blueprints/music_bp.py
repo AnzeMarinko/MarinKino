@@ -36,13 +36,13 @@ for file in music_albums["Vse"]:
         audio = {}
 
     item = {
-        "title": audio.get("title", [file.split("/")[-1].replace(".mp3", "")])[
-            0
-        ],
-        "artist": audio.get("artist", [""])[0]
-        + " - "
-        + audio.get("album", [""])[0],
-        "album": "/" + "/".join(file.split("/")[:-1]),
+        "title": ", ".join(
+            audio.get("title", [".".join(file.split("/")[-1].split(".")[:-1])])
+        ),
+        "artist": " - ".join(audio.get("artist", [])),
+        "album": " - ".join(
+            audio.get("album", ["/" + "/".join(file.split("/")[:-1])])
+        ),
     }
     music_metadata[file] = item
 music_metadata = {

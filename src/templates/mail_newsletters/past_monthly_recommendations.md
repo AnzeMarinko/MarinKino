@@ -1,6 +1,8 @@
 # Predlogi za filme
 
-## Januar 2026
+## Februar 2026
 1. ...
 2. ...
 3. ...
+
+kasneje postopoma The Chosen, da je za post 2027 sezona 5

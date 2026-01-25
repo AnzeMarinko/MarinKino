@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Urejanje Metapodatkov Glasbe</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        input[type="search"] {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: auto;
+            max-height: 80vh;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1200px;
+        }
+
+        thead {
+            position: sticky;
+            top: 0;
+            background: #2c3e50;
+            color: white;
+            z-index: 10;
+        }
+
+        th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-right: 1px solid #34495e;
+        }
+
+        th:last-child {
+            border-right: none;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid #ecf0f1;
+            transition: background-color 0.2s;
+        }
+
+        tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        tbody tr.saving {
+            background-color: #fff3cd !important;
+        }
+
+        tbody tr.saved {
+            background-color: #d4edda !important;
+        }
+
+        td {
+            padding: 8px;
+            font-size: 13px;
+            border-right: 1px solid #ecf0f1;
+            max-width: 200px;
+        }
+
+        td:last-child {
+            border-right: none;
+        }
+
+        /*Play button */
+        .play-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+
+        .play-btn:hover {
+            background: #2980b9;
+        }
+
+        .play-btn.playing {
+            background: #e74c3c;
+        }
+
+        /* Input fields */
+        input[type="text"],
+        select {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #bdc3c7;
+            border-radius: 3px;
+            font-size: 13px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+        }
+
+        select {
+            cursor: pointer;
+        }
+
+        /* Save button */
+        .save-btn {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+
+        label {
+            font-size: 11px;
+        }
+
+        .save-btn:hover {
+            background: #229954;
+        }
+
+        .save-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        .save-btn.loading {
+            background: #f39c12;
+        }
+
+        /* Delete button */
+        .delete-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+
+        .delete-btn:hover {
+            background: #c0392b;
+        }
+
+        .delete-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        /* Status indicator */
+        .status {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 3px;
+            text-align: center;
+            min-width: 60px;
+        }
+
+        .status.ok {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status.loading {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        /* Audio player */
+        audio {
+            width: 100%;
+            max-width: 300px;
+            height: 30px;
+        }
+
+        .folder-name {
+            font-size: 12px;
+            color: #7f8c8d;
+            font-style: italic;
+        }
+
+        .footer {
+            margin-top: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            text-align: center;
+            color: #666;
+            font-size: 13px;
+        }
+
+        .no-results {
+            padding: 40px;
+            text-align: center;
+            color: #7f8c8d;
+        }
+
+        .loading-indicator {
+            display: inline-block;
+            margin-left: 10px;
+            font-size: 12px;
+            color: #f39c12;
+        }
+
+        @media (max-width: 1400px) {
+            td {
+                max-width: 150px;
+            }
+            
+            input[type="text"],
+            select {
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎵 Urejanje Metapodatkov Glasbe</h1>
+        <p>Uredi podatke o glasbi, izberite žanr iz padajočega menija, in klikni Shrani za posodobitev</p>
+    </div>
+
+    <div class="controls">
+        <input type="search" id="searchInput" placeholder="Iskanje po nazivu, izvajalcu ali albumu...">
+        <span id="recordCount" style="align-self: center; color: #666; font-size: 14px;"></span>
+    </div>
+
+    <div class="table-container">
+        <table id="musicTable">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">Predvajaj</th>
+                    <th style="width: 150px;">Pot</th>
+                    <th style="width: 350px;">Naslov</th>
+                    <th style="width: 150px;">Izvajalec</th>
+                    <th style="width: 150px;">Album</th>
+                    <th style="width: 100px;">Žanr</th>
+                    <th style="width: 50px;">Shrani</th>
+                    <th style="width: 50px;">Izbriši</th>
+                    <th style="width: 30px;">Status</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+            </tbody>
+        </table>
+    </div>
+
+    <div class="footer">
+        Skupno pesmi: <span id="totalCount">0</span> | Prikazano: <span id="visibleCount">0</span>
+    </div>
+
+    <script>
+        // Globalni podatki
+        let allMusic = {{ music|tojson }};
+        let genres = ["Klasična", "Krščanska", "Slovenska/Hrvaška"];
+        let currentlyPlaying = null;
+        let changedRows = new Set();
+
+        // Inicializacija
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('totalCount').textContent = allMusic.length;
+            renderTable(allMusic);
+            
+            // Iskanje
+            document.getElementById('searchInput').addEventListener('keyup', handleSearch);
+        });
+
+        function renderTable(musicData) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            if (musicData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="no-results">Ni rezultatov</td></tr>';
+                document.getElementById('visibleCount').textContent = '0';
+                return;
+            }
+
+            musicData.forEach((music, index) => {
+                const row = createMusicRow(music, index);
+                tbody.appendChild(row);
+            });
+
+            document.getElementById('visibleCount').textContent = musicData.length;
+        }
+
+        function createMusicRow(music, index) {
+            const row = document.createElement('tr');
+            row.dataset.filename = music.filename;
+            row.dataset.index = index;
+
+            // Predvajaj gumb
+            const playCell = document.createElement('td');
+            const playBtn = document.createElement('button');
+            playBtn.className = 'play-btn';
+            playBtn.textContent = '▶ Predvajaj';
+            playBtn.onclick = () => togglePlayMusic(music.filename, playBtn);
+            playCell.appendChild(playBtn);
+            row.appendChild(playCell);
+
+            // Pot
+            const pathCell = document.createElement('td');
+            const pathInput = document.createElement('label');
+            pathInput.innerText = music.filename || '';
+            pathCell.appendChild(pathInput);
+            row.appendChild(pathCell);
+
+            // Naslov
+            const titleCell = document.createElement('td');
+            const titleInput = document.createElement('input');
+            titleInput.type = 'text';
+            titleInput.value = music.title || '';
+            titleInput.dataset.field = 'title';
+            titleInput.onchange = () => markRowChanged(row);
+            titleCell.appendChild(titleInput);
+            row.appendChild(titleCell);
+
+            // Izvajalec
+            const artistCell = document.createElement('td');
+            const artistInput = document.createElement('input');
+            artistInput.type = 'text';
+            artistInput.value = music.artist || '';
+            artistInput.dataset.field = 'artist';
+            artistInput.onchange = () => markRowChanged(row);
+            artistCell.appendChild(artistInput);
+            row.appendChild(artistCell);
+
+            // Album
+            const albumCell = document.createElement('td');
+            const albumInput = document.createElement('input');
+            albumInput.type = 'text';
+            albumInput.value = music.album || '';
+            albumInput.dataset.field = 'album';
+            albumInput.onchange = () => markRowChanged(row);
+            albumCell.appendChild(albumInput);
+            row.appendChild(albumCell);
+
+            // Žanr (Dropdown)
+            const genreCell = document.createElement('td');
+            const genreSelect = document.createElement('select');
+            genreSelect.dataset.field = 'genre';
+            genreSelect.onchange = () => markRowChanged(row);
+            
+            // Dodaj opcije
+            const emptyOption = document.createElement('option');
+            emptyOption.value = '';
+            emptyOption.textContent = '-- Izberi --';
+            genreSelect.appendChild(emptyOption);
+            
+            genres.forEach(genre => {
+                const option = document.createElement('option');
+                option.value = genre;
+                option.textContent = genre;
+                genreSelect.appendChild(option);
+            });
+            
+            // Nastavi trenutno vrednost
+            if (music.genre) {
+                genreSelect.value = music.genre;
+            }
+            genreCell.appendChild(genreSelect);
+            row.appendChild(genreCell);
+
+            // Shrani gumb
+            const saveCell = document.createElement('td');
+            const saveBtn = document.createElement('button');
+            saveBtn.className = 'save-btn';
+            saveBtn.textContent = '💾 Shrani';
+            saveBtn.onclick = () => saveRowData(row, music.filename);
+            saveCell.appendChild(saveBtn);
+            row.appendChild(saveCell);
+
+            // Izbriši gumb
+            const deleteCell = document.createElement('td');
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'delete-btn';
+            deleteBtn.textContent = '🗑 Izbriši';
+            deleteBtn.onclick = () => deleteRowData(row, music.filename);
+            deleteCell.appendChild(deleteBtn);
+            row.appendChild(deleteCell);
+
+            // Status
+            const statusCell = document.createElement('td');
+            statusCell.className = 'status-cell';
+            row.appendChild(statusCell);
+
+            return row;
+        }
+
+        function togglePlayMusic(filename, button) {
+            // Ustavi prejšnjo pesem
+            if (currentlyPlaying && currentlyPlaying.audio) {
+                currentlyPlaying.audio.pause();
+                currentlyPlaying.button.classList.remove('playing');
+                currentlyPlaying.button.textContent = '▶ Predvajaj';
+                currentlyPlaying = null;
+            } else {
+
+            // Predvajaj novo pesem
+            const audio = new Audio(`/music/file/${filename}`);
+            audio.play();
+            button.classList.add('playing');
+            button.textContent = '⏸ Ustavite';
+
+            audio.onended = () => {
+                button.classList.remove('playing');
+                button.textContent = '▶ Predvajaj';
+                currentlyPlaying = null;
+            };
+
+            currentlyPlaying = { audio, button };
+            }
+        }
+
+        function markRowChanged(row) {
+            row.dataset.changed = 'true';
+            changedRows.add(row.dataset.filename);
+        }
+
+        function saveRowData(row, filename) {
+            const statusCell = row.querySelector('.status-cell');
+            const saveBtn = row.querySelector('.save-btn');
+            
+            // Zberem podatke iz input polj
+            const data = {
+                filename: filename
+            };
+
+            row.querySelectorAll('input, select').forEach(input => {
+                const field = input.dataset.field;
+                if (field) {
+                    data[field] = input.value;
+                }
+            });
+
+            // Prikaži, da se shranja
+            saveBtn.classList.add('loading');
+            saveBtn.disabled = true;
+            statusCell.className = 'status loading';
+            statusCell.textContent = 'Shranjevanje...';
+
+            // Pošlji na backend
+            fetch('/api/music/update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.status === 'ok') {
+                    statusCell.className = 'status ok';
+                    statusCell.textContent = '✓ Shranjeno';
+                    row.classList.add('saved');
+                    changedRows.delete(filename);
+                    
+                    setTimeout(() => {
+                        row.classList.remove('saved');
+                        statusCell.textContent = '';
+                        statusCell.className = 'status-cell';
+                    }, 100000);
+                } else {
+                    throw new Error(result.message);
+                }
+            })
+            .catch(error => {
+                statusCell.className = 'status error';
+                statusCell.textContent = '✗ Napaka';
+                console.error('Napaka pri shranjevanju:', error);
+                
+                setTimeout(() => {
+                    statusCell.textContent = '';
+                    statusCell.className = 'status-cell';
+                }, 3000);
+            })
+            .finally(() => {
+                saveBtn.classList.remove('loading');
+                saveBtn.disabled = false;
+            });
+        }
+
+        function deleteRowData(row, filename) {
+            // Potrdi brisanje
+            if (!confirm(`Res želiš izbrisati datoteko:\n${filename}?`)) {
+                return;
+            }
+
+            const deleteBtn = row.querySelector('.delete-btn');
+            const statusCell = row.querySelector('.status-cell');
+            
+            // Prikaži, da se briše
+            deleteBtn.classList.add('loading');
+            deleteBtn.disabled = true;
+            statusCell.className = 'status loading';
+            statusCell.textContent = 'Brisanje...';
+
+            // Pošlji na backend
+            fetch('/api/music/delete', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ filename: filename })
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.status === 'ok') {
+                    statusCell.className = 'status ok';
+                    statusCell.textContent = '✓ Izbrisano';
+                    row.classList.add('saved');
+                    
+                    // Odstrani vrstico iz tabele
+                    setTimeout(() => {
+                        row.remove();
+                        // Posodobi štetje
+                        const visibleCount = document.querySelectorAll('#tableBody tr').length;
+                        document.getElementById('visibleCount').textContent = visibleCount;
+                        // Osveži allMusic
+                        allMusic = allMusic.filter(m => m.filename !== filename);
+                        document.getElementById('totalCount').textContent = allMusic.length;
+                    }, 500);
+                } else {
+                    throw new Error(result.message);
+                }
+            })
+            .catch(error => {
+                statusCell.className = 'status error';
+                statusCell.textContent = '✗ Napaka';
+                console.error('Napaka pri brisanju:', error);
+                
+                deleteBtn.classList.remove('loading');
+                deleteBtn.disabled = false;
+                
+                setTimeout(() => {
+                    statusCell.textContent = '';
+                    statusCell.className = 'status-cell';
+                }, 3000);
+            });
+        }
+
+        function handleSearch() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            
+            if (!searchTerm) {
+                renderTable(allMusic);
+                return;
+            }
+
+            const filtered = allMusic.filter(music => {
+                const title = (music.title || '').toLowerCase();
+                const artist = (music.artist || '').toLowerCase();
+                const album = (music.album || '').toLowerCase();
+                const folder = (music.folder || '').toLowerCase();
+
+                return title.includes(searchTerm) || 
+                       artist.includes(searchTerm) || 
+                       album.includes(searchTerm) ||
+                       folder.includes(searchTerm);
+            });
+
+            renderTable(filtered);
+        }
+    </script>
+</body>
+</html>

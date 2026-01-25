@@ -265,3 +265,56 @@ albums.forEach(a => {
 // Initialize
 loadAlbum(initialAlbum);
 if(currentSongs.length>0) playTrack(currentIndex||0);
+
+// ======== ISKANJE ========
+const searchInput = document.getElementById("searchInput");
+let filteredSongs = [];
+
+function filterSongs() {
+    const searchTerm = searchInput.value.toLowerCase();
+    
+    if (!searchTerm) {
+        filteredSongs = currentSongs;
+    } else {
+        filteredSongs = currentSongs.filter(song => {
+            const metadata = music_metadata[song];
+            const title = (metadata["title"] || "").toLowerCase();
+            const artist = (metadata["artist"] || "").toLowerCase();
+            const album = (metadata["album"] || "").toLowerCase();
+            
+            return title.includes(searchTerm) || 
+                   artist.includes(searchTerm) || 
+                   album.includes(searchTerm);
+        });
+    }
+    
+    renderFilteredTracks();
+}
+
+function renderFilteredTracks() {
+    trackListEl.innerHTML = "";
+    if (filteredSongs.length === 0) {
+        trackListEl.innerHTML = "<i>Ni rezultatov iskanja.</i>";
+        return;
+    }
+    
+    filteredSongs.forEach((s, idx) => {
+        const div = document.createElement("div");
+        const trackMetadata = music_metadata[s];
+        const title = trackMetadata["title"];
+        const artist = trackMetadata["artist"];
+        const album = trackMetadata["album"];
+        div.innerHTML = `<i>${album}</i> : ${artist} : <b>${title}</b>`;
+
+        div.className = "track-item" + (s===currentTrack?" active":"");
+        div.onclick = () => {
+            // Najdi indeks v originalnem currentSongs polju
+            const originalIndex = currentSongs.indexOf(s);
+            playTrack(originalIndex);
+        };
+        trackListEl.appendChild(div);
+    });
+    scrollToActiveTrack();
+}
+
+searchInput.addEventListener("input", filterSongs);
