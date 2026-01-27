@@ -40,9 +40,8 @@ for file in music_albums["Vse"]:
             audio.get("title", [".".join(file.split("/")[-1].split(".")[:-1])])
         ),
         "artist": " - ".join(audio.get("artist", [])),
-        "album": " - ".join(
-            audio.get("album", ["/" + "/".join(file.split("/")[:-1])])
-        ),
+        "album": " - ".join(audio.get("album", audio.get("genre", []))),
+        "only_admin": "Neurejena-glasba/" in file,
     }
     music_metadata[file] = item
 music_metadata = {
@@ -68,13 +67,23 @@ music_albums = [
             ),
         ),
     }
-    for k in ["Vse"] + sorted([m for m in music_albums.keys() if m != "Vse"])
+    for k in (["Vse"] + sorted([m for m in music_albums.keys() if m != "Vse"]))
 ]
 
 
 @music_bp.route("/music")
 @login_required
 def music():
+    if not current_user.is_admin:
+        return render_template(
+            "music_player.html",
+            pagetitle="MarinKino - Glasba",
+            is_music=True,
+            albums=[a for a in music_albums if "Neurejen" not in a["name"]],
+            music_metadata={
+                k: v for k, v in music_metadata.items() if not v["only_admin"]
+            },
+        )
     return render_template(
         "music_player.html",
         pagetitle="MarinKino - Glasba",

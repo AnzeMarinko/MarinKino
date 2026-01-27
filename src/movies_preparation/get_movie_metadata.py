@@ -311,6 +311,7 @@ class MovieMetadata:
         # Logične zastavice
         self.slosinh = "sinh" in self.path.name.lower()
         self.is_collection = ".collection" in self.path.name.lower()
+        self.is_chosen_series = "the-chosen/" in folder
 
         metadata, cover = get_movie_metadata(
             folder, self.title, self.video_files
@@ -333,3 +334,4 @@ class MovieMetadata:
         )
         self.imdb_id = metadata.get("imdb_id", "")
         self.recommendation_level = metadata.get("recommendation_level", "")
+        self.user_notes = metadata.get("user_notes", {})

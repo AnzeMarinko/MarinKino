@@ -302,3 +302,49 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         }, intervalMillis);
 });
+
+
+function submitComment(event, movieFolder) {
+    event.preventDefault();
+    
+    const commentText = document.getElementById('commentText').value;
+    const statusDiv = document.getElementById('commentStatus');
+    
+    const data = {
+        movieFolder: movieFolder,
+        comment: commentText,
+        comment_type: "komentar na film"
+    };
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    
+    fetch('/movies/add-comment', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            "X-CSRFToken": csrfToken
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            statusDiv.className = 'status-message success';
+            statusDiv.textContent = 'Hvala! Vaš komentar je bil poslan. Administrator bo kmalu odgovoril.';
+            document.getElementById('commentForm').reset();
+            
+            // Počisti status po 5 sekundah
+            setTimeout(() => {
+                statusDiv.textContent = '';
+                statusDiv.className = 'status-message';
+            }, 5000);
+        } else {
+            statusDiv.className = 'status-message error';
+            statusDiv.textContent = 'Napaka: ' + result.message;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        statusDiv.className = 'status-message error';
+        statusDiv.textContent = 'Napaka pri pošiljanju komentarja. Poskusite ponovno.';
+    });
+}

@@ -137,6 +137,16 @@ def send_admin_emails():
     )
 
 
+@misc_bp.route("/suggestions", methods=["GET"])
+@login_required
+def suggestions():
+    """Stran za splošne predloge in komentarje"""
+    return render_template(
+        "suggestions.html",
+        pagetitle="Predlogi in komentarji",
+    )
+
+
 @misc_bp.route("/test")
 @login_required
 def test():

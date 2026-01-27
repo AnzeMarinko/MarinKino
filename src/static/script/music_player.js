@@ -113,11 +113,11 @@ function updateMediaSession(title, artist, album) {
     if ("mediaSession" in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata({
             title: title,
-            artist: artist,
-            album: album,
             artwork: [
                 { src: "/static/logo.png", sizes: "512x512", type: "image/png" }
-            ]
+            ],
+            ...(artist && { artist: artist }),
+            ...(album && { album: album })
         });
 
         navigator.mediaSession.setActionHandler("play", () => {

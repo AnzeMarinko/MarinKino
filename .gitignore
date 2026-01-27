@@ -36,3 +36,4 @@ data/memes/*.WEBP
 data/memes/*.png
 data/music/**/*.mp3
 data/music/**/*.m4a
+data/movies/users_comments.json

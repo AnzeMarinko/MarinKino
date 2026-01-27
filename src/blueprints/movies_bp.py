@@ -95,6 +95,7 @@ all_films = {
         ],
         "movie_id": f"mov_{i}",
         "recommendation_level": m.recommendation_level,
+        "user_notes": m.user_notes,
     }
     for i, m in enumerate(check_folder(FILMS_ROOT))
 }
@@ -545,3 +546,508 @@ def video_progress_change():
         redis_client.hset(user_key, filename, json.dumps(user_data))
 
     return "", 204
+
+
+@movies_bp.route("/movies/add-comment", methods=["POST"])
+@login_required
+def add_comment():
+    """Dodaj komentar na film"""
+    try:
+        data = json.loads(request.data)
+        movie_folder = data.get("movieFolder")
+        author_name = current_user.id
+        author_email = current_user.emails[0]
+        comment_text = data.get("comment", "").strip()
+        comment_type = data.get("comment_type", "komentar").strip()
+
+        # Validacija
+        if not movie_folder or (
+            movie_folder not in all_films and movie_folder != "Splošno"
+        ):
+            log.error(f"Neveljaven film za komentar: {movie_folder}")
+            return {"status": "error", "message": "Film ne obstaja"}, 404
+
+        if not comment_text or len(comment_text) < 5:
+            msg = "Komentar mora biti dolg vsaj 5 znakov"
+            return {"status": "error", "message": msg}, 400
+
+        # Priprava komentarja
+        random_index = str(random.randint(1, 1000000))
+        comment_obj = {
+            "author": author_name,
+            "email": author_email,
+            "text": comment_text,
+            "comment_type": comment_type,
+            "date": datetime.now(timezone.utc).isoformat(),
+            "type": "ideja",
+            "admin_response": None,
+            "random_index": random_index,
+        }
+
+        # Branje metapodatkov filma
+        is_splosno = movie_folder == "Splošno"
+        if is_splosno:
+            metadata_file = os.path.join(FILMS_ROOT, "users_comments.json")
+        else:
+            metadata_file = os.path.join(
+                FILMS_ROOT, movie_folder[1:], "readme.json"
+            )
+
+        if not os.path.exists(metadata_file):
+            if is_splosno:
+                movie_metadata = {}
+            else:
+                log.error(f"Manjka metadata datoteka: {metadata_file}")
+                return {
+                    "status": "error",
+                    "message": "Napaka pri obdelavi",
+                }, 500
+        else:
+            with open(metadata_file, "r", encoding="utf-8") as f:
+                movie_metadata = json.loads(f.read())
+
+        # Inicializacija user_notes če ne obstajajo
+        if "user_notes" not in movie_metadata:
+            movie_metadata["user_notes"] = {}
+
+        # Dodaj komentar
+        movie_metadata["user_notes"][random_index] = comment_obj
+
+        # Shranjuj metapodatke
+        with open(metadata_file, "w", encoding="utf-8") as f:
+            json.dump(movie_metadata, f, ensure_ascii=False, indent=4)
+
+        # Posodobi in-memory podatke
+        if not is_splosno:
+            all_films[movie_folder]["user_notes"] = movie_metadata[
+                "user_notes"
+            ]
+            movie_title = all_films[movie_folder]["title"]
+        else:
+            movie_title = "Splošno"
+
+        # Pošlji obvestilo administratorju
+        from utils import send_mail, users
+
+        admin_email = users.get("admin", {}).get(
+            "emails", [os.getenv("GMAIL_USERNAME")]
+        )[0]
+
+        email_html = f"""
+        <h2>Nov {comment_type}: {movie_title}</h2>
+        <p><strong>Avtor:</strong> {author_name}</p>
+        <p><strong>Email:</strong> {author_email}</p>
+        <p><strong>Komentar:</strong></p>
+        <p>{comment_text}</p>
+        <hr>
+        <p><a href="{os.getenv('DUCKDNS_DOMAIN')}/admin">Pojdi v admin panel</a></p>
+        """
+
+        try:
+            send_mail(
+                to=[admin_email],
+                subject=f"Nov {comment_type}: {movie_title}",
+                html=email_html,
+            )
+            log.info(
+                f"Mail s komentarjem poslan administratorju za film {movie_folder}"
+            )
+        except Exception as e:
+            log.error(f"Napaka pri pošiljanju maila: {e}")
+
+        log.info(f"Nov {comment_type} dodan {movie_folder} od {author_name}")
+        return {"status": "success", "message": "Hvala za vaš komentar!"}, 200
+
+    except Exception as e:
+        log.error(f"Napaka pri dodajanju komentarja: {e}")
+        return {
+            "status": "error",
+            "message": "Napaka pri obdelavi komentarja",
+        }, 500
+
+
+# Tip opozoril s privzetimi ikonami
+ALERT_TYPES = {
+    "opozorilo": "bi-exclamation-diamond-fill",
+    "ideja": "bi-lightbulb-fill",
+}
+
+
+@movies_bp.route("/movies/admin-comment", methods=["POST"])
+@login_required
+def admin_comment():
+    """Dodaj admin odgovor na komentar"""
+    if not current_user.is_admin:
+        return {"status": "error", "message": "Dostop ni dovoljen"}, 403
+
+    try:
+        data = json.loads(request.data)
+        movie_folder = data.get("movieFolder")
+        comment_index = data.get("commentIndex")
+        admin_response = data.get("response", "").strip()
+
+        # Validacija
+        if not movie_folder or (
+            movie_folder not in all_films.keys() and movie_folder != "Splošno"
+        ):
+            log.error(f"Neveljaven film: {movie_folder}")
+            return {"status": "error", "message": "Film ne obstaja"}, 404
+
+        if admin_response is None or len(admin_response) == 0:
+            return {
+                "status": "error",
+                "message": "Odgovor ne sme biti prazen",
+            }, 400
+
+        # Branje metapodatkov
+        is_splosno = movie_folder == "Splošno"
+        if is_splosno:
+            metadata_file = os.path.join(FILMS_ROOT, "users_comments.json")
+        else:
+            metadata_file = os.path.join(
+                FILMS_ROOT, movie_folder[1:], "readme.json"
+            )
+
+        with open(metadata_file, "r", encoding="utf-8") as f:
+            movie_metadata = json.loads(f.read())
+
+        if (
+            "user_notes" not in movie_metadata
+            or comment_index not in movie_metadata["user_notes"].keys()
+        ):
+            return {"status": "error", "message": "Komentar ne obstaja"}, 404
+
+        # Dodaj admin odgovor
+        movie_metadata["user_notes"][comment_index][
+            "admin_response"
+        ] = admin_response
+        movie_metadata["user_notes"][comment_index]["admin_response_date"] = (
+            datetime.now(timezone.utc).isoformat()
+        )
+
+        # Shranjuj
+        with open(metadata_file, "w", encoding="utf-8") as f:
+            json.dump(movie_metadata, f, ensure_ascii=False, indent=4)
+
+        # Posodobi in-memory podatke
+        if not is_splosno:
+            all_films[movie_folder]["user_notes"] = movie_metadata[
+                "user_notes"
+            ]
+            movie_title = all_films[movie_folder]["title"]
+        else:
+            movie_title = "Splošno"
+
+        # Pošlji email avtorju komentarja
+        from utils import send_mail
+
+        user_email = movie_metadata["user_notes"][comment_index]["email"]
+
+        email_html = f"""
+        <h2>Odgovor na vaš komentar</h2>
+        <p><strong>Film:</strong> {movie_title}</p>
+        <p><strong>Vaš komentar:</strong></p>
+        <p>{movie_metadata["user_notes"][comment_index]["text"]}</p>
+        <hr>
+        <p><strong>Odgovor:</strong></p>
+        <p>{admin_response}</p>
+        """
+
+        try:
+            send_mail(
+                to=[user_email],
+                subject=f"Odgovor na vaš komentar: {movie_title}",
+                html=email_html,
+            )
+            log.info(f"Odgovor poslan avtorju komentarja na {user_email}")
+        except Exception as e:
+            log.error(f"Napaka pri pošiljanju maila avtorju: {e}")
+
+        log.info(f"Admin odgovor dodan na komentar filma {movie_folder}")
+
+        # Pripravi seznam obstoječih opozoril za odgovor
+        alerts = [
+            {
+                "index": i,
+                "icon": ALERT_TYPES.get(note.get("type", "ideja")),
+                "type": note.get("type", "ideja"),
+                "text": note.get("text"),
+                "author": note.get("author"),
+                "date": note.get("date")[:16],
+                "is_admin": note.get("is_admin", False),
+            }
+            for i, note in movie_metadata["user_notes"].items()
+            if note.get("is_admin", False)
+        ]
+
+        return {
+            "status": "success",
+            "message": "Odgovor je bil poslan",
+            "movie_folder": movie_folder,
+            "movie_title": movie_title,
+            "current_alerts": alerts,
+        }, 200
+
+    except Exception as e:
+        log.error(f"Napaka pri dodajanju admin odgovora: {e}")
+        return {"status": "error", "message": "Napaka pri obdelavi"}, 500
+
+
+@movies_bp.route("/movies/get-comments", methods=["GET"])
+@login_required
+def get_comments():
+    """Pridobi vse uporabniške komentarje za admin panel (ne admin opozoril)"""
+    if not current_user.is_admin:
+        return {"status": "error", "message": "Dostop ni dovoljen"}, 403
+
+    try:
+        comments_list = []
+
+        metadata_file = os.path.join(FILMS_ROOT, "users_comments.json")
+        if os.path.exists(metadata_file):
+            with open(metadata_file, "r", encoding="utf-8") as f:
+                user_notes = json.loads(f.read()).get("user_notes", [])
+                for comment_index, note in user_notes.items():
+                    # Pokaži samo uporabniške komentarje (ne admin opozoril)
+                    if not note.get("admin_response") and not note.get(
+                        "is_admin", False
+                    ):
+                        comments_list.append(
+                            {
+                                "author": note.get("author"),
+                                "email": note.get("email"),
+                                "text": note.get("text"),
+                                "date": note.get("date")[:16],
+                                "movie_folder": None,
+                                "movie_title": "Splošno",
+                                "comment_index": comment_index,
+                                "current_alerts": None,
+                            }
+                        )
+
+        for movie_folder, movie_data in all_films.items():
+            user_notes = movie_data.get("user_notes", [])
+
+            for comment_index, note in user_notes.items():
+                # Pokaži samo uporabniške komentarje (ne admin opozoril)
+                if not note.get("admin_response") and not note.get(
+                    "is_admin", False
+                ):
+                    comments_list.append(
+                        {
+                            "author": note.get("author"),
+                            "email": note.get("email"),
+                            "text": note.get("text"),
+                            "date": note.get("date")[:16],
+                            "movie_folder": movie_folder,
+                            "movie_title": movie_data.get("title"),
+                            "comment_index": comment_index,
+                        }
+                    )
+
+        return {"comments": comments_list}, 200
+
+    except Exception as e:
+        log.error(f"Napaka pri prejemanju komentarjev: {e}")
+        return {"status": "error", "message": "Napaka pri obdelavi"}, 500
+
+
+@movies_bp.route("/movies/add-warning", methods=["POST"])
+@login_required
+def add_warning():
+    """Dodaj opozorilo na film (samo admin)"""
+    if not current_user.is_admin:
+        return {"status": "error", "message": "Dostop ni dovoljen"}, 403
+
+    try:
+        data = json.loads(request.data)
+        movie_folder = data.get("movieFolder")
+        warning_text = data.get("text", "").strip()
+        warning_type = data.get("type", "opozorilo")
+        icon = ALERT_TYPES.get(warning_type)
+
+        # Validacija
+        if not movie_folder or movie_folder not in all_films:
+            log.error(f"Neveljaven film za opozorilo: {movie_folder}")
+            return {"status": "error", "message": "Film ne obstaja"}, 404
+
+        if not warning_text or len(warning_text) < 3:
+            return {
+                "status": "error",
+                "message": "Opozorilo mora biti dolgo vsaj 3 znake",
+            }, 400
+
+        if warning_type not in ALERT_TYPES:
+            return {
+                "status": "error",
+                "message": f"Neznan tip opozorila: {warning_type}",
+            }, 400
+
+        # Priprava opozorila
+        random_index = str(random.randint(1, 1000000))
+        warning_obj = {
+            "author": current_user.id,
+            "text": warning_text,
+            "date": datetime.now(timezone.utc).isoformat(),
+            "type": warning_type,
+            "icon": icon,
+            "is_admin": True,
+            "random_index": random_index,
+        }
+
+        # Branje metapodatkov
+        metadata_file = os.path.join(
+            FILMS_ROOT, movie_folder[1:], "readme.json"
+        )
+
+        with open(metadata_file, "r", encoding="utf-8") as f:
+            movie_metadata = json.loads(f.read())
+
+        if "user_notes" not in movie_metadata:
+            movie_metadata["user_notes"] = {}
+
+        # Dodaj opozorilo
+        movie_metadata["user_notes"][random_index] = warning_obj
+
+        # Shranjuj
+        with open(metadata_file, "w", encoding="utf-8") as f:
+            json.dump(movie_metadata, f, ensure_ascii=False, indent=4)
+
+        # Posodobi in-memory podatke
+        all_films[movie_folder]["user_notes"] = movie_metadata["user_notes"]
+
+        log.info(
+            f"Admin opozorilo '{warning_type}' dodano na film {movie_folder} "
+            f"od {current_user.id}"
+        )
+        return {
+            "status": "success",
+            "message": "Opozorilo je bilo dodano",
+        }, 200
+
+    except Exception as e:
+        log.error(f"Napaka pri dodajanju opozorila: {e}")
+        return {"status": "error", "message": "Napaka pri obdelavi"}, 500
+
+
+@movies_bp.route("/movies/edit-warning", methods=["POST"])
+@login_required
+def edit_warning():
+    """Uredi opozorilo na filmu (samo admin)"""
+    if not current_user.is_admin:
+        return {"status": "error", "message": "Dostop ni dovoljen"}, 403
+
+    try:
+        data = json.loads(request.data)
+        movie_folder = data.get("movieFolder")
+        warning_index = data.get("warningIndex")
+        new_text = data.get("text", "").strip()
+        new_type = data.get("type")
+        new_icon = data.get("icon")
+
+        # Validacija
+        if not movie_folder or movie_folder not in all_films:
+            return {"status": "error", "message": "Film ne obstaja"}, 404
+
+        # Branje metapodatkov
+        metadata_file = os.path.join(
+            FILMS_ROOT, movie_folder[1:], "readme.json"
+        )
+
+        with open(metadata_file, "r", encoding="utf-8") as f:
+            movie_metadata = json.loads(f.read())
+
+        if (
+            "user_notes" not in movie_metadata
+            or warning_index not in movie_metadata["user_notes"].keys()
+        ):
+            return {"status": "error", "message": "Opozorilo ne obstaja"}, 404
+
+        note = movie_metadata["user_notes"][warning_index]
+
+        # Preverim da je admin opozorilo
+        if not note.get("is_admin"):
+            return {
+                "status": "error",
+                "message": "Lahko urediš samo admin opozorila",
+            }, 403
+
+        # Posodobi polja
+        if new_text:
+            note["text"] = new_text
+        if new_type:
+            note["type"] = new_type
+        if new_icon:
+            note["icon"] = new_icon
+        note["edited_date"] = datetime.now(timezone.utc).isoformat()
+        note["edited_by"] = current_user.id
+
+        # Shranjuj
+        with open(metadata_file, "w", encoding="utf-8") as f:
+            json.dump(movie_metadata, f, ensure_ascii=False, indent=4)
+
+        # Posodobi in-memory
+        all_films[movie_folder]["user_notes"] = movie_metadata["user_notes"]
+
+        log.info(f"Opozorilo na {movie_folder} je bilo spremenjeno")
+        return {
+            "status": "success",
+            "message": "Opozorilo je bilo spremenjeno",
+        }, 200
+
+    except Exception as e:
+        log.error(f"Napaka pri urejanju opozorila: {e}")
+        return {"status": "error", "message": "Napaka pri obdelavi"}, 500
+
+
+@movies_bp.route("/movies/delete-warning", methods=["POST"])
+@login_required
+def delete_warning():
+    """Izbriši opozorilo (samo admin)"""
+    if not current_user.is_admin:
+        return {"status": "error", "message": "Dostop ni dovoljen"}, 403
+
+    try:
+        data = json.loads(request.data)
+        movie_folder = data.get("movieFolder")
+        warning_index = data.get("warningIndex")
+
+        # Validacija
+        if not movie_folder or movie_folder not in all_films:
+            return {"status": "error", "message": "Film ne obstaja"}, 404
+
+        # Branje metapodatkov
+        metadata_file = os.path.join(
+            FILMS_ROOT, movie_folder[1:], "readme.json"
+        )
+
+        with open(metadata_file, "r", encoding="utf-8") as f:
+            movie_metadata = json.loads(f.read())
+
+        if (
+            "user_notes" not in movie_metadata
+            or warning_index not in movie_metadata["user_notes"].keys()
+        ):
+            return {"status": "error", "message": "Opozorilo ne obstaja"}, 404
+
+        # Briši opozorilo
+        deleted_note = movie_metadata["user_notes"].pop(warning_index)
+
+        # Shranjuj
+        with open(metadata_file, "w", encoding="utf-8") as f:
+            json.dump(movie_metadata, f, ensure_ascii=False, indent=4)
+
+        # Posodobi in-memory
+        all_films[movie_folder]["user_notes"] = movie_metadata["user_notes"]
+
+        log.info(
+            f"Opozorilo '{deleted_note.get('text')}' izbrisano z {movie_folder}"
+        )
+        return {
+            "status": "success",
+            "message": "Opozorilo je bilo izbrisano",
+        }, 200
+
+    except Exception as e:
+        log.error(f"Napaka pri brisanju opozorila: {e}")
+        return {"status": "error", "message": "Napaka pri obdelavi"}, 500

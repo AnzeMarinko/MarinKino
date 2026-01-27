@@ -177,6 +177,10 @@
             font-size: 11px;
         }
 
+        label.duration {
+            font-size: 14px;
+        }
+
         .save-btn:hover {
             background: #229954;
         }
@@ -301,6 +305,7 @@
                 <tr>
                     <th style="width: 50px;">Predvajaj</th>
                     <th style="width: 150px;">Pot</th>
+                    <th style="width: 50px;">Trajanje</th>
                     <th style="width: 350px;">Naslov</th>
                     <th style="width: 150px;">Izvajalec</th>
                     <th style="width: 150px;">Album</th>
@@ -322,7 +327,11 @@
     <script>
         // Globalni podatki
         let allMusic = {{ music|tojson }};
-        let genres = ["Klasična", "Krščanska", "Slovenska/Hrvaška"];
+        let genres = [
+            "Klasična", 
+            "Krščanska", 
+            "Slovenska/Hrvaška"
+        ];
         let currentlyPlaying = null;
         let changedRows = new Set();
 
@@ -373,6 +382,14 @@
             pathInput.innerText = music.filename || '';
             pathCell.appendChild(pathInput);
             row.appendChild(pathCell);
+
+            // Trajanje
+            const durationCell = document.createElement('td');
+            const durationInput = document.createElement('label');
+            durationInput.className = "duration"
+            durationInput.innerText = music.duration || '';
+            durationCell.appendChild(durationInput);
+            row.appendChild(durationCell);
 
             // Naslov
             const titleCell = document.createElement('td');

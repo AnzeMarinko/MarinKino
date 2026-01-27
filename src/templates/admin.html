@@ -238,4 +238,244 @@ document.addEventListener('DOMContentLoaded', function(){
     </div>
 </div>
 
+<h2>Upravljanje komentarjev na filmih</h2>
+<div id="comments-container">
+    <div class="text-center">
+        <p>Priprava komentarjev...</p>
+    </div>
+</div>
+
+<style>
+.alert-item {
+    border: 1px solid #ddd;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 8px;
+    background-color: #f0f8ff;
+}
+
+.alert-icon {
+    font-size: 1.5rem;
+    margin-right: 10px;
+}
+
+.alert-actions {
+    margin-top: 10px;
+    display: flex;
+    gap: 10px;
+}
+
+.alert-actions button {
+    padding: 6px 12px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    border: none;
+    border-radius: 4px;
+}
+
+.btn-edit-alert {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.btn-delete-alert {
+    background-color: #dc3545;
+    color: white;
+}
+
+.alert-edit-form {
+    background-color: white;
+    padding: 15px;
+    margin-top: 15px;
+    border-radius: 8px;
+    border: 2px solid #007bff;
+}
+
+.alert-form-group {
+    margin: 10px 0;
+}
+
+.alert-form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.alert-form-group input,
+.alert-form-group textarea,
+.alert-form-group select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: Arial, sans-serif;
+}
+
+.add-alert-form {
+    background-color: #e8f5e9;
+    padding: 15px;
+    margin: 15px 0;
+    border-radius: 8px;
+    border-left: 4px solid #4caf50;
+}
+
+.movie-alerts-list {
+    background-color: white;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+}
+
+.comment-item {
+    border: 1px solid #ddd;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+}
+
+.comment-item.has-response {
+    border-left: 4px solid #28a745;
+}
+
+.comment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.comment-author {
+    font-weight: bold;
+    color: #333;
+}
+
+.comment-movie-title {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.comment-text {
+    background-color: white;
+    padding: 10px;
+    margin: 10px 0;
+    border-left: 3px solid #ffcc5c;
+}
+
+.admin-response-form {
+    background-color: white;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 4px;
+}
+
+.admin-response-form textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: Arial, sans-serif;
+}
+
+.admin-response-form button {
+    background-color: #28a745;
+    color: white;
+    margin-top: 10px;
+}
+
+.existing-response {
+    background-color: #d4edda;
+    padding: 10px;
+    margin-top: 10px;
+    border-left: 3px solid #28a745;
+    border-radius: 4px;
+}
+</style>
+
+<script>
+function loadComments() {
+    fetch('/movies/get-comments')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('comments-container');
+            
+            if (data.comments.length === 0) {
+                container.innerHTML = '<p>Ni novih komentarjev.</p>';
+                return;
+            }
+            
+            let html = '';
+            data.comments.forEach(comment => {
+                const hasResponse = comment.admin_response ? true : false;
+                html += `
+                    <div class="comment-item ${hasResponse ? 'has-response' : ''}">
+                        <div class="comment-header">
+                            <div>
+                                <div class="comment-author">${comment.author}</div>
+                                <div class="comment-movie-title"><a href="/movies/play${comment.movie_folder}">
+                                    ${comment.movie_title}</a></div>
+                                <small class="text-muted">${comment.email} (${comment.date})</small>
+                            </div>
+                        </div>
+                        <div class="comment-text">${comment.text}</div>
+                        ${hasResponse ? `<div class="existing-response"><strong>Odgovor:</strong> ${comment.admin_response}</div>` : ''}
+                        ${!hasResponse ? `
+                            <div class="admin-response-form">
+                                <textarea placeholder="Napišite odgovor na komentar..." data-movie="${comment.movie_folder}" data-index="${comment.comment_index}"></textarea>
+                                <button onclick="submitAdminResponse(this)">Pošlji odgovor</button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+function submitAdminResponse(button) {
+    const textarea = button.previousElementSibling;
+    const response = textarea.value.trim();
+    const movieFolder = textarea.dataset.movie;
+    const commentIndex = textarea.dataset.index;
+    
+    if (!response) {
+        alert('Odgovor ne sme biti prazen');
+        return;
+    }
+    
+    const data = {
+        movieFolder: movieFolder,
+        commentIndex: commentIndex,
+        response: response
+    };
+    
+    fetch('/movies/admin-comment', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            "X-CSRFToken": "{{ csrf_token() }}"
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            alert('Odgovor je bil poslan!');
+            loadComments();
+        } else {
+            alert('Napaka: ' + result.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Napaka pri pošiljanju odgovora');
+    });
+}
+
+// Učitaj komentarje ob nalaganju strani
+document.addEventListener('DOMContentLoaded', loadComments);
+</script>
+
 {% endblock %}

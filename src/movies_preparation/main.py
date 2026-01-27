@@ -16,7 +16,7 @@ def check_folder(folder, only_collect_metadata=True):
 
     if (
         not only_collect_metadata
-        and "06-the-chosen" not in folder_path.name.lower()
+        and "06-the-chosen" not in str(folder_path).lower()
     ):
         videos = convert_videos(str(folder_path))
 

@@ -58,6 +58,70 @@
         {% endif %}
     </div>
 
+    <div>
+    <!-- Prikaz opozoril (samo admin) -->
+    {% set admin_alerts = movie.user_notes.values()|selectattr('is_admin')|list %}
+    {% if admin_alerts %}
+    <div class="user-notes-section">
+        <h3><i class="bi bi-info-circle"></i> Opozorila in komentarji</h3>
+        {% for note in admin_alerts %}
+        <div class="user-note {% if note.type %}note-type-{{ note.type }}{% endif %}" data-note-index="{{ loop.index0 }}">
+            <div class="note-header">
+                <i class="bi {{ note.icon or 'bi-lightbulb-fill' }}"></i>{{ note.text }}
+            </div>
+            {% if current_user.is_authenticated and current_user.is_admin %}
+            <div class="alert-actions" style="margin-top: 10px; display: flex; gap: 10px;">
+                <button class="btn btn-sm btn-warning" onclick="editAlertOnPage(this, '{{ movie.folder }}', '{{ note.random_index }}')"><i class="bi bi-pencil"></i> Uredi</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteAlertOnPage(this, '{{ movie.folder }}', '{{ note.random_index }}')"><i class="bi bi-trash"></i> Izbriši</button>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Modal za urejanje opozorila -->
+    <div id="editAlertModal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
+        <div style="background-color: #fefefe; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 90%; max-width: 500px; border-radius: 8px;">
+            <span style="color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer;" onclick="closeEditAlertModal()">&times;</span>
+            <h2>Uredi opozorilo</h2>
+            <div class="alert-form-group">
+                <label>Tip opozorila:</label>
+                <select id="edit_alert_type">
+                    <option value="opozorilo"><i class="bi bi-exclamation-diamond-fill"></i> Opozorilo</option>
+                    <option value="ideja"><i class="bi bi-lightbulb-fill"></i> Ideja</option>
+                </select>
+            </div>
+            <div class="alert-form-group">
+                <label>Besedilo:</label>
+                <textarea id="edit_alert_text" placeholder="Napišite opozorilo..." rows="4"></textarea>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px;">
+                <button onclick="closeEditAlertModal()" style="background-color: #ccc; color: black; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">Prekliči</button>
+                <button onclick="saveEditedAlert()" style="background-color: #4caf50; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">Shrani</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Forma za dodajanje opozorila (samo admin) -->
+    {% if current_user.is_authenticated and current_user.is_admin %}
+    <div class="add-alert-form">
+        <h4><i class="bi bi-plus-circle"></i> Dodaj novo opozorilo</h4>
+        <div class="alert-form-group">
+            <label>Tip opozorila: (<i class="bi bi-exclamation-diamond-fill"></i>, <i class="bi bi-lightbulb-fill"></i>)</label>
+            <select id="alert_type">
+                <option value="opozorilo"><i class="bi bi-exclamation-diamond-fill"></i> Opozorilo</option>
+                <option value="ideja"><i class="bi bi-lightbulb-fill"></i> Ideja</option>
+            </select>
+        </div>
+        <div class="alert-form-group">
+            <label>Besedilo:</label>
+            <textarea id="alert_text" placeholder="Napišite opozorilo..." rows="2"></textarea>
+        </div>
+        <button onclick="submitAlertOnPage('{{ movie.folder }}')" class="btn btn-success"><i class="bi bi-check-circle"></i> Dodaj opozorilo</button>
+    </div>
+    {% endif %}
+
 {% if not is_collection %}
     <video id="videoPlayer" controls playsinline>
 
@@ -110,9 +174,181 @@
     }
     </script>
 {% endif %}
+
+    <!-- Forma za dodajanje komentarja -->
+    <div class="comment-form-section">
+        <h3>Dodaj komentar ali predlog</h3>
+        <form id="commentForm" onsubmit="submitComment(event, '{{ movie.folder }}')">
+            <div class="form-group">
+                <label for="commentText">Komentar (predlog, opozorilo, itd.):</label>
+                <textarea id="commentText" name="comment" required minlength="5" rows="4" placeholder="Napišite vaš komentar..."></textarea>
+            </div>
+            <button type="submit">Pošlji komentar</button>
+            <div id="commentStatus" class="status-message"></div>
+        </form>
+    </div>
+</div>
 </div>
 
 <script defer src="/static/script/movies.js"></script>
+
+<script>
+const ALERT_TYPES_PAGE = {
+    "opozorilo": "bi-exclamation-diamond-fill",
+    "ideja": "bi-lightbulb-fill",
+};
+
+function submitAlertOnPage(movieFolder) {
+    const text = document.getElementById('alert_text').value.trim();
+    const type = document.getElementById('alert_type').value;
+    const icon = ALERT_TYPES_PAGE[type] || 'bi-lightbulb-fill';
+    
+    if (!text) {
+        alert('Besedilo opozorila je obvezno');
+        return;
+    }
+    
+    const data = {
+        movieFolder: movieFolder,
+        text: text,
+        type: type,
+        icon: icon
+    };
+    
+    fetch('/movies/add-warning', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            "X-CSRFToken": document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            alert('Opozorilo je bilo dodano!');
+            document.getElementById('alert_text').value = '';
+            location.reload();
+        } else {
+            alert('Napaka: ' + result.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Napaka pri dodajanju opozorila');
+    });
+}
+
+let editingAlertData = {};
+
+function editAlertOnPage(button, movieFolder, index) {
+    const noteElement = button.closest('.user-note');
+    const noteHeader = noteElement.querySelector('.note-header');
+    const alertText = noteHeader.textContent.trim();
+    const alertType = noteElement.className.match(/note-type-(\w+)/)?.[1] || 'opozorilo';
+    
+    editingAlertData = {
+        movieFolder: movieFolder,
+        index: index
+    };
+    
+    document.getElementById('edit_alert_text').value = alertText;
+    document.getElementById('edit_alert_type').value = alertType;
+    document.getElementById('editAlertModal').style.display = 'block';
+}
+
+function closeEditAlertModal() {
+    document.getElementById('editAlertModal').style.display = 'none';
+    editingAlertData = {};
+}
+
+function saveEditedAlert() {
+    const text = document.getElementById('edit_alert_text').value.trim();
+    const type = document.getElementById('edit_alert_type').value;
+    const ALERT_TYPES_PAGE = {
+        "opozorilo": "bi-exclamation-diamond-fill",
+        "ideja": "bi-lightbulb-fill"
+    };
+    const icon = ALERT_TYPES_PAGE[type] || 'bi-lightbulb-fill';
+    
+    if (!text) {
+        alert('Besedilo opozorila je obvezno');
+        return;
+    }
+    
+    const data = {
+        movieFolder: editingAlertData.movieFolder,
+        warningIndex: editingAlertData.index,
+        text: text,
+        type: type,
+        icon: icon
+    };
+    
+    fetch('/movies/edit-warning', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            "X-CSRFToken": document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            alert('Opozorilo je bilo shranjeno!');
+            closeEditAlertModal();
+            location.reload();
+        } else {
+            alert('Napaka: ' + result.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Napaka pri shranjevanju opozorila');
+    });
+}
+
+window.onclick = function(event) {
+    const modal = document.getElementById('editAlertModal');
+    if (event.target === modal) {
+        closeEditAlertModal();
+    }
+}
+
+function deleteAlertOnPage(button, movieFolder, index) {
+    if (!confirm('Ali si prepričan, da želiš izbrisati to opozorilo?')) {
+        return;
+    }
+    
+    const data = {
+        movieFolder: movieFolder,
+        warningIndex: index
+    };
+    
+    fetch('/movies/delete-warning', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            "X-CSRFToken": document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            alert('Opozorilo je bilo izbrisano!');
+            location.reload();
+        } else {
+            alert('Napaka: ' + result.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Napaka pri brisanju opozorila');
+    });
+}
+</script>
+
 </main>
 
 {% endblock %}

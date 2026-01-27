@@ -14,6 +14,7 @@ Compress(app)
 def get_current_metadata(music_file):
     path = os.path.join("data/music", music_file)
     audio = MP3(path, ID3=EasyID3)
+    total_seconds = int(audio.info.length)
     return {
         "title": ", ".join(
             audio.get(
@@ -25,6 +26,7 @@ def get_current_metadata(music_file):
         "genre": ", ".join(audio.get("genre", [])),
         "filename": music_file,
         "folder": "/".join(music_file.split("/")[:-1]),
+        "duration": f"{total_seconds // 60}:{total_seconds % 60:02d}",
     }
 
 
@@ -44,7 +46,7 @@ def index():
     music_files = [
         f[11:]
         for f in glob.iglob("data/music/**/*.mp3", recursive=True)
-        if "/" in f[11:]
+        if f[11:].lower() > "kr"
     ]
     return render_template(
         "music_editor.html",
