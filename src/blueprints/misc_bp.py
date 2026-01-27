@@ -15,7 +15,7 @@ from flask import (
 )
 from flask_login import current_user, login_required
 
-from utils import redis_client, safe_path
+from utils import is_current_admin_view, redis_client, safe_path
 
 log = logging.getLogger(__name__)
 
@@ -97,7 +97,7 @@ def help():
 @login_required
 def send_admin_emails():
     template_name = "mail_user_intro"
-    if not current_user.is_admin:
+    if not is_current_admin_view(current_user):
         return redirect(url_for("movies.index"))
     if request.method == "POST":
         if send_mail is None:

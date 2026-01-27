@@ -54,7 +54,7 @@
       <i id="shuffleIcon" class="bi bi-shuffle"></i>
     </button>
 
-{% if current_user.is_admin %}
+{% if view_as != "anonymous" and view_as != "user" and current_user.is_admin %}
 <button id="delete-btn" class="btn btn-danger shadow" onclick="izbrisiPesem()">
   <i class="bi bi-trash"></i>
 </button>

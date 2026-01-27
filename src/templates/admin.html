@@ -4,7 +4,26 @@
 
 {% block content %}
 <script src="https://cdn.plot.ly/plotly-3.3.1.min.js"></script>
-<h1>Nadzorna plošča</h1>  
+<h1>Nadzorna plošča</h1>
+
+<!-- View As Controls -->
+<div class="alert alert-info d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <strong>Prikazi stran kot:</strong>
+    {% if view_as == "anonymous" %}
+      <span class="badge bg-warning">Neprijavljen</span>
+    {% elif view_as == "user" %}
+      <span class="badge bg-warning">Navaden uporabnik</span>
+    {% else %}
+      <span class="badge bg-success">Administrator</span>
+    {% endif %}
+  </div>
+  <div class="btn-group btn-group-sm">
+    <a href="/set-view-as/anonymous" class="btn btn-warning {% if view_as == 'anonymous' %}active{% endif %}">Neprijavljen</a>
+    <a href="/set-view-as/user" class="btn btn-warning {% if view_as == 'user' %}active{% endif %}">Navaden uporabnik</a>
+    <a href="/clear-view-as" class="btn btn-success {% if not view_as %}active{% endif %}">Administrator</a>
+  </div>
+</div>
 
 <a href="/send_admin_emails" class="btn btn-sm btn-outline-info">Pošiljanje mailov uporabnikom</a>
 

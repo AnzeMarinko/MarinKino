@@ -38,7 +38,7 @@
                 <label for="opcija2-{{ movie.movie_id }}">Pogledano</label>
             </div>
         
-            {% if current_user.is_admin %}
+            {% if view_as != "anonymous" and view_as != "user" and current_user.is_admin %}
             <div class="buttons">
                 <hr>
                 <div class="selectors priporocilo" movie-folder="{{ movie.folder }}">
@@ -69,7 +69,7 @@
             <div class="note-header">
                 <i class="bi {{ note.icon or 'bi-lightbulb-fill' }}"></i>{{ note.text }}
             </div>
-            {% if current_user.is_authenticated and current_user.is_admin %}
+            {% if current_user.is_authenticated and current_user.is_admin and view_as != "anonymous" and view_as != "user" %}
             <div class="alert-actions" style="margin-top: 10px; display: flex; gap: 10px;">
                 <button class="btn btn-sm btn-warning" onclick="editAlertOnPage(this, '{{ movie.folder }}', '{{ note.random_index }}')"><i class="bi bi-pencil"></i> Uredi</button>
                 <button class="btn btn-sm btn-danger" onclick="deleteAlertOnPage(this, '{{ movie.folder }}', '{{ note.random_index }}')"><i class="bi bi-trash"></i> Izbriši</button>
@@ -104,7 +104,7 @@
     </div>
 
     <!-- Forma za dodajanje opozorila (samo admin) -->
-    {% if current_user.is_authenticated and current_user.is_admin %}
+    {% if current_user.is_authenticated and current_user.is_admin and view_as != "anonymous" and view_as != "user" %}
     <div class="add-alert-form">
         <h4><i class="bi bi-plus-circle"></i> Dodaj novo opozorilo</h4>
         <div class="alert-form-group">

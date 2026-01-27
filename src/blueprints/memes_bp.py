@@ -6,7 +6,7 @@ from datetime import date
 from flask import Blueprint, render_template, send_from_directory
 from flask_login import current_user, login_required
 
-from utils import safe_path
+from utils import is_current_admin_view, safe_path
 
 log = logging.getLogger(__name__)
 
@@ -78,10 +78,10 @@ def meme_file(meme_file_name):
 @memes_bp.route("/meme/delete/<meme_file_name>", methods=["DELETE"])
 @login_required
 def meme_remove(meme_file_name):
-    if not current_user.is_admin:
+    if not is_current_admin_view(current_user):
         return "", 204
     try:
-        path = safe_path("../data/memes", meme_file_name)
+        path = safe_path("data/memes", meme_file_name)
     except ValueError:
         return "", 404
     if not os.path.exists(path):

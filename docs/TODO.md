@@ -2,7 +2,7 @@
 
 * s flask ročno uredi glasbo, nato poženi da se tudi datoteke preimenujejo lepo glede na podatke in da so v primernih mapah glede na žanr
 * ta uporabniški vmesnik uporabi tudi ob dodajanju novih pesmi
-* dodaj angleške podnapise in chosen s slovenskim zvokom
+* dodaj angleške podnapise
 * pošlji prve predloge filmov na mail in dodaj, da se zadnji predlog pošlje tudi novemu uporabniku
 * nov release v1.2.0 glede na commit messages
 

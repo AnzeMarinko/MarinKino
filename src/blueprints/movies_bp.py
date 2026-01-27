@@ -15,12 +15,13 @@ from flask import (
     render_template,
     request,
     send_from_directory,
+    session,
     url_for,
 )
 from flask_login import current_user, login_required
 
 from movies_preparation import FILMS_ROOT, check_folder
-from utils import redis_client, safe_path
+from utils import is_current_admin_view, redis_client, safe_path
 
 log = logging.getLogger(__name__)
 
@@ -159,7 +160,10 @@ def fuzzy_match(query, title):
 # Main routes
 @movies_bp.route("/")
 def index():
-    if current_user.is_authenticated:
+    if (
+        current_user.is_authenticated
+        and session.get("view_as", None) != "anonymous"
+    ):
         user_key = f"user_settings:{current_user.id}"
         movies_settings = redis_client.hget(user_key, "movies")
         movies_settings = (
@@ -242,6 +246,9 @@ def index():
             redis_client.rpush(cache_key, *movie_ids)
             redis_client.expire(cache_key, 3600)
     else:
+        if current_user.is_authenticated:
+            cache_key = f"cache:movies:{current_user.id}"
+            redis_client.delete(cache_key)
         genre_filter = request.args.get("genre")
         sort = request.args.get("sort")
         onlyunwatched = request.args.get("onlyunwatched")
@@ -266,7 +273,11 @@ def index():
         group_folders={
             k: v
             for k, v in group_folders.items()
-            if (current_user.is_authenticated and current_user.is_admin)
+            if (
+                current_user.is_authenticated
+                and session.get("view_as", None) != "anonymous"
+                and is_current_admin_view(current_user)
+            )
             or "neurejen" not in k.lower()
         },
         known_genres=known_genres,
@@ -293,7 +304,8 @@ def movies_page():
 
     return {
         "movies": [
-            {**m, "is_admin": current_user.is_admin} for m in movies_page
+            {**m, "is_admin": is_current_admin_view(current_user)}
+            for m in movies_page
         ],
         "has_more": has_more,
     }
@@ -309,7 +321,7 @@ def play_movie(movies_subfolder, movie_folder):
     )
     if film_candidate is None:
         log.error("There is no film candidates!")
-        return 0
+        return "", 404
     film = add_watch_info(film_candidate, user_data)
     video_files = film["video_files"]
     subtitles = film["subtitles"]
@@ -336,7 +348,7 @@ def play_movie(movies_subfolder, movie_folder):
         )
     else:
         log.error("No video files!")
-        return 0
+        return "", 404
 
 
 @movies_bp.route(
@@ -345,7 +357,7 @@ def play_movie(movies_subfolder, movie_folder):
 @login_required
 def remove_movie(movies_subfolder, movie_folder):
     global all_films
-    if not current_user.is_admin:
+    if not is_current_admin_view(current_user):
         return redirect(url_for("movies.index"))
     removing_folder = os.path.sep + os.path.join(
         "", movies_subfolder, movie_folder
@@ -354,13 +366,11 @@ def remove_movie(movies_subfolder, movie_folder):
         log.error(f"Manjka film za odstranjevanje: {removing_folder}")
         return {"status": "missing", "folder": removing_folder}
     all_films.pop(removing_folder)
-    removing_folder = os.path.join(
-        "../" + FILMS_ROOT, movies_subfolder, movie_folder
-    )
+    removing_folder = os.path.join(FILMS_ROOT, movies_subfolder, movie_folder)
     for filename in os.listdir(removing_folder):
         try:
             path = safe_path(
-                "../" + FILMS_ROOT,
+                FILMS_ROOT,
                 os.path.join(movies_subfolder, movie_folder, filename),
             )
         except ValueError:
@@ -381,7 +391,7 @@ def remove_movie(movies_subfolder, movie_folder):
 @login_required
 def remcommend_movie():
     global all_films
-    if not current_user.is_admin:
+    if not is_current_admin_view(current_user):
         return redirect(url_for("movies.index"))
     data = json.loads(request.data)
 
@@ -677,7 +687,7 @@ ALERT_TYPES = {
 @login_required
 def admin_comment():
     """Dodaj admin odgovor na komentar"""
-    if not current_user.is_admin:
+    if not is_current_admin_view(current_user):
         return {"status": "error", "message": "Dostop ni dovoljen"}, 403
 
     try:
@@ -797,7 +807,7 @@ def admin_comment():
 @login_required
 def get_comments():
     """Pridobi vse uporabniške komentarje za admin panel (ne admin opozoril)"""
-    if not current_user.is_admin:
+    if not is_current_admin_view(current_user):
         return {"status": "error", "message": "Dostop ni dovoljen"}, 403
 
     try:
@@ -818,7 +828,7 @@ def get_comments():
                                 "email": note.get("email"),
                                 "text": note.get("text"),
                                 "date": note.get("date")[:16],
-                                "movie_folder": None,
+                                "movie_folder": "Splošno",
                                 "movie_title": "Splošno",
                                 "comment_index": comment_index,
                                 "current_alerts": None,
@@ -856,7 +866,7 @@ def get_comments():
 @login_required
 def add_warning():
     """Dodaj opozorilo na film (samo admin)"""
-    if not current_user.is_admin:
+    if not is_current_admin_view(current_user):
         return {"status": "error", "message": "Dostop ni dovoljen"}, 403
 
     try:
@@ -934,7 +944,7 @@ def add_warning():
 @login_required
 def edit_warning():
     """Uredi opozorilo na filmu (samo admin)"""
-    if not current_user.is_admin:
+    if not is_current_admin_view(current_user):
         return {"status": "error", "message": "Dostop ni dovoljen"}, 403
 
     try:
@@ -1004,7 +1014,7 @@ def edit_warning():
 @login_required
 def delete_warning():
     """Izbriši opozorilo (samo admin)"""
-    if not current_user.is_admin:
+    if not is_current_admin_view(current_user):
         return {"status": "error", "message": "Dostop ni dovoljen"}, 403
 
     try:

@@ -17,7 +17,12 @@ from flask import (
 from flask_login import current_user, login_required, login_user, logout_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from utils import find_user_by_email, redis_client, users_file
+from utils import (
+    find_user_by_email,
+    is_current_admin_view,
+    redis_client,
+    users_file,
+)
 
 log = logging.getLogger(__name__)
 
@@ -76,7 +81,7 @@ def login():
 def register():
     global users
     error = None
-    if not current_user.is_admin:
+    if not is_current_admin_view(current_user):
         return redirect(url_for("movies.index"))
     if request.method == "POST":
         username = request.form["username"].strip()

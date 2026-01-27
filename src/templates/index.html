@@ -79,7 +79,7 @@
     </div>
 
     <div class="col-12 col-md-6 col-lg-4">
-      {% if current_user.is_authenticated %}
+      {% if current_user.is_authenticated and view_as != "anonymous" %}
       <button class="btn btn-orange w-100">Pripravi</button>
       {% endif %}
     </div>

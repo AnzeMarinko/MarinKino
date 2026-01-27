@@ -7,7 +7,7 @@ from flask_login import current_user, login_required
 from mutagen.easyid3 import EasyID3
 from mutagen.mp3 import MP3, HeaderNotFoundError
 
-from utils import safe_path
+from utils import is_current_admin_view, safe_path
 
 log = logging.getLogger(__name__)
 
@@ -23,7 +23,8 @@ for s in music_files:
     music_albums.setdefault("Vse", []).append(s)
     for i in range(len(parts)):
         album = " - ".join(parts[: i + 1]).title()
-        music_albums.setdefault(album, []).append(s)
+        if "Drugo" not in album:
+            music_albums.setdefault(album, []).append(s)
 
 music_metadata = {}
 for file in music_albums["Vse"]:
@@ -74,7 +75,7 @@ music_albums = [
 @music_bp.route("/music")
 @login_required
 def music():
-    if not current_user.is_admin:
+    if not is_current_admin_view(current_user):
         return render_template(
             "music_player.html",
             pagetitle="MarinKino - Glasba",
@@ -114,10 +115,10 @@ def song(filename):
 @music_bp.route("/music/delete/<path:filename>", methods=["DELETE"])
 @login_required
 def song_remove(filename):
-    if not current_user.is_admin:
+    if not is_current_admin_view(current_user):
         return "", 204
     try:
-        path = safe_path("../data/music", filename)
+        path = safe_path("data/music", filename)
     except ValueError:
         return "", 404
     if not os.path.exists(path):

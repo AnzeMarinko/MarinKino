@@ -9,6 +9,7 @@ from datetime import date
 from email.message import EmailMessage
 
 import redis
+from flask import session
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash
 
@@ -62,6 +63,14 @@ class User(UserMixin):
         self.id = username
         self.is_admin = users.get(username, {}).get("is_admin", False)
         self.emails = users.get(username, {}).get("emails", [])
+
+
+def is_current_admin_view(user):
+    return (
+        user.is_admin
+        and session.get("view_as", None) != "anonymous"
+        and session.get("view_as", None) != "user"
+    )
 
 
 def find_user_by_email(email, users_dict):

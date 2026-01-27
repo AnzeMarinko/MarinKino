@@ -2,7 +2,7 @@ import logging
 import os
 from datetime import date, timedelta
 
-from flask import Flask, request
+from flask import Flask, request, session
 from flask_compress import Compress
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -52,6 +52,7 @@ def inject_global_variables():
     return {
         "current_year": date.today().year,
         "domain": os.getenv("DUCKDNS_DOMAIN"),
+        "view_as": session.get("view_as", None),
     }
 
 

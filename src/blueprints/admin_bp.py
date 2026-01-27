@@ -2,11 +2,18 @@ import logging
 import os
 
 import pandas as pd
-from flask import Blueprint, redirect, render_template, url_for
+from flask import (
+    Blueprint,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 from flask_login import current_user, login_required
 
 from movies_preparation.config import LOG_FILENAME
-from utils import redis_client
+from utils import is_current_admin_view, redis_client
 
 log = logging.getLogger(__name__)
 
@@ -24,7 +31,7 @@ def init_admin_bp(_users):
 @admin_bp.route("/admin")
 @login_required
 def admin_panel():
-    if not current_user.is_admin:
+    if not is_current_admin_view(current_user):
         return redirect(url_for("movies.index"))
 
     access_stats_users = {}
@@ -228,3 +235,29 @@ def admin_panel():
         access_stats_monthly=access_stats_monthly_dict,
         monthly_columns=monthly_columns,
     )
+
+
+@admin_bp.route("/set-view-as/<view_mode>")
+@login_required
+def set_view_as(view_mode):
+    """Set the view mode for admin preview (anonymous, user, admin)"""
+    if not current_user.is_admin:
+        return redirect(url_for("movies.index"))
+
+    if view_mode in ["anonymous", "user", "admin"]:
+        session["view_as"] = view_mode
+    else:
+        session.pop("view_as", None)
+
+    return redirect(url_for("movies.index"))
+
+
+@admin_bp.route("/clear-view-as")
+@login_required
+def clear_view_as():
+    """Clear the view as mode"""
+    if not current_user.is_admin:
+        return redirect(url_for("movies.index"))
+
+    session.pop("view_as", None)
+    return redirect(request.referrer or url_for("admin.admin_panel"))
