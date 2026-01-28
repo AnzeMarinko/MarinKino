@@ -41,7 +41,10 @@ def favicon():
 
 @misc_bp.route("/pod_krinko")
 def pod_krinko():
-    return render_template("pod_krinko.html")
+    return render_template(
+        "pod_krinko.html",
+        pagetitle="Pod krinko",
+    )
 
 
 # Initialize pod_krinko

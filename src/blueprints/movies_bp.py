@@ -274,11 +274,9 @@ def index():
             k: v
             for k, v in group_folders.items()
             if (
-                current_user.is_authenticated
-                and session.get("view_as", None) != "anonymous"
-                and is_current_admin_view(current_user)
+                is_current_admin_view(current_user)
+                or "neurejen" not in k.lower()
             )
-            or "neurejen" not in k.lower()
         },
         known_genres=known_genres,
     )

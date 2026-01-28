@@ -45,15 +45,15 @@ def update_values(music_file, title, artist, album, genre):
 def index():
     music_files = [
         f[11:]
-        for f in glob.iglob("data/music/**/*.mp3", recursive=True)
-        if f[11:].lower() > "kr"
+        for f in glob.iglob(
+            "data/music/Neurejena-glasba/**/*.mp3", recursive=True
+        )
     ]
     return render_template(
         "music_editor.html",
         music=sorted(
             [get_current_metadata(file) for file in music_files],
             key=lambda x: (
-                x.get("folder", "").lower(),
                 x.get("artist", "").lower(),
                 x.get("album", "").lower(),
                 x.get("title", "").lower(),
