@@ -15,9 +15,24 @@ html {
 body {
     margin: 0;
     font-family: Monospace;
+    overscroll-behavior: none;
+    padding-right: 0px;
+    padding-bottom: 0px;
+    padding-left: 0px;
+    background: var(--pod-krinko-temno);
+}
+
+footer ul {
+  padding-left: 0rem;
+}
+
+footer li {
+  margin-bottom: 0px;
+}
+
+.game {
     background: var(--pod-krinko-temno);
     color: white;
-    overscroll-behavior: none;
 }
 
 h1 {
@@ -459,16 +474,6 @@ input {
 
 progress {
     width: 80%;
-}
-
-footer {
-    text-align: center;
-}
-
-footer a {
-    text-decoration: none;  /* Odstrani podčrtavo */
-    color: var(--gospod-v-belem);         /* Ohranimo privzeto barvo gumba */
-    display: block;         /* Poskrbimo, da pokriva celoten gumb */
 }
 
 /* Prilagoditev Bootstrap vnosnih polj tvoji temi */

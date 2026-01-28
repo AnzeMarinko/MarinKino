@@ -58,7 +58,7 @@
         {% endif %}
     </div>
 
-    <div>
+    <div style="max-width: 100%; width: 1000px">
     <!-- Prikaz opozoril (samo admin) -->
     {% set admin_alerts = movie.user_notes.values()|selectattr('is_admin')|list %}
     {% if admin_alerts %}

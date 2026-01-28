@@ -112,8 +112,8 @@ input, button {
     transition: opacity 0.3s ease;
     z-index: 100;
     pointer-events: none;
-    min-width: 300px;
-    width: 50vw;
+    min-width: 200px;
+    width: 20vw;
     left: 100%;
 }
 

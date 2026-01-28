@@ -121,11 +121,6 @@ function renderMovieCard(movie) {
             <b>${movie.players}</b><br>
             <hr>${movie.description}
 
-            ${movie.subtitle_buttons?.length ? `
-                <br><hr>Podnapisi:
-                ${movie.subtitle_buttons.map(s => `<button class="subtitles">${s}</button>`).join("")}
-            ` : ""}
-
             <br><hr>
 
             <div class="selectors izbira" movie-id="${movie.movie_id}">

@@ -1,11 +1,14 @@
 {% extends "base.html" %}
 
 {% block content %}
+{% if not is_for_mail %}
+<main class="container">
+{% endif %}
   <table width="100%" cellpadding="0" cellspacing="0">
   <tr>
   <td align="center" style="padding:8px;">
 
-      <table width="100%" style="max-width:600px;background:#ffffff;border-radius:8px;padding:10px;">
+      <table width="100%" style="{{ 'max-width:600px;' if is_for_mail else '' }}background:#ffffff;border-radius:8px;padding:10px;">
       <tr>
       <td align="center" style="padding:16px;">
 
@@ -185,4 +188,7 @@ zbirko glasbe z okrog 1000 pesmimi in dru≈æabno igro Pod Krinko. Izbor filmov, ≈
   </td>
   </tr>
   </table>
+{% if not is_for_mail %}
+</main>
+{% endif %}
 {% endblock %}
