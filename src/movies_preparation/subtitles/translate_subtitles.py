@@ -14,6 +14,26 @@ GEMINI_API_KEY = os.getenv("GEMINI_TOKEN")
 gst.gemini_api_key = GEMINI_API_KEY
 
 
+def detect_srt_lang(input_srt_file):
+    # Preverimo kodiranje vhodne datoteke
+    with open(input_srt_file, "rb") as file:
+        vsebina = file.read()
+        rezultat = chardet.detect(vsebina)
+        trenutna_kodna_tabela = rezultat["encoding"]
+
+    # Preberemo vsebino v pravilnem kodiranju
+    with open(input_srt_file, "r", encoding=trenutna_kodna_tabela) as file:
+        tekst = file.read()
+
+    if trenutna_kodna_tabela != "utf-8":
+        with open(input_srt_file, "w", encoding="utf-8") as file:
+            file.write(tekst)
+
+    # Zaznaj jezik podnapisov
+    detected_lang = detect(tekst)
+    return detected_lang, tekst
+
+
 def translate(
     input_srt_file,
     target_language="sl",
@@ -22,22 +42,7 @@ def translate(
     retry=1,
 ):
     try:
-        # Preverimo kodiranje vhodne datoteke
-        with open(input_srt_file, "rb") as file:
-            vsebina = file.read()
-            rezultat = chardet.detect(vsebina)
-            trenutna_kodna_tabela = rezultat["encoding"]
-
-        # Preberemo vsebino v pravilnem kodiranju
-        with open(input_srt_file, "r", encoding=trenutna_kodna_tabela) as file:
-            tekst = file.read()
-
-        if trenutna_kodna_tabela != "utf-8":
-            with open(input_srt_file, "w", encoding="utf-8") as file:
-                file.write(tekst)
-
-        # Zaznaj jezik podnapisov
-        detected_lang = detect(tekst)
+        detected_lang, tekst = detect_srt_lang(input_srt_file)
         if detected_lang == target_language:
             log.info("✅ Podnapisi so že v ciljnem jeziku.")
             output_srt_file = input_srt_file.replace(

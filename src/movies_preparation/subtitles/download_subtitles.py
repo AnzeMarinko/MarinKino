@@ -16,7 +16,7 @@ OPENSUBTITLESCOM_PASSWORD = os.getenv("OPENSUBTITLESCOM_PASSWORD")
 osub = OpenSubtitles("MarinKino", OPENSUBTITLESCOM_TOKEN)
 
 
-def search_opensubtitles(imdb_id, languages=("sl", "en")):
+def search_opensubtitles(imdb_id, languages=("sl", "en"), num=3):
     osub.login("anzem", OPENSUBTITLESCOM_PASSWORD)
     results = []
     for lang in languages:
@@ -27,7 +27,7 @@ def search_opensubtitles(imdb_id, languages=("sl", "en")):
                 order_by="download_count",
                 order_direction="desc",
             )
-            for s in subs.data[:3]:
+            for s in subs.data[:num]:
                 if len(s.files) == 1:
                     results.append(
                         {
@@ -121,9 +121,9 @@ def download_podnapisi_safe(url, extract_path):
     log.info("Podnapisi so shranjeni")
 
 
-def get_subtitles(title, year, imdb_id, path, languages=["sl", "en"]):
+def get_subtitles(title, year, imdb_id, path, languages=["sl", "en"], num=3):
     # 1. OpenSubtitles
-    subs, err = search_opensubtitles(imdb_id, languages)
+    subs, err = search_opensubtitles(imdb_id, languages, num)
     if subs:
         for i, sub in enumerate(subs):
             download_opensubtitles(sub, i, path)

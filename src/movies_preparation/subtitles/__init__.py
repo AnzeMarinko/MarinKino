@@ -1,4 +1,5 @@
 import logging
+import os
 from pathlib import Path
 
 from .download_subtitles import get_subtitles
@@ -65,12 +66,41 @@ def prepare_subtitles(folder, video_file, metadata):
         except Exception as e:
             log.error(f"❌ Napaka pri branju metapodatkov ali prenosu: {e}")
 
-    elif len(existing_srts) > 1:
+    elif (
+        (
+            # "0x-neurejeni-filmi" in folder and  # TODO to nekoč odkomentiraj, ko bodo povsod tudi angleški podnapisi
+            "SloSubs" in "".join(metadata.subtitles)
+            and "enSubs" not in "".join(metadata.subtitles)
+        )
+        and not is_slovenian_content
+        and metadata.imdb_id
+    ):
+        log.info(f"🔍 Pridobivam angleške podnapise za: {folder_path.name}")
+        try:
+            get_subtitles(
+                metadata.title,
+                metadata.year,
+                metadata.imdb_id,
+                str(folder_path),
+                languages=["en"],
+                num=1,
+            )
+            os.rename(
+                f"{folder_path}/subtitle0.en.srt",
+                f"{folder_path}/subtitles-enSubs.srt",
+            )
+            # Ponovno osvežimo seznam po prenosu
+            existing_srts = list(folder_path.glob("*.srt"))
+        except Exception as e:
+            log.error(f"❌ Napaka pri branju metapodatkov ali prenosu: {e}")
+
+    elif not is_slovenian_content and metadata.imdb_id:
         # Preverimo sumljive situacije z več podnapisi
         has_main = any(s.name == "subtitles.srt" for s in existing_srts)
-        has_auto = any("slosubs-auto" in s.name.lower() for s in existing_srts)
+        has_slo = any("slosubs" in s.name.lower() for s in existing_srts)
+        has_en = any("ensubs" in s.name.lower() for s in existing_srts)
 
-        if has_main or not has_auto or len(existing_srts) > 2:
+        if has_main or not has_slo or not has_en or len(existing_srts) > 2:
             log.warning(
                 f"⚠️ Več podnapisov ({len(existing_srts)}) v mapi: {folder_path.name}"
             )
