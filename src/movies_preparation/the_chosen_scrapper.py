@@ -26,9 +26,7 @@ logging.basicConfig(
 videos = {}
 for season in [1, 2, 3, 4, 5]:
     # preberemo iz lokalno shranjenega html, ki se odpre kot seznam epizod v izbrani sezoni
-    with open(
-        f"data/movies/06-the-chosen/seasons-metadata/{season}.html", "r"
-    ) as f:
+    with open(f"data/movies/06-the-chosen/seasons-metadata/{season}.html", "r") as f:
         soup = BeautifulSoup(f.read(), "lxml")
 
     episodes = soup.find_all("img")
@@ -58,11 +56,7 @@ for season in [1, 2, 3, 4, 5]:
     episodes = soup.find_all("span")
     i = 0
     for e in episodes:
-        if (
-            e.contents
-            and ":" in e.contents[0]
-            and len(e.contents[0]) in [5, 7]
-        ):
+        if e.contents and ":" in e.contents[0] and len(e.contents[0]) in [5, 7]:
             i += 1
             times = e.contents[0].split(":")
             minutes = 0
@@ -100,9 +94,7 @@ token = f"viewerToken={chosen_token}"
 def combine_to_mp4(
     video_path: str,
     audio_tracks: list[tuple[str, str, str]],  # (path, language, title)
-    subtitle_tracks: list[
-        tuple[str, str, str]
-    ] = None,  # (path, language, title)
+    subtitle_tracks: list[tuple[str, str, str]] = None,  # (path, language, title)
     output_path: str = "output.mp4",
     default_audio: int = 0,
     default_subtitle: int = 0,
@@ -135,9 +127,9 @@ def combine_to_mp4(
     # video = prvi input (0)
     maps = ["-map", "0:v"]
     for i in range(len(audio_tracks)):
-        maps += ["-map", f"{i+1}:a"]  # zvoki
+        maps += ["-map", f"{i + 1}:a"]  # zvoki
     for i in range(len(subtitle_tracks)):
-        maps += ["-map", f"{i+1+len(audio_tracks)}:s"]  # podnapisi
+        maps += ["-map", f"{i + 1 + len(audio_tracks)}:s"]  # podnapisi
 
     cmd += maps
 
@@ -218,9 +210,7 @@ async def get_master_url(video_id):
             )
 
             # klikni gumb "Sign in" ali podobno (preveri selector na strani)
-            await page.click(
-                'button[aria-label="Nadaljujte z e-pošto auth button"]'
-            )
+            await page.click('button[aria-label="Nadaljujte z e-pošto auth button"]')
 
             # počakamo, da se prikaže obrazec (če je asinhrono naložen)
             await page.wait_for_selector('input[name="username"]')
@@ -230,9 +220,7 @@ async def get_master_url(video_id):
             await page.fill('input[name="password"]', password)
 
             # klikni gumb "Sign in" ali podobno (preveri selector na strani)
-            await page.click(
-                'button[type="submit"], button:has-text("Prijava")'
-            )
+            await page.click('button[type="submit"], button:has-text("Prijava")')
 
             # počakaj, da se prijava zaključi in stran naloži
             await page.wait_for_load_state("networkidle")
@@ -250,6 +238,36 @@ async def get_master_url(video_id):
     return None
 
 
+def swap_audio_tracks(input_file, output_file):
+    # Preverimo, če vhodna datoteka obstaja
+    if not os.path.exists(input_file):
+        print(f"Napaka: Datoteka '{input_file}' ne obstaja.")
+        return
+    command = [
+        "ffmpeg",
+        "-i",
+        input_file,
+        "-map",
+        "0:v",
+        "-map",
+        "0:a:1",
+        "-map",
+        "0:a:0",
+        "-c",
+        "copy",
+        "-y",
+        output_file,
+    ]
+
+    try:
+        result = subprocess.run(command, check=True, capture_output=True, text=True)
+        print(f"Uspešno! Nova datoteka ustvarjena: {output_file}")
+
+    except subprocess.CalledProcessError as e:
+        print("Prišlo je do napake pri izvajanju FFmpeg:")
+        print(e.stderr)
+
+
 def scrappe_video_data(
     season,
     episode,
@@ -260,7 +278,6 @@ def scrappe_video_data(
     runtime,
     target_video_height=1440,
 ):
-
     folder = f"data/movies/06-the-chosen/Season_{season}-Episode_{episode}"
     if not os.path.exists(folder):
         os.mkdir(folder)
@@ -284,8 +301,9 @@ def scrappe_video_data(
         with open(readme_file, "w", encoding="utf-8") as f:
             json.dump(metadata, f, ensure_ascii=False, indent=4)
 
-    output_path = f"{folder}/The-Chosen_S{season}-E{episode}.mp4"
-    if os.path.exists(output_path):
+    eng_output_path = f"{folder}/The-Chosen_S{season}-E{episode}_Eng.mp4"
+    slo_output_path = f"{folder}/The-Chosen_S{season}-E{episode}_Slo.mp4"
+    if os.path.exists(eng_output_path) and os.path.exists(slo_output_path):
         return None
 
     url = asyncio.run(get_master_url(video_id))
@@ -306,14 +324,10 @@ def scrappe_video_data(
         m for m in master.media if m.type == "AUDIO" and m.name == "Slovenian"
     )
     subs_en_info = next(
-        m
-        for m in master.media
-        if m.type == "SUBTITLES" and m.name == "English"
+        m for m in master.media if m.type == "SUBTITLES" and m.name == "English"
     )
     subs_sl_info = next(
-        m
-        for m in master.media
-        if m.type == "SUBTITLES" and m.name == "Slovenian"
+        m for m in master.media if m.type == "SUBTITLES" and m.name == "Slovenian"
     )
     logging.info(
         f"Izbrana kvaliteta: {video_best.stream_info.resolution} {video_best.stream_info.bandwidth} {[m.stream_info.resolution for m in master.playlists]}"
@@ -353,13 +367,23 @@ def scrappe_video_data(
         video_path=f"{folder}/video.ts",
         audio_tracks=[
             (f"{folder}/audio_en.aac", "eng", "English"),
-            (f"{folder}/audio_si.aac", "slv", "Slovenian"),
         ],
         subtitle_tracks=[
             (f"{folder}/subs_si.vtt", "slv", "Slovenski podnapisi"),
             (f"{folder}/subs_en.vtt", "eng", "English Subtitles"),
         ],
-        output_path=output_path,
+        output_path=eng_output_path,
+    )
+    combine_to_mp4(
+        video_path=f"{folder}/video.ts",
+        audio_tracks=[
+            (f"{folder}/audio_si.aac", "slv", "Slovenian"),
+        ],
+        subtitle_tracks=[
+            (f"{folder}/subs_en.vtt", "eng", "English Subtitles"),
+            (f"{folder}/subs_si.vtt", "slv", "Slovenski podnapisi"),
+        ],
+        output_path=slo_output_path,
     )
 
 

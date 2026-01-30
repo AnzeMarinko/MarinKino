@@ -19,156 +19,70 @@
 <tr>
   <td align="center" style="padding:16px;">
   <h2 style="margin:0;color:#f59e0b;font-size:22px;">
-    Februarski filmski izbor
+    {{ mailtitle }}
   </h2>
 
   <p style="margin:6px 0 0;color:#666;font-size:14px;">
-    Pozdravljen <b>{{ username }}</b>, tu so trije filmi, ki jih priporočam
+    Pozdravljen <b>{{ username }}</b>, tu so filmi, ki jih priporočam
   </p>
 </td>
 </tr>
 
-<!-- ===== FILM 1 (drama/akcija) ===== -->
-<tr>
-<td style="padding:14px;border-top:1px solid #eee;">
+{% for film in film_recommendations %}
+    <tr>
+    <td style="padding:14px;border-top:1px solid #eee;">
 
-<table width="100%" cellpadding="0" cellspacing="0">
+    <table width="100%" cellpadding="0" cellspacing="0">
 
-<!-- SLIKA (mobile: full width) -->
-<tr>
-<td align="center">
-  <img src="https://via.placeholder.com/300x450"
-       style="width:100%;max-width:220px;height:auto;
-              border-radius:8px;display:block;margin-bottom:10px;"
-       alt="Naslovnica: Film 1">
-</td>
-</tr>
+    <!-- SLIKA (mobile: full width) -->
+    <tr>
+    <td align="center">
+    <img src="https://{{ domain }}/newsletter_image/file/{{ film.cover_filename }}"
+        style="width:100%;max-width:220px;height:auto;
+                border-radius:8px;display:block;margin-bottom:10px;"
+        alt="Naslovnica: {{ film.title }}">
+    </td>
+    </tr>
 
-<!-- VSEBINA -->
-<tr>
-<td>
+    <!-- VSEBINA -->
+    <tr>
+    <td>
 
-  <h3 style="margin:0 0 6px;color:#111;font-size:18px;">
-    Film naslov 1 (Cinderela man?)
-  </h3>
+    <h3 style="margin:0 0 6px;color:#111;font-size:18px;">
+        Film {{ film.title }}
+    </h3>
 
-  <p style="margin:0 0 6px;font-size:14px;color:#555;">
-    🎬 <b>Žanr:</b> Drama · Akcija<br>
-    ⏱ <b>Dolžina:</b> 2h 10min
-  </p>
+    <p style="margin:0 0 6px;font-size:14px;color:#555;">
+        🎬 <b>Žanr:</b> {% for genre in film.genres %} {{ genre }} · {% endfor %}<br>
+        ⏱ <b>Dolžina:</b> {{ film.duration }}
+    </p>
 
-  <p style="margin:0 0 12px;font-size:15px;color:#444;line-height:1.5;">
-    Kratek opis filma, ki gledalca pritegne in mu pove,
-    zakaj je ta film vreden ogleda.
-  </p>
+    <p style="margin:0 0 12px;font-size:15px;color:#444;line-height:1.5;">
+        {{ film.short_description }}
+    </p>
 
-  <!-- GUMB (mobile-friendly) -->
-  <a href="https://{{ domain }}"
-     style="display:block;
-            width:100%;
-            padding:14px 0;
-            background:#f59e0b;
-            color:#ffffff;
-            font-size:16px;
-            font-weight:bold;
-            text-decoration:none;
-            border-radius:6px;
-            text-align:center;">
-     🎬 Poglej film
-  </a>
+    <!-- GUMB (mobile-friendly) -->
+    <a href="https://{{ domain }}/movies/play/{{ film.path }}"
+        style="display:block;
+                width:100%;
+                padding:14px 0;
+                background:#f59e0b;
+                color:#ffffff;
+                font-size:16px;
+                font-weight:bold;
+                text-decoration:none;
+                border-radius:6px;
+                text-align:center;">
+        ▶️ Poglej film
+    </a>
 
-</td>
-</tr>
+    </td>
+    </tr>
 
-</table>
-</td>
-</tr>
-
-<!-- ===== FILM 2 (komedija) ===== -->
-<tr>
-<td style="padding:14px;border-top:1px solid #eee;">
-<table width="100%" cellpadding="0" cellspacing="0">
-
-<tr>
-<td align="center">
-  <img src="https://via.placeholder.com/300x450"
-       style="width:100%;max-width:220px;height:auto;
-              border-radius:8px;display:block;margin-bottom:10px;"
-       alt="Naslovnica: Film 2">
-</td>
-</tr>
-
-<tr>
-<td>
-  <h3 style="margin:0 0 6px;color:#111;font-size:18px;">
-    Film naslov 2 (Superintelligence?)
-  </h3>
-
-  <p style="margin:0 0 6px;font-size:14px;color:#555;">
-    🎬 <b>Žanr:</b> Komedija<br>
-    ⏱ <b>Dolžina:</b> 1h 45min
-  </p>
-
-  <p style="margin:0 0 12px;font-size:15px;color:#444;line-height:1.5;">
-    Lahkotna komedija za sproščen večer.
-  </p>
-
-  <a href="https://{{ domain }}"
-     style="display:block;width:100%;padding:14px 0;
-            background:#f59e0b;color:#fff;font-size:16px;
-            font-weight:bold;text-decoration:none;
-            border-radius:6px;text-align:center;">
-    😂 Poglej film
-  </a>
-</td>
-</tr>
-
-</table>
-</td>
-</tr>
-
-<!-- ===== FILM 3 (risanka/krščanski) ===== -->
-<tr>
-<td style="padding:14px;border-top:1px solid #eee;">
-<table width="100%" cellpadding="0" cellspacing="0">
-
-<tr>
-<td align="center">
-  <img src="https://via.placeholder.com/300x450"
-       style="width:100%;max-width:220px;height:auto;
-              border-radius:8px;display:block;margin-bottom:10px;"
-       alt="Naslovnica: Film 3">
-</td>
-</tr>
-
-<tr>
-<td>
-  <h3 style="margin:0 0 6px;color:#111;font-size:18px;">
-    Film naslov 3 (The Passion of the Christ?)
-  </h3>
-
-  <p style="margin:0 0 6px;font-size:14px;color:#555;">
-    🎬 <b>Žanr:</b> Triler<br>
-    ⏱ <b>Dolžina:</b> 2h
-  </p>
-
-  <p style="margin:0 0 12px;font-size:15px;color:#444;line-height:1.5;">
-    Ob pripravi na Veliko noč
-  </p>
-
-  <a href="https://{{ domain }}"
-     style="display:block;width:100%;padding:14px 0;
-            background:#f59e0b;color:#fff;font-size:16px;
-            font-weight:bold;text-decoration:none;
-            border-radius:6px;text-align:center;">
-    🔥 Poglej film
-  </a>
-</td>
-</tr>
-
-</table>
-</td>
-</tr>
+    </table>
+    </td>
+    </tr>
+{% endfor %}
 
 <!-- ===== MEME ===== -->
 <tr>
@@ -178,7 +92,7 @@
 <tr>
 <td align="center">
   <a href="https://{{ domain }}/memes">
-    <img src="https://{{ domain }}/newsletter_image/file/2026_januar/meme.jpg?user={{ username }}"
+    <img src="https://{{ domain }}/newsletter_image/file/{{ meme_file }}?user={{ username }}"
        style="width:100%;max-width:220px;height:auto;
               border-radius:8px;display:block;margin-bottom:10px;"
        alt="Šala"></a>

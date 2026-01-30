@@ -54,7 +54,7 @@
         <a href="/login" class="btn btn-sm btn-outline-info">Prijava</a>
         {% endif %}
 
-        {% if current_user.is_admin and view_as != "anonymous" and view_as != "user" %}
+        {% if current_user.is_authenticated and current_user.is_admin and view_as != "anonymous" and view_as != "user" %}
         <a href="/register" class="btn btn-sm btn-outline-warning">+ Uporabnik</a>
         <a href="/admin" class="btn btn-sm btn-outline-info">Nadzorna plošča</a>
           {% if fullscreenbutton %}
@@ -112,7 +112,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 </script>
-{% if view_as and current_user.is_admin %}
+{% if view_as and current_user.is_authenticated and current_user.is_admin %}
 <!-- View As Warning Banner -->
 <div class="alert alert-warning m-0 p-2 text-center" style="position: fixed; top: 0px; left: 0; right: 0; z-index: 1050; border-radius: 0;">
   <strong>⚠️ Pregled kot:</strong>

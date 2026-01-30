@@ -1,6 +1,5 @@
 # TODO:
 
-* popravi prikazovanje statistike odprtih strani
 * dodaj angleške podnapise (vsak dan jih doda 20)
 * pošlji prve predloge filmov na mail in dodaj, da se zadnji predlog pošlje tudi novemu uporabniku
 * nov release v1.2.0 glede na commit messages

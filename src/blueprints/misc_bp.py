@@ -57,9 +57,7 @@ pod_krinko_words = pd.read_csv("data/pod_krinko_besede.csv", sep=";").to_dict(
 def pod_krinko_new_words():
     import random
 
-    new_words = copy(
-        pod_krinko_words[random.randint(0, len(pod_krinko_words) - 1)]
-    )
+    new_words = copy(pod_krinko_words[random.randint(0, len(pod_krinko_words) - 1)])
     random.shuffle(new_words)
     word_1, word_2 = new_words[0], new_words[1]
     return [word_1.strip().lower(), word_2.strip().lower()]
@@ -77,12 +75,8 @@ def newsletter_image(filename):
         else request.args.get("user", "guest")
     )
     if user in users:
-        redis_client.incr(
-            f"newsletter_views:{date.today().isoformat()[:7]}:{user}"
-        )
-    return send_from_directory(
-        "../data/newsletter_images", filename, conditional=True
-    )
+        redis_client.incr(f"newsletter_views:{date.today().isoformat()[:7]}:{user}")
+    return send_from_directory("../data/newsletter_images", filename, conditional=True)
 
 
 @misc_bp.route("/help")
@@ -99,7 +93,7 @@ def help():
 @misc_bp.route("/send_admin_emails", methods=["GET", "POST"])
 @login_required
 def send_admin_emails():
-    template_name = "mail_user_intro"
+    template_name = "mail_newsletters/mail_monthly_recommendation"
     if not is_current_admin_view(current_user):
         return redirect(url_for("movies.index"))
     if request.method == "POST":
@@ -120,14 +114,14 @@ def send_admin_emails():
                 #     return {"error": "Pošiljanje mailov vsem uporabnikom je začasno onemogočeno."}
                 send_mail(
                     to=emails,
-                    subject="Uporaba MarinKino",
-                    text=f"https://{DUCKDNS_DOMAIN}/help",
+                    subject="Filmski izbor MarinKino",
+                    text=f"https://{DUCKDNS_DOMAIN}/last_mail_newsletter",
                     html=render_template(
                         template_name + ".html",
                         username=username,
                         is_for_mail=True,
                     ),
-                    batch_id="new_user_introduction",
+                    batch_id="mail_newsletter",
                 )
         return {
             "sent": len(list_of_emailed_users),
@@ -140,6 +134,38 @@ def send_admin_emails():
     )
 
 
+last_mail_newsletter_data = {
+    "film_recommendations": [
+        {
+            "title": "Vrvež v moji glavi",
+            "path": "02-animirani-filmi/Inside.Out.2015.SloSinh",
+            "genres": ["Komedija", "Družinski"],
+            "duration": "1h 45min",
+            "short_description": "kratek opis",
+            "cover_filename": "Inside.Out-cover.jpg",
+        }
+    ],
+    "meme_file": "2026_januar/meme.jpg",
+    "template": "mail_newsletters/mail_monthly_recommendation.html",
+    "pagetitle": "Filmski izbor MarinKino",
+    "mailtitle": "Februarski filmski izbor",
+}
+
+
+@misc_bp.route("/last_mail_newsletter")
+@login_required
+def last_mail_newsletter():
+    return render_template(
+        last_mail_newsletter_data["template"],
+        is_for_mail=False,
+        username=current_user.id,
+        pagetitle=last_mail_newsletter_data["pagetitle"],
+        mailtitle=last_mail_newsletter_data["mailtitle"],
+        film_recommendations=last_mail_newsletter_data["film_recommendations"],
+        meme_file=last_mail_newsletter_data["meme_file"],
+    )
+
+
 @misc_bp.route("/suggestions", methods=["GET"])
 @login_required
 def suggestions():
@@ -147,18 +173,4 @@ def suggestions():
     return render_template(
         "suggestions.html",
         pagetitle="Predlogi in komentarji",
-    )
-
-
-@misc_bp.route("/test")
-@login_required
-def test():
-    is_for_mail = request.args.get("is_for_mail", "true") == "true"
-    return render_template(
-        "mail_newsletters/2026_januar.html",
-        is_for_mail=is_for_mail,
-        username=(
-            current_user.id if current_user.is_authenticated else "uporabnik"
-        ),
-        pagetitle="Testni mail",
     )

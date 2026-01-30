@@ -37,6 +37,8 @@ def admin_panel():
     access_stats_users = {}
     access_stats_routes = {}
 
+    user_counter = {}
+
     for key in redis_client.scan_iter("stats:daily:*"):
         parts = key.split(":")
         if len(parts) < 5:
@@ -51,44 +53,79 @@ def admin_panel():
         access_stats_routes.setdefault(log_date, {})
         access_stats_users.setdefault(status, {})
         access_stats_users[status].setdefault(log_date, {})
-        access_stats_users[status][log_date].setdefault(
-            user_id,
-            {
-                "routes": "\n".join(
-                    [
-                        v[1]
-                        for v in sorted(
-                            [
-                                (int(count), f"{count}x {route_method}")
-                                for route_method, count in routes_data.items()
-                            ],
-                            reverse=True,
-                        )[:10]
-                    ]
-                ),
-                "count": sum([int(count) for count in routes_data.values()]),
-            },
-        )
+        access_stats_users[status][log_date].setdefault(user_id, {})
 
         for route_method, count in routes_data.items():
+            access_stats_users[status][log_date][user_id].setdefault(
+                "routes", {}
+            )
+            access_stats_users[status][log_date][user_id]["routes"].setdefault(
+                route_method, 0
+            )
+            access_stats_users[status][log_date][user_id]["routes"][
+                route_method
+            ] += int(count)
+            access_stats_users[status][log_date][user_id].setdefault(
+                "count", 0
+            )
+            access_stats_users[status][log_date][user_id]["count"] += int(
+                count
+            )
             if status.startswith("2") or status.startswith("3"):
+                user_counter.setdefault(user_id, 0)
+                user_counter[user_id] += int(count)
                 route = "/" + "/".join(route_method.split("/")[1:2])
                 access_stats_routes[log_date].setdefault(route, 0)
                 access_stats_routes[log_date][route] += int(count)
 
     if access_stats_users:
+        for k1, v1 in access_stats_users.items():
+            for k2, v2 in v1.items():
+                for k3, v3 in v2.items():
+                    access_stats_users[k1][k2][k3]["routes"] = "\n".join(
+                        [
+                            v[1]
+                            for v in sorted(
+                                [
+                                    (int(count), f"{count}x {route_method}")
+                                    for route_method, count in v3[
+                                        "routes"
+                                    ].items()
+                                ],
+                                reverse=True,
+                            )[:10]
+                        ]
+                    )
+                access_stats_users[k1][k2] = {
+                    k: v
+                    for k, v in sorted(
+                        list(access_stats_users[k1][k2].items()),
+                        key=lambda x: -user_counter[x[0]],
+                    )
+                    if v
+                }
+            access_stats_users[k1] = {
+                k: v
+                for k, v in sorted(list(access_stats_users[k1].items()))
+                if v
+            }
         access_stats_users = {
             k: v for k, v in sorted(list(access_stats_users.items())) if v
         }
 
     if access_stats_routes:
         df_routes = pd.DataFrame(access_stats_routes).T
+        access_stats_routes = df_routes.fillna(0).astype(int)
+        access_stats_routes = access_stats_routes[
+            sorted(access_stats_routes.columns, reverse=True)
+        ].T
+        access_stats_routes["total"] = access_stats_routes.sum(axis=1)
         access_stats_routes = (
-            df_routes[sorted(df_routes.columns)]
-            .fillna(0)
-            .astype(int)
-            .T.to_dict()
+            access_stats_routes.sort_values(by="total", ascending=False)
+            .drop(columns=["total"])
+            .head(10)
         )
+        access_stats_routes = access_stats_routes.to_dict()
 
     access_stats_monthly = {}
 
@@ -224,7 +261,9 @@ def admin_panel():
         pagetitle="MarinKino - Nadzorna plošča",
         system_log=system_log,
         access_stats_users=access_stats_users,
-        users=list(users.keys()) + ["anonymus"],
+        users=list(
+            sorted(user_counter.keys(), key=lambda x: -user_counter[x])
+        ),
         emails=", ".join(
             [e for u in users for e in users[u].get("emails", [])]
         ),
@@ -241,7 +280,7 @@ def admin_panel():
 @login_required
 def set_view_as(view_mode):
     """Set the view mode for admin preview (anonymous, user, admin)"""
-    if not current_user.is_admin:
+    if not current_user.is_authenticated or not current_user.is_admin:
         return redirect(url_for("movies.index"))
 
     if view_mode in ["anonymous", "user", "admin"]:
@@ -256,7 +295,7 @@ def set_view_as(view_mode):
 @login_required
 def clear_view_as():
     """Clear the view as mode"""
-    if not current_user.is_admin:
+    if not current_user.is_authenticated or not current_user.is_admin:
         return redirect(url_for("movies.index"))
 
     session.pop("view_as", None)

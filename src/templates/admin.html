@@ -190,7 +190,7 @@ document.addEventListener('DOMContentLoaded', function(){
                 x: dates,
                 y: yValues,
                 text: meta.map(r => 'Poti: ' + r.replace(/\n/g, '<br>')),
-                hovertemplate: '%{x}<br>Dostopi: %{y}<br>%{text}<extra></extra>',
+                hovertemplate: '%{x} <b>' + user + '</b><br>Dostopi: %{y}<br>%{text}<extra></extra>',
                 mode: 'lines+markers',
                 name: user,
                 showlegend: true

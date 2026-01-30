@@ -18,7 +18,7 @@
     {% if subtitle_buttons %}</br>
         <hr>Podnapisi (izberete v predvajalniku med možnostmi): {% for subtitle in subtitle_buttons %}<button class="subtitles">{{ subtitle }}</button> {% endfor %}
         {% endif %}</br>
-        <hr>{% if is_collection %}
+        <hr>{% if is_collection and not movie.is_chosen_series %}
             <div>
                 {% for video_file in video_files %}
                     <button class="video-btn" style="--watch: {{ movie.watch_info[video_file]['watch_ratio']|default(0) }}%;" 
@@ -38,7 +38,7 @@
                 <label for="opcija2-{{ movie.movie_id }}">Pogledano</label>
             </div>
         
-            {% if view_as != "anonymous" and view_as != "user" and current_user.is_admin %}
+            {% if view_as != "anonymous" and view_as != "user" and current_user.is_authenticated and current_user.is_admin %}
             <div class="buttons">
                 <hr>
                 <div class="selectors priporocilo" movie-folder="{{ movie.folder }}">
@@ -122,7 +122,73 @@
     </div>
     {% endif %}
 
-{% if not is_collection %}
+{% if movie.is_chosen_series %}
+    <div style="margin-bottom: 10px;">
+        <label for="videoSourceSelect">Izberi jezik zvoka: </label>
+        <select id="videoSourceSelect">
+            {% for file in video_file_languages %}
+                <option value="/movies/file/{{ group_folder }}/{{ folder }}/{{ file.filename }}" 
+                        {% if file.filename == video_file %}selected{% endif %}>
+                    {{ file.label }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+    <video id="videoPlayer" controls playsinline>
+
+        <source src="/movies/file/{{ group_folder }}/{{ folder }}/{{ video_file }}" type="video/mp4">
+        {% if slosubs_file %}
+            <track src="/movies/file/{{ group_folder }}/{{ folder }}/{{ slosubs_file }}" kind="subtitles" srclang="sl" label="{{ slosubs_file|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" default>
+        {% endif %}
+        
+        {% for subtitle in subtitles %}
+            {% if subtitle != slosubs_file %}
+            <track src="/movies/file/{{ group_folder }}/{{ folder }}/{{ subtitle }}" kind="subtitles" srclang="{{ subtitle|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" label="{{ subtitle|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}">
+            {% endif %}
+        {% endfor %}
+        Tvoj brskalnik ne podpira videa.
+    </video>
+    <script>
+        const video = document.getElementById('videoPlayer');
+        const sourceSelector = document.getElementById('videoSourceSelect');
+        
+        // Začetni čas (iz baze)
+        const savedTime = {{ movie.last_play_time|default(0) }}; 
+
+        // Nastavi začetni čas ob prvem nalaganju
+        video.addEventListener('loadedmetadata', function onFirstLoad() {
+            if (savedTime < video.duration && video.currentTime === 0) {
+                video.currentTime = savedTime;
+            }
+            // Odstranimo listener, da ne skače nazaj, ko kasneje ročno menjamo video
+            video.removeEventListener('loadedmetadata', onFirstLoad);
+        });
+
+        // LOGIKA ZA MENJAVO VIDEA (ZVOKA)
+        sourceSelector.addEventListener('change', (e) => {
+            // 1. Zapomni si trenutni čas predvajanja in stanje (play/pause)
+            const currentTime = video.currentTime;
+            const isPlaying = !video.paused;
+            const newSrc = e.target.value;
+
+            // 2. Zamenjaj vir
+            video.src = newSrc;
+            
+            // 3. Ko se novi video naloži, skoči na pravi čas
+            video.onloadedmetadata = () => {
+                video.currentTime = currentTime;
+                if (isPlaying) {
+                    video.play();
+                }
+                // Počistimo event listener
+                video.onloadedmetadata = null;
+            };
+            
+            // 4. Naloži nov vir
+            video.load();
+        });
+    </script>
+{% elif not is_collection %}
     <video id="videoPlayer" controls playsinline>
 
         <source src="/movies/file/{{ group_folder }}/{{ folder }}/{{ video_file }}" type="video/mp4">

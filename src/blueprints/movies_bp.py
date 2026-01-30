@@ -97,6 +97,7 @@ all_films = {
         "movie_id": f"mov_{i}",
         "recommendation_level": m.recommendation_level,
         "user_notes": m.user_notes,
+        "is_chosen_series": m.is_chosen_series,
     }
     for i, m in enumerate(check_folder(FILMS_ROOT))
 }
@@ -160,26 +161,17 @@ def fuzzy_match(query, title):
 # Main routes
 @movies_bp.route("/")
 def index():
-    if (
-        current_user.is_authenticated
-        and session.get("view_as", None) != "anonymous"
-    ):
+    if current_user.is_authenticated and session.get("view_as", None) != "anonymous":
         user_key = f"user_settings:{current_user.id}"
         movies_settings = redis_client.hget(user_key, "movies")
-        movies_settings = (
-            json.loads(movies_settings) if movies_settings else {}
-        )
+        movies_settings = json.loads(movies_settings) if movies_settings else {}
 
         new_settings = {}
-        genre_filter = request.args.get(
-            "genre", movies_settings.get("genre", "")
-        )
+        genre_filter = request.args.get("genre", movies_settings.get("genre", ""))
         sort = request.args.get("sort", movies_settings.get("sort", ""))
         onlyunwatched = request.args.get("onlyunwatched")
         onlyrecommended = request.args.get("onlyrecommended")
-        movietype = request.args.get(
-            "movietype", movies_settings.get("movietype", "")
-        )
+        movietype = request.args.get("movietype", movies_settings.get("movietype", ""))
         new_settings["genre"] = genre_filter
         new_settings["sort"] = sort
         new_settings["movietype"] = movietype
@@ -206,9 +198,7 @@ def index():
             movies = sorted(
                 movies,
                 key=lambda m: (
-                    str_to_int(m["runtimes"])
-                    if "runtime" in sort
-                    else m["title"]
+                    str_to_int(m["runtimes"]) if "runtime" in sort else m["title"]
                 ),
                 reverse="desc" in sort,
             )
@@ -273,10 +263,7 @@ def index():
         group_folders={
             k: v
             for k, v in group_folders.items()
-            if (
-                is_current_admin_view(current_user)
-                or "neurejen" not in k.lower()
-            )
+            if (is_current_admin_view(current_user) or "neurejen" not in k.lower())
         },
         known_genres=known_genres,
     )
@@ -293,17 +280,14 @@ def movies_page():
 
     page_ids = redis_client.lrange(cache_key, start, end)
     movies_page = [
-        global_movie_index[mid]
-        for mid in page_ids
-        if mid in global_movie_index
+        global_movie_index[mid] for mid in page_ids if mid in global_movie_index
     ]
 
     has_more = end < redis_client.llen(cache_key) - 1
 
     return {
         "movies": [
-            {**m, "is_admin": is_current_admin_view(current_user)}
-            for m in movies_page
+            {**m, "is_admin": is_current_admin_view(current_user)} for m in movies_page
         ],
         "has_more": has_more,
     }
@@ -338,8 +322,25 @@ def play_movie(movies_subfolder, movie_folder):
             known_genres=known_genres,
             group_folder=movies_subfolder,
             folder=movie_folder,
-            video_file=video_files[0],
+            video_file=sorted(
+                video_files, key=lambda x: x.endswith("_Eng.mp4"), reverse=True
+            )[0]
+            if film["is_chosen_series"]
+            else video_files[0],
             video_files=video_files,
+            video_file_languages=[
+                {
+                    "filename": f,
+                    "label": (
+                        "Slovensko"
+                        if f.endswith("_Slo.mp4")
+                        else "Angleško"
+                        if f.endswith("_Eng.mp4")
+                        else "Neznano"
+                    ),
+                }
+                for f in video_files
+            ],
             subtitles=subtitles,
             slosubs_file=slosubs_file,
             subtitle_buttons=subtitle_buttons,
@@ -349,17 +350,13 @@ def play_movie(movies_subfolder, movie_folder):
         return "", 404
 
 
-@movies_bp.route(
-    "/movies/remove/<movies_subfolder>/<movie_folder>", methods=["POST"]
-)
+@movies_bp.route("/movies/remove/<movies_subfolder>/<movie_folder>", methods=["POST"])
 @login_required
 def remove_movie(movies_subfolder, movie_folder):
     global all_films
     if not is_current_admin_view(current_user):
         return redirect(url_for("movies.index"))
-    removing_folder = os.path.sep + os.path.join(
-        "", movies_subfolder, movie_folder
-    )
+    removing_folder = os.path.sep + os.path.join("", movies_subfolder, movie_folder)
     if removing_folder not in all_films.keys():
         log.error(f"Manjka film za odstranjevanje: {removing_folder}")
         return {"status": "missing", "folder": removing_folder}
@@ -406,9 +403,7 @@ def remcommend_movie():
             "recommendation_level": recommendation_level,
         }
 
-    all_films[recommending_folder][
-        "recommendation_level"
-    ] = recommendation_level
+    all_films[recommending_folder]["recommendation_level"] = recommendation_level
     recommending_metadata_file = os.path.join(
         FILMS_ROOT, recommending_folder[1:], "readme.json"
     )
@@ -444,26 +439,16 @@ def movie_file(movies_subfolder, movie_folder, filename):
             if match:
                 start = int(match.group(1))
                 if start == 0:
-                    full_filename = (
-                        f"{movies_subfolder}/{movie_folder}/{filename}"
-                    )
+                    full_filename = f"{movies_subfolder}/{movie_folder}/{filename}"
                     user_key = f"prog:{current_user.id}"
                     data = redis_client.hget(user_key, full_filename)
                     data = json.loads(data) if data else {}
-                    data["last_start_time"] = datetime.now(
-                        timezone.utc
-                    ).isoformat()[:16]
-                    data["count_start_time"] = (
-                        data.get("count_start_time", 0) + 1
-                    )
-                    redis_client.hset(
-                        user_key, full_filename, json.dumps(data)
-                    )
+                    data["last_start_time"] = datetime.now().isoformat()[:16]
+                    data["count_start_time"] = data.get("count_start_time", 0) + 1
+                    redis_client.hset(user_key, full_filename, json.dumps(data))
         try:
             response = send_from_directory(
-                os.path.join(
-                    "../" + FILMS_ROOT, movies_subfolder, movie_folder
-                ),
+                os.path.join("../" + FILMS_ROOT, movies_subfolder, movie_folder),
                 filename,
                 mimetype="video/mp4",
                 conditional=True,
@@ -475,9 +460,7 @@ def movie_file(movies_subfolder, movie_folder, filename):
     elif "cover_thumb.jpg" in filename:
         response = make_response(
             send_from_directory(
-                os.path.join(
-                    "../" + FILMS_ROOT, movies_subfolder, movie_folder
-                ),
+                os.path.join("../" + FILMS_ROOT, movies_subfolder, movie_folder),
                 filename,
                 conditional=True,
             )
@@ -548,9 +531,7 @@ def video_progress_change():
         else:
             duration = user_data["duration"]
 
-        user_data["last_play_time"] = (
-            0 if int(data["izbor"]) == 0 else duration
-        )
+        user_data["last_play_time"] = 0 if int(data["izbor"]) == 0 else duration
         redis_client.hset(user_key, filename, json.dumps(user_data))
 
     return "", 204
@@ -597,9 +578,7 @@ def add_comment():
         if is_splosno:
             metadata_file = os.path.join(FILMS_ROOT, "users_comments.json")
         else:
-            metadata_file = os.path.join(
-                FILMS_ROOT, movie_folder[1:], "readme.json"
-            )
+            metadata_file = os.path.join(FILMS_ROOT, movie_folder[1:], "readme.json")
 
         if not os.path.exists(metadata_file):
             if is_splosno:
@@ -627,9 +606,7 @@ def add_comment():
 
         # Posodobi in-memory podatke
         if not is_splosno:
-            all_films[movie_folder]["user_notes"] = movie_metadata[
-                "user_notes"
-            ]
+            all_films[movie_folder]["user_notes"] = movie_metadata["user_notes"]
             movie_title = all_films[movie_folder]["title"]
         else:
             movie_title = "Splošno"
@@ -648,7 +625,7 @@ def add_comment():
         <p><strong>Komentar:</strong></p>
         <p>{comment_text}</p>
         <hr>
-        <p><a href="{os.getenv('DUCKDNS_DOMAIN')}/admin">Pojdi v admin panel</a></p>
+        <p><a href="{os.getenv("DUCKDNS_DOMAIN")}/admin">Pojdi v admin panel</a></p>
         """
 
         try:
@@ -712,9 +689,7 @@ def admin_comment():
         if is_splosno:
             metadata_file = os.path.join(FILMS_ROOT, "users_comments.json")
         else:
-            metadata_file = os.path.join(
-                FILMS_ROOT, movie_folder[1:], "readme.json"
-            )
+            metadata_file = os.path.join(FILMS_ROOT, movie_folder[1:], "readme.json")
 
         with open(metadata_file, "r", encoding="utf-8") as f:
             movie_metadata = json.loads(f.read())
@@ -726,9 +701,7 @@ def admin_comment():
             return {"status": "error", "message": "Komentar ne obstaja"}, 404
 
         # Dodaj admin odgovor
-        movie_metadata["user_notes"][comment_index][
-            "admin_response"
-        ] = admin_response
+        movie_metadata["user_notes"][comment_index]["admin_response"] = admin_response
         movie_metadata["user_notes"][comment_index]["admin_response_date"] = (
             datetime.now(timezone.utc).isoformat()
         )
@@ -739,9 +712,7 @@ def admin_comment():
 
         # Posodobi in-memory podatke
         if not is_splosno:
-            all_films[movie_folder]["user_notes"] = movie_metadata[
-                "user_notes"
-            ]
+            all_films[movie_folder]["user_notes"] = movie_metadata["user_notes"]
             movie_title = all_films[movie_folder]["title"]
         else:
             movie_title = "Splošno"
@@ -838,9 +809,7 @@ def get_comments():
 
             for comment_index, note in user_notes.items():
                 # Pokaži samo uporabniške komentarje (ne admin opozoril)
-                if not note.get("admin_response") and not note.get(
-                    "is_admin", False
-                ):
+                if not note.get("admin_response") and not note.get("is_admin", False):
                     comments_list.append(
                         {
                             "author": note.get("author"),
@@ -904,9 +873,7 @@ def add_warning():
         }
 
         # Branje metapodatkov
-        metadata_file = os.path.join(
-            FILMS_ROOT, movie_folder[1:], "readme.json"
-        )
+        metadata_file = os.path.join(FILMS_ROOT, movie_folder[1:], "readme.json")
 
         with open(metadata_file, "r", encoding="utf-8") as f:
             movie_metadata = json.loads(f.read())
@@ -958,9 +925,7 @@ def edit_warning():
             return {"status": "error", "message": "Film ne obstaja"}, 404
 
         # Branje metapodatkov
-        metadata_file = os.path.join(
-            FILMS_ROOT, movie_folder[1:], "readme.json"
-        )
+        metadata_file = os.path.join(FILMS_ROOT, movie_folder[1:], "readme.json")
 
         with open(metadata_file, "r", encoding="utf-8") as f:
             movie_metadata = json.loads(f.read())
@@ -1025,9 +990,7 @@ def delete_warning():
             return {"status": "error", "message": "Film ne obstaja"}, 404
 
         # Branje metapodatkov
-        metadata_file = os.path.join(
-            FILMS_ROOT, movie_folder[1:], "readme.json"
-        )
+        metadata_file = os.path.join(FILMS_ROOT, movie_folder[1:], "readme.json")
 
         with open(metadata_file, "r", encoding="utf-8") as f:
             movie_metadata = json.loads(f.read())
@@ -1048,9 +1011,7 @@ def delete_warning():
         # Posodobi in-memory
         all_films[movie_folder]["user_notes"] = movie_metadata["user_notes"]
 
-        log.info(
-            f"Opozorilo '{deleted_note.get('text')}' izbrisano z {movie_folder}"
-        )
+        log.info(f"Opozorilo '{deleted_note.get('text')}' izbrisano z {movie_folder}")
         return {
             "status": "success",
             "message": "Opozorilo je bilo izbrisano",

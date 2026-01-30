@@ -67,7 +67,8 @@ class User(UserMixin):
 
 def is_current_admin_view(user):
     return (
-        user.is_admin
+        user.is_authenticated
+        and user.is_admin
         and session.get("view_as", None) != "anonymous"
         and session.get("view_as", None) != "user"
     )

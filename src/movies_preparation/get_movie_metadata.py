@@ -15,9 +15,7 @@ from PIL import Image
 
 log = logging.getLogger(__name__)
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = (
-    "credentials/gen-lang-client.json"
-)
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "credentials/gen-lang-client.json"
 TMDB_KEY = os.getenv("TMDB_KEY")
 TMDB_URL = "https://api.themoviedb.org/3"
 
@@ -84,9 +82,7 @@ def tmdb_movie_details(tmdb_id):
 
     # Če manjka slovenski naslov (redko, a mogoče), vzemi angleškega ali originalnega
     if not merged_data.get("title"):
-        merged_data["title"] = data_en.get(
-            "title", data_en.get("original_title")
-        )
+        merged_data["title"] = data_en.get("title", data_en.get("original_title"))
 
     # Če manjka pot do slike v slovenščini, vzemi angleško
     if not has_poster:
@@ -135,9 +131,7 @@ def translate_text(text, target_language="sl"):
         return ""
 
     result = translate_client.translate(text, target_language=target_language)
-    return result[
-        "translatedText"
-    ]  # TODO: previdno uporabi za opise, lahko je drago
+    return result["translatedText"]  # TODO: previdno uporabi za opise, lahko je drago
 
 
 def create_thumbnail(src, height=250, quality=85):
@@ -289,9 +283,7 @@ class MovieMetadata:
         self.title = " ".join(raw_name.split()).title()
 
         # Vsebino mape preberemo samo enkrat za večjo hitrost
-        folder_contents = (
-            list(self.path.iterdir()) if self.path.exists() else []
-        )
+        folder_contents = list(self.path.iterdir()) if self.path.exists() else []
 
         # Filtriranje datotek z uporabo pathlib suffixov (ki vključujejo piko)
         self.video_files = sorted(
@@ -313,9 +305,7 @@ class MovieMetadata:
         self.is_collection = ".collection" in self.path.name.lower()
         self.is_chosen_series = "the-chosen/" in folder
 
-        metadata, cover = get_movie_metadata(
-            folder, self.title, self.video_files
-        )
+        metadata, cover = get_movie_metadata(folder, self.title, self.video_files)
 
         self.cover = cover
         self.thumbnail = create_thumbnail(cover)
