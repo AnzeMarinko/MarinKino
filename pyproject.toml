@@ -41,7 +41,8 @@ dependencies = [
   "Flask-Limiter",
   "opensubtitlescom",
   "mutagen",
-  "redis"
+  "redis",
+  "yt-dlp",
 ]
 
 [project.optional-dependencies]

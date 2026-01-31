@@ -276,6 +276,95 @@
             color: #f39c12;
         }
 
+        .yt-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .yt-section h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .yt-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .yt-input-group input {
+            flex: 1;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .yt-download-btn {
+            background: #1DB954;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+
+        .yt-download-btn:hover {
+            background: #1ed760;
+        }
+
+        .yt-download-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        .yt-download-btn.loading::after {
+            content: ' ⟳';
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .download-status {
+            padding: 10px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            display: none;
+        }
+
+        .download-status.show {
+            display: block;
+        }
+
+        .download-status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .download-status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .download-status.loading {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
         @media (max-width: 1400px) {
             td {
                 max-width: 150px;
@@ -292,6 +381,15 @@
     <div class="header">
         <h1>🎵 Urejanje Metapodatkov Glasbe</h1>
         <p>Uredi podatke o glasbi, izberite žanr iz padajočega menija, in klikni Shrani za posodobitev</p>
+    </div>
+
+    <div class="yt-section">
+        <h2>🎶 Prenesi iz YouTube</h2>
+        <div class="yt-input-group">
+            <input type="text" id="ytUrl" placeholder="Vnesi YouTube link do pesmi, albuma ali seznama predvajanja">
+            <button class="yt-download-btn" id="downloadBtn">Prenesi</button>
+        </div>
+        <div class="download-status" id="downloadStatus"></div>
     </div>
 
     <div class="controls">
@@ -342,6 +440,14 @@
             
             // Iskanje
             document.getElementById('searchInput').addEventListener('keyup', handleSearch);
+            
+            // YouTube preuzimanje
+            document.getElementById('downloadBtn').addEventListener('click', downloadFromYouTube);
+            document.getElementById('ytUrl').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    downloadFromYouTube();
+                }
+            });
         });
 
         function renderTable(musicData) {
@@ -646,6 +752,63 @@
             });
 
             renderTable(filtered);
+        }
+
+        function downloadFromYouTube() {
+            const ytUrl = document.getElementById('ytUrl').value.trim();
+            const downloadBtn = document.getElementById('downloadBtn');
+            const statusDiv = document.getElementById('downloadStatus');
+
+            // Validacija URL-a
+            if (!ytUrl) {
+                showStatus('Prosim, vnesi link', 'error', statusDiv);
+                return;
+            }
+
+            // Prikaži, da se preuzemamo
+            downloadBtn.disabled = true;
+            downloadBtn.classList.add('loading');
+            showStatus('Prenašam pesmi... To lahko traja nekaj minut', 'loading', statusDiv);
+
+            // Pošlji zahtevek na backend
+            fetch('/api/music/download-yt', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ url: ytUrl })
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.status === 'ok') {
+                    showStatus(`✓ Uspešno prenešeno! Dodane pesmi. Osveži stran da vidiš nove pesmi.`, 'success', statusDiv);
+                    document.getElementById('ytUrl').value = '';
+                    
+                    // Osveži tabelo čez par sekund
+                    setTimeout(() => {
+                        location.reload();
+                    }, 2000);
+                } else {
+                    throw new Error(result.message || 'Neznana napaka');
+                }
+            })
+            .catch(error => {
+                console.error('Napaka pri prenašanju:', error);
+                showStatus(`✗ Napaka: ${error.message}`, 'error', statusDiv);
+                downloadBtn.disabled = false;
+                downloadBtn.classList.remove('loading');
+            });
+        }
+
+        function showStatus(message, type, element) {
+            element.textContent = message;
+            element.className = `download-status show ${type}`;
+            
+            if (type !== 'loading') {
+                setTimeout(() => {
+                    element.classList.remove('show');
+                }, 5000);
+            }
         }
     </script>
 </body>

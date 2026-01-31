@@ -1,6 +1,7 @@
 import glob
 import os
 
+import yt_dlp
 from flask import Flask, jsonify, render_template, request, send_from_directory
 from flask_compress import Compress
 from mutagen.easyid3 import EasyID3
@@ -10,6 +11,60 @@ app = Flask(__name__, static_url_path="/static", static_folder="static")
 app.secret_key = os.getenv("FLASK_KEY")
 Compress(app)
 
+MUSIC_FOLDER = "data/music"
+INCOMING_MUSIC_FOLDER = f"{MUSIC_FOLDER}/Neurejena-glasba"
+
+
+def download_playlist(playlist_url):
+    # Konfiguracija za yt-dlp
+    ydl_opts = {
+        "format": "bestaudio/best",
+        "ignoreerrors": True,  # Če ena pesem ne dela, nadaljuj z naslednjo
+        # Struktura map: Glasba_iz_YouTube / Ime Playliste / Izvajalec - Naslov.mp3
+        "outtmpl": f"{INCOMING_MUSIC_FOLDER}/%(playlist_title)s/%(title)s.%(ext)s",
+        "postprocessors": [
+            {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "mp3",
+                "preferredquality": "192",
+            },
+            {
+                "key": "FFmpegMetadata",
+                "add_metadata": True,
+            },
+            {
+                "key": "EmbedThumbnail",
+            },
+        ],
+        "writethumbnail": True,
+        # To prepreči, da bi yt-dlp prekinil delovanje ob opozorilih
+        "quiet": False,
+        "no_warnings": True,
+    }
+
+    print(f"Začenjam analizo playliste: {playlist_url}")
+    print("To lahko traja nekaj trenutkov ...")
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        try:
+            # extract_info s download=True dejansko sproži prenos
+            info = ydl.extract_info(playlist_url, download=True)
+
+            # Pridobimo ime playliste za izpis na koncu
+            playlist_title = info.get("title", "Neznana playlista")
+            print(
+                f"\n✅ Končano! Glasba je shranjena v mapi: {INCOMING_MUSIC_FOLDER}/{playlist_title}"
+            )
+            return True
+
+        except Exception as e:
+            print(f"\n❌ Prišlo je do napake: {e}")
+            return False
+
+
+for url in []:
+    download_playlist(url)
+
 
 def get_current_metadata(music_file):
     path = os.path.join("data/music", music_file)
@@ -17,9 +72,7 @@ def get_current_metadata(music_file):
     total_seconds = int(audio.info.length)
     return {
         "title": ", ".join(
-            audio.get(
-                "title", [".".join(music_file.split("/")[-1].split(".")[:-1])]
-            )
+            audio.get("title", [".".join(music_file.split("/")[-1].split(".")[:-1])])
         ),
         "artist": ", ".join(audio.get("artist", [])),
         "album": ", ".join(audio.get("album", [])),
@@ -44,16 +97,14 @@ def update_values(music_file, title, artist, album, genre):
 @app.route("/")
 def index():
     music_files = [
-        f[11:]
-        for f in glob.iglob(
-            "data/music/Neurejena-glasba/**/*.mp3", recursive=True
-        )
+        f[11:] for f in glob.iglob(f"{INCOMING_MUSIC_FOLDER}/**/*.mp3", recursive=True)
     ]
     return render_template(
         "music_editor.html",
         music=sorted(
             [get_current_metadata(file) for file in music_files],
             key=lambda x: (
+                x.get("folder", "").lower(),
                 x.get("artist", "").lower(),
                 x.get("album", "").lower(),
                 x.get("title", "").lower(),
@@ -75,9 +126,7 @@ def update_music_metadata():
 
         if not music_file:
             return (
-                jsonify(
-                    {"status": "error", "message": "Filename je obavezen"}
-                ),
+                jsonify({"status": "error", "message": "Filename je obavezen"}),
                 400,
             )
 
@@ -110,9 +159,7 @@ def delete_music_file():
 
         if not music_file:
             return (
-                jsonify(
-                    {"status": "error", "message": "Filename je obavezen"}
-                ),
+                jsonify({"status": "error", "message": "Filename je obavezen"}),
                 400,
             )
 
@@ -134,6 +181,45 @@ def delete_music_file():
             }
         )
     except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/music/download-yt", methods=["POST"])
+def download_yt_music():
+    try:
+        data = request.json
+        yt_url = data.get("url")
+
+        if not yt_url:
+            return (
+                jsonify({"status": "error", "message": "URL je obavezen"}),
+                400,
+            )
+
+        # Preuzeми pesmi
+        success = download_playlist(yt_url)
+
+        if not success:
+            return (
+                jsonify(
+                    {
+                        "status": "error",
+                        "message": "Napaka pri prenašanju. Preveri, ali je YT-DL pravilno nameščen.",
+                    }
+                ),
+                500,
+            )
+
+        print("Uspešno preneseno")
+
+        return jsonify(
+            {
+                "status": "ok",
+                "message": "Uspešno preneseno",
+            }
+        )
+    except Exception as e:
+        print(f"Napaka pri YouTube prenašanju: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
