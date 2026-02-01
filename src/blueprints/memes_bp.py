@@ -22,9 +22,7 @@ memes = os.listdir("data/memes")
 memes = [
     slika
     for slika in memes
-    if slika.lower().endswith(
-        (".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp4")
-    )
+    if slika.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp4"))
 ]
 random.shuffle(memes)
 
@@ -70,12 +68,10 @@ def meme_file(meme_file_name):
             mimetype="video/mp4",
             conditional=True,
         )
-    return send_from_directory(
-        "../data/memes", meme_file_name, conditional=True
-    )
+    return send_from_directory("../data/memes", meme_file_name, conditional=True)
 
 
-@memes_bp.route("/meme/delete/<meme_file_name>", methods=["DELETE"])
+@memes_bp.route("/memes/delete/<meme_file_name>", methods=["DELETE"])
 @login_required
 def meme_remove(meme_file_name):
     if not is_current_admin_view(current_user):

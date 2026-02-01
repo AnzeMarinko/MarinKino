@@ -15,9 +15,7 @@ music_bp = Blueprint("music", __name__)
 
 # Initialize music
 music_albums = {}
-music_files = [
-    f[11:] for f in glob.iglob("data/music/**/*.mp3", recursive=True)
-]
+music_files = [f[11:] for f in glob.iglob("data/music/**/*.mp3", recursive=True)]
 for s in music_files:
     parts = s.split("/")[:-1]
     music_albums.setdefault("Vse", []).append(s)
@@ -50,8 +48,8 @@ music_metadata = {
     for k, v in sorted(
         music_metadata.items(),
         key=lambda item: (
-            item[1]["album"],
             item[1]["artist"],
+            item[1]["album"],
             item[1]["title"],
         ),
     )

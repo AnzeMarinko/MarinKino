@@ -474,7 +474,7 @@ def movie_file(movies_subfolder, movie_folder, filename):
     )
 
 
-@movies_bp.route("/video-progress", methods=["POST"])
+@movies_bp.route("/movies/video-progress", methods=["POST"])
 @login_required
 def video_progress():
     data = json.loads(request.data)
@@ -506,7 +506,7 @@ def video_progress():
     return "", 204
 
 
-@movies_bp.route("/progress-change", methods=["POST"])
+@movies_bp.route("/movies/progress-change", methods=["POST"])
 @login_required
 def video_progress_change():
     data = json.loads(request.data)

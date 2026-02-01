@@ -19,13 +19,13 @@
     {% endif %}
   </div>
   <div class="btn-group btn-group-sm">
-    <a href="/set-view-as/anonymous" class="btn btn-warning {% if view_as == 'anonymous' %}active{% endif %}">Neprijavljen</a>
-    <a href="/set-view-as/user" class="btn btn-warning {% if view_as == 'user' %}active{% endif %}">Navaden uporabnik</a>
-    <a href="/clear-view-as" class="btn btn-success {% if not view_as %}active{% endif %}">Administrator</a>
+    <a href="/admin/set-view-as/anonymous" class="btn btn-warning {% if view_as == 'anonymous' %}active{% endif %}">Neprijavljen</a>
+    <a href="/admin/set-view-as/user" class="btn btn-warning {% if view_as == 'user' %}active{% endif %}">Navaden uporabnik</a>
+    <a href="/admin/clear-view-as" class="btn btn-success {% if not view_as %}active{% endif %}">Administrator</a>
   </div>
 </div>
 
-<a href="/send_admin_emails" class="btn btn-sm btn-outline-info">Pošiljanje mailov uporabnikom</a>
+<a href="/admin/send_emails" class="btn btn-sm btn-outline-info">Pošiljanje mailov uporabnikom</a>
 
 <h2>Statistika ogledov filmov</h2>
 <div class="table-responsive">

@@ -63,20 +63,16 @@ def login():
             user = User(username)
             login_user(user, remember=True)
             session.permanent = True
-            redis_client.incr(
-                f"auth:login:{date.today().isoformat()[:7]}:{username}"
-            )
+            redis_client.incr(f"auth:login:{date.today().isoformat()[:7]}:{username}")
             return redirect(url_for("movies.index"))
         else:
-            redis_client.incr(
-                f"auth:reject:{date.today().isoformat()[:7]}:{username}"
-            )
+            redis_client.incr(f"auth:reject:{date.today().isoformat()[:7]}:{username}")
             error = "Napačno uporabniško ime ali geslo."
             flash(error, "error")
     return render_template("login.html", pagetitle="Prijava v MarinKino")
 
 
-@auth_bp.route("/register", methods=["GET", "POST"])
+@auth_bp.route("/admin/register", methods=["GET", "POST"])
 @login_required
 def register():
     global users
@@ -148,30 +144,22 @@ def register():
             return redirect(url_for("movies.index"))
     if error:
         flash(error, "error")
-    return render_template(
-        "register.html", pagetitle="Registracija v MarinKino"
-    )
+    return render_template("register.html", pagetitle="Registracija v MarinKino")
 
 
-@auth_bp.route("/forgot_password", methods=["GET", "POST"])
+@auth_bp.route("/password/forgot", methods=["GET", "POST"])
 def forgot_password():
     if request.method == "POST":
         email = request.form.get("email", "").strip()
         username = find_user_by_email(email, users)
         if username:
             token = secrets.token_urlsafe(32)
-            expiry = (
-                datetime.now(timezone.utc) + timedelta(minutes=30)
-            ).isoformat()
+            expiry = (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()
             users[username]["reset_token"] = token
             users[username]["reset_expiry"] = expiry
             save_users()
-            reset_link = url_for(
-                "auth.reset_password", token=token, _external=True
-            )
-            redis_client.incr(
-                f"auth:forgot:{date.today().isoformat()[:7]}:{username}"
-            )
+            reset_link = url_for("auth.reset_password", token=token, _external=True)
+            redis_client.incr(f"auth:forgot:{date.today().isoformat()[:7]}:{username}")
             try:
                 send_mail(
                     to=users[username].get("emails", []),
@@ -194,12 +182,10 @@ def forgot_password():
             "info",
         )
         return redirect(url_for("auth.login"))
-    return render_template(
-        "forgot_password.html", pagetitle="Pozabljeno geslo"
-    )
+    return render_template("forgot_password.html", pagetitle="Pozabljeno geslo")
 
 
-@auth_bp.route("/reset_password/<token>", methods=["GET", "POST"])
+@auth_bp.route("/password/reset/<token>", methods=["GET", "POST"])
 def reset_password(token):
     username = None
     user_data = None
@@ -212,9 +198,7 @@ def reset_password(token):
         redis_client.incr(
             f"auth:reset_token_invalid:{date.today().isoformat()[:7]}:{username}"
         )
-        flash(
-            "Neveljavna ali potekla povezava za ponastavitev gesla.", "error"
-        )
+        flash("Neveljavna ali potekla povezava za ponastavitev gesla.", "error")
         return redirect(url_for("auth.login"), code=400)
 
     expiry_iso = user_data.get("reset_expiry")

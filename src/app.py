@@ -84,15 +84,13 @@ def log_response_info(response):
         else request.path
     )
     route = (
-        route.split("/reset_password/")[0] + "/reset_password/..."
-        if "/reset_password/" in route
+        route.split("/password/reset/")[0] + "/password/reset/..."
+        if "/password/reset/" in route
         else route
     )
 
     if response.status_code < 400:
-        redis_client.hincrby(
-            f"stats:monthly:{month}", request.method + " " + route, 1
-        )
+        redis_client.hincrby(f"stats:monthly:{month}", request.method + " " + route, 1)
 
     key = f"stats:daily:{today}:{user_id}:{response.status}"
     redis_client.hincrby(key, request.method + " " + route, 1)

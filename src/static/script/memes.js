@@ -2,7 +2,7 @@
 function izbrisiMeme(meme_file_name) {
     const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     if (confirm("Res želiš izbrisati ta meme?")) {
-        fetch(`/meme/delete/` + meme_file_name, {
+        fetch(`/memes/delete/` + meme_file_name, {
             method: 'DELETE',
             headers: {
                 'X-CSRFToken': token

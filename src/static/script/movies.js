@@ -176,7 +176,7 @@ document.addEventListener("change", (e) => {
 
         const token = document.querySelector('meta[name="csrf-token"]').content;
 
-        fetch("/progress-change", {
+        fetch("/movies/progress-change", {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
@@ -278,7 +278,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     setInterval(() => {
             if (video && !video.paused && !video.ended) {
-                fetch("/video-progress", {
+                fetch("/movies/video-progress", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",

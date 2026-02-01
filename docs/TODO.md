@@ -4,7 +4,7 @@
     source .venv/bin/activate
     python src/prepare_movies.py
 
-* Uredi pesmi (mnoge odstrani, uredi metapodatke, ime datoteke, razvrsti v mape)
+* Uredi pesmi (mnoge odstrani, uredi metapodatke, ime datoteke, razvrsti v mape, uredi žanr glede na mapo kjer je)
 
 * pošlji prve predloge filmov na mail in dodaj, da se zadnji predlog pošlje tudi novemu uporabniku
 * z nekom preglej vizualno podobo strani in jo malo polepšaj

@@ -56,21 +56,15 @@ def admin_panel():
         access_stats_users[status][log_date].setdefault(user_id, {})
 
         for route_method, count in routes_data.items():
-            access_stats_users[status][log_date][user_id].setdefault(
-                "routes", {}
-            )
+            access_stats_users[status][log_date][user_id].setdefault("routes", {})
             access_stats_users[status][log_date][user_id]["routes"].setdefault(
                 route_method, 0
             )
-            access_stats_users[status][log_date][user_id]["routes"][
-                route_method
-            ] += int(count)
-            access_stats_users[status][log_date][user_id].setdefault(
-                "count", 0
+            access_stats_users[status][log_date][user_id]["routes"][route_method] += (
+                int(count)
             )
-            access_stats_users[status][log_date][user_id]["count"] += int(
-                count
-            )
+            access_stats_users[status][log_date][user_id].setdefault("count", 0)
+            access_stats_users[status][log_date][user_id]["count"] += int(count)
             if status.startswith("2") or status.startswith("3"):
                 user_counter.setdefault(user_id, 0)
                 user_counter[user_id] += int(count)
@@ -88,9 +82,7 @@ def admin_panel():
                             for v in sorted(
                                 [
                                     (int(count), f"{count}x {route_method}")
-                                    for route_method, count in v3[
-                                        "routes"
-                                    ].items()
+                                    for route_method, count in v3["routes"].items()
                                 ],
                                 reverse=True,
                             )[:10]
@@ -105,9 +97,7 @@ def admin_panel():
                     if v
                 }
             access_stats_users[k1] = {
-                k: v
-                for k, v in sorted(list(access_stats_users[k1].items()))
-                if v
+                k: v for k, v in sorted(list(access_stats_users[k1].items())) if v
             }
         access_stats_users = {
             k: v for k, v in sorted(list(access_stats_users.items())) if v
@@ -187,10 +177,7 @@ def admin_panel():
                     watched_count += 1
 
                 if current_max_start:
-                    if (
-                        last_start_time == "-"
-                        or current_max_start > last_start_time
-                    ):
+                    if last_start_time == "-" or current_max_start > last_start_time:
                         last_start_time = current_max_start
 
                 total_watch_time += watch_time
@@ -237,12 +224,9 @@ def admin_panel():
                     new_lines.append(" - ".join(last_line))
                     last_line = line
                 else:
-                    last_line[0] = (
-                        last_line[0].split(" <-> ")[0] + " <-> " + line[0]
-                    )
+                    last_line[0] = last_line[0].split(" <-> ")[0] + " <-> " + line[0]
                     last_line[1] = (
-                        str(int(last_line[1].replace("x", "")) + int(line[1]))
-                        + "x"
+                        str(int(last_line[1].replace("x", "")) + int(line[1])) + "x"
                     )
             new_lines.append(" - ".join(last_line))
 
@@ -261,12 +245,8 @@ def admin_panel():
         pagetitle="MarinKino - Nadzorna plošča",
         system_log=system_log,
         access_stats_users=access_stats_users,
-        users=list(
-            sorted(user_counter.keys(), key=lambda x: -user_counter[x])
-        ),
-        emails=", ".join(
-            [e for u in users for e in users[u].get("emails", [])]
-        ),
+        users=list(sorted(user_counter.keys(), key=lambda x: -user_counter[x])),
+        emails=", ".join([e for u in users for e in users[u].get("emails", [])]),
         users_count=len(users),
         access_stats_routes=access_stats_routes,
         users_stats=users_stats_dict,
@@ -276,7 +256,7 @@ def admin_panel():
     )
 
 
-@admin_bp.route("/set-view-as/<view_mode>")
+@admin_bp.route("/admin/set-view-as/<view_mode>")
 @login_required
 def set_view_as(view_mode):
     """Set the view mode for admin preview (anonymous, user, admin)"""
@@ -291,7 +271,7 @@ def set_view_as(view_mode):
     return redirect(url_for("movies.index"))
 
 
-@admin_bp.route("/clear-view-as")
+@admin_bp.route("/admin/clear-view-as")
 @login_required
 def clear_view_as():
     """Clear the view as mode"""

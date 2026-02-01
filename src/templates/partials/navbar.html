@@ -55,7 +55,7 @@
         {% endif %}
 
         {% if current_user.is_authenticated and current_user.is_admin and view_as != "anonymous" and view_as != "user" %}
-        <a href="/register" class="btn btn-sm btn-outline-warning">+ Uporabnik</a>
+        <a href="/admin/register" class="btn btn-sm btn-outline-warning">+ Uporabnik</a>
         <a href="/admin" class="btn btn-sm btn-outline-info">Nadzorna plošča</a>
           {% if fullscreenbutton %}
           <a class="btn btn-sm btn-outline-secondary" id="delete-btn" onclick="izbrisiMeme({{ meme_file_name }})" title="Izbriši meme"><i class="bi bi-trash-fill"></i> Odstrani</a>
@@ -118,7 +118,7 @@ document.addEventListener("DOMContentLoaded", () => {
   <strong>⚠️ Pregled kot:</strong>
   {% if view_as == "anonymous" %} <span class="badge bg-danger">Neprijavljen uporabnik</span>
   {% elif view_as == "user" %} <span class="badge bg-info">Navaden uporabnik</span> {% endif %}
-  <a href="/clear-view-as" class="ms-3 btn btn-sm btn-outline-warning">Nazaj na administrator</a>
+  <a href="/admin/clear-view-as" class="ms-3 btn btn-sm btn-outline-warning">Nazaj na administrator</a>
 </div>
 <style>
 body { padding-top: 120px !important; }

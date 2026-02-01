@@ -27,7 +27,7 @@
         return false;
     }
     const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-    fetch("/send_admin_emails", { method: 'POST',
+    fetch("/admin/send_emails", { method: 'POST',
             body: JSON.stringify({ whole_list: whole_list }),
         headers: {
             'X-CSRFToken': token

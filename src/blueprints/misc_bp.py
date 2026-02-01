@@ -90,7 +90,7 @@ def help():
     )
 
 
-@misc_bp.route("/send_admin_emails", methods=["GET", "POST"])
+@misc_bp.route("/admin/send_emails", methods=["GET", "POST"])
 @login_required
 def send_admin_emails():
     template_name = "mail_newsletters/mail_monthly_recommendation"
