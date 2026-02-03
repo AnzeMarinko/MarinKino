@@ -1,13 +1,20 @@
 import glob
 import logging
 import os
+from urllib.parse import quote
 
-from flask import Blueprint, render_template, send_from_directory
+from flask import (
+    Blueprint,
+    abort,
+    make_response,
+    render_template,
+    send_from_directory,
+)
 from flask_login import current_user, login_required
 from mutagen.easyid3 import EasyID3
 from mutagen.mp3 import MP3, HeaderNotFoundError
 
-from utils import is_current_admin_view, safe_path
+from utils import FLASK_ENV, is_current_admin_view, safe_path
 
 log = logging.getLogger(__name__)
 
@@ -40,6 +47,7 @@ for file in music_albums["Vse"]:
         ),
         "artist": " - ".join(audio.get("artist", [])),
         "album": " - ".join(audio.get("album", audio.get("genre", []))),
+        "genre": " - ".join(audio.get("genre", [])),
         "only_admin": "Neurejena-glasba/" in file,
     }
     music_metadata[file] = item
@@ -48,6 +56,7 @@ music_metadata = {
     for k, v in sorted(
         music_metadata.items(),
         key=lambda item: (
+            item[1]["genre"],
             item[1]["artist"],
             item[1]["album"],
             item[1]["title"],
@@ -60,8 +69,9 @@ music_albums = [
         "songs": sorted(
             music_albums[k],
             key=lambda x: (
-                music_metadata[x]["album"].lower(),
+                music_metadata[x]["genre"].lower(),
                 music_metadata[x]["artist"].lower(),
+                music_metadata[x]["album"].lower(),
                 music_metadata[x]["title"].lower(),
             ),
         ),
@@ -97,10 +107,19 @@ def music():
 def song(filename):
     try:
         path = safe_path("../data/music", filename)
+        if not os.path.exists(os.path.join("data/music", filename)):
+            abort(404)
     except ValueError:
-        return "", 404
-    response = send_from_directory("../data/music", filename, conditional=True)
-    response.headers["Accept-Ranges"] = "bytes"
+        abort(404)
+    if FLASK_ENV == "production":
+        response = make_response()
+        safe_filename = quote(filename, safe="/")
+        if not safe_filename.startswith("/"):
+            safe_filename = "/" + safe_filename
+        response.headers["X-Accel-Redirect"] = f"/protected_music{safe_filename}"
+    else:
+        response = send_from_directory("../data/music", filename, conditional=True)
+        response.headers["Accept-Ranges"] = "bytes"
     if filename.endswith(".mp3"):
         response.headers["Content-Type"] = "audio/mpeg"
     elif filename.endswith(".m4a"):

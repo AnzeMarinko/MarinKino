@@ -80,27 +80,29 @@ function playTrack(i) {
     nowPlayingArtist.textContent = artist;
     nowPlayingAlbum.textContent = album;
 
+    // Posodobimo Media Session
+    updateMediaSession(title, artist, album);
+
     // 1. Nastavi vir
     audio.src = "/music/file/" + currentTrack;
     
-    // 2. Eksplicitno naloži (pomaga na iOS)
+    // 2. Samo enkrat naloži
     audio.load(); 
 
-    // 3. Obravnavaj Play Promise
+    // 3. Play
     const playPromise = audio.play();
 
     if (playPromise !== undefined) {
-        playPromise.then(_ => {
-            // Predvajanje se je uspešno začelo
+        playPromise
+        .then(_ => {
             updatePlayBtn("true");
-            
-            // Nastavi Media Session šele ko se dejansko začne predvajati
-            updateMediaSession(title, artist, album);
         })
         .catch(error => {
-            console.error("Napaka pri predvajanju:", error);
-            // Če je napaka, posodobi gumb na "pause", da uporabnik vidi, da ne igra
-            updatePlayBtn("false");
+            // AbortError je normalen, če uporabnik hitro klika "Next"
+            if (error.name !== "AbortError") {
+                console.error("Napaka pri predvajanju:", error);
+                updatePlayBtn("false");
+            }
         });
     }
 
@@ -113,13 +115,16 @@ function updateMediaSession(title, artist, album) {
     if ("mediaSession" in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata({
             title: title,
+            artist: artist || "Neznan izvajalec",
+            album: album || "",
             artwork: [
-                { src: "/static/logo.png", sizes: "512x512", type: "image/png" }
-            ],
-            ...(artist && { artist: artist }),
-            ...(album && { album: album })
+                { src: "/static/logo.png", sizes: "96x96", type: "image/png" },
+                { src: "/static/logo.png", sizes: "128x128", type: "image/png" },
+                { src: "/static/logo.png", sizes: "512x512", type: "image/png" },
+            ]
         });
 
+        // Kontrole
         navigator.mediaSession.setActionHandler("play", () => {
             audio.play();
             updatePlayBtn("true");
@@ -130,6 +135,17 @@ function updateMediaSession(title, artist, album) {
         });
         navigator.mediaSession.setActionHandler("previoustrack", prev);
         navigator.mediaSession.setActionHandler("nexttrack", next);
+        
+        // --- NOVO: Omogoči premikanje po časovnici preko avtomobila ---
+        navigator.mediaSession.setActionHandler("seekto", (details) => {
+            if (details.fastSeek && 'fastSeek' in audio) {
+              audio.fastSeek(details.seekTime);
+              return;
+            }
+            audio.currentTime = details.seekTime;
+            // Posodobi tudi local state
+            updatePositionState(); 
+        });
     }
 }
 
@@ -157,7 +173,16 @@ function next() {
     if(randomMode) playTrack(Math.floor(Math.random()*currentSongs.length));
     else if(currentIndex<currentSongs.length-1) playTrack(currentIndex+1);
 }
-function prev() { if(currentIndex>0) playTrack(currentIndex-1); }
+function prev() {
+    // Če pesem igra že več kot 3 sekunde, jo samo resetiraj na začetek
+    if (audio.currentTime > 3) {
+        audio.currentTime = 0;
+    } 
+    // Sicer pojdi na prejšnjo
+    else if (currentIndex > 0) {
+        playTrack(currentIndex - 1);
+    }
+}
 
 const shuffleBtn = document.getElementById("shuffleBtn");
 let randomMode = JSON.parse(localStorage.getItem("random") || "false");
@@ -199,11 +224,22 @@ function updatePlayBtn(playMode) {
 }
 
 // Audio update
-audio.ontimeupdate = ()=>{
-    if(audio.duration){
+audio.ontimeupdate = () => {
+    if (audio.duration) {
         progress.value = audio.currentTime;
         localStorage.setItem("time", audio.currentTime);
-        timeDisplay.textContent = formatTime(audio.currentTime)+" / "+formatTime(audio.duration);
+        timeDisplay.textContent = formatTime(audio.currentTime) + " / " + formatTime(audio.duration);
+        if ("mediaSession" in navigator && !isNaN(audio.duration)) {
+             try {
+                navigator.mediaSession.setPositionState({
+                    duration: audio.duration,
+                    playbackRate: audio.playbackRate,
+                    position: audio.currentTime
+                });
+             } catch(e) {
+                 // Ignoriraj napake, če metadata še ni naložen
+             }
+        }
     }
 };
 audio.onloadedmetadata = ()=>{
@@ -246,13 +282,6 @@ audio.addEventListener('waiting', () => {
 
 audio.addEventListener('playing', () => {
     console.log("Audio igra.");
-});
-
-// Zelo pomembno: Poskusi ponovno predvajati, če se zatakne
-audio.addEventListener('stalled', () => {
-   console.log("Povezava je prekinjena, poskušam ponovno naložiti.");
-   audio.load();
-   audio.play().catch(e => console.error(e));
 });
 
 let initialAlbum = albums[0]

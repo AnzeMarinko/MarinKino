@@ -68,7 +68,7 @@ def log_response_info(response):
     if len(request_parts):
         if (
             "static" in request_parts[0]
-            or "progress" in request_parts[0]
+            or (len(request_parts) > 1 and "progress" in request_parts[1])
             or "favicon.ico" in request_parts[0]
             or ".well-known" in request_parts[0]
         ):

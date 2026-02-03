@@ -63,7 +63,7 @@
     {% set admin_alerts = movie.user_notes.values()|selectattr('is_admin')|list %}
     {% if admin_alerts %}
     <div class="user-notes-section">
-        <h3><i class="bi bi-info-circle"></i> Opozorila in komentarji</h3>
+        <h3><i class="bi bi-info-circle"></i> Opozorila in spodbude k razmisleku</h3>
         {% for note in admin_alerts %}
         <div class="user-note {% if note.type %}note-type-{{ note.type }}{% endif %}" data-note-index="{{ loop.index0 }}">
             <div class="note-header">
@@ -244,6 +244,7 @@
     <!-- Forma za dodajanje komentarja -->
     <div class="comment-form-section">
         <h3>Dodaj komentar ali predlog</h3>
+        <p>Avtor sporočila bo viden le skrbniku strani, ki bo po potrebi pred objavo besedilo tudi prilagodil.</p>
         <form id="commentForm" onsubmit="submitComment(event, '{{ movie.folder }}')">
             <div class="form-group">
                 <label for="commentText">Komentar (predlog, opozorilo, itd.):</label>

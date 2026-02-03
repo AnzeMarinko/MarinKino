@@ -2,11 +2,12 @@ import logging
 import os
 import random
 from datetime import date
+from urllib.parse import quote
 
-from flask import Blueprint, render_template, send_from_directory
+from flask import Blueprint, abort, make_response, render_template, send_from_directory
 from flask_login import current_user, login_required
 
-from utils import is_current_admin_view, safe_path
+from utils import FLASK_ENV, is_current_admin_view, safe_path
 
 log = logging.getLogger(__name__)
 
@@ -59,16 +60,47 @@ def meme():
 def meme_file(meme_file_name):
     try:
         path = safe_path("../data/memes", meme_file_name)
+        if not os.path.exists(os.path.join("data/memes", meme_file_name)):
+            abort(404)
     except ValueError:
-        return "", 404
-    if path.endswith(".mp4"):
-        return send_from_directory(
-            "../data/memes",
-            meme_file_name,
-            mimetype="video/mp4",
-            conditional=True,
+        abort(404)
+    if FLASK_ENV == "production":
+        response = make_response()
+        safe_filename = quote(meme_file_name, safe="/")
+        if not safe_filename.startswith("/"):
+            safe_filename = "/" + safe_filename
+        response.headers["X-Accel-Redirect"] = f"/protected_memes{safe_filename}"
+
+        lower_name = meme_file_name.lower()
+        if lower_name.endswith(".mp4"):
+            response.headers["Content-Type"] = "video/mp4"
+        elif lower_name.endswith(".jpg") or lower_name.endswith(".jpeg"):
+            response.headers["Content-Type"] = "image/jpeg"
+        elif lower_name.endswith(".png"):
+            response.headers["Content-Type"] = "image/png"
+        elif lower_name.endswith(".gif"):
+            response.headers["Content-Type"] = "image/gif"
+        elif lower_name.endswith(".webp"):
+            response.headers["Content-Type"] = "image/webp"
+    else:
+        mimetype = None
+        lower_name = meme_file_name.lower()
+        if lower_name.endswith(".mp4"):
+            mimetype = "video/mp4"
+        elif lower_name.endswith(".jpg") or lower_name.endswith(".jpeg"):
+            mimetype = "image/jpeg"
+        elif lower_name.endswith(".png"):
+            mimetype = "image/png"
+        elif lower_name.endswith(".gif"):
+            mimetype = "image/gif"
+        elif lower_name.endswith(".webp"):
+            mimetype = "image/webp"
+
+        response = send_from_directory(
+            "../data/memes", meme_file_name, mimetype=mimetype, conditional=True
         )
-    return send_from_directory("../data/memes", meme_file_name, conditional=True)
+        response.headers["Accept-Ranges"] = "bytes"
+    return response
 
 
 @memes_bp.route("/memes/delete/<meme_file_name>", methods=["DELETE"])

@@ -28,7 +28,6 @@ fi
 echo "🚀 Začenjam avtomatsko vzpostavitev za $DOMAIN ($EMAIL)..."
 
 chmod +x ./scripts/duckdns_refresh.sh
-chmod +x ./scripts/run_tests.sh
 chmod +x ./scripts/rclone/rclone-sync-gdrive.sh
 
 # 1. Pridobimo trenutni crontab (če ne obstaja, ustvarimo praznega)
@@ -107,6 +106,22 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    # --- Za hitro pretakanje vsebin ---
+    location /protected_music/ {
+        internal;  # Samo za interne preusmeritve, uporabnik ne more dostopati direktno
+        # Pot ZNOTRAJ Nginx kontejnerja
+        alias /music_data/; 
+    }
+    location /protected_movies/ {
+        internal;  # Samo za interne preusmeritve, uporabnik ne more dostopati direktno
+        # Pot ZNOTRAJ Nginx kontejnerja
+        alias /movies_data/; 
+    location /protected_memes/ {
+        internal;  # Samo za interne preusmeritve, uporabnik ne more dostopati direktno
+        # Pot ZNOTRAJ Nginx kontejnerja
+        alias /memes_data/; 
     }
 }
 EOF

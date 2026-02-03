@@ -104,9 +104,9 @@ def index():
         music=sorted(
             [get_current_metadata(file) for file in music_files],
             key=lambda x: (
-                x.get("folder", "").lower(),
-                x.get("artist", "").lower(),
-                x.get("album", "").lower(),
+                # x.get("folder", "").lower(),
+                # x.get("artist", "").lower(),
+                # x.get("album", "").lower(),
                 x.get("title", "").lower(),
             ),
         ),

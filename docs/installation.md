@@ -49,6 +49,14 @@ Ob prvem zagonu se avtomatsko generira datoteka `data/users.json` s prvim uporab
 ### 6. Dodaj vsebine
 V mape `movies`, `memes` in `music` postavi datoteke glede na [navodila za dodajanje datotek](docs/adding_data.md).
 
+
+### 7. Daj pravice, da bodo imeli vsi (app in nginx) pravice za branje v data mapi
+```
+sudo apt-get install acl
+sudo setfacl -R -d -m o::rx ./data
+sudo setfacl -R -m o::rx ./data
+```
+
 ## Nastavitev serverja
 
 ### 1. Nastavi omejitve IP-jem, ki iščejo luknje
@@ -91,7 +99,7 @@ sudo sh get-docker.sh
 sudo systemctl enable docker
 ```
 
-Zgradi docker compose z našo aplikacijo:
+Zgradi docker compose z našo aplikacijo (pred tem pregled `scripts.setup.sh` in `docker-compose.yml`, da je skladno z želenimi nastavitvami tvoje strani):
 ```
 sudo ./scripts/setup.sh
 sudo chmod -R 777 cache

@@ -48,6 +48,9 @@ services:
       - ./configuration/nginx/conf:/etc/nginx/conf.d:ro
       - ./configuration/certbot/www:/var/www/certbot:ro
       - ./configuration/certbot/conf:/etc/letsencrypt:ro
+      - ./data/music:/music_data
+      - ./data/movies:/movies_data
+      - ./data/memes:/memes_data
     networks:
       - marinkino-network
     restart: unless-stopped

@@ -6,10 +6,11 @@ import random
 import re
 import shutil
 from datetime import datetime, timezone
-from urllib.parse import unquote
+from urllib.parse import quote, unquote
 
 from flask import (
     Blueprint,
+    abort,
     make_response,
     redirect,
     render_template,
@@ -21,7 +22,7 @@ from flask import (
 from flask_login import current_user, login_required
 
 from movies_preparation import FILMS_ROOT, check_folder
-from utils import is_current_admin_view, redis_client, safe_path
+from utils import FLASK_ENV, is_current_admin_view, redis_client, safe_path
 
 log = logging.getLogger(__name__)
 
@@ -426,52 +427,58 @@ def remcommend_movie():
 @login_required
 def movie_file(movies_subfolder, movie_folder, filename):
     try:
-        safe_path(
+        relative_path = os.path.join(movies_subfolder, movie_folder, filename)
+        absolute_path = safe_path(
             "../" + FILMS_ROOT,
-            os.path.join(movies_subfolder, movie_folder, filename),
+            relative_path,
         )
+        if not os.path.exists(os.path.join(FILMS_ROOT, relative_path)):
+            abort(404)
     except ValueError:
-        return "", 404
-    if ".mp4" in filename[-4:]:
+        abort(404)
+
+    if FLASK_ENV == "production":
+        response = make_response()
+        safe_uri_path = quote(f"{movies_subfolder}/{movie_folder}/{filename}")
+        if not safe_uri_path.startswith("/"):
+            safe_uri_path = "/" + safe_uri_path
+        response.headers["X-Accel-Redirect"] = f"/protected_movies{safe_uri_path}"
+    else:
+        response = send_from_directory(
+            "../data/movies",
+            relative_path,
+            conditional=True,
+            mimetype="video/mp4" if filename.endswith(".mp4") else None,
+        )
+        response.headers["Accept-Ranges"] = "bytes"
+        if filename.endswith(".mp4"):
+            response.direct_passthrough = True
+
+    if filename.endswith(".mp4"):
+        response.headers["Content-Type"] = "video/mp4"
         range_header = request.headers.get("Range")
         if range_header:
             match = re.match(r"bytes=(\d+)-(\d+)?", range_header)
             if match:
                 start = int(match.group(1))
                 if start == 0:
-                    full_filename = f"{movies_subfolder}/{movie_folder}/{filename}"
-                    user_key = f"prog:{current_user.id}"
-                    data = redis_client.hget(user_key, full_filename)
-                    data = json.loads(data) if data else {}
-                    data["last_start_time"] = datetime.now().isoformat()[:16]
-                    data["count_start_time"] = data.get("count_start_time", 0) + 1
-                    redis_client.hset(user_key, full_filename, json.dumps(data))
-        try:
-            response = send_from_directory(
-                os.path.join("../" + FILMS_ROOT, movies_subfolder, movie_folder),
-                filename,
-                mimetype="video/mp4",
-                conditional=True,
-            )
-            response.direct_passthrough = True
-            return response
-        except Exception:
-            return "", 204
+                    try:
+                        full_filename = f"{movies_subfolder}/{movie_folder}/{filename}"
+                        user_key = f"prog:{current_user.id}"
+                        data = redis_client.hget(user_key, full_filename)
+                        data = json.loads(data) if data else {}
+                        data["last_start_time"] = datetime.now().isoformat()[:16]
+                        data["count_start_time"] = data.get("count_start_time", 0) + 1
+                        redis_client.hset(user_key, full_filename, json.dumps(data))
+                    except Exception as e:
+                        print(f"Redis error: {e}")  # Da napaka v Redisu ne sesuje videa
+                        pass
     elif "cover_thumb.jpg" in filename:
-        response = make_response(
-            send_from_directory(
-                os.path.join("../" + FILMS_ROOT, movies_subfolder, movie_folder),
-                filename,
-                conditional=True,
-            )
-        )
+        response.headers["Content-Type"] = "image/jpeg"
         response.headers["Cache-Control"] = "public, max-age=2592000"  # 30 dni
-        return response
-    return send_from_directory(
-        os.path.join("../" + FILMS_ROOT, movies_subfolder, movie_folder),
-        filename,
-        conditional=True,
-    )
+    elif filename.endswith(".srt"):
+        response.headers["Content-Type"] = "application/x-subrip"
+    return response
 
 
 @movies_bp.route("/movies/video-progress", methods=["POST"])
