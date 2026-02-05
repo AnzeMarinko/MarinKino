@@ -118,6 +118,7 @@ server {
         internal;  # Samo za interne preusmeritve, uporabnik ne more dostopati direktno
         # Pot ZNOTRAJ Nginx kontejnerja
         alias /movies_data/; 
+    }
     location /protected_memes/ {
         internal;  # Samo za interne preusmeritve, uporabnik ne more dostopati direktno
         # Pot ZNOTRAJ Nginx kontejnerja

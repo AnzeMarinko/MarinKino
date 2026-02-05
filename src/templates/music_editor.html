@@ -380,7 +380,7 @@
 <body>
     <div class="header">
         <h1>🎵 Urejanje Metapodatkov Glasbe</h1>
-        <p>Uredi podatke o glasbi, izberite žanr iz padajočega menija, in klikni Shrani za posodobitev</p>
+        <p>Uredi podatke o glasbi, izberite žanr iz padajočega menija, in klikni Shrani za posodobitev</p> <a href="/videos/editor" class="btn btn-sm btn-outline-info">Testne šale</a>
     </div>
 
     <div class="yt-section">
@@ -407,7 +407,6 @@
                     <th style="width: 350px;">Naslov</th>
                     <th style="width: 150px;">Izvajalec</th>
                     <th style="width: 150px;">Album</th>
-                    <th style="width: 100px;">Žanr</th>
                     <th style="width: 50px;">Shrani</th>
                     <th style="width: 50px;">Izbriši</th>
                     <th style="width: 30px;">Status</th>
@@ -425,11 +424,6 @@
     <script>
         // Globalni podatki
         let allMusic = {{ music|tojson }};
-        let genres = [
-            "Klasična", 
-            "Krščanska", 
-            "Slovenska/Hrvaška"
-        ];
         let currentlyPlaying = null;
         let changedRows = new Set();
 
@@ -526,32 +520,6 @@
             albumInput.onchange = () => markRowChanged(row);
             albumCell.appendChild(albumInput);
             row.appendChild(albumCell);
-
-            // Žanr (Dropdown)
-            const genreCell = document.createElement('td');
-            const genreSelect = document.createElement('select');
-            genreSelect.dataset.field = 'genre';
-            genreSelect.onchange = () => markRowChanged(row);
-            
-            // Dodaj opcije
-            const emptyOption = document.createElement('option');
-            emptyOption.value = '';
-            emptyOption.textContent = '-- Izberi --';
-            genreSelect.appendChild(emptyOption);
-            
-            genres.forEach(genre => {
-                const option = document.createElement('option');
-                option.value = genre;
-                option.textContent = genre;
-                genreSelect.appendChild(option);
-            });
-            
-            // Nastavi trenutno vrednost
-            if (music.genre) {
-                genreSelect.value = music.genre;
-            }
-            genreCell.appendChild(genreSelect);
-            row.appendChild(genreCell);
 
             // Shrani gumb
             const saveCell = document.createElement('td');

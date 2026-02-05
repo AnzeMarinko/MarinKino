@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Incoming Videos — MarinKino</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Arial;margin:12px}
+    .container{display:flex;gap:12px;height:calc(100vh - 56px)}
+    .left{flex:1;min-width:0;overflow:hidden}
+    .right{flex:1;display:flex;flex-direction:column;gap:8px;align-items:stretch}
+
+    #file-list{height:100%;overflow:auto;border:1px solid #eee;border-radius:6px}
+    .file-item{display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid #f2f2f2;align-items:center}
+    .file-item:hover{background:#fafafa}
+    .file-item.selected{background:#e8f0ff}
+    .file-name{cursor:pointer;color:#0366d6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+    #player{width:100%;height:100%;background:#000;border-radius:6px}
+    .player-wrap{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden}
+    #actions{display:flex;gap:8px;justify-content:flex-start}
+    button{padding:8px 12px}
+  </style>
+</head>
+<body>
+  <h1>Incoming Videos</h1>
+  <div class="container">
+    <div class="left">
+      <div id="file-list">Loading…</div>
+    </div>
+    <div class="right">
+      <div class="player-wrap"><video id="player" controls></video></div>
+      <div id="actions"></div>
+      <div id="msg" style="color:green"></div>
+    </div>
+  </div>
+
+  <script>
+    const listEl = document.getElementById('file-list')
+    const player = document.getElementById('player')
+    const msg = document.getElementById('msg')
+    let current = null
+
+    function encodePathSegments(fn){
+      return fn.split('/').map(encodeURIComponent).join('/')
+    }
+
+    async function loadList(){
+      listEl.textContent = 'Loading…'
+      const res = await fetch('/api/videos/list')
+      const data = await res.json()
+      if(!data.files) return listEl.textContent = 'No files.'
+      listEl.innerHTML = ''
+      data.files.forEach(f => {
+        const row = document.createElement('div')
+        row.className = 'file-item'
+        row.dataset.fn = f
+
+        const name = document.createElement('div')
+        name.className = 'file-name'
+        name.textContent = f
+
+        const info = document.createElement('div')
+        info.innerHTML = `<small>${f.split('/').pop()}</small>`
+
+        const controls = document.createElement('div')
+        controls.style.display = 'flex'
+        controls.style.gap = '6px'
+
+        const acceptBtn = document.createElement('button')
+        acceptBtn.className = 'icon-button accept'
+        acceptBtn.title = 'Accept'
+        acceptBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>'
+        acceptBtn.onclick = (e) => { e.stopPropagation(); acceptFile(f, row) }
+
+        const deleteBtn = document.createElement('button')
+        deleteBtn.className = 'icon-button delete'
+        deleteBtn.title = 'Delete'
+        deleteBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m5 0V4a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v2"/></svg>'
+        deleteBtn.onclick = (e) => { e.stopPropagation(); deleteFile(f, row) }
+
+        controls.appendChild(acceptBtn)
+        controls.appendChild(deleteBtn)
+
+        row.appendChild(name)
+        row.appendChild(info)
+        row.appendChild(controls)
+        row.onclick = () => selectFile(f, row)
+        listEl.appendChild(row)
+      })
+    }
+
+    let currentRow = null
+    function selectFile(fn, row){
+      current = fn
+      if(currentRow) currentRow.classList.remove('selected')
+      currentRow = row
+      currentRow.classList.add('selected')
+      const url = '/video/file/' + encodePathSegments(fn)
+      player.src = url
+      player.load()
+      msg.textContent = ''
+    }
+
+    async function acceptFile(fn, row){
+      if(!fn) return
+      const res = await fetch('/api/videos/accept', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:fn})})
+      const data = await res.json()
+      if(data.status === 'ok'){
+        msg.style.color = 'green'
+        msg.textContent = 'Accepted: ' + (data.new_filename || fn)
+        if(current === fn){ player.src = ''; current = null }
+        await loadList()
+      } else {
+        msg.style.color = 'red'
+        msg.textContent = data.message || 'Error'
+      }
+    }
+
+    async function deleteFile(fn, row){
+      if(!fn) return
+      if(!confirm('Delete ' + fn + ' ?')) return
+      const res = await fetch('/api/videos/delete', {method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:fn})})
+      const data = await res.json()
+      if(data.status === 'ok'){
+        msg.style.color = 'green'
+        msg.textContent = 'Deleted: ' + fn
+        if(current === fn){ player.src = ''; current = null }
+        await loadList()
+      } else {
+        msg.style.color = 'red'
+        msg.textContent = data.message || 'Error'
+      }
+    }
+
+    async function accept(){
+      if(!current) return alert('Select a file first')
+      const res = await fetch('/api/videos/accept', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:current})})
+      const data = await res.json()
+      if(data.status === 'ok'){
+        msg.style.color = 'green'
+        msg.textContent = 'Accepted: ' + (data.new_filename || current)
+        await loadList()
+        player.src = ''
+        current = null
+      } else {
+        msg.style.color = 'red'
+        msg.textContent = data.message || 'Error'
+      }
+    }
+
+    async function remove(){
+      if(!current) return alert('Select a file first')
+      if(!confirm('Delete ' + current + ' ?')) return
+      const res = await fetch('/api/videos/delete', {method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:current})})
+      const data = await res.json()
+      if(data.status === 'ok'){
+        msg.style.color = 'green'
+        msg.textContent = 'Deleted: ' + current
+        await loadList()
+        player.src = ''
+        current = null
+      } else {
+        msg.style.color = 'red'
+        msg.textContent = data.message || 'Error'
+      }
+    }
+
+    // no global accept/delete/refresh buttons — actions are per-row
+    loadList()
+  </script>
+</body>
+</html>

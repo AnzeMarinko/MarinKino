@@ -70,7 +70,6 @@ def convert_srt_to_vtt(srt_path):
 
 
 def extract_audio(folder, video_path):
-
     voice_file = os.path.join(folder, ".detected-voice-activity.pkl")
     if not os.path.exists(voice_file):
         log.info(f"⚙ Zaznavam govor: {video_path}")
@@ -135,9 +134,9 @@ def extract_audio(folder, video_path):
 
 # Formatiranje časa za SRT datoteko
 def format_time(seconds):
-    timestamp = str(datetime.timedelta(seconds=round(seconds, 3))).replace(
-        ".", ","
-    )[:-3]
+    timestamp = str(datetime.timedelta(seconds=round(seconds, 3))).replace(".", ",")[
+        :-3
+    ]
     return ("0" if "0:" == timestamp[:2] else "") + timestamp
 
 
@@ -158,10 +157,7 @@ def aux_rescale_captions(subtitles, speech):
         [
             [s, e]
             for s, e, text in subtitles
-            if (
-                len(text) > 0
-                and sum(c in text[0] + text[-1] for c in "[]{}()") < 2
-            )
+            if (len(text) > 0 and sum(c in text[0] + text[-1] for c in "[]{}()") < 2)
         ]
     )
 
@@ -172,9 +168,7 @@ def aux_rescale_captions(subtitles, speech):
         )
         subtitle_score = 0.0
         for i in range(aux_np_subtitles.shape[0]):
-            start_id, end_id = int(aux_np_subtitles[i, 0]), int(
-                aux_np_subtitles[i, 1]
-            )
+            start_id, end_id = int(aux_np_subtitles[i, 0]), int(aux_np_subtitles[i, 1])
             if end_id > start_id:
                 subtitle_score += np.sum(
                     np.log10(np.linspace(1, 0.2, end_id - start_id))
@@ -188,9 +182,7 @@ def aux_rescale_captions(subtitles, speech):
         )
         subtitle_audio = np.zeros_like(speech)
         for i in range(aux_np_subtitles.shape[0]):
-            start_id, end_id = int(aux_np_subtitles[i, 0]), int(
-                aux_np_subtitles[i, 1]
-            )
+            start_id, end_id = int(aux_np_subtitles[i, 0]), int(aux_np_subtitles[i, 1])
             if end_id > start_id:
                 weights = np.log10(np.linspace(1, 0.2, end_id - start_id)) + 1
                 subtitle_audio[start_id:end_id] = weights
@@ -217,9 +209,7 @@ def aux_rescale_captions(subtitles, speech):
 
 def rescale_subtitles(folder, subtitle_path, video_path, plot=False):
     file_name = os.path.basename(subtitle_path)
-    original_file = subtitle_path.replace(
-        file_name, "." + file_name + ".original"
-    )
+    original_file = subtitle_path.replace(file_name, "." + file_name + ".original")
     if not os.path.exists(original_file):
         audio, speech = extract_audio(folder, video_path)
         subtitles = extract_subtitles(subtitle_path)
@@ -236,7 +226,7 @@ def rescale_subtitles(folder, subtitle_path, video_path, plot=False):
                         last_sub_end + 1,
                         last_sub_end + 20,
                         f"Podnapisi avtomatsko raztegnjeni za "
-                        f"{(scale-1) * 100:.1f} %\nin zamaknjeni "
+                        f"{(scale - 1) * 100:.1f} %\nin zamaknjeni "
                         f"za {shift:.1f} sekund.",
                     )
                 )

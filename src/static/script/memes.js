@@ -19,7 +19,7 @@ function izbrisiMeme(meme_file_name) {
 }
 
 function pojdiNaNaslednjega() {
-    window.location.href = "/memes";
+    window.location.reload();
 }
 
 function preklopiFullscreen() {

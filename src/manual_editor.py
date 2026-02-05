@@ -1,11 +1,15 @@
 import glob
 import os
+import shutil
 
 import yt_dlp
+from ffmpeg_normalize import FFmpegNormalize
 from flask import Flask, jsonify, render_template, request, send_from_directory
 from flask_compress import Compress
 from mutagen.easyid3 import EasyID3
 from mutagen.mp3 import MP3
+
+from utils import safe_path
 
 app = Flask(__name__, static_url_path="/static", static_folder="static")
 app.secret_key = os.getenv("FLASK_KEY")
@@ -13,21 +17,20 @@ Compress(app)
 
 MUSIC_FOLDER = "data/music"
 INCOMING_MUSIC_FOLDER = f"{MUSIC_FOLDER}/Neurejena-glasba"
+INCOMING_VIDEO_FOLDER = "data/memes/Neurejeni-videi"
 
 
-def download_playlist(playlist_url):
-    # Konfiguracija za yt-dlp
+def download_playlist(playlist_url, get_video=False):
+    if get_video:
+        incoming_folder = INCOMING_VIDEO_FOLDER
+    else:
+        incoming_folder = INCOMING_MUSIC_FOLDER
+    if not os.path.exists(incoming_folder):
+        os.makedirs(incoming_folder)
     ydl_opts = {
-        "format": "bestaudio/best",
         "ignoreerrors": True,  # Če ena pesem ne dela, nadaljuj z naslednjo
-        # Struktura map: Glasba_iz_YouTube / Ime Playliste / Izvajalec - Naslov.mp3
-        "outtmpl": f"{INCOMING_MUSIC_FOLDER}/%(playlist_title)s/%(title)s.%(ext)s",
+        "outtmpl": f"{incoming_folder}/%(playlist_title)s/%(title)s.%(ext)s",
         "postprocessors": [
-            {
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "mp3",
-                "preferredquality": "192",
-            },
             {
                 "key": "FFmpegMetadata",
                 "add_metadata": True,
@@ -41,6 +44,19 @@ def download_playlist(playlist_url):
         "quiet": False,
         "no_warnings": True,
     }
+    # Konfiguracija za yt-dlp
+    if get_video:
+        ydl_opts["format"] = "bestvideo+bestaudio/best"
+        ydl_opts["merge_output_format"] = "mp4"
+    else:
+        ydl_opts["format"] = "bestaudio/best"
+        ydl_opts["postprocessors"] = [
+            {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "mp3",
+                "preferredquality": "192",
+            }
+        ] + ydl_opts["postprocessors"]
 
     print(f"Začenjam analizo playliste: {playlist_url}")
     print("To lahko traja nekaj trenutkov ...")
@@ -53,13 +69,47 @@ def download_playlist(playlist_url):
             # Pridobimo ime playliste za izpis na koncu
             playlist_title = info.get("title", "Neznana playlista")
             print(
-                f"\n✅ Končano! Glasba je shranjena v mapi: {INCOMING_MUSIC_FOLDER}/{playlist_title}"
+                f"\n✅ Končano! Glasba je shranjena v mapi: {incoming_folder}/{playlist_title}"
             )
-            return True
 
         except Exception as e:
             print(f"\n❌ Prišlo je do napake: {e}")
             return False
+
+    if get_video:
+        return True
+    for input_path in sorted(
+        glob.iglob(f"{INCOMING_MUSIC_FOLDER}/{playlist_title}/**/*.mp3", recursive=True)
+    ):
+        normalizer = FFmpegNormalize(
+            target_level=-16,
+            true_peak=-1.0,
+            loudness_range_target=20.0,
+            sample_rate=44100,
+            audio_codec="libmp3lame",
+            extra_output_options=[
+                "-map_metadata",
+                "0",
+                "-id3v2_version",
+                "3",
+                "-b:a",
+                "320k",
+            ],
+            print_stats=False,
+        )
+        output_path = input_path + ".normalized.mp3"
+
+        try:
+            print(f"Normaliziram: {input_path}")
+            normalizer.add_media_file(input_path, output_path)
+            normalizer.run_normalization()
+            os.replace(output_path, input_path)
+
+        except Exception as e:
+            print(f"NAPAKA pri datoteki {input_path}: {e}")
+
+    print("\nKončano! Glasnost je urejena.")
+    return True
 
 
 for url in []:
@@ -76,20 +126,18 @@ def get_current_metadata(music_file):
         ),
         "artist": ", ".join(audio.get("artist", [])),
         "album": ", ".join(audio.get("album", [])),
-        "genre": ", ".join(audio.get("genre", [])),
         "filename": music_file,
         "folder": "/".join(music_file.split("/")[:-1]),
         "duration": f"{total_seconds // 60}:{total_seconds % 60:02d}",
     }
 
 
-def update_values(music_file, title, artist, album, genre):
+def update_values(music_file, title, artist, album):
     path = os.path.join("data/music", music_file)
     audio = MP3(path, ID3=EasyID3)
     audio["title"] = title.strip()
     audio["artist"] = artist.strip()
     audio["album"] = album.strip()
-    audio["genre"] = genre.strip()
     audio.save()
     return {"status": "ok", "message": "Podatki uspešno shranjeni!"}
 
@@ -118,6 +166,115 @@ def song(filename):
     return send_from_directory("../data/music", filename, conditional=True)
 
 
+@app.route("/api/videos/list")
+def list_incoming_videos():
+    files = [
+        os.path.relpath(f, INCOMING_VIDEO_FOLDER)
+        for f in glob.iglob(f"{INCOMING_VIDEO_FOLDER}/**/*.*", recursive=True)
+        if f.lower().endswith((".mp4", ".webm", ".mov", ".mkv"))
+    ]
+    files = sorted(files)
+    return jsonify({"status": "ok", "files": files})
+
+
+@app.route("/video/file/<path:filename>")
+def incoming_video_file(filename):
+    mimetype = None
+    lower_name = filename.lower()
+    if lower_name.endswith(".mp4"):
+        mimetype = "video/mp4"
+    elif lower_name.endswith(".webm"):
+        mimetype = "video/webm"
+    elif lower_name.endswith(".mov"):
+        mimetype = "video/quicktime"
+    elif lower_name.endswith(".mkv"):
+        mimetype = "video/x-matroska"
+
+    response = send_from_directory(
+        f"../{INCOMING_VIDEO_FOLDER}", filename, mimetype=mimetype, conditional=True
+    )
+    response.headers["Accept-Ranges"] = "bytes"
+    return response
+
+
+@app.route("/videos/editor")
+def videos_editor():
+    return render_template("video_editor.html")
+
+
+@app.route("/api/videos/delete", methods=["DELETE"])
+def delete_incoming_video():
+    try:
+        data = request.json
+        filename = data.get("filename")
+
+        if not filename:
+            return (
+                jsonify({"status": "error", "message": "Filename is required"}),
+                400,
+            )
+
+        try:
+            path = safe_path(INCOMING_VIDEO_FOLDER, filename)
+        except ValueError:
+            return (jsonify({"status": "error", "message": "Invalid filename"}), 400)
+
+        if not os.path.exists(path):
+            return (jsonify({"status": "error", "message": "File does not exist"}), 404)
+
+        os.remove(path)
+        return jsonify({"status": "ok", "message": "File removed"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/videos/accept", methods=["POST"])
+def accept_incoming_video():
+    try:
+        data = request.json
+        filename = data.get("filename")
+
+        if not filename:
+            return (
+                jsonify({"status": "error", "message": "Filename is required"}),
+                400,
+            )
+
+        try:
+            src_path = safe_path(INCOMING_VIDEO_FOLDER, filename)
+        except ValueError:
+            return (jsonify({"status": "error", "message": "Invalid filename"}), 400)
+
+        if not os.path.exists(src_path):
+            return (jsonify({"status": "error", "message": "File does not exist"}), 404)
+
+        # Target folder for accepted memes
+        target_folder = "data/memes"
+        os.makedirs(target_folder, exist_ok=True)
+
+        base_name = os.path.basename(filename)
+        dest_path = os.path.join(target_folder, base_name)
+
+        # Avoid overwriting existing files
+        name, ext = os.path.splitext(base_name)
+        counter = 1
+        while os.path.exists(dest_path):
+            dest_path = os.path.join(target_folder, f"{name}-{counter}{ext}")
+            counter += 1
+
+        shutil.move(src_path, dest_path)
+
+        return jsonify(
+            {
+                "status": "ok",
+                "message": "File accepted",
+                "new_filename": os.path.relpath(dest_path, target_folder),
+            }
+        )
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @app.route("/api/music/update", methods=["POST"])
 def update_music_metadata():
     try:
@@ -136,7 +293,6 @@ def update_music_metadata():
             title=data.get("title", ""),
             artist=data.get("artist", ""),
             album=data.get("album", ""),
-            genre=data.get("genre", ""),
         )
         print(f"Updated: {music_file}")
 

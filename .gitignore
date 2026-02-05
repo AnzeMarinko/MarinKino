@@ -24,6 +24,7 @@ data/movies/**/.detected-voice-activity.pkl
 data/movies/**/*.srt
 data/movies/**/*.vtt
 data/movies/**/.*.srt.original
+data/memes/Neurejeni-videi/**/*.mp4
 data/memes/*.mp4
 data/memes/*.gif
 data/memes/*.jpg

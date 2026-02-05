@@ -40,17 +40,19 @@ for file in music_albums["Vse"]:
     except Exception as e:
         log.error(f"❌ Napaka pri {file}: {e}")
         audio = {}
+    genre = file.split("/")[0].strip()
 
     item = {
         "title": ", ".join(
             audio.get("title", [".".join(file.split("/")[-1].split(".")[:-1])])
         ),
         "artist": " - ".join(audio.get("artist", [])),
-        "album": " - ".join(audio.get("album", audio.get("genre", []))),
-        "genre": " - ".join(audio.get("genre", [])),
+        "album": " - ".join(audio.get("album", [genre])),
+        "genre": genre,
         "only_admin": "Neurejena-glasba/" in file,
     }
     music_metadata[file] = item
+
 music_metadata = {
     k: v
     for k, v in sorted(
