@@ -95,7 +95,7 @@ def help():
 def send_admin_emails():
     template_name = "mail_newsletters/mail_monthly_recommendation"
     if not is_current_admin_view(current_user):
-        return redirect(url_for("movies.index"))
+        return redirect(url_for("home"))
     if request.method == "POST":
         if send_mail is None:
             log.error("send_mail function not initialized")

@@ -92,6 +92,36 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 </script>
 
+<h2>Top 20 filmov po skupnem deležu ogledov</h2>
+<div class="table-responsive">
+<table class="table table-striped table-hover table-bordered">
+        <thead class="thead-light">
+                <tr>
+                        <th>Rang</th>
+                        <th>Mapa filma</th>
+                        <th>Skupen delež (%)</th>
+                        <th>Povprečen delež (%)</th>
+                        <th>Število ogledov</th>
+                        <th>Edinstveni uporabniki</th>
+                        <th>Skupen čas (ur)</th>
+                </tr>
+        </thead>
+        <tbody>
+                {% for movie in top_movies %}
+                <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ movie.folder }}</td>
+                        <td>{{ movie.total_ratio }}</td>
+                        <td>{{ movie.avg_ratio }}</td>
+                        <td>{{ movie.watch_count }}</td>
+                        <td>{{ movie.unique_users }}</td>
+                        <td>{{ movie.total_watch_hours }}</td>
+                </tr>
+                {% endfor %}
+        </tbody>
+</table>
+</div>
+
 <h2>Ogled statistike dostopa</h2>
 
 <div class="card">

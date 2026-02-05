@@ -2,7 +2,7 @@ import logging
 import os
 from datetime import date, timedelta
 
-from flask import Flask, request, session
+from flask import Flask, render_template, request, session
 from flask_compress import Compress
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -12,8 +12,11 @@ from waitress import serve
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from blueprints import (
+    MEMES_COUNT,
+    MUSIC_COUNT,
     admin_bp,
     auth_bp,
+    get_movies_statistics,
     init_admin_bp,
     init_auth_bp,
     init_misc_bp,
@@ -118,6 +121,19 @@ app.register_blueprint(misc_bp)
 init_auth_bp(users, User, send_mail)
 init_admin_bp(users)
 init_misc_bp(users, send_mail)
+
+
+# Root path handled by movies blueprint
+@app.route("/")
+def home():
+    """Home page with statistics cards"""
+    if current_user.is_authenticated and session.get("view_as", None) != "anonymous":
+        stats = get_movies_statistics()
+        stats["music_count"] = MUSIC_COUNT
+        stats["memes_count"] = MEMES_COUNT
+    else:
+        stats = {}
+    return render_template("index.html", pagetitle="MarinKino", **stats)
 
 
 # Apply rate limiting after blueprint registration

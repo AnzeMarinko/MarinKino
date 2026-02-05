@@ -5,6 +5,7 @@
 .venv/**
 venv/**
 __pycache__/**
+.pytest_cache/**
 
 # 📦 Build / dist datoteke
 **/build/**
@@ -32,4 +33,7 @@ Thumbs.db
 # 🧠 Ostalo, kar nočeš sinhronizirati
 **/node_modules/**
 node_modules/**
+configuration/certbot/conf/live/**
+cache/**
+
 

@@ -17,6 +17,7 @@
 
       <!-- LEVI MENI -->
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <li class="nav-item"><a class="nav-link" href="/movies" {% if not current_user.is_authenticated or view_as == "anonymous" %} style="opacity: 0.5;" {% endif %}>Filmi</a></li>
         <li class="nav-item"><a class="nav-link" href="/memes" {% if not current_user.is_authenticated or view_as == "anonymous" %} style="opacity: 0.5;" {% endif %}>Šale & navdihi</a></li>
         <li class="nav-item"><a class="nav-link" href="/music" {% if not current_user.is_authenticated or view_as == "anonymous" %} style="opacity: 0.5;" {% endif %}>Glasba</a></li>
         <li class="nav-item"><a class="nav-link" href="/pod_krinko">Pod krinko</a></li>

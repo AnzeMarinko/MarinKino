@@ -159,8 +159,35 @@ def fuzzy_match(query, title):
     return difflib.SequenceMatcher(None, query, title.lower()).ratio()
 
 
+def get_movies_statistics():
+    """Calculate statistics for the home page"""
+    stats = {
+        "movies_count": 0,
+        "movies_duration": 0.0,
+        "cartoons_count": 0,
+        "cartoons_duration": 0.0,
+    }
+
+    for film in all_films.values():
+        try:
+            runtimes_by_files = film.get("runtimes_by_files", {})
+            runtime = sum(float(r) for r in runtimes_by_files.values())
+            if "the-chosen-series" in film["group_folder"].lower():
+                runtime /= 2
+            if "01-zbirke-risank" in film["group_folder"].lower():
+                stats["cartoons_count"] += 1
+                stats["cartoons_duration"] += runtime / 60
+            else:
+                stats["movies_count"] += 1
+                stats["movies_duration"] += runtime / 60
+        except:
+            pass
+
+    return stats
+
+
 # Main routes
-@movies_bp.route("/")
+@movies_bp.route("/movies")
 def index():
     if current_user.is_authenticated and session.get("view_as", None) != "anonymous":
         user_key = f"user_settings:{current_user.id}"
@@ -251,7 +278,7 @@ def index():
     has_more = len(movies) > MOVIES_PER_PAGE
 
     return render_template(
-        "index.html",
+        "movies.html",
         pagetitle="MarinKino",
         movies=movies_page,
         has_more=has_more,
@@ -356,7 +383,7 @@ def play_movie(movies_subfolder, movie_folder):
 def remove_movie(movies_subfolder, movie_folder):
     global all_films
     if not is_current_admin_view(current_user):
-        return redirect(url_for("movies.index"))
+        return redirect(url_for("home"))
     removing_folder = os.path.sep + os.path.join("", movies_subfolder, movie_folder)
     if removing_folder not in all_films.keys():
         log.error(f"Manjka film za odstranjevanje: {removing_folder}")
@@ -388,7 +415,7 @@ def remove_movie(movies_subfolder, movie_folder):
 def remcommend_movie():
     global all_films
     if not is_current_admin_view(current_user):
-        return redirect(url_for("movies.index"))
+        return redirect(url_for("home"))
     data = json.loads(request.data)
 
     recommendation_level = data["recommendation_level"]

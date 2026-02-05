@@ -26,6 +26,7 @@ memes = [
     if slika.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp4"))
 ]
 random.shuffle(memes)
+MEMES_COUNT = len(memes)
 
 
 @memes_bp.route("/memes")

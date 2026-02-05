@@ -64,7 +64,7 @@ def login():
             login_user(user, remember=True)
             session.permanent = True
             redis_client.incr(f"auth:login:{date.today().isoformat()[:7]}:{username}")
-            return redirect(url_for("movies.index"))
+            return redirect(url_for("home"))
         else:
             redis_client.incr(f"auth:reject:{date.today().isoformat()[:7]}:{username}")
             error = "Napačno uporabniško ime ali geslo."
@@ -78,7 +78,7 @@ def register():
     global users
     error = None
     if not is_current_admin_view(current_user):
-        return redirect(url_for("movies.index"))
+        return redirect(url_for("home"))
     if request.method == "POST":
         username = request.form["username"].strip()
         email = request.form["email"].strip()
@@ -141,7 +141,7 @@ def register():
                 ),
                 batch_id="new_user_introduction",
             )
-            return redirect(url_for("movies.index"))
+            return redirect(url_for("home"))
     if error:
         flash(error, "error")
     return render_template("register.html", pagetitle="Registracija v MarinKino")

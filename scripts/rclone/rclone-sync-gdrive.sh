@@ -33,7 +33,7 @@ echo "▶️ START sync $(date)" >> "$LOG_FILE"
   --cache-dir "$CACHE_DIR" \
   --drive-acknowledge-abuse \
   --log-file "$LOG_FILE" \
-  --max-delete 50 \
+  --max-delete 500 \
   --verbose \
   --use-server-modtime \
   --fast-list --modify-window 5s

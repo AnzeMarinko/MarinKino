@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<main class="container">
+<div class="container my-4">
+  <form method="get" class="row g-2 align-items-end bg-white p-3 rounded shadow">
+
+    <div class="col-12 col-md-6 col-lg-4">
+      <select class="form-select" name="movietype">
+        <option value="">-- Tip filmov --</option>
+        {% for group in group_folders %}
+          <option value="{{ group }}" {% if group == selected_movietype %}selected{% endif %}>
+            {{ group_folders[group] }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-6 col-md-6 col-lg-4">
+      <select class="form-select" name="genre">
+        <option value="">-- Žanr --</option>
+        {% for genre in known_genres %}
+          <option value="{{ genre }}" {% if genre == selected_genre %}selected{% endif %}>
+            {{ genre|capitalize }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-6 col-md-6 col-lg-4">
+      <select class="form-select" name="sort">
+        <option value="">Naključni vrstni red</option>
+        <option value="name-asc" {% if sort == "name-asc" %}selected{% endif %}>Ime ↑</option>
+        <option value="name-desc" {% if sort == "name-desc" %}selected{% endif %}>Ime ↓</option>
+        <option value="runtime-asc" {% if sort == "runtime-asc" %}selected{% endif %}>Dolžina ↑</option>
+        <option value="runtime-desc" {% if sort == "runtime-desc" %}selected{% endif %}>Dolžina ↓</option>
+      </select>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="input-group">
+        <span class="input-group-text bg-white">
+          <i class="bi bi-search text-secondary"></i>
+        </span>
+        <input
+          type="text"
+          name="q"
+          value="{{ request.args.get('q','') }}"
+          class="form-control border-start-0"
+          placeholder="Išči film…"
+          autocomplete="off"
+        >
+      </div>
+    </div>
+
+    <div class="col-6 col-md-3 col-lg-2">
+      <input type="checkbox"
+            class="btn-check"
+            id="onlyunwatched"
+            name="onlyunwatched"
+            {% if onlyunwatched %}checked{% endif %}>
+      <label class="btn btn-outline-secondary w-100 text-nowrap" for="onlyunwatched"
+            id="onlyunwatchedlabel">
+        Skrij pogledano
+      </label>
+    </div>
+
+    <div class="col-6 col-md-3 col-lg-2">
+      <input type="checkbox"
+            class="btn-check"
+            id="onlyrecommended"
+            name="onlyrecommended"
+            {% if onlyrecommended %}checked{% endif %}>
+      <label class="btn btn-outline-secondary w-100 text-nowrap" for="onlyrecommended"
+            id="onlyrecommendedlabel">
+        Samo priporočeni
+      </label>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+      {% if current_user.is_authenticated and view_as != "anonymous" %}
+      <button class="btn btn-orange w-100">Pripravi</button>
+      {% endif %}
+    </div>
+
+  </form>
+</div>
+
+
+ <div class="movie-grid" id="movie-grid"></div>
+
+<script defer src="/static/script/movies.js"></script>
+</main>
+
+{% endblock %}

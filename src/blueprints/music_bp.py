@@ -23,6 +23,7 @@ music_bp = Blueprint("music", __name__)
 # Initialize music
 music_albums = {}
 music_files = [f[11:] for f in glob.iglob("data/music/**/*.mp3", recursive=True)]
+MUSIC_COUNT = len(music_files)
 for s in music_files:
     parts = s.split("/")[:-1]
     music_albums.setdefault("Vse", []).append(s)
