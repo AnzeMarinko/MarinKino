@@ -1,36 +1,73 @@
 {% extends "base.html" %}
 
 {% block content %}
+<div class="min-vh-100 d-flex align-items-center justify-content-center" style="background: linear-gradient(135deg, #f5ae57 0%, #fbed93 100%);">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="card border-0 shadow-lg rounded-3 overflow-hidden">
+                    <div class="card-body p-5">
+                        <div class="text-center mb-4">
+                            <div class="display-6 fw-bold text-danger mb-2">MarinKino</div>
+                            <h2 class="h4 text-dark">Nova registracija</h2>
+                            <p class="text-muted small">Dodaj uporabnika v središče kvalitetnega razvedrila</p>
+                        </div>
 
-<main class="container">
-<div  style="max-width: 500px; margin: auto;">
-<h2 class="text-center mb-3">Registracija novega uporabnika</h2>
+                        <div class="alert alert-info alert-dismissible fade show" role="alert">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <small>Geslo bo samodejno ustvarjeno in poslano na e-naslov.</small>
+                        </div>
 
-<p>Za registracijo novega uporabnika vnesite željeno uporabniško ime in e-naslov. Geslo bo samodejno ustvarjeno in poslano na Telegram.</p>
+                        <form method="post" autocomplete="on">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            
+                            <div class="mb-4">
+                                <label for="username" class="form-label fw-semibold">Uporabniško ime</label>
+                                <div class="input-group">
+                                    <span class="input-group-text border-0 bg-light">
+                                        <i class="bi bi-person"></i>
+                                    </span>
+                                    <input id="username" name="username" type="text" class="form-control border-0 bg-light rounded-end" placeholder="Vnesite ime" required>
+                                </div>
+                            </div>
 
-<form method="post" autocomplete="on">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    
-    <div class="mb-3">
-        <label for="username" class="form-label">Uporabniško ime</label>
-        <input id="username" name="username" type="text" class="form-control" required>
+                            <div class="mb-4">
+                                <label for="email" class="form-label fw-semibold">E-naslov</label>
+                                <div class="input-group">
+                                    <span class="input-group-text border-0 bg-light">
+                                        <i class="bi bi-envelope"></i>
+                                    </span>
+                                    <input id="email" name="email" type="email" class="form-control border-0 bg-light rounded-end" placeholder="france@preseren.si" required>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="email2" class="form-label fw-semibold">Dodaten e-naslov (izbirno)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text border-0 bg-light">
+                                        <i class="bi bi-envelope"></i>
+                                    </span>
+                                    <input id="email2" name="email2" type="email" class="form-control border-0 bg-light rounded-end" placeholder="julija@primic.si">
+                                </div>
+                            </div>
+
+                            <div class="d-grid gap-2 mb-3">
+                                <button type="submit" class="btn btn-danger btn-lg rounded-2 fw-bold">
+                                    <i class="bi bi-person-plus me-2"></i>Registriraj uporabnika
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-
-    <div class="mb-3">
-        <label for="email" class="form-label">E-naslov</label>
-        <input id="email" name="email" type="email" class="form-control" required>
-    </div>
-
-    <div class="mb-3">
-        <label for="email2" class="form-label">Dodaten e-naslov (izbirno)</label>
-        <input id="email2" name="email2" type="email" class="form-control">
-    </div>
-
-    <div class="d-grid">
-        <button type="submit" class="btn btn-warning btn-lg">Registriraj uporabnika</button>
-    </div>
-</form>
 </div>
-</main>
 
+<style>
+    .min-vh-100 { min-height: 100vh; }
+    .rounded-3 { border-radius: 1rem; }
+    .rounded-2 { border-radius: 0.5rem; }
+    .input-group-text { color: #f5576c; }
+</style>
 {% endblock %}

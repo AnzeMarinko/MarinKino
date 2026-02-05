@@ -1,14 +1,50 @@
 {% extends "base.html" %}
 
 {% block content %}
-<main class="container">
-<div  style="max-width: 500px; margin: auto;">
-  <h1>Dovolj {{ section }} za danes!</h1>
-  <h2>Upam, da je bil namen strani dosežen.</h2>
-  <p>Zdaj, ko si se malo razvedril s prijetnim, pa je čas še za kaj koristnega (pogovor, opravila, spanje, šport, ...). Bog te blagoslovi!</p>
-  <a href="/"><button>Domov</button></a>
+<div class="min-vh-100 d-flex align-items-center justify-content-center" style="background: linear-gradient(135deg, #ff9a56 0%, #ffc36a 100%);">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="card border-0 shadow-lg rounded-3 overflow-hidden text-center">
+                    <div class="card-body p-5">
+                        <div class="mb-4">
+                            <div style="font-size: 4rem; margin-bottom: 1rem;">⏰</div>
+                            <h1 class="display-5 fw-bold text-dark mb-2">Dovolj za danes!</h1>
+                            <h2 class="h5 text-muted">Dovolj {{ section }} za danes!</h2>
+                        </div>
 
+                        <div class="alert alert-info mb-4" role="alert">
+                            <p class="mb-0">
+                                <i class="bi bi-info-circle me-2"></i>
+                                Upam, da je bil namen strani dosežen.
+                            </p>
+                        </div>
+
+                        <p class="lead text-muted mb-4">
+                            Zdaj, ko si se malo razvedril s prijetnim, pa je čas še za kaj koristnega:
+                        </p>
+
+                        <p><i class="bi bi-chat-dots text-success me-2"></i>Pogovor
+                            <i class="bi bi-check-circle text-success me-2"></i>Opravila<br>
+                            <i class="bi bi-moon text-success me-2"></i>Spanje
+                            <i class="bi bi-bicycle text-success me-2"></i>Šport
+                        </p>
+
+                        <p class="text-muted mb-4">Bog te blagoslovi!</p>
+
+                        <a href="/" class="btn btn-primary btn-lg rounded-2 fw-bold">
+                            <i class="bi bi-house-fill me-2"></i>Domov
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
-</main>
 
+<style>
+    .min-vh-100 { min-height: 100vh; }
+    .rounded-3 { border-radius: 1rem; }
+    .rounded-2 { border-radius: 0.5rem; }
+</style>
 {% endblock %}
