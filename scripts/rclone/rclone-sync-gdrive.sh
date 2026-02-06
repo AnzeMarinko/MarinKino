@@ -40,7 +40,7 @@ echo "▶️ START sync $(date)" >> "$LOG_FILE"
 
 ### ====== CLEAN LOGS ======
 
-MAX_LOGS=10
+MAX_LOGS=5
 cd "$LOG_DIR"
 ls -t | grep -v '/$' | tail -n +$((MAX_LOGS+1)) | xargs -r rm --
 

@@ -90,6 +90,25 @@ def help():
     )
 
 
+@misc_bp.route("/admin/view_emails")
+@login_required
+def view_emails():
+    if not is_current_admin_view(current_user):
+        return redirect(url_for("home"))
+    is_for_mail = request.args.get("is_for_mail", "false") == "true"
+    template_name = request.args.get("template_name", "mail_newuser") + ".html"
+    return render_template(
+        template_name,
+        is_for_mail=is_for_mail,
+        username="gost",
+        email="gost@gost.si",
+        password="gostejsi123",
+        expiry_minutes=30,
+        reset_link="https://...",
+        pagetitle="Naslov - MarinKino",
+    )
+
+
 @misc_bp.route("/admin/send_emails", methods=["GET", "POST"])
 @login_required
 def send_admin_emails():
@@ -155,9 +174,10 @@ last_mail_newsletter_data = {
 @misc_bp.route("/last_mail_newsletter")
 @login_required
 def last_mail_newsletter():
+    is_for_mail = request.args.get("is_for_mail", "false") == "true"
     return render_template(
         last_mail_newsletter_data["template"],
-        is_for_mail=False,
+        is_for_mail=is_for_mail,
         username=current_user.id,
         pagetitle=last_mail_newsletter_data["pagetitle"],
         mailtitle=last_mail_newsletter_data["mailtitle"],

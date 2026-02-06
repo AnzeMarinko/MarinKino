@@ -20,10 +20,22 @@ if not os.path.exists(LOG_DIR):
         os.makedirs(LOG_DIR)
     except OSError as e:
         print(f"Napaka pri ustvarjanju mape {LOG_DIR}: {e}")
+else:
+    try:
+        files = sorted(
+            [
+                os.path.join(LOG_DIR, f)
+                for f in os.listdir(LOG_DIR)
+                if f"server_start_{FLASK_ENV}_" in f
+            ]
+        )
+        for f in files[:-5]:
+            os.remove(f)
+    except OSError as e:
+        print(f"Napaka pri praznenju mape {LOG_DIR}: {e}")
+
 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-LOG_FILENAME = os.path.join(
-    LOG_DIR, f"server_start_{FLASK_ENV}_{timestamp}.log"
-)
+LOG_FILENAME = os.path.join(LOG_DIR, f"server_start_{FLASK_ENV}_{timestamp}.log")
 
 file_handler = logging.FileHandler(LOG_FILENAME, encoding="utf-8")
 console_handler = logging.StreamHandler()

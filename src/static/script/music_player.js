@@ -90,7 +90,7 @@ function loadAlbum(album) {
         div.className = "track-item" + (s===currentTrack?" active":"");
         div.style.opacity = "0";
         div.style.animation = "fadeInSlide 0.3s ease forwards";
-        div.style.animationDelay = (i * 0.03) + "s";
+        div.style.animationDelay = (i * 0.001) + "s";
         
         div.onclick = () => {
             div.style.transform = "scale(0.98)";
@@ -335,15 +335,44 @@ audio.ontimeupdate = () => {
     }
 };
 
-audio.onloadedmetadata = () => {
-    progress.max = audio.duration;
-    if (currentTime && currentTrack === audio.src.replace("/music/", "")) audio.currentTime = currentTime;
+// Update visual background of the range to show played portion
+function updateSeekBarBackground() {
+    try {
+        const max = parseFloat(progress.max) || 1;
+        const val = parseFloat(progress.value) || 0;
+        const pct = Math.max(0, Math.min(100, (val / max) * 100));
+        // left colored, right grey
+        progress.style.background = `linear-gradient(90deg, #667eea ${pct}%, #e0e0e0 ${pct}% )`;
+    } catch (e) {
+        // ignore
+    }
+}
+
+// ensure background updates during playback and when user drags
+audio.ontimeupdate = () => {
+    if (audio.duration) {
+        progress.value = audio.currentTime;
+        localStorage.setItem("time", audio.currentTime);
+        timeDisplay.textContent = formatTime(audio.currentTime) + " / " + formatTime(audio.duration);
+        updatePositionState();
+        updateSeekBarBackground();
+    }
 };
+
+
 
 progress.addEventListener("input", () => {
     audio.currentTime = progress.value;
     updatePositionState();
+    updateSeekBarBackground();
 });
+
+// update on metadata load (set max) and immediately refresh background
+audio.onloadedmetadata = () => {
+    progress.max = audio.duration;
+    if (currentTime && currentTrack === audio.src.replace("/music/", "")) audio.currentTime = currentTime;
+    updateSeekBarBackground();
+};
 
 audio.onended = () => next();
 
@@ -458,3 +487,95 @@ function renderFilteredTracks() {
 }
 
 searchInput.addEventListener("input", filterSongs);
+
+// ===== MOBILE TOGGLE FUNCTIONALITY =====
+function initializeBrowserToggle() {
+    console.log("initializeBrowserToggle called");
+    
+    const albumsSection = document.getElementById("albums");
+    const tracksSection = document.getElementById("tracks");
+    const toggleButtons = document.querySelectorAll(".toggle-btn");
+    
+    console.log("Elements found:", {
+        albumsSection: !!albumsSection,
+        tracksSection: !!tracksSection,
+        toggleButtonsCount: toggleButtons.length
+    });
+    
+    // Preverka je browser v mobilnem modu
+    const isMobile = window.innerWidth <= 768;
+    
+    if (!albumsSection || !tracksSection) {
+        console.error("Album or tracks section not found");
+        return;
+    }
+    
+    function switchView(target) {
+        console.log("switchView called with target:", target, "Mobile:", isMobile);
+        
+        toggleButtons.forEach(btn => {
+            console.log("Processing button with data-target:", btn.dataset.target);
+            btn.classList.remove("active");
+            if (btn.dataset.target === target) {
+                btn.classList.add("active");
+            }
+        });
+        
+        if (target === "albums") {
+            albumsSection.classList.add("active");
+            tracksSection.classList.remove("active");
+            console.log("Showing albums");
+        } else {
+            tracksSection.classList.add("active");
+            albumsSection.classList.remove("active");
+            console.log("Showing tracks");
+        }
+        
+        // Spremi preference v localStorage
+        localStorage.setItem("musicBrowserTab", target);
+    }
+    
+    // Postavi event listenerjee na toggle gumbe
+    console.log("Setting up click handlers for", toggleButtons.length, "buttons");
+    toggleButtons.forEach((btn, index) => {
+        console.log("Setting click handler on button", index, "with data-target:", btn.dataset.target);
+        btn.addEventListener("click", (e) => {
+            console.log("Toggle button clicked:", btn.dataset.target);
+            e.preventDefault();
+            e.stopPropagation();
+            switchView(btn.dataset.target);
+        });
+    });
+    
+    // Napolni prejšnjo izbiro ali privzeto Album
+    const savedTab = localStorage.getItem("musicBrowserTab") || "albums";
+    console.log("Initializing with saved tab:", savedTab, "or default: albums");
+    switchView(savedTab);
+    
+    // Dodaj event listener za orientationchange
+    window.addEventListener("orientationchange", () => {
+        console.log("Orientation changed");
+        setTimeout(() => {
+            switchView(localStorage.getItem("musicBrowserTab") || "albums");
+        }, 200);
+    });
+}
+
+// Kliči funkcijo ko je DOM pripravljen - z agresivnim timouttom
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+        console.log("DOMContentLoaded fired");
+        initializeBrowserToggle();
+    });
+} else {
+    console.log("Document already loaded");
+    initializeBrowserToggle();
+}
+
+// Tudi pri load
+window.addEventListener("load", () => {
+    console.log("Window load fired");
+    setTimeout(() => {
+        initializeBrowserToggle();
+    }, 100);
+});

@@ -2,9 +2,15 @@
 
 {% block content %}
 
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
 <div class="music-app-container">
     <!-- Browser Section -->
     <div id="browser">
+        <div class="browser-toggle" id="browserToggle">
+            <button class="toggle-btn active" data-target="albums">Albumi</button>
+            <button class="toggle-btn" data-target="tracks">Pesmi</button>
+        </div>
         <div id="albums" class="albums-section">
             <div class="section-header">
                 <i class="bi bi-disc"></i>

@@ -248,4 +248,6 @@ def rescale_subtitles(folder, subtitle_path, video_path, plot=False):
                     plt.show()
         else:
             log.warning(f"Empy subtitles: {folder}")
-    convert_srt_to_vtt(subtitle_path)
+        convert_srt_to_vtt(subtitle_path)
+    elif not os.path.exists(subtitle_path.replace(".srt", ".vtt")):
+        convert_srt_to_vtt(subtitle_path)
