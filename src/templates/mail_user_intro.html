@@ -2,192 +2,169 @@
 
 {% block content %}
 {% if not is_for_mail %}
-<main class="container">
+<main class="container mt-4">
 {% endif %}
-  <table width="100%" cellpadding="0" cellspacing="0">
-  <tr>
-  <td align="center" style="padding:8px;">
-
-      <table width="100%" style="{{ 'max-width:600px;' if is_for_mail else '' }}background:#ffffff;border-radius:8px;padding:10px;">
-      <tr>
-      <td align="center" style="padding:16px;">
-
-            <a href="https://{{ domain }}"><img src="https://{{ domain }}/static/logo.png"
-                width="100"
-                style="margin-bottom:10px;max-width:100%;height:auto;"
-                alt="MarinKino"></a>
-
-      </td>
-      </tr>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:{{ '#ffffff' if is_for_mail else 'transparent' }};">
 <tr>
-  <td align="center" style="padding:16px;">
-  <h2 style="margin:0;color:#f59e0b;font-size:22px;">
-    Kratka navodila
-  </h2>
+<td align="center" style="padding:{{ '8px' if is_for_mail else '0px' }};">
 
-  <p style="margin:6px 0 0;color:#666;font-size:14px;">
-    Dobrodošel <b>{{ username }}</b> med uporabniki storitve MarinKino. 
+<table width="100%" style="max-width:600px;background:{{ '#ffffff' if is_for_mail else 'linear-gradient(135deg, #697bff 0%, #ff4a4a 100%)' }};border-radius:16px;padding:{{ '20px' if is_for_mail else '30px' }};{{ 'box-shadow: 0 4px 20px rgba(0,0,0,0.1);' if not is_for_mail else '' }}">
+
+<!-- HEADER -->
+<tr>
+<td align="center" style="padding:20px 0;">
+    <div style="background:{{ 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' if is_for_mail else 'rgba(255,255,255,0.2)' }};width:100px;height:100px;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto;margin-bottom:15px;box-shadow:{{ '0 8px 24px rgba(102,126,234,0.3)' if not is_for_mail else 'none' }};">
+        <img src="https://{{ domain }}/static/logo.png" width="80" style="max-width:100%;height:auto;" alt="MarinKino">
+    </div>
+    <h2 style="margin:0 0 8px;color:{{ '#333' if is_for_mail else '#ffffff' }};font-size:28px;font-weight:700;">
+        Kratka navodila
+    </h2>
+    <p style="margin:0;color:{{ '#666' if is_for_mail else 'rgba(255,255,255,0.9)' }};font-size:15px;font-weight:500;">
+        Dobrodošel <b>{{ username }}</b> med uporabniki storitve MarinKino. 
     Tu so kratka navodila za uporabo.
-  </p>
+    </p>
 </td>
 </tr>
 
 <!-- ===== NAMEN STRANI ===== -->
 <tr>
-<td style="padding:14px;border-top:1px solid #eee;">
-<table width="100%" cellpadding="0" cellspacing="0">
+<td style="padding:20px 0;border-top:{{ '1px solid #eee' if is_for_mail else '1px solid rgba(255,255,255,0.2)' }};">
 
-<tr>
-<td>
-  <h3 style="margin:0 0 6px;color:#111;font-size:18px;">
-    O strani
-  </h3>
+<h3 style="margin:12px;color:{{ '#111' if is_for_mail else '#ffffff' }};font-size:22px;font-weight:700;">
+    O MarinKinu
+</h3>
 
-  <p style="margin:0 0 6px;font-size:14px;color:#555;">
-    <b style="color:#f59e0b;font-size:16px;">Kaj je MarinKino?</b> To je domači kino, ki vam omogoča enostavno izbiro in ogled filmov kar v brskalniku. 
-    Vsi filmi imajo slovenske podnapise ali zvok (originalno ali sinhronizirano). Ideja je podobna Netflix-u, Sloflix-u 
-    in tovrstnim stranem, le da je ta stran brezplačna,
-brez oglasov. Glavna razlika pa je v izboru filmov. Ti so praviloma po vsebini bolj kvalitetni. Skoraj ni grozljivk, 
-precej manj nasilja in opazno več filmov s krščansko vsebino. Poleg tega vsebuje tudi zbirko preko 2000 šal v obliki slik (meme), 
-zbirko glasbe z okrog 1000 pesmimi in družabno igro Pod Krinko. Izbor filmov, šal in glasbe je večinoma po mojem okusu, še posebej priporočeni filmi. Seznam priporočenih filmov se bo sčasoma nekoliko spreminjal.</p>
-<p style="margin:0 0 6px;font-size:14px;color:#555;">
-    <b style="color:#f59e0b;font-size:16px;">Kdo vzdržuje stran?</b> Vse filme, šale in glasbo ter spletno stran sem pripravil Anže Marinko s pomočjo ChatGPT in 
-    idejami prijateljev. Priprava opisov in podnapisov je v veliki meri avtomatizirana in za prevode opisov, podnapisov ter 
-    poravnavo podnapisov z zvokom uporablja umetno inteligenco.</p>
-<p style="margin:0 0 6px;font-size:14px;color:#555;">
-    <b style="color:#f59e0b;font-size:16px;">Kako lahko prispevam?</b> Celoten projekt mi je hobi z vidika časa, stroška pa praktično nimam (beri: 3 € na leto za vse skupaj 
-    za vse uporabnike skupaj). Bom pa vesel kakšnega predloga za dobre filme, predloga za izboljšave strani ali opozorila, če je kakšen 
-    film ali podnapis moteče slab, ali pa bi bilo dobro le dodati opozorilo glede primernosti vsebine za otroke. Možnost komentiranja filmov je ob vsakem filmu, za splošne komentarje in predloge pa je pripravljen svoj zavihek na vrhu strani. Vnaprej hvala za sodelovanje.</p>
-<p style="margin:0 0 6px;font-size:14px;color:#555;">
-    <b style="color:#f59e0b;font-size:16px;">Kdo lahko stran uporablja?</b> Stran je namenjena moji širši družini in prijateljem. Za novega uporabnika se obrnite name.
-  </p>
-</td>
-</tr>
+<div style="background:{{ 'rgba(245,158,11,0.1)' if is_for_mail else 'rgba(255,255,255,0.1)' }};border-left:4px solid {{ '#f59e0b' if is_for_mail else '#a8edea' }};padding:16px;border-radius:8px;margin-bottom:16px;">
+    <p style="margin:0;font-size:15px;color:{{ '#444' if is_for_mail else 'rgba(255,255,255,0.95)' }};font-weight:500;line-height:1.6;">
+        <b style="color:{{ '#f59e0b' if is_for_mail else '#a8edea' }};">Kaj je MarinKino?</b> To je domači kino, ki vam omogoča enostavno izbiro in ogled filmov kar v brskalniku. 
+        Vsi filmi imajo slovenske podnapise ali zvok. Ideja je podobna Netflix-u in Sloflix-u, le da je ta stran <b>brezplačna in brez oglasov</b> s poudarkom na kvalitetni vsebini (ne pa izključno). Prisotnega je manj nasilja in več filmov s krščansko vsebino.
+    </p>
+</div>
 
-</table>
+<div style="background:{{ 'rgba(245,158,11,0.1)' if is_for_mail else 'rgba(255,255,255,0.1)' }};border-left:4px solid {{ '#f59e0b' if is_for_mail else '#fed6e3' }};padding:16px;border-radius:8px;margin-bottom:16px;">
+    <p style="margin:0;font-size:15px;color:{{ '#444' if is_for_mail else 'rgba(255,255,255,0.95)' }};font-weight:500;line-height:1.6;">
+        <b style="color:{{ '#f59e0b' if is_for_mail else '#fed6e3' }};">Kaj še ponuja?</b> Poleg filmov imamo tudi <b>zbirko okrog 2000 memov</b>, <b>čez 1000 pesmi</b> in družabno igro <b>Pod Krinko</b>. 
+        Izbor je kvaliteten in namenjen širši družini.
+    </p>
+</div>
+
+<div style="background:{{ 'rgba(245,158,11,0.1)' if is_for_mail else 'rgba(255,255,255,0.1)' }};border-left:4px solid {{ '#f59e0b' if is_for_mail else '#4facfe' }};padding:16px;border-radius:8px;margin-bottom:16px;">
+    <p style="margin:0;font-size:15px;color:{{ '#444' if is_for_mail else 'rgba(255,255,255,0.95)' }};font-weight:500;line-height:1.6;">
+        <b style="color:{{ '#f59e0b' if is_for_mail else '#4facfe' }};">Kako lahko prispevam?</b> Projekt je hobi brez resnih stroškov. Vesel sem predlogov za nove filme, 
+        izboljšave strani ali opozoril o moteči vsebini (neprimernost za otroke, slaba kvaliteta podnapisov ...). Možnost za komentiranje je pod vsakim filmom ali zavihek "Predlogi". Vsa sporočila bom videl le jaz in opozorila k filmom po potrebi anonimno dodal na stran. Vnaprej hvala za sodelovanje!
+    </p>
+</div>
+
+<div style="background:{{ 'rgba(245,158,11,0.1)' if is_for_mail else 'rgba(255,255,255,0.1)' }};border-left:4px solid {{ '#f59e0b' if is_for_mail else '#a8edea' }};padding:16px;border-radius:8px;margin-bottom:16px;">
+    <p style="margin:0;font-size:15px;color:{{ '#444' if is_for_mail else 'rgba(255,255,255,0.95)' }};font-weight:500;line-height:1.6;">
+        <b style="color:{{ '#f59e0b' if is_for_mail else '#a8edea' }};">Komu je stran namenjena?</b> Vso vsebino sem zbral, uredil in pripravil spletno stran Anže Marinko s pomočjo umetne inteligence in z 
+    idejami prijateljev. Stran je namenjena moji širši družini in prijateljem. Za novega uporabnika se obrnite name.
+    </p>
+</div>
 </td>
 </tr>
 
 <!-- ===== GLAVNI MENI ===== -->
 <tr>
-<td style="padding:14px;border-top:1px solid #eee;">
+<td style="padding:20px 0;border-top:{{ '1px solid #eee' if is_for_mail else '1px solid rgba(255,255,255,0.2)' }};">
 
-<table width="100%" cellpadding="0" cellspacing="0">
+<h3 style="margin:12px;color:{{ '#111' if is_for_mail else '#ffffff' }};font-size:22px;font-weight:700;">
+    Kako uporabljam stran?
+</h3>
 
-<!-- VSEBINA -->
+<p style="margin:16px;font-size:15px;color:{{ '#444' if is_for_mail else 'rgba(255,255,255,0.95)' }};line-height:1.6;">
+    Na vrhu strani takoj opazimo različne vrste razvedrila: 
+    <b>Filmi</b>, <b>Šale</b> (memi), <b>Glasba</b> in <b>Pod Krinko</b> (igra). 
+    Vsak dan si lahko ogledamo le omejeno število šal, ostalih omejitev za prijavljene uporabnike pa ni.
+</p>
+
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;">
 <tr>
-<td>
-
-  <h3 style="margin:0 0 6px;color:#111;font-size:18px;">
-    Uporaba strani
-  </h3>
-
-  <p style="margin:0 0 12px;font-size:15px;color:#444;">
-    Na vrhu strani takoj opazimo različne vrste razvedrila. 
-    Gumb MarinKino je za filme, zraven pa so tudi šale, 
-    glasba in družabna igra Pod krinko. Vsak dan si lahko ogledamo le omejeno število šal, 
-    ostalih omejitev za prijavljene uporabnike stran nima. Vabljeni, da se razgledate po vseh vrstah razvedrila.
-  </p>
-
-  <img src="https://{{ domain }}/newsletter_image/file/new_user_introduction/meni.png"
-        style="width:100%;max-width:800px;height:auto;
-                border-radius:8px;display:block;margin-bottom:10px;"
-        alt="Meni">
-
-  <img src="https://{{ domain }}/newsletter_image/file/new_user_introduction/filmi.png"
-        style="width:100%;max-width:800px;height:auto;
-                border-radius:8px;display:block;margin-bottom:10px;"
-        alt="Filmi">
-
-  <img src="https://{{ domain }}/newsletter_image/file/new_user_introduction/izbira_filma.png"
-        style="width:100%;max-width:800px;height:auto;
-                border-radius:8px;display:block;margin-bottom:10px;"
-        alt="Izbira filma">
-
-  <p style="margin:0 0 12px;font-size:15px;color:#444;">
-    Storitev vam bo sama beležila, kakšen delež vsakega filma ste si že ogledali in kot pogledanega označila
-    vsakega, ki ga boste pogledali do konca, da ga lahko ob brskanju med filmi vnaprej izločite. Pod filmom lahko tudi vidimo, do kako daleč smo si film že ogledali. Ob izbiri filma pa lahko tudi 
-    ročno označite film kot (ne)pogledan in ga s tem ob vklopljenem filtru za skrivanje pogledanih skrijete iz prikaza.
-  </p>
-
-  <p style="margin:0 0 12px;font-size:15px;color:#444;">
-    Tipov filmov je več. Poleg animiranih, slovenskih in drugih filmov imamo tudi filme o naravi (Planet Earth), serijo The Chosen in zbirke risank.
-    Pri zbirkah risank si izberemo epizodo in tudi za vsako posebej vidimo, do kam smo jo že pogledali.
-  </p>
-
-  <img src="https://{{ domain }}/newsletter_image/file/new_user_introduction/izbira_epizode_risanke.png"
-        style="width:100%;max-width:800px;height:auto;
-                border-radius:8px;display:block;margin-bottom:10px;"
-        alt="Izbira epizode">
-
+<td style="padding:12px 0;">
+    <div style="background:{{ 'rgba(245,158,11,0.1)' if is_for_mail else 'rgba(255,255,255,0.1)' }};padding:12px;border-radius:8px;border-left:4px solid {{ '#f59e0b' if is_for_mail else '#a8edea' }};">
+        <p style="margin:0;font-size:14px;color:{{ '#444' if is_for_mail else 'rgba(255,255,255,0.95)' }};"><b>🎬 Filmi:</b> Samodejno beležimo, kakšen delež filma ste si ogledali. Označeni filmi se skrijejo ob vklopu filtra.</p>
+    </div>
 </td>
 </tr>
-
+<tr>
+<td style="padding:12px 0;">
+    <div style="background:{{ 'rgba(245,158,11,0.1)' if is_for_mail else 'rgba(255,255,255,0.1)' }};padding:12px;border-radius:8px;border-left:4px solid {{ '#f59e0b' if is_for_mail else '#fed6e3' }};">
+        <p style="margin:0;font-size:14px;color:{{ '#444' if is_for_mail else 'rgba(255,255,255,0.95)' }};"><b>🎨 Risanke:</b> Dostopne v zbirkah z epizodami.</p>
+    </div>
+</td>
+</tr>
+<tr>
+<td style="padding:12px 0;">
+    <div style="background:{{ 'rgba(245,158,11,0.1)' if is_for_mail else 'rgba(255,255,255,0.1)' }};padding:12px;border-radius:8px;border-left:4px solid {{ '#f59e0b' if is_for_mail else '#4facfe' }};">
+        <p style="margin:0;font-size:14px;color:{{ '#444' if is_for_mail else 'rgba(255,255,255,0.95)' }};"><b>🎵 Glasba:</b> Glasbo lahko poslušate tudi ob izklopljenem zaslonu in je brez oglasov.</p>
+    </div>
+</td>
+</tr>
+<tr>
+<td style="padding:12px 0;">
+    <div style="background:{{ 'rgba(245,158,11,0.1)' if is_for_mail else 'rgba(255,255,255,0.1)' }};padding:12px;border-radius:8px;border-left:4px solid {{ '#f59e0b' if is_for_mail else '#ff9a56' }};">
+        <p style="margin:0;font-size:14px;color:{{ '#444' if is_for_mail else 'rgba(255,255,255,0.95)' }};"><b>🎲 Pod Krinko:</b> Družabna igra za več igralcev - odlično razvedrilo za družino ali skupino mladih!</p>
+    </div>
+</td>
+</tr>
 </table>
+
 </td>
 </tr>
 
-<!-- ===== FILMI ===== -->
+<!-- ===== SPODBUDA ===== -->
 <tr>
-<td style="padding:14px;border-top:1px solid #eee;">
-<table width="100%" cellpadding="0" cellspacing="0">
+<td style="padding:20px 0;border-top:{{ '1px solid #eee' if is_for_mail else '1px solid rgba(255,255,255,0.2)' }};">
 
-<tr>
-<td>
-  <h3 style="margin:0 0 6px;color:#111;font-size:18px;">
-    Spodbuda
-  </h3>
+<h3 style="margin:12px;color:{{ '#111' if is_for_mail else '#ffffff' }};font-size:22px;font-weight:700;">
+    Zaključek
+</h3>
 
-  <p style="margin:0 0 12px;font-size:15px;color:#444;">
-    Vabljen, da si stran dodaš v zaznamke in jo redno uporabljaš včasih zgolj za razvedrilo ali celo zmenek z ženo/možem/punco/fantom.
-    Že v naprej hvala za uporabo. Brez vas, uporabnikov, stran nima smisla.
-  </p>
+<p style="margin:20px;font-size:15px;color:{{ '#444' if is_for_mail else 'rgba(255,255,255,0.95)' }};line-height:1.6;">
+    Stran je namenjena za razvedrilo in kvalitetno preživljanje časa. <b>Dodajte si jo v zaznamke</b> in jo redno uporabljajte - 
+    sami, v paru, s celotno družino ali s prijatelji za filmske večere, zmenek ali za kratko razvedrilo po napornem dnevu. Hvala, ker ste del naše skupnosti! 🎬
+</p>
 
-  <a href="https://{{ domain }}"
-     style="display:block;width:100%;padding:14px 0;
-            background:#f59e0b;color:#fff;font-size:16px;
-            font-weight:bold;text-decoration:none;
-            border-radius:6px;text-align:center;">
-    Odpri stran
-  </a>
-</td>
-</tr>
+<a href="https://{{ domain }}"
+   style="display:block;width:80%;padding:16px;
+          background:{{ 'linear-gradient(135deg, #f59e0b 0%, #ff6a88 100%)' if is_for_mail else 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)' }};color:{{ '#fff' if is_for_mail else '#333' }};font-size:16px;
+          font-weight:bold;text-decoration:none;
+          border-radius:10px;text-align:center;box-shadow:{{ '0 4px 12px rgba(245,158,11,0.3)' if is_for_mail else '0 4px 16px rgba(0,0,0,0.1)' }};margin-left: auto;margin-right: auto;">
+    🚀 Pojdi na domačo stran!
+</a>
 
-</table>
 </td>
 </tr>
 
 <!-- ===== MEME ===== -->
 <tr>
-<td style="padding:14px;border-top:1px solid #eee;">
-<table width="100%" cellpadding="0" cellspacing="0">
+<td style="padding:20px 0;text-align:center;border-top:{{ '1px solid #eee' if is_for_mail else '1px solid rgba(255,255,255,0.2)' }};">
 
-<tr>
-<td align="center">
-  <a href="https://{{ domain }}/memes">
+<a href="https://{{ domain }}/memes"
+   style="display:block;width:100%;max-width:280px;margin:0 auto;">
     <img src="https://{{ domain }}/newsletter_image/file/new_user_introduction/meme.png?user={{ username }}"
-       style="width:100%;max-width:220px;height:auto;
-              border-radius:8px;display:block;margin-bottom:10px;"
-       alt="Šala"></a>
+       style="width:100%;height:auto;border-radius:12px;box-shadow:{{ '0 4px 12px rgba(0,0,0,0.15)' if is_for_mail else '0 8px 24px rgba(0,0,0,0.2)' }};display:block;border:{{ '2px solid #eee' if is_for_mail else '3px solid rgba(255,255,255,0.3)' }};"
+       alt="Naključna šala">
+</a>
+
 </td>
 </tr>
+
+{% if is_for_mail %}
+<!-- FOOTER -->
+<tr>
+<td align="center" style="padding:20px 0 0;font-size:13px;color:{{ '#999' if is_for_mail else 'rgba(255,255,255,0.7)' }};border-top:{{ '1px solid #eee' if is_for_mail else '1px solid rgba(255,255,255,0.2)' }};line-height:1.8;">
+    Prejeli ste ta email, ker imate ustvarjen račun na MarinKinu.<br>
+    <b style="color:{{ '#f59e0b' if is_for_mail else '#a8edea' }};">© MarinKino</b> – Anže Marinko
+</td>
+</tr>
+{% endif %}
 
 </table>
 </td>
 </tr>
+</table>
 
-<!-- FOOTER -->
-<tr>
-<td align="center" style="padding:14px;font-size:12px;color:#666;border-top:1px solid #eee;">
-  Ta email si prejel, ker imaš račun na MarinKino.<br>
-  © MarinKino (Anže Marinko)
-</td>
-</tr>
-
-     </table>
-  </td>
-  </tr>
-  </table>
 {% if not is_for_mail %}
 </main>
 {% endif %}

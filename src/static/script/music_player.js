@@ -11,12 +11,14 @@ const nowPlayingArtist = document.getElementById("nowPlayingArtist");
 const nowPlayingAlbum = document.getElementById("nowPlayingAlbum");
 const progress = document.getElementById("seekBar");
 const timeDisplay = document.getElementById("timeDisplay");
+const albumCover = document.querySelector(".album-cover");
 
 let currentAlbum = localStorage.getItem("album") || "Vse";
 let currentTrack = localStorage.getItem("track") || null;
 let currentTime = parseFloat(localStorage.getItem("time") || 0);
 let currentSongs = [];
 let currentIndex = -1;
+let isLoadingTrack = false;
 
 // Render albumi
 function renderAlbums() {
@@ -25,9 +27,35 @@ function renderAlbums() {
         const div = document.createElement("div");
         div.textContent = a["name"];
         div.className = "album-item" + (a["name"]===currentAlbum?" active":"");
-        div.onclick = () => loadAlbum(a);
+        div.style.opacity = "0";
+        div.style.animation = "fadeInSlide 0.4s ease forwards";
+        div.style.animationDelay = (albums.indexOf(a) * 0.05) + "s";
+        div.onclick = () => {
+            div.style.transform = "scale(0.95)";
+            setTimeout(() => div.style.transform = "scale(1)", 100);
+            loadAlbum(a);
+        };
         albumListEl.appendChild(div);
     });
+    
+    // Dodaj CSS animacijo, če še ne obstaja
+    if (!document.getElementById("music-animations-style")) {
+        const style = document.createElement("style");
+        style.id = "music-animations-style";
+        style.textContent = `
+            @keyframes fadeInSlide {
+                from {
+                    opacity: 0;
+                    transform: translateX(-10px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateX(0);
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
 }
 
 // Load album
@@ -38,11 +66,12 @@ function loadAlbum(album) {
     renderAlbums();
 
     if (currentSongs.length === 0) {
-        trackListEl.innerHTML = "<i>Ni pesmi v tej zbirki.</i>";
-        nowPlayingTitle.textContent = "-";
-        nowPlayingArtist.textContent = "-";
-        nowPlayingAlbum.textContent = "-";
+        trackListEl.innerHTML = "<i style='color: #999; padding: 20px; text-align: center;'>Ni pesmi v tej zbirki.</i>";
+        nowPlayingTitle.textContent = "Ni izbrane pesmi";
+        nowPlayingArtist.textContent = "";
+        nowPlayingAlbum.textContent = "";
         audio.src = "";
+        albumCover.style.opacity = "0.5";
         return;
     } else if (!currentSongs.includes(currentTrack)) {
         currentTrack = currentSongs[Math.floor(Math.random() * currentSongs.length)];
@@ -50,7 +79,7 @@ function loadAlbum(album) {
     currentIndex = currentSongs.indexOf(currentTrack);
 
     trackListEl.innerHTML = "";
-    currentSongs.forEach((s,i)=>{
+    currentSongs.forEach((s, i) => {
         const div = document.createElement("div");
         const trackMetadata = music_metadata[s];
         const title = trackMetadata["title"];
@@ -59,13 +88,25 @@ function loadAlbum(album) {
         div.innerHTML = `<i>${album}</i> : ${artist} : <b>${title}</b>`;
 
         div.className = "track-item" + (s===currentTrack?" active":"");
-        div.onclick = ()=>playTrack(i);
+        div.style.opacity = "0";
+        div.style.animation = "fadeInSlide 0.3s ease forwards";
+        div.style.animationDelay = (i * 0.03) + "s";
+        
+        div.onclick = () => {
+            div.style.transform = "scale(0.98)";
+            setTimeout(() => div.style.transform = "scale(1)", 100);
+            playTrack(i);
+        };
         trackListEl.appendChild(div);
     });
     scrollToActiveTrack();
+    albumCover.style.opacity = "1";
 }
 
 function playTrack(i) {
+    if (isLoadingTrack) return; // Prepreči hkratne klice
+    isLoadingTrack = true;
+    
     currentIndex = i;
     currentTrack = currentSongs[i];
     const trackMetadata = music_metadata[currentTrack];
@@ -76,10 +117,29 @@ function playTrack(i) {
     const artist = trackMetadata["artist"];
     const album = trackMetadata["album"];
 
-    nowPlayingTitle.textContent = title;
-    nowPlayingArtist.textContent = artist;
-    nowPlayingAlbum.textContent = album;
+    // Animiraj spremembo teksta
+    nowPlayingTitle.style.opacity = "0.7";
+    nowPlayingArtist.style.opacity = "0.7";
+    nowPlayingAlbum.style.opacity = "0.7";
+    
+    setTimeout(() => {
+        nowPlayingTitle.textContent = title;
+        nowPlayingArtist.textContent = artist;
+        nowPlayingAlbum.textContent = album;
+        
+        nowPlayingTitle.style.transition = "opacity 0.3s ease";
+        nowPlayingArtist.style.transition = "opacity 0.3s ease";
+        nowPlayingAlbum.style.transition = "opacity 0.3s ease";
+        
+        nowPlayingTitle.style.opacity = "1";
+        nowPlayingArtist.style.opacity = "1";
+        nowPlayingAlbum.style.opacity = "1";
+    }, 150);
 
+    // Animiraj album cover
+    albumCover.style.transform = "scale(1)";
+    albumCover.style.transition = "transform 0.3s ease";
+    
     // Posodobimo Media Session
     updateMediaSession(title, artist, album);
 
@@ -96,6 +156,7 @@ function playTrack(i) {
         playPromise
         .then(_ => {
             updatePlayBtn("true");
+            isLoadingTrack = false;
         })
         .catch(error => {
             // AbortError je normalen, če uporabnik hitro klika "Next"
@@ -103,6 +164,7 @@ function playTrack(i) {
                 console.error("Napaka pri predvajanju:", error);
                 updatePlayBtn("false");
             }
+            isLoadingTrack = false;
         });
     }
 
@@ -136,23 +198,43 @@ function updateMediaSession(title, artist, album) {
         navigator.mediaSession.setActionHandler("previoustrack", prev);
         navigator.mediaSession.setActionHandler("nexttrack", next);
         
-        // --- NOVO: Omogoči premikanje po časovnici preko avtomobila ---
         navigator.mediaSession.setActionHandler("seekto", (details) => {
             if (details.fastSeek && 'fastSeek' in audio) {
               audio.fastSeek(details.seekTime);
               return;
             }
             audio.currentTime = details.seekTime;
-            // Posodobi tudi local state
             updatePositionState(); 
         });
     }
 }
 
+// Helper funkcija za posodobitev position state
+function updatePositionState() {
+    if ("mediaSession" in navigator && !isNaN(audio.duration)) {
+        try {
+            navigator.mediaSession.setPositionState({
+                duration: audio.duration,
+                playbackRate: audio.playbackRate,
+                position: audio.currentTime
+            });
+        } catch(e) {
+            // Ignoriraj napake, če metadata še ni naložen
+        }
+    }
+}
+
 
 function highlightTrack() {
-    document.querySelectorAll(".track-item").forEach((t, idx)=>{
-        t.classList.toggle("active", idx===currentIndex);
+    document.querySelectorAll(".track-item").forEach((t, idx) => {
+        const wasActive = t.classList.contains("active");
+        const isActive = idx === currentIndex;
+        
+        if (isActive && !wasActive) {
+            // Prehod iz ne-aktivnega v aktivnega
+            t.style.transition = "all 0.3s ease";
+        }
+        t.classList.toggle("active", isActive);
     });
 }
 
@@ -163,16 +245,28 @@ function scrollToActiveTrack() {
 
 // Controls
 function togglePlay() { 
-    if(audio.paused) {
-        audio.play();
-        updatePlayBtn("true")}
-    else {
-        audio.pause(); updatePlayBtn("false"); }}
+    if (audio.paused) {
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+            playPromise.then(() => {
+                updatePlayBtn("true");
+                playBtn.style.transform = "scale(0.95)";
+                setTimeout(() => playBtn.style.transform = "scale(1)", 150);
+            });
+        }
+    } else {
+        audio.pause();
+        updatePlayBtn("false");
+        playBtn.style.transform = "scale(0.95)";
+        setTimeout(() => playBtn.style.transform = "scale(1)", 150);
+    }
+}
 
 function next() {
-    if(randomMode) playTrack(Math.floor(Math.random()*currentSongs.length));
-    else if(currentIndex<currentSongs.length-1) playTrack(currentIndex+1);
+    if (randomMode) playTrack(Math.floor(Math.random() * currentSongs.length));
+    else if (currentIndex < currentSongs.length - 1) playTrack(currentIndex + 1);
 }
+
 function prev() {
     // Če pesem igra že več kot 3 sekunde, jo samo resetiraj na začetek
     if (audio.currentTime > 3) {
@@ -200,10 +294,16 @@ function toggleRandom() {
     randomMode = !randomMode;
     localStorage.setItem("random", randomMode);
     updateShuffleBtn();
+    
+    // Animiraj gumb
+    shuffleBtn.style.transform = "rotate(360deg) scale(1.15)";
+    setTimeout(() => {
+        shuffleBtn.style.transition = "transform 0.4s ease";
+        shuffleBtn.style.transform = "rotate(0deg) scale(1)";
+    }, 50);
 }
 
 function updateShuffleBtn() {
-
     if (randomMode) {
         shuffleBtn.classList.add("active");
         shuffleIcon.className = "bi bi-shuffle";
@@ -217,9 +317,11 @@ function updatePlayBtn(playMode) {
     if (playMode == "true") {
         playBtn.classList.add("active");
         playIcon.className = "bi bi-pause-fill";
+        playBtn.style.transition = "all 0.3s ease";
     } else {
         playBtn.classList.remove("active");
         playIcon.className = "bi bi-play-fill";
+        playBtn.style.transition = "all 0.3s ease";
     }
 }
 
@@ -229,31 +331,35 @@ audio.ontimeupdate = () => {
         progress.value = audio.currentTime;
         localStorage.setItem("time", audio.currentTime);
         timeDisplay.textContent = formatTime(audio.currentTime) + " / " + formatTime(audio.duration);
-        if ("mediaSession" in navigator && !isNaN(audio.duration)) {
-             try {
-                navigator.mediaSession.setPositionState({
-                    duration: audio.duration,
-                    playbackRate: audio.playbackRate,
-                    position: audio.currentTime
-                });
-             } catch(e) {
-                 // Ignoriraj napake, če metadata še ni naložen
-             }
-        }
+        updatePositionState();
     }
 };
-audio.onloadedmetadata = ()=>{
-    progress.max = audio.duration;
-    if(currentTime && currentTrack===audio.src.replace("/music/","")) audio.currentTime=currentTime;
-};
-progress.oninput = ()=>{ audio.currentTime = progress.value; }
-audio.onended = ()=>next();
 
-function formatTime(s){
-    s=Math.floor(s);
-    const m=Math.floor(s/60);
-    const sec=s%60;
-    return m+":"+sec.toString().padStart(2,"0");
+audio.onloadedmetadata = () => {
+    progress.max = audio.duration;
+    if (currentTime && currentTrack === audio.src.replace("/music/", "")) audio.currentTime = currentTime;
+};
+
+progress.addEventListener("input", () => {
+    audio.currentTime = progress.value;
+    updatePositionState();
+});
+
+audio.onended = () => next();
+
+audio.addEventListener("play", () => {
+    albumCover.style.animation = "spin 3s linear infinite";
+});
+
+audio.addEventListener("pause", () => {
+    albumCover.style.animation = "none";
+});
+
+function formatTime(s) {
+    s = Math.floor(s);
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return m + ":" + sec.toString().padStart(2, "0");
 }
 
 function izbrisiPesem() {
@@ -277,23 +383,24 @@ function izbrisiPesem() {
 
 audio.addEventListener('waiting', () => {
     console.log("Audio se nalaga...");
-    // Tukaj lahko dodaš kakšen "loading spinner" na UI
+    albumCover.style.opacity = "0.6";
 });
 
 audio.addEventListener('playing', () => {
     console.log("Audio igra.");
+    albumCover.style.opacity = "1";
 });
 
-let initialAlbum = albums[0]
+let initialAlbum = albums[0];
 albums.forEach(a => {
-    if (a["name"]===currentAlbum) {
+    if (a["name"] === currentAlbum) {
         initialAlbum = a;
     }
 });
 
 // Initialize
 loadAlbum(initialAlbum);
-if(currentSongs.length>0) playTrack(currentIndex||0);
+if (currentSongs.length > 0) playTrack(currentIndex || 0);
 
 // ======== ISKANJE ========
 const searchInput = document.getElementById("searchInput");
@@ -323,7 +430,7 @@ function filterSongs() {
 function renderFilteredTracks() {
     trackListEl.innerHTML = "";
     if (filteredSongs.length === 0) {
-        trackListEl.innerHTML = "<i>Ni rezultatov iskanja.</i>";
+        trackListEl.innerHTML = "<i style='color: #999; padding: 20px; text-align: center;'>Ni rezultatov iskanja.</i>";
         return;
     }
     
@@ -335,7 +442,11 @@ function renderFilteredTracks() {
         const album = trackMetadata["album"];
         div.innerHTML = `<i>${album}</i> : ${artist} : <b>${title}</b>`;
 
-        div.className = "track-item" + (s===currentTrack?" active":"");
+        div.className = "track-item" + (s === currentTrack ? " active" : "");
+        div.style.opacity = "0";
+        div.style.animation = "fadeInSlide 0.3s ease forwards";
+        div.style.animationDelay = (idx * 0.03) + "s";
+        
         div.onclick = () => {
             // Najdi indeks v originalnem currentSongs polju
             const originalIndex = currentSongs.indexOf(s);

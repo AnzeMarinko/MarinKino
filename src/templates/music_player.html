@@ -2,80 +2,81 @@
 
 {% block content %}
 
-<style>
-    #searchInput {
-        position: sticky;
-        top: 0;
-        z-index: 100;
-        background-color: white;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-</style>
-
-<div id="browser">
-    <div id="albums">
-        <h2>Albumi</h2>
-        <div id="albumList"></div>
+<div class="music-app-container">
+    <!-- Browser Section -->
+    <div id="browser">
+        <div id="albums" class="albums-section">
+            <div class="section-header">
+                <i class="bi bi-disc"></i>
+                <h2>Albumi</h2>
+            </div>
+            <div id="albumList" class="album-list"></div>
+        </div>
+        
+        <div id="tracks" class="tracks-section">
+            <div class="section-header">
+                <i class="bi bi-music-note-beamed"></i>
+                <h2>Pesmi</h2>
+            </div>
+            <input type="search" id="searchInput" placeholder="🔍 Iskanje po naslovu, izvajalcu..." class="search-input">
+            <div id="trackList" class="track-list"></div>
+        </div>
     </div>
-    <div id="tracks">
-        <h2>Pesmi</h2>
-        <input type="search" id="searchInput" placeholder="Iskanje po naslovu in izvajalcu" class="form-control mb-2">
-        <div id="trackList"></div>
+
+    <!-- Player Section -->
+    <div id="player" class="player-section">
+        <div class="now-playing-info">
+            <div class="album-cover">
+                <i class="bi bi-music-note"></i>
+            </div>
+            <div class="track-info">
+                <div id="nowPlayingTitle" class="track-title">Ni izbrane pesmi</div>
+                <div id="nowPlayingArtist" class="track-artist"></div>
+                <div id="nowPlayingAlbum" class="track-album"></div>
+            </div>
+        </div>
+
+        <audio id="audio" preload="auto" playsinline></audio>
+
+        <!-- Progress Bar -->
+        <div class="progress-section">
+            <input type="range" id="seekBar" class="progress-bar">
+            <div class="time-display">
+                <span id="timeDisplay">0:00 / 0:00</span>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls-section">
+            <button class="control-btn" onclick="prev()" title="Prejšnja pesem">
+                <i class="bi bi-skip-backward-fill"></i>
+            </button>
+
+            <button id="playBtn" class="control-btn btn-play" onclick="togglePlay()" title="Predvajaj / Pauziraj">
+                <i id="playIcon" class="bi bi-play-fill"></i>
+            </button>
+
+            <button class="control-btn" onclick="next()" title="Naslednja pesem">
+                <i class="bi bi-skip-forward-fill"></i>
+            </button>
+
+            <button id="shuffleBtn" class="control-btn btn-shuffle" onclick="toggleRandom()" title="Naključni vrstni red">
+                <i id="shuffleIcon" class="bi bi-shuffle"></i>
+            </button>
+
+            {% if view_as != "anonymous" and view_as != "user" and current_user.is_authenticated and current_user.is_admin %}
+            <button id="delete-btn" class="control-btn btn-delete" onclick="izbrisiPesem()" title="Izbriši pesem">
+                <i class="bi bi-trash"></i>
+            </button>
+            {% endif %}
+        </div>
     </div>
 </div>
 
-<!-- PLAYER -->
-<div id="player" class="p-3 shadow-sm">
+<div id="albums-root" data-albums='{{ albums | tojson | safe }}'></div>
+<div id="metadata-root" data-music='{{ music_metadata | tojson | safe }}'></div>
 
-  <div id="nowPlayingTitle" class="text-center mb-2 text-primary">
-    Ni izbrane pesmi
-  </div>
-  <div id="nowPlayingArtist" class="text-center mb-2 text-primary">
-  </div>
-  <div id="nowPlayingAlbum" class="text-center mb-2 text-primary">
-  </div>
-
-  <audio id="audio" preload="auto" playsinline></audio>
-
-  <div class="d-flex justify-content-center gap-3 my-2">
-    <button class="player-btn" onclick="prev()">
-      <i class="bi bi-skip-backward-fill"></i>
-    </button>
-
-    <button id="playBtn" class="btn-player btn-play" onclick="togglePlay()">
-      <i id="playIcon" class="bi bi-play-fill"></i>
-    </button>
-
-    <button class="player-btn" onclick="next()">
-      <i class="bi bi-skip-forward-fill"></i>
-    </button>
-
-    <button id="shuffleBtn" class="btn-player btn-rnd" onclick="toggleRandom()">
-      <i id="shuffleIcon" class="bi bi-shuffle"></i>
-    </button>
-
-{% if view_as != "anonymous" and view_as != "user" and current_user.is_authenticated and current_user.is_admin %}
-<button id="delete-btn" class="btn btn-danger shadow" onclick="izbrisiPesem()">
-  <i class="bi bi-trash"></i>
-</button>
-{% endif %}
-  </div>
-
-  <input type="range" id="seekBar" class="form-range">
-
-  <div id="timeDisplay" class="text-end text-muted small">
-    0:00 / 0:00
-  </div>
-</div>
-
-<div id="albums-root"
-     data-albums='{{ albums | tojson | safe }}'>
-</div>
-
-<div id="metadata-root"
-     data-music='{{ music_metadata | tojson | safe }}'>
-</div>
-
+<link rel="stylesheet" href="/static/css/music.css">
 <script defer src="/static/script/music_player.js"></script>
 
 {% endblock %}

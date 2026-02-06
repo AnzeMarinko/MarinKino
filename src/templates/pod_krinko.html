@@ -36,42 +36,35 @@
 <body>
     {% include "partials/navbar.html" %}
     <div class="game" data-bs-theme="dark">
-    <section id="navodila" onclick="pravila_igre('none')">
-        <div id="besedilo_navodil">
-            <h1>Vloge:</h1>
-            <lu>
-                <li><b>PREBIVALCI:</b> Prejmejo isto skrivno besedo. Njihova naloga je razkrinkati
-                    vohune in gospoda v belem.</li>
-                <li><b>VOHUN:</b> Dobi malenkost drugačno besedo od prebivalcev. Njegova naloga je, da se pretvarja,
-                    da je prebivalec.</li>
-                <li><b>GOSPOD V BELEM:</b> Ne prejme nobene besede. Njegova naloga je, da se pretvarja, da jo ima in
-                    poskuša ugotoviti besedo, ki jo imajo prebivalci.</li>
-                <li><b>GOSPOD NEMEC:</b> Lahko ima katerokoli zgornjo vlogo. Svojo besedo vedno pokaže s pantomimo.
-                    Če ostane do konca igre in je v zmagovalni ekipi, njegova ekipa dobi dodatni dve točki.</li>
-            </lu>
+    <section id="navodila" onclick="pravila_igre('none')" class="navodila-section">
+        <div id="besedilo_navodil" class="navodila-content">
+            <div class="navodila-header">
+                <h1>🎲 Pravila igre</h1>
+                <p class="subtitle">Slovenska različica igre Undercover</p>
+            </div>
 
-            <h1>Potek:</h1>
-            <lu>
-                <li><b>BESEDA:</b> Vsak igralec na skrivaj prebere svojo besedo s pritiskom na svojo kartico z
-                    imenom.
-                    V tem trenutku edino gospod v belem ve, kakšna je njegova vloga.</li>
-                <li><b>OPISOVANJE:</b> Vsak igralec z eno besedo opiše svojo besedo (gospod v belem improvizira).
-                    Dobro poslušaj, da razkriješ vloge in besede ostalih igralcev. Prvi igralec gotovo ni gospod v
-                    belem.</li>
-                <li><b>IZLOČANJE:</b> Vsi igralci, ki še niso bili izločeni, se skupaj odločijo, koga bodo izločili.
-                    Vsak se lahko zagovarja in prepričuje ostale.
-                    <i>(Nasvet: najprej izloči gospoda v belem. Dlje kot ostane v igri, lažje bo uganil
-                        besedo in zmagal.)</i> Igralci glasujejo, kdo ima drugačno vlogo.
-                    Igralec z največ glasovi je izločen. V primeru neodločenosti se lahko uporabi igro
-                    škarje-kamen-papir. Po izločanju soigralcev se nadaljuje s prejšno točko.
-                </li>
-                <li><b>ZMAGA:</b> Prebivalci zmagajo, če izločijo vse ostale vloge. Vohuni in gospod v belem pa
-                    zmagajo,
-                    če ostane le še eden prebivalec. Gospod v belem zmaga, tudi kadar ugane besedo,
-                    ki jo imajo prebivalci. V primeru zmage dobijo prebivalci 2 točki,
-                    vohuni 5 in gospod v belem 7. Če je med zmagovalci gospod Nemec,
-                    njegova ekipa dobi dodatni dve točki.</li>
-            </lu>
+            <div class="pravilo-card">
+                <h2>👥 Vloge:</h2>
+                <ul>
+                    <li><b>PREBIVALCI:</b> Prejmejo isto skrivno besedo. Njihova naloga je razkrinkati vohune in gospoda v belem.</li>
+                    <li><b>VOHUN:</b> Dobi malenkost drugačno besedo. Njihova naloga je, da se pretvarja, da je prebivalec.</li>
+                    <li><b>GOSPOD V BELEM:</b> Ne prejme nobene besede. Njegova naloga je, da se pretvarja in poskuša ugotoviti besedo, ki jo imajo prebivalci.</li>
+                    <li><b>GOSPOD NEMEC:</b> Lahko ima katerokoli vlogo. Svojo besedo vedno pokaže s pantomimo. Svoji ekipi prinese dodatni 2 točki ob zmagi.</li>
+                </ul>
+            </div>
+
+            <div class="pravilo-card">
+                <h2>🎯 Potek igre:</h2>
+                <ul>
+                    <li><b>BESEDA:</b> Vsak igralec na skrivaj prebere svojo besedo s pritiskom na svojo kartici. Gospod v belem vedno ve svojo vlogo.</li>
+                    <li><b>OPISOVANJE:</b> Vsak igralec z eno besedo opiše svojo besedo. Gospod v belem improvizira (gotovo pa ni prvi na vrsti v prvem krogu). <i>Dobro poslušaj!</i></li>
+                    <li><b>IZLOČANJE:</b> Skupaj se odločite, koga boste izločili. Vsak se lahko zagovarja. Igralec z največ glasovi je izločen.</li>
+                    <li><b>ZMAGA:</b> Prebivalci zmagajo, če izločijo vse ostale vloge. Vohuni in gospod v belem pa zmagajo, če ostane le še eden prebivalec.</li>
+                    <li><b>TOČKOVANJE:</b> Prebivalci = 2 točki, Vohuni = 5 točk, Gospod v belem = 7 točk. Gospod Nemec = celotna ekipa +2 točki.</li>
+                </ul>
+            </div>
+
+            <p class="navodila-close">Klikni kamorkoli, da zapustiš pravila →</p>
         </div>
     </section>
 
@@ -127,7 +120,7 @@
         </button>
         <button class="button button_agent" onclick="reset_game()">
             Ponastavi
-        </button></br>
+        </button>
         <button class="button button_beli" onclick="start_new_game()">
             Začni
         </button>

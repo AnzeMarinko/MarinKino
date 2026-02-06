@@ -15,7 +15,6 @@ html {
 body {
     margin: 0;
     font-family: Monospace;
-    overscroll-behavior: none;
     padding-right: 0px;
     padding-bottom: 0px;
     padding-left: 0px;
@@ -33,6 +32,7 @@ footer li {
 .game {
     background: var(--pod-krinko-temno);
     color: white;
+    min-height: 90vh;
 }
 
 h1 {

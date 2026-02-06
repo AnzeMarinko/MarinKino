@@ -4,7 +4,7 @@
     source .venv/bin/activate
     python src/prepare_movies.py
 
-* z nekom preglej vizualno podobo strani in jo malo polepšaj
+* olepšaj stran s filmi, player za filme
 
 * nov release v1.2.0 glede na commit messages
 

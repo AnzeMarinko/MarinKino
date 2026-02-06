@@ -140,7 +140,7 @@ def admin_panel():
             .head(20)
             .T
         )
-        access_stats_monthly_dict = df_monthly.to_dict(orient="home")
+        access_stats_monthly_dict = df_monthly.to_dict(orient="index")
         monthly_columns = df_monthly.columns
     else:
         access_stats_monthly_dict = {}
@@ -198,7 +198,7 @@ def admin_panel():
         df_users = pd.DataFrame(users_stats).T.sort_values(
             by=["Število ogledanih", "Skupen čas"], ascending=False
         )
-        users_stats_dict = df_users.to_dict(orient="home")
+        users_stats_dict = df_users.to_dict(orient="index")
         users_stats_columns = df_users.columns
     else:
         users_stats_dict = {}

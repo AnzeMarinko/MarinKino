@@ -355,6 +355,12 @@ function saveGameState() {
 }
 
 async function start_new_game() {
+    // Hide overlays/results so only one view is visible when starting a new game
+    var el = document.getElementById("overlay_rezultati"); if (el) el.style.display = "none";
+    var el2 = document.getElementById("overlay"); if (el2) el2.style.display = "none";
+    var el3 = document.getElementById("overlay_izkljucitev"); if (el3) el3.style.display = "none";
+    var el4 = document.getElementById("menu_results"); if (el4) el4.style.display = "none";
+
     let namesInputElements = document.querySelectorAll('.nameInput input[type="text"]');
     let names = Array.from(namesInputElements).map(i => i.value.trim());
 
