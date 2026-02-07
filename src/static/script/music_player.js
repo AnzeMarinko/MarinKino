@@ -317,7 +317,7 @@ function updateSeekBarBackground() {
         const val = parseFloat(progress.value) || 0;
         const pct = Math.max(0, Math.min(100, (val / max) * 100));
         // left colored, right grey
-        progress.style.background = `linear-gradient(90deg, var(--vijolicna) ${pct}%, var(--light-gray) ${pct}% )`;
+        progress.style.background = `linear-gradient(90deg, var(--vijolicna) ${pct}%, lightgray ${pct}% )`;
     } catch (e) {
         // ignore
     }
@@ -448,7 +448,7 @@ function renderFilteredTracks() {
 
         div.className = "track-item" + (s === currentTrack ? " active" : "");
         div.style.opacity = "0";
-        div.style.animation = "fadeInSlide 0.3s ease forwards";
+        div.style.animation = "fadeIn 0.3s ease forwards";
         div.style.animationDelay = (idx * 0.03) + "s";
         
         div.onclick = () => {
