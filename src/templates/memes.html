@@ -1,10 +1,8 @@
 {% extends "base.html" %}
 
-{% block content %}
+{% block content %} 
 
-<link rel="stylesheet" href="/static/css/memes.css">    
-
-<div class="slika-container" id="mediaContainer">
+<div class="meme-container" id="mediaContainer">
     {% if meme_file_name.endswith('.mp4') %}
         <video id="videoPlayer" controls autoplay playsinline>
             <source src="/memes/file/{{ meme_file_name }}" type="video/mp4">
@@ -14,7 +12,7 @@
         <img src="/memes/file/{{ meme_file_name }}" alt="Naključna slika" id="slikaElement">
     {% endif %}
 </div>
-    <button class="next-btn" id="nextButton" onclick="pojdiNaNaslednjega()">➤</button>
+    <button class="next-meme-btn" id="nextButton" onclick="pojdiNaNaslednjega()">➤</button>
 
 <script defer src="/static/script/memes.js"></script>
 

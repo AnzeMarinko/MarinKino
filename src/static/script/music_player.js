@@ -27,9 +27,6 @@ function renderAlbums() {
         const div = document.createElement("div");
         div.textContent = a["name"];
         div.className = "album-item" + (a["name"]===currentAlbum?" active":"");
-        div.style.opacity = "0";
-        div.style.animation = "fadeInSlide 0.4s ease forwards";
-        div.style.animationDelay = (albums.indexOf(a) * 0.05) + "s";
         div.onclick = () => {
             div.style.transform = "scale(0.95)";
             setTimeout(() => div.style.transform = "scale(1)", 100);
@@ -37,25 +34,6 @@ function renderAlbums() {
         };
         albumListEl.appendChild(div);
     });
-    
-    // Dodaj CSS animacijo, če še ne obstaja
-    if (!document.getElementById("music-animations-style")) {
-        const style = document.createElement("style");
-        style.id = "music-animations-style";
-        style.textContent = `
-            @keyframes fadeInSlide {
-                from {
-                    opacity: 0;
-                    transform: translateX(-10px);
-                }
-                to {
-                    opacity: 1;
-                    transform: translateX(0);
-                }
-            }
-        `;
-        document.head.appendChild(style);
-    }
 }
 
 // Load album
@@ -88,9 +66,6 @@ function loadAlbum(album) {
         div.innerHTML = `<i>${album}</i> : ${artist} : <b>${title}</b>`;
 
         div.className = "track-item" + (s===currentTrack?" active":"");
-        div.style.opacity = "0";
-        div.style.animation = "fadeInSlide 0.3s ease forwards";
-        div.style.animationDelay = (i * 0.001) + "s";
         
         div.onclick = () => {
             div.style.transform = "scale(0.98)";
@@ -342,7 +317,7 @@ function updateSeekBarBackground() {
         const val = parseFloat(progress.value) || 0;
         const pct = Math.max(0, Math.min(100, (val / max) * 100));
         // left colored, right grey
-        progress.style.background = `linear-gradient(90deg, #667eea ${pct}%, #e0e0e0 ${pct}% )`;
+        progress.style.background = `linear-gradient(90deg, var(--vijolicna) ${pct}%, var(--light-gray) ${pct}% )`;
     } catch (e) {
         // ignore
     }

@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="min-vh-100 d-flex align-items-center justify-content-center" style="background: linear-gradient(135deg, #ffd8a9 0%, #ffcca2 100%);">
+<div class="min-vh-100 d-flex align-items-center justify-content-center">
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-md-6 col-lg-5">
                 <div class="card border-0 shadow-lg rounded-3 overflow-hidden text-center">
                     <div class="card-body p-5">
                         <div class="mb-4">
-                            <div style="font-size: 4rem; margin-bottom: 1rem;">⏰</div>
+                            <div style="font-size: 4rem;">⏰</div>
                             <h1 class="display-5 fw-bold text-dark mb-2">Dovolj za danes!</h1>
                             <h2 class="h5 text-muted">Dovolj {{ section }} za danes!</h2>
                         </div>
@@ -41,10 +41,4 @@
         </div>
     </div>
 </div>
-
-<style>
-    .min-vh-100 { min-height: 100vh; }
-    .rounded-3 { border-radius: 1rem; }
-    .rounded-2 { border-radius: 0.5rem; }
-</style>
 {% endblock %}

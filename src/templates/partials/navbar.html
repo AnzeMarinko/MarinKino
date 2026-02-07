@@ -1,4 +1,4 @@
-<nav class="navbar navbar-expand-lg navbar-light bg-white shadow {{ 'fixed-top' if not is_music else '' }}">
+<nav class="navbar navbar-expand-xl navbar-light bg-white shadow {{ 'fixed-top' if not is_music else '' }}">
   <div class="container-fluid">
 
     <!-- LOGO + NASLOV -->
@@ -17,7 +17,7 @@
 
       <!-- LEVI MENI -->
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-        <li class="nav-item"><a class="nav-link" href="/movies" {% if not current_user.is_authenticated or view_as == "anonymous" %} style="opacity: 0.5;" {% endif %}>Filmi</a></li>
+        <li class="nav-item"><a class="nav-link" href="/movies">Filmi</a></li>
         <li class="nav-item"><a class="nav-link" href="/memes" {% if not current_user.is_authenticated or view_as == "anonymous" %} style="opacity: 0.5;" {% endif %}>Šale & navdihi</a></li>
         <li class="nav-item"><a class="nav-link" href="/music" {% if not current_user.is_authenticated or view_as == "anonymous" %} style="opacity: 0.5;" {% endif %}>Glasba</a></li>
         <li class="nav-item"><a class="nav-link" href="/pod_krinko">Pod krinko</a></li>
@@ -72,7 +72,7 @@
   <div style="padding-top: 80px;"></div>
 {% endif %}
 {% if not current_user.is_authenticated or view_as == "anonymous" %}
-<a href="/login"><div class="alert alert-danger text-center" style="background-color: orange;">Potrebna prijava!</div></a>
+<a href="/login"><div class="alert alert-danger text-center">Potrebna prijava!</div></a>
 {% endif %}
 
 <div id="flash-container" class="position-fixed top-0 start-50 translate-middle-x mt-3" style="z-index: 1055;">
@@ -84,15 +84,6 @@
     {% endfor %}
   {% endwith %}
 </div>
-<style>
-.flash-message {
-  transition: opacity 0.6s ease, transform 0.6s ease;
-}
-.flash-message.fade-out {
-  opacity: 0;
-  transform: translateY(-10px);
-}
-</style>
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {

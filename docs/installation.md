@@ -112,11 +112,7 @@ sudo usermod -aG docker $USER
 newgrp docker
 ```
 
-V primeru sprememb v kodi (karkoli v mapi `src`) ali ob ročnih spremembah v mapi `data` (vključno z ročnimi zagoni python skript) posodobimo docker image aplikacije:
-```
-docker compose restart app
-```
-Če pa imamo še kakšne infrastrukturne spremembe (uporabljene python knjižnice, `.env` ipd.), na novo zgradimo celotno strukturo:
+V primeru sprememb v kodi (karkoli v mapi `src`), ob ročnih spremembah v mapi `data` (vključno z ročnimi zagoni python skript) ali infrastrukturnih sprememb (uporabljene python knjižnice, `.env`, Dockerfile, Docker-compose ipd.) posodobimo aplikacijo:
 ```
 docker compose up -d --build
 ```

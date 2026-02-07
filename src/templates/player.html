@@ -6,7 +6,7 @@
 <div class="movie-page">
     <div class="description">
         <div class="cover"><img src="/movies/file{{ movie.cover }}" alt="Poster" class="{{ movie.recommendation_level }}"></div>
-        <h1><b>{{ movie.title }}</b>{{ movie.year }}<br><i style="opacity: 0.5;">{{ movie.original_title }}</i><div class="slosinh">{{ movie.slosinh }}</div></h1></br>
+        <h1><b>{{ movie.title }}</b>{{ movie.year }}<br><i class="original-title">{{ movie.original_title }}</i><div class="slosinh">{{ movie.slosinh }}</div></h1></br>
         <div class="genres">
             {% for genre in movie.genres %}
             <span class="genre-badge {{ genre|lower|replace(' ', '-') if genre in known_genres else 'unknown' }}">{{ genre }}</span>
@@ -58,7 +58,7 @@
         {% endif %}
     </div>
 
-    <div style="max-width: 100%; width: 1000px">
+    <div class="movie-player-right-side">
     <!-- Prikaz opozoril (samo admin) -->
     {% set admin_alerts = movie.user_notes.values()|selectattr('is_admin')|list %}
     {% if admin_alerts %}
@@ -70,7 +70,7 @@
                 <i class="bi {{ note.icon or 'bi-lightbulb-fill' }}"></i>{{ note.text }}
             </div>
             {% if current_user.is_authenticated and current_user.is_admin and view_as != "anonymous" and view_as != "user" %}
-            <div class="alert-actions" style="margin-top: 10px; display: flex; gap: 10px;">
+            <div class="alert-actions">
                 <button class="btn btn-sm btn-warning" onclick="editAlertOnPage(this, '{{ movie.folder }}', '{{ note.random_index }}')"><i class="bi bi-pencil"></i> Uredi</button>
                 <button class="btn btn-sm btn-danger" onclick="deleteAlertOnPage(this, '{{ movie.folder }}', '{{ note.random_index }}')"><i class="bi bi-trash"></i> Izbriši</button>
             </div>

@@ -13,40 +13,17 @@ html {
 }
 
 body {
-    margin: 0;
     font-family: Monospace;
-    padding-right: 0px;
-    padding-bottom: 0px;
-    padding-left: 0px;
     background: var(--pod-krinko-temno);
-}
-
-footer ul {
-  padding-left: 0rem;
-}
-
-footer li {
-  margin-bottom: 0px;
 }
 
 .game {
-    background: var(--pod-krinko-temno);
     color: white;
     min-height: 90vh;
 }
 
-h1 {
-    font-size: 40px;
-}
-
 li b {
     font-size: 25px;
-}
-
-.menu {
-    background: var(--pod-krinko-temno);
-    text-align: right;
-    display: none;
 }
 
 section {
@@ -91,6 +68,10 @@ section {
     /* Width of the outside container */
     font-size: 18px;
     color: white;
+}
+
+.nameInput {
+    background-color: rgba(255,255,255,0.05);
 }
 
 input {

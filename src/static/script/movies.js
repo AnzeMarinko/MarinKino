@@ -107,7 +107,7 @@ function renderMovieCard(movie) {
             <img src="/movies/file${movie.thumbnail}" alt="Poster" loading="lazy">
         </a>
 
-        <h3><b>${movie.title}</b>${movie.year}<br><i style="opacity: 0.5;">${movie.original_title}</i>
+        <h3><b>${movie.title}</b>${movie.year}<br><i class="original-title">${movie.original_title}</i>
             <div class="slosinh">${movie.slosinh}</div>
         </h3>
 

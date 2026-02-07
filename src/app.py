@@ -8,7 +8,6 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_login import LoginManager, current_user
 from flask_wtf.csrf import CSRFProtect
-from waitress import serve
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from blueprints import (
@@ -164,7 +163,4 @@ def apply_limiter():
 
 if __name__ == "__main__":
     log.info("Started server")
-    try:
-        serve(app, host="0.0.0.0", port=5000, threads=8)
-    except OSError:
-        app.run(host="0.0.0.0", port=5050)
+    app.run(host="0.0.0.0", port=5000, debug=True)

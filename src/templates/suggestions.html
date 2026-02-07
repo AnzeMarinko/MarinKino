@@ -3,7 +3,7 @@
 {% block title %}Predlogi in komentar{% endblock %}
 
 {% block content %}
-<div style="background: linear-gradient(135deg, #8a9fff 0%, #ff6e6e 100%); min-height: 100vh; padding: 60px 0;">
+<div class="suggestions">
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-lg-8">
@@ -51,9 +51,9 @@
                 </div>
 
                 <!-- Info Card -->
-                <div class="card border-0 shadow-lg rounded-3 overflow-hidden" style="background: linear-gradient(135deg, #fcffd9 0%, #faeee3 100%); border: 2px solid #4caf50;">
+                <div class="thanks card border-0 shadow-lg rounded-3 overflow-hidden">
                     <div class="card-body p-4 text-center">
-                        <div style="font-size: 2rem; margin-bottom: 1rem;">🎬</div>
+                        <div style="font-size: 2rem;">🎬</div>
                         <h3 class="h5 mb-2">Hvala za povratne informacije!</h3>
                         <p class="mb-0 text-muted">Vsak predlog je dragocen in mi pomaga, da MarinKino izboljšam.</p>
                     </div>
@@ -62,54 +62,6 @@
         </div>
     </div>
 </div>
-
-<style>
-    .form-select, .form-control {
-        border: 1px solid #ddd;
-        background-color: #f8f9fa;
-    }
-
-    .form-select:focus, .form-control:focus {
-        border-color: #667eea;
-        background-color: #fff;
-        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-    }
-
-    .status-message {
-        padding: 1rem;
-        border-radius: 0.5rem;
-        display: none;
-        animation: slideIn 0.3s ease-out;
-    }
-
-    .status-message.success {
-        display: block;
-        background-color: #d4edda;
-        color: #155724;
-        border: 1px solid #c3e6cb;
-    }
-
-    .status-message.error {
-        display: block;
-        background-color: #f8d7da;
-        color: #721c24;
-        border: 1px solid #f5c6cb;
-    }
-
-    @keyframes slideIn {
-        from {
-            opacity: 0;
-            transform: translateY(-10px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    .rounded-3 { border-radius: 1rem; }
-    .rounded-2 { border-radius: 0.5rem; }
-</style>
 
 <script>
 function submitSuggestion(event) {

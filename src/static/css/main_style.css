@@ -1,0 +1,21 @@
+:root {
+  --temno-zelena: #198754;
+  --modra: #0dcaf0;
+  --rdeca: #f5576c;
+  --vijolicna: #667eea;
+  --light-gray: #e0e0e0;
+
+  /* main page cards */
+  --vijolicna-background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --vijolicna-background-text: white;
+  --roza-background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  --roza-background-text: white;
+  --modra-background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  --modra-background-text: white;
+  --oranzna-background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  --oranzna-background-text: white;
+  --modrikasta-background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+  --modrikasta-background-text: black;
+  --marelicna-background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+  --marelicna-background-text: black;
+}

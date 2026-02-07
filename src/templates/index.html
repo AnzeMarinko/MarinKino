@@ -7,14 +7,14 @@
         <p class="lead text-muted">Središče kvalitetnega digitalnega razvedrila</p>
     </div>
 
-    <div class="row g-4">
+    <div class="counter-cards row g-4">
         <!-- Filmi -->
         <div class="col-md-6 col-lg-4">
             <a href="/movies?onlyrecommended=on" class="text-decoration-none">
                 <div class="card h-100 shadow-lg border-0 card-hover">
-                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center" style="min-height: 250px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center" style="background: var(--vijolicna-background);">
                         <div class="stat-icon mb-3">
-                            <i class="bi bi-film" style="font-size: 3rem; color: white;"></i>
+                            <i class="bi bi-film" style="color: var(--vijolicna-background-text);"></i>
                         </div>
                         <div class="stat-number display-2 fw-bold text-white">
                             <span class="counter" data-target="{{ movies_count }}">0</span>
@@ -29,9 +29,9 @@
         <div class="col-md-6 col-lg-4">
             <a href="/movies?onlyrecommended=on" class="text-decoration-none">
                 <div class="card h-100 shadow-lg border-0 card-hover">
-                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center" style="min-height: 250px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center" style="background: var(--roza-background);">
                         <div class="stat-icon mb-3">
-                            <i class="bi bi-clock-history" style="font-size: 3rem; color: white;"></i>
+                            <i class="bi bi-clock-history" style="color: var(--roza-background-text);"></i>
                         </div>
                         <div class="stat-number display-2 fw-bold text-white">
                             <span class="counter" data-target="{{ movies_duration }}">0</span>
@@ -46,9 +46,9 @@
         <div class="col-md-6 col-lg-4">
             <a href="/movies?movietype=01-zbirke-risank" class="text-decoration-none">
                 <div class="card h-100 shadow-lg border-0 card-hover">
-                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center" style="min-height: 250px; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center" style="background: var(--modra-background);">
                         <div class="stat-icon mb-3">
-                            <i class="bi bi-play-circle" style="font-size: 3rem; color: white;"></i>
+                            <i class="bi bi-play-circle" style="color: var(--modra-background-text);"></i>
                         </div>
                         <div class="stat-number display-2 fw-bold text-white">
                             <span class="counter" data-target="{{ cartoons_count }}">0</span>
@@ -67,9 +67,9 @@
         <div class="col-md-6 col-lg-4">
             <a href="/memes" class="text-decoration-none">
                 <div class="card h-100 shadow-lg border-0 card-hover">
-                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center" style="min-height: 250px; background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center" style="background: var(--oranzna-background);">
                         <div class="stat-icon mb-3">
-                            <i class="bi bi-emoji-smile" style="font-size: 3rem; color: white;"></i>
+                            <i class="bi bi-emoji-smile" style="color: var(--oranzna-background-text);"></i>
                         </div>
                         <div class="stat-number display-2 fw-bold text-white">
                             <span class="counter" data-target="{{ memes_count }}">0</span>
@@ -84,9 +84,9 @@
         <div class="col-md-6 col-lg-4">
             <a href="/music" class="text-decoration-none">
                 <div class="card h-100 shadow-lg border-0 card-hover">
-                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center" style="min-height: 250px; background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center" style="background: var(--modrikasta-background);">
                         <div class="stat-icon mb-3">
-                            <i class="bi bi-music-note-beamed" style="font-size: 3rem; color: #333;"></i>
+                            <i class="bi bi-music-note-beamed" style="color: var(--modrikasta-background-text);"></i>
                         </div>
                         <div class="stat-number display-2 fw-bold text-dark">
                             <span class="counter" data-target="{{ music_count }}">0</span>
@@ -101,9 +101,9 @@
         <div class="col-md-6 col-lg-4">
             <a href="/pod_krinko" class="text-decoration-none">
                 <div class="card h-100 shadow-lg border-0 card-hover">
-                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center" style="min-height: 250px; background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center" style="background: var(--marelicna-background);">
                         <div class="stat-icon mb-3">
-                            <i class="bi bi-people" style="font-size: 3rem; color: #333;"></i>
+                            <i class="bi bi-people" style="color: var(--marelicna-background-text);"></i>
                         </div>
                         <div class="stat-number display-2 fw-bold text-dark">
                             Pod krinko
@@ -115,39 +115,6 @@
         </div>
     </div>
 </div>
-
-<style>
-    .card-hover {
-        transition: all 0.3s ease;
-        cursor: pointer;
-    }
-
-    .card-hover:hover {
-        transform: translateY(-10px);
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2) !important;
-    }
-
-    .stat-number {
-        font-size: 4rem;
-        font-weight: 700;
-        line-height: 1;
-    }
-
-    .counter {
-        animation: fadeInScale 0.5s ease-out;
-    }
-
-    @keyframes fadeInScale {
-        from {
-            opacity: 0;
-            transform: scale(0.5);
-        }
-        to {
-            opacity: 1;
-            transform: scale(1);
-        }
-    }
-</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
