@@ -5,6 +5,4 @@
     python src/prepare_movies.py
 
 * izboljšaj izgled z nekom (postavitev delov strani ipd.)
-
-* nov release v1.2.0 glede na commit messages
 * pošlji prve predloge filmov na mail in dodaj, da se zadnji predlog pošlje tudi novemu uporabniku
