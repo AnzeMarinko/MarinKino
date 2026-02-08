@@ -1,40 +1,52 @@
 :root {
+  --marinkino-gray: #505c6d;
+  --marinkino-orange: #ef9918;
+  --marinkino-blue: #0db2e0;
+  --marinkino-red: #ee4a43;
+
   --temno-zelena: #198754;
-  --modra: #0dcaf0;
-  --rdeca: #f5576c;
-  --oranzna: #f79737;
-  --vijolicna: #667eea;
-  --modra-temnejsa: #2272cd;
-  --temno-rdeca: #721c24;
+  --zelena: #86af49;
+  --rumena: #ffcc5c;
 
-  --barva-komedija: #ffcc5c;
-  --barva-drama: #6b5b95;
-  --barva-romantika: #ff6f69;
-  --barva-pustolovscina: #86af49;
-  --barva-druzinski: #92a8d1;
-  --barva-akcija: #d9ad7c;
-  --barva-fantazijski: #eeac99;
-  --barva-drugi-zanri: #bd5734;
+  --vijolicna: color-mix(in srgb, var(--marinkino-red), var(--marinkino-blue));
+  --temno-rdeca: color-mix(in srgb, var(--marinkino-red), black 30%);
+  --temno-vijolicna: color-mix(in srgb, var(--vijolicna), black 30%);
+  --svetlo-oranzna: color-mix(in srgb, var(--marinkino-orange), white 70%);
+  --gorcicna: color-mix(in srgb, var(--marinkino-orange), var(--marinkino-gray) 20%);
+  --marelicna: color-mix(in srgb, var(--marinkino-red) 30%, var(--rumena));
+  --rdeckasto-rjava: color-mix(in srgb, var(--marinkino-red) 50%, var(--gorcicna));
 
-  /* main page cards */
-  --vijolicna-background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --vijolicna-neg-background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-  --vijolicna-background-text: white;
-  --roza-background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  --roza-background-text: white;
-  --vijolicno-rdeca-background: linear-gradient(135deg, #8a9fff 0%, #ff6e6e 100%);
-  --modra-background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-  --modra-background-text: white;
-  --oranzna-background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-  --oranzna-background-text: white;
-  --modrikasta-background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
-  --modrikasta-background-text: black;
-  --marelicna-background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
-  --marelicna-background-text: black;
-  --svetlo-rumena-background: linear-gradient(135deg, #fcffd9 0%, #faeee3 100%);
-  --oranzno-rdeca-background: linear-gradient(135deg, #ff9a56 0%, var(--rdeca) 100%);
-
-  --movie-page-background: linear-gradient(180deg,#FFEDC8 0%, #ffb8b8 100%);
+  --barva-komedija: var(--rumena);
+  --barva-drama: var(--vijolicna);
+  --barva-romantika: var(--marinkino-red);
+  --barva-pustolovscina: var(--zelena);
+  --barva-druzinski: var(--marinkino-blue);
+  --barva-akcija: var(--gorcicna);
+  --barva-fantazijski: var(--marelicna);
+  --barva-drugi-zanri: var(--rdeckasto-rjava);
+  
+  --movie-page-background: linear-gradient(
+    135deg, 
+    color-mix(in srgb, var(--marinkino-orange), white 70%) 0%, 
+    color-mix(in srgb, var(--marinkino-red), white 70%) 100%);
+  --oranzno-rdeca-background: linear-gradient(
+    135deg, 
+    color-mix(in srgb, var(--marinkino-red), white 20%) 0%, 
+    color-mix(in srgb, var(--marinkino-orange), white 20%) 100%);
+  --modro-rdeca-background: linear-gradient(
+    135deg, 
+    color-mix(in srgb, var(--marinkino-blue), white 20%) 0%, 
+    color-mix(in srgb, var(--marinkino-red), white 20%) 100%);
+  --music-background: linear-gradient(
+    135deg, 
+    color-mix(in srgb, var(--marinkino-blue), var(--marinkino-gray) 20%) 0%, 
+    color-mix(in srgb, var(--vijolicna), var(--marinkino-gray) 70%) 100%);
+  --music-neg-background: linear-gradient(
+    135deg, 
+    color-mix(in srgb, var(--vijolicna), var(--marinkino-gray) 70%) 0%, 
+    color-mix(in srgb, var(--marinkino-blue), var(--marinkino-gray) 20%) 100%);
+  --zelena-background: linear-gradient(135deg, var(--temno-zelena) 0%, white 100%);
+  --oranzno-zelena-background: linear-gradient(135deg, var(--svetlo-oranzna) 0%, var(--zelena) 100%);
 }
 
 *, *::before, *::after {

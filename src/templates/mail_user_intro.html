@@ -8,14 +8,14 @@
 <tr>
 <td align="center" style="padding:{{ '8px' if is_for_mail else '0px' }};">
 
-<table width="100%" style="max-width:600px;background:{{ '#ffffff' if is_for_mail else 'linear-gradient(135deg, #697bff 0%, #ff4a4a 100%)' }};border-radius:16px;padding:{{ '20px' if is_for_mail else '30px' }};{{ 'box-shadow: 0 4px 20px rgba(0,0,0,0.1);' if not is_for_mail else '' }}">
+<table width="100%" style="max-width:600px;background:{{ '#ffffff' if is_for_mail else 'var(--music-background)' }};border-radius:16px;padding:{{ '20px' if is_for_mail else '30px' }};{{ 'box-shadow: 0 4px 20px rgba(0,0,0,0.1);' if not is_for_mail else '' }}">
 
 <!-- HEADER -->
 <tr>
 <td align="center" style="padding:20px 0;">
-    <div style="background:{{ 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)' if is_for_mail else 'rgba(255,255,255,0.2)' }};width:100px;height:100px;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto;margin-bottom:15px;box-shadow:{{ '0 8px 24px rgba(102,126,234,0.3)' if not is_for_mail else 'none' }};">
+    <a href="https://{{ domain }}"><div style="background:{{ 'linear-gradient(135deg, #ef9918 0%, #ee4a43 100%)' if is_for_mail else 'rgba(255,255,255,0.2)' }};width:100px;height:100px;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto;margin-bottom:15px;box-shadow:{{ '0 8px 24px rgba(102,126,234,0.3)' if not is_for_mail else 'none' }};">
         <img src="https://{{ domain }}/static/logo.png" width="80" style="max-width:100%;height:auto;" alt="MarinKino">
-    </div>
+    </div></a>
     <h2 style="margin:0 0 8px;color:{{ '#333' if is_for_mail else '#ffffff' }};font-size:28px;font-weight:700;">
         Kratka navodila
     </h2>
@@ -48,9 +48,9 @@
     </p>
 </div>
 
-<div style="background:{{ 'rgba(245,158,11,0.1)' if is_for_mail else 'rgba(255,255,255,0.1)' }};border-left:4px solid {{ '#f59e0b' if is_for_mail else '#4facfe' }};padding:16px;border-radius:8px;margin-bottom:16px;">
+<div style="background:{{ 'rgba(245,158,11,0.1)' if is_for_mail else 'rgba(255,255,255,0.1)' }};border-left:4px solid {{ '#f59e0b' if is_for_mail else 'var(--rumena)' }};padding:16px;border-radius:8px;margin-bottom:16px;">
     <p style="margin:0;font-size:15px;color:{{ '#444' if is_for_mail else 'rgba(255,255,255,0.95)' }};font-weight:500;line-height:1.6;">
-        <b style="color:{{ '#f59e0b' if is_for_mail else '#4facfe' }};">Kako lahko prispevam?</b> Projekt je hobi brez resnih stroškov. Vesel sem predlogov za nove filme, 
+        <b style="color:{{ '#f59e0b' if is_for_mail else 'var(--rumena)' }};">Kako lahko prispevam?</b> Projekt je hobi brez resnih stroškov. Vesel sem predlogov za nove filme, 
         izboljšave strani ali opozoril o moteči vsebini (neprimernost za otroke, slaba kvaliteta podnapisov ...). Možnost za komentiranje je pod vsakim filmom ali zavihek "Predlogi". Vsa sporočila bom videl le jaz in opozorila k filmom po potrebi anonimno dodal na stran. Vnaprej hvala za sodelovanje!
     </p>
 </div>
@@ -127,7 +127,7 @@
 
 <a href="https://{{ domain }}"
    style="display:block;width:80%;padding:16px;
-          background:{{ 'linear-gradient(135deg, #f59e0b 0%, #ff6a88 100%)' if is_for_mail else 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)' }};color:{{ '#fff' if is_for_mail else '#333' }};font-size:16px;
+          background:{{ 'linear-gradient(135deg, #f59e0b 0%, #ff6a88 100%)' if is_for_mail else 'var(--svetlo-oranzna)' }};color:{{ '#fff' if is_for_mail else '#333' }};font-size:16px;
           font-weight:bold;text-decoration:none;
           border-radius:10px;text-align:center;box-shadow:{{ '0 4px 12px rgba(245,158,11,0.3)' if is_for_mail else '0 4px 16px rgba(0,0,0,0.1)' }};margin-left: auto;margin-right: auto;">
     🚀 Pojdi na domačo stran!

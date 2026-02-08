@@ -45,7 +45,7 @@ input, button {
     --watch: 0%;
     background-image: linear-gradient(
         to right,
-        var(--oranzna) var(--watch),
+        var(--marinkino-orange) var(--watch),
         #f7973733 var(--watch)
     );
     background-size: 100% 20px;
@@ -123,7 +123,7 @@ input, button {
     border-radius: 6px;
     font-weight: bold;
 }
-.movie-card .slosinh {color: var(--oranzna);}
+.movie-card .slosinh {color: var(--marinkino-orange);}
 
 .navbar .nav-link {
   position: relative;
@@ -133,8 +133,8 @@ input, button {
 }
 
 .navbar .nav-link:hover {
-  background-color: color-mix(in srgb, var(--modra-temnejsa), transparent 88%);
-  color: var(--modra-temnejsa);
+  background-color: color-mix(in srgb, var(--marinkino-blue), transparent 88%);
+  color: var(--marinkino-blue);
 }
 
 /* tanka črta spodaj */
@@ -145,7 +145,7 @@ input, button {
   right: 12px;
   bottom: 4px;
   height: 2px;
-  background: color-mix(in srgb, var(--modra-temnejsa), transparent 60%);
+  background: color-mix(in srgb, var(--marinkino-blue), transparent 60%);
   opacity: 0;
   transition: opacity 0.2s ease;
 }
@@ -155,34 +155,34 @@ input, button {
 }
 
 .navbar .nav-link:active {
-  background-color: color-mix(in srgb, var(--modra-temnejsa), transparent 20%);
+  background-color: color-mix(in srgb, var(--marinkino-blue), transparent 20%);
 }
 
 .btn-orange {
-  background-color: var(--oranzna);
-  border-color: var(--oranzna);
+  background-color: var(--marinkino-orange);
+  border-color: var(--marinkino-orange);
   color: white;
 }
 
 .btn-orange:hover {
-  background-color: color-mix(in srgb, var(--oranzna), transparent 80%);
-  border-color: var(--oranzna);
+  background-color: color-mix(in srgb, var(--marinkino-orange), transparent 80%);
+  border-color: var(--marinkino-orange);
   color: white;
 }
 
 .btn-orange:active {
-  background-color: var(--rdeca);
-  border-color: var(--rdeca);
+  background-color: var(--marinkino-red);
+  border-color: var(--marinkino-red);
 }
 
 .btn-check:checked + .btn {
-  background-color: var(--modra-temnejsa);
-  border-color: var(--modra-temnejsa);
+  background-color: var(--marinkino-blue);
+  border-color: var(--marinkino-blue);
   color: white;
 }
 
 .btn-check:hover + .btn {
-  background-color: color-mix(in srgb, var(--modra-temnejsa), transparent 60%);
+  background-color: color-mix(in srgb, var(--marinkino-blue), transparent 60%);
 }
 
 footer ul {
@@ -194,7 +194,7 @@ footer li {
 }
 
 .footer-link {
-  color: var(--modra-temnejsa);
+  color: var(--marinkino-blue);
   text-decoration: none;
 }
 
@@ -252,6 +252,10 @@ video {
         flex-direction: column;
         align-items: center;
     }
+
+    .movie-card:hover .description {
+        opacity: 0;
+    }
 }
 
 .movie-page img {
@@ -291,7 +295,7 @@ video {
 .movie-page .movie-player-right-side .alert-actions {
     margin-top: 10px; display: flex; gap: 10px;
 }
-.movie-page .slosinh {color: var(--oranzna);}
+.movie-page .slosinh {color: var(--marinkino-orange);}
 .original-title {opacity: 0.5;}
 
 button {
@@ -302,11 +306,11 @@ button {
     text-decoration: none;
     display: inline-block;
     margin: 4px;
-    background-color: var(--barva-komedija);
+    background-color: var(--rumena);
     --watch: 0%;
     background-image: linear-gradient(
         to right,
-        var(--rdeca) var(--watch),
+        var(--marinkino-red) var(--watch),
         transparent var(--watch)
     );
     background-size: 100% 15px;
@@ -318,18 +322,18 @@ button.subtitles {
     padding: 5px;
     font-size: 14px;
     margin: 2px;
-    background-color: var(--oranzna);
+    background-color: var(--marinkino-orange);
 }
 
 button:visited {
-  color: var(--rdeca);
+  color: var(--marinkino-red);
 }
 
 p.user {
     color: white;
 }
 p.user a {
-    color: var(--rdeca);
+    color: var(--marinkino-red);
 }
 
 a.button {
@@ -340,11 +344,11 @@ a.button {
     text-decoration: none;
     font-size: 12px;
     margin: 7px;
-    background-color: var(--barva-komedija);
+    background-color: var(--rumena);
     color: black;
 }
 a.button:hover {
-  background: var(--rdeca);
+  background: var(--marinkino-red);
 }
 a.button:visited {
   color: black;
@@ -377,14 +381,14 @@ video, img {
 }
 
 .izbira input[type="radio"]:checked + label {
-    background-color: var(--barva-pustolovscina);
+    background-color: var(--zelena);
     border-color: var(--temno-zelena);
     font-weight: bold;
 }
 
 .priporocilo input[type="radio"]:checked + label {
-    background-color: var(--barva-fantazijski);
-    border-color: var(--barva-drama);
+    background-color: var(--marelicna);
+    border-color: var(--temno-vijolicna);
     font-weight: bold;
 }
 
@@ -401,25 +405,25 @@ video, img {
 }
 
 .recommend {
-  box-shadow: 0 0 15px 5px var(--modra-temnejsa);
+  box-shadow: 0 0 15px 5px var(--marinkino-blue);
   transition: box-shadow 0.3s ease-in-out;
 }
 
 .warm-recommend {
-  box-shadow: 0 0 20px 10px var(--oranzna);
+  box-shadow: 0 0 20px 10px var(--marinkino-orange);
   transition: box-shadow 0.3s ease-in-out;
 }
 /* User Notes and Comments */
 .user-notes-section {
     background-color: #ffffff;
-    border-left: 4px solid var(--oranzna);
+    border-left: 4px solid var(--marinkino-orange);
     padding: 15px;
     margin: 20px 0;
     border-radius: 8px;
 }
 
 .user-notes-section h3 {
-    color: var(--oranzna);
+    color: var(--marinkino-orange);
     margin-top: 0;
 }
 
@@ -428,7 +432,7 @@ video, img {
     padding: 12px;
     margin: 10px 0;
     border-radius: 6px;
-    border-left: 3px solid var(--oranzna);
+    border-left: 3px solid var(--marinkino-orange);
     box-shadow: 0 2px 4px #0000001a;
 }
 
@@ -439,7 +443,7 @@ video, img {
 
 .admin-response {
     background-color: #e8f5ff;
-    border-left: 3px solid var(--modra-temnejsa);
+    border-left: 3px solid var(--marinkino-blue);
     padding: 10px;
     margin-top: 10px;
     border-radius: 4px;
@@ -451,7 +455,7 @@ video, img {
     padding: 20px;
     margin: 20px 0;
     border-radius: 8px;
-    border: 1px solid var(--oranzna);
+    border: 1px solid var(--marinkino-orange);
 }
 
 .comment-form-section h3 {
@@ -460,7 +464,7 @@ video, img {
 }
 
 .comment-form-section button {
-    background-color: var(--barva-komedija);
+    background-color: var(--rumena);
     color: black;
     font-weight: bold;
     padding: 10px 20px;
@@ -469,7 +473,7 @@ video, img {
 }
 
 .comment-form-section button:hover {
-    background-color: var(--oranzna);
+    background-color: var(--marinkino-orange);
     color: white;
 }
 
@@ -528,7 +532,7 @@ video, img {
     border-radius: 3px;
     font-size: 0.7rem;
     font-weight: bold;
-    background-color: var(--modra-temnejsa);
+    background-color: var(--marinkino-blue);
     color: white;
 }
 
@@ -539,8 +543,8 @@ video, img {
 }
 
 .user-note.note-type-opozorilo {
-    border-left: 4px solid var(--oranzna);
-    background-color: color-mix(in srgb, var(--oranzna), transparent 70%);
+    border-left: 4px solid var(--marinkino-orange);
+    background-color: color-mix(in srgb, var(--marinkino-orange), transparent 70%);
 }
 
 .user-note.note-type-ideja {
@@ -549,17 +553,17 @@ video, img {
 }
 
 .user-note.note-type-razmislek {
-    border-left: 4px solid var(--rdeca);
-    background-color: color-mix(in srgb, var(--rdeca), transparent 70%);
+    border-left: 4px solid var(--marinkino-red);
+    background-color: color-mix(in srgb, var(--marinkino-red), transparent 70%);
 }
 
 .admin-response {
-    border-left: 3px solid var(--modra-temnejsa);
-    background-color: color-mix(in srgb, var(--modra-temnejsa), transparent 70%);
+    border-left: 3px solid var(--marinkino-blue);
+    background-color: color-mix(in srgb, var(--marinkino-blue), transparent 70%);
     padding: 10px;
     margin-top: 10px;
     border-radius: 4px;
-    color: var(--modra-temnejsa);
+    color: var(--marinkino-blue);
     font-style: italic;
 }
 
@@ -571,7 +575,7 @@ video, img {
 .form-select:focus, .form-control:focus {
     border-color: var(--vijolicna);
     background-color: #fff;
-    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--modra-temnejsa), transparent 50%);
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--marinkino-blue), transparent 50%);
 }
 
 /* Popravka za form-check-inline - pravilna stilizacija */
@@ -598,7 +602,7 @@ video, img {
 
 .min-vh-100 { 
     min-height: 100vh; 
-    background: var(--marelicna-background); 
+    background: var(--movie-page-background); 
 }
 .rounded-3 { border-radius: 1rem; }
 .rounded-2 { border-radius: 0.5rem; }
@@ -635,17 +639,20 @@ video, img {
 }
 
 .suggestions {
-    background: var(--vijolicno-rdeca-background); 
+    background: var(--modro-rdeca-background); 
     min-height: 100vh; 
     padding: 60px 0;
+    margin: 20px;
+    border-radius: 12px;
 }
 
 .thanks {
-    background: var(--svetlo-rumena-background);
+    background: color-mix(in srgb, var(--rumena), white 80%);
 }
 
 .counter-cards .card-body {
     min-height: 250px;
+    border-radius: 12px;
 }
 .counter-cards .stat-icon {
     font-size: 3rem;

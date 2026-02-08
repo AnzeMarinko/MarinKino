@@ -3,6 +3,7 @@
 {% block title %}{{ pagetitle }}{% endblock %}
 
 {% block content %}
+<div style="padding: 30px;">
 <script src="https://cdn.plot.ly/plotly-3.3.1.min.js"></script>
 <h1>Nadzorna plošča</h1>
 
@@ -539,5 +540,6 @@ function submitAdminResponse(button) {
 // Učitaj komentarje ob nalaganju strani
 document.addEventListener('DOMContentLoaded', loadComments);
 </script>
+</div>
 
 {% endblock %}

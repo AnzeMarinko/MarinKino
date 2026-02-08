@@ -34,6 +34,9 @@ function attachHover(card) {
     if (!desc) return;
 
     card.addEventListener('mouseenter', () => {
+        if (window.innerWidth < 700) {
+            return;
+        }
         // Najprej ponastavi pozicijo
         desc.style.left = '100%';
         desc.style.right = 'auto';
@@ -341,5 +344,160 @@ function submitComment(event, movieFolder) {
         console.error('Error:', error);
         statusDiv.className = 'status-message error';
         statusDiv.textContent = 'Napaka pri pošiljanju komentarja. Poskusite ponovno.';
+    });
+}
+
+const ALERT_TYPES_PAGE = {
+    "opozorilo": "bi-exclamation-diamond-fill",
+    "ideja": "bi-lightbulb-fill",
+};
+
+function submitAlertOnPage(movieFolder) {
+    const text = document.getElementById('alert_text').value.trim();
+    const type = document.getElementById('alert_type').value;
+    const icon = ALERT_TYPES_PAGE[type] || 'bi-lightbulb-fill';
+    
+    if (!text) {
+        alert('Besedilo opozorila je obvezno');
+        return;
+    }
+    
+    const data = {
+        movieFolder: movieFolder,
+        text: text,
+        type: type,
+        icon: icon
+    };
+    
+    fetch('/movies/add-warning', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            "X-CSRFToken": document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            alert('Opozorilo je bilo dodano!');
+            document.getElementById('alert_text').value = '';
+            location.reload();
+        } else {
+            alert('Napaka: ' + result.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Napaka pri dodajanju opozorila');
+    });
+}
+
+let editingAlertData = {};
+
+function editAlertOnPage(button, movieFolder, index) {
+    const noteElement = button.closest('.user-note');
+    const noteHeader = noteElement.querySelector('.note-header');
+    const alertText = noteHeader.textContent.trim();
+    const alertType = noteElement.className.match(/note-type-(\w+)/)?.[1] || 'opozorilo';
+    
+    editingAlertData = {
+        movieFolder: movieFolder,
+        index: index
+    };
+    
+    document.getElementById('edit_alert_text').value = alertText;
+    document.getElementById('edit_alert_type').value = alertType;
+    document.getElementById('editAlertModal').style.display = 'block';
+}
+
+function closeEditAlertModal() {
+    document.getElementById('editAlertModal').style.display = 'none';
+    editingAlertData = {};
+}
+
+function saveEditedAlert() {
+    const text = document.getElementById('edit_alert_text').value.trim();
+    const type = document.getElementById('edit_alert_type').value;
+    const ALERT_TYPES_PAGE = {
+        "opozorilo": "bi-exclamation-diamond-fill",
+        "ideja": "bi-lightbulb-fill"
+    };
+    const icon = ALERT_TYPES_PAGE[type] || 'bi-lightbulb-fill';
+    
+    if (!text) {
+        alert('Besedilo opozorila je obvezno');
+        return;
+    }
+    
+    const data = {
+        movieFolder: editingAlertData.movieFolder,
+        warningIndex: editingAlertData.index,
+        text: text,
+        type: type,
+        icon: icon
+    };
+    
+    fetch('/movies/edit-warning', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            "X-CSRFToken": document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            alert('Opozorilo je bilo shranjeno!');
+            closeEditAlertModal();
+            location.reload();
+        } else {
+            alert('Napaka: ' + result.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Napaka pri shranjevanju opozorila');
+    });
+}
+
+window.onclick = function(event) {
+    const modal = document.getElementById('editAlertModal');
+    if (event.target === modal) {
+        closeEditAlertModal();
+    }
+}
+
+function deleteAlertOnPage(button, movieFolder, index) {
+    if (!confirm('Ali si prepričan, da želiš izbrisati to opozorilo?')) {
+        return;
+    }
+    
+    const data = {
+        movieFolder: movieFolder,
+        warningIndex: index
+    };
+    
+    fetch('/movies/delete-warning', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            "X-CSRFToken": document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            alert('Opozorilo je bilo izbrisano!');
+            location.reload();
+        } else {
+            alert('Napaka: ' + result.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Napaka pri brisanju opozorila');
     });
 }
