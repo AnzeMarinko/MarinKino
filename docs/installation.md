@@ -73,6 +73,12 @@ sudo nano /etc/fail2ban/filter.d/nginx-404.conf
 ```
 in vso vsebino zamenjajte z vsebino datoteke `configuration/fail2ban/filter.d/nginx-404.conf` (Shranite s pritiskom na CTRL+O in nato Enter, ter zaprete s CTRL+X).
 
+Dodajte konfiguracijo filtra za zavrnjene prijave:
+```
+sudo nano /etc/fail2ban/filter.d/marinkino-auth.conf
+```
+in vso vsebino zamenjajte z vsebino datoteke `configuration/fail2ban/filter.d/marinkino-auth.conf` (Shranite s pritiskom na CTRL+O in nato Enter, ter zaprete s CTRL+X).
+
 Zdaj odprite glavno konfiguracijo:
 ```
 sudo nano /etc/fail2ban/jail.local
@@ -89,6 +95,9 @@ in čez nekaj sekund preverite status:
 sudo systemctl restart fail2ban
 sudo fail2ban-client status
 ```
+
+preveri zapore
+sudo fail2ban-client status marinkino-auth
 
 ### 2. Naloži Docker in zgradi Docker compose
 Naloži Docker:

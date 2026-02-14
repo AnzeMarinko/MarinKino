@@ -194,7 +194,7 @@ def aux_rescale_captions(subtitles, speech):
         a, b = params
         return -compute_score(a, b)
 
-    bounds = [(0.93, 1.07), (-15, 15)]
+    bounds = [(0.93, 1.07), (-40, 40)]
     res = differential_evolution(objective, bounds, x0=[1.0, 0.0])
     best_a, best_b = res.x
     best_score = -res.fun
@@ -203,6 +203,9 @@ def aux_rescale_captions(subtitles, speech):
         f"Scale: {best_a * 100:.3f} %, Shift: {best_b:.3f} s, "
         f"Score improvement: {(best_score / current_score - 1) * 100:.2f} %"
     )
+
+    if best_score < current_score:
+        return 5, 1000, aux_get_subtitle_audio
 
     return best_a, best_b, aux_get_subtitle_audio
 
@@ -213,12 +216,12 @@ def rescale_subtitles(folder, subtitle_path, video_path, plot=False):
     if not os.path.exists(original_file):
         audio, speech = extract_audio(folder, video_path)
         subtitles = extract_subtitles(subtitle_path)
-        if subtitles and len(subtitles) >= 200:
+        if subtitles and len(subtitles) >= 5:
             log.info(f"⚙ Poravnavam podnapise: {video_path}")
             scale, shift, aux_get_subtitle_audio = aux_rescale_captions(
                 subtitles, speech
             )
-            if abs(scale - 1) < 0.05 and abs(shift) < 10:
+            if abs(scale - 1) < 0.05 and abs(shift) < 30:
                 generate_srt(0, 1, subtitles, original_file)
                 last_sub_end = subtitles[-1][1]
                 subtitles.append(
@@ -247,7 +250,10 @@ def rescale_subtitles(folder, subtitle_path, video_path, plot=False):
                     plt.title(os.path.basename(folder).replace(".", " "))
                     plt.show()
         else:
-            log.warning(f"Empy subtitles: {folder}")
+            log.warning(f"Empy subtitles: {subtitle_path}")
+            if "enSubs" in subtitle_path:
+                os.remove(subtitle_path)
+                return
         convert_srt_to_vtt(subtitle_path)
     elif not os.path.exists(subtitle_path.replace(".srt", ".vtt")):
         convert_srt_to_vtt(subtitle_path)

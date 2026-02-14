@@ -1,6 +1,6 @@
 [DEFAULT]
 # DODAJTE SVOJ IP, da se ne zaklenete ven!
-ignoreip = 127.0.0.1/8 ::1 46.248.70.168
+ignoreip = 127.0.0.1/8 ::1 46.248.70.168 172.16.0.0/12
 
 # Splošne nastavitve za vse zapore
 bantime  = 1h
@@ -56,3 +56,14 @@ banaction = %(banaction_allports)s
 bantime  = 1w
 findtime = 1d
 maxretry = 5
+
+[marinkino-auth]
+enabled = true
+port = http,https
+filter = marinkino-auth
+logpath = /home/marinko/Desktop/MarinKino/cache/logs/server/server_start_production_*.log
+maxretry = 5
+findtime = 600
+bantime = 3600
+chain = DOCKER-USER
+banaction = iptables-allports

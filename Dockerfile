@@ -26,4 +26,4 @@ RUN mkdir -p /app/cache/logs/server
 EXPOSE 5000
 
 # Run the application with waitress
-CMD ["waitress-serve", "--host=0.0.0.0", "--port=5000", "src.app:app"]
+CMD ["waitress-serve", "--host=0.0.0.0", "--port=5000", "--trusted-proxy=*/", "src.app:app"]

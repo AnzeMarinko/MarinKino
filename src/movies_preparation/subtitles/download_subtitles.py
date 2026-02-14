@@ -74,7 +74,7 @@ def fetch_html(url, tries=5):
     return None
 
 
-def search_podnapisi_safe(title, year):
+def search_podnapisi_safe(title, year, languages):
     title = re.sub(
         r"[^\w]+", " ", title.lower().replace(".slosinh", ""), flags=re.UNICODE
     )
@@ -88,30 +88,26 @@ def search_podnapisi_safe(title, year):
         return []
 
     soup = BeautifulSoup(html, "html.parser")
-    results = []
+    results = {}
+    final_list = []
 
-    for row in soup.select("tbody tr"):
-        lang = row.select_one("abbr.language span")
-        if not lang or lang.text.strip() not in ("sl", "en"):
-            continue
+    for row in soup.find_all("a"):
+        if row:
+            href = str(row.attrs.get("href"))
+            for lang in languages:
+                if (
+                    "/subtitles/" in href
+                    and f"/{lang}" in href
+                    and href.endswith("/download")
+                    and year in href
+                ):
+                    if len(
+                        results.get(lang, [])
+                    ) < 5 and base + href not in results.get(lang, []):
+                        results[lang] = results.get(lang, []) + [base + href]
+                        final_list.append(base + href)
 
-        title_link = row.select_one("td a[href^='/sl/subtitles/']")
-        if not title_link:
-            continue
-
-        aux_title = title_link.text
-        if year and str(year) not in aux_title:
-            continue
-
-        results.append(
-            {
-                "lang": lang.text.strip(),
-                "title": aux_title,
-                "link": base + title_link["href"],
-            }
-        )
-
-    return results[:5]
+    return final_list
 
 
 def download_podnapisi_safe(url, extract_path):
@@ -132,7 +128,7 @@ def get_subtitles(title, year, imdb_id, path, languages=["sl", "en"], num=3):
         return err
 
     # 2. podnapisi.net fallback
-    subs = search_podnapisi_safe(title, year)
+    subs = search_podnapisi_safe(title, year, languages)
     if subs:
         for sub in subs:
             download_podnapisi_safe(sub["link"], path)

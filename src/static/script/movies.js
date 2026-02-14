@@ -87,11 +87,9 @@ async function loadNextPage() {
     const data = await response.json();
 
     data.movies.forEach(movie => {
-        if (((localStorage.getItem("onlyunwatched") !== "true") | (movie.watch_ratio < 100)) & ((localStorage.getItem("onlyrecommended") !== "true") | (movie.recommendation_level != ""))) {
-            const card = renderMovieCard(movie);
-            grid.appendChild(card);
-            attachHover(card);
-        }
+        const card = renderMovieCard(movie);
+        grid.appendChild(card);
+        attachHover(card);
     });
 
     if (data.has_more) {
@@ -217,37 +215,53 @@ document.addEventListener("DOMContentLoaded", function () {
     const onlyunwatched_label = document.getElementById("onlyunwatchedlabel");
     if (!onlyunwatched_checkbox) return;
 
-    // preberi shranjeno vrednost
-    const onlyunwatched_saved = localStorage.getItem("onlyunwatched");
-
-    if (onlyunwatched_saved !== null) {
-        onlyunwatched_checkbox.checked = onlyunwatched_saved === "true";
-    }
     onlyunwatched_label.innerHTML = onlyunwatched_checkbox.checked ? "Prikaži pogledano" : "Skrij pogledano"
 
-    // ko uporabnik klikne, shrani
     onlyunwatched_checkbox.addEventListener("change", function () {
         onlyunwatched_label.innerHTML = onlyunwatched_checkbox.checked ? "Prikaži pogledano" : "Skrij pogledano"
-        localStorage.setItem("onlyunwatched", onlyunwatched_checkbox.checked);
     });
 
     const onlyrecommended_checkbox = document.getElementById("onlyrecommended");
     const onlyrecommended_label = document.getElementById("onlyrecommendedlabel");
     if (!onlyrecommended_checkbox) return;
 
-    // preberi shranjeno vrednost
-    const onlyrecommended_saved = localStorage.getItem("onlyrecommended");
-
-    if (onlyrecommended_saved !== null) {
-        onlyrecommended_checkbox.checked = onlyrecommended_saved === "true";
-    }
     onlyrecommended_label.innerHTML = onlyrecommended_checkbox.checked ? "Tudi brez priporočil" : "Samo priporočeni"
 
     // ko uporabnik klikne, shrani
     onlyrecommended_checkbox.addEventListener("change", function () {
         onlyrecommended_label.innerHTML = onlyrecommended_checkbox.checked ? "Tudi brez priporočil" : "Samo priporočeni"
-        localStorage.setItem("onlyrecommended", onlyrecommended_checkbox.checked);
     });
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+  const filterForm = document.querySelector('form');
+  if (!filterForm) return;
+
+  filterForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const params = new URLSearchParams();
+    
+    // Handle all form fields
+    formData.forEach((value, key) => {
+      params.append(key, value);
+    });
+    
+    // Handle checkboxes - ensure unchecked ones are included with "off" value
+    const checkboxes = this.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(checkbox => {
+      if (!params.has(checkbox.name)) {
+        params.append(checkbox.name, 'off');
+      }
+    });
+    
+    console.log('Filter params:', params.toString()); // Debug
+    
+    // Build new URL and navigate
+    const baseUrl = this.getAttribute('action') || window.location.pathname;
+    window.location.href = baseUrl + '?' + params.toString();
+  });
 });
 
 document.addEventListener("DOMContentLoaded", function () {

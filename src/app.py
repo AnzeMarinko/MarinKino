@@ -135,32 +135,6 @@ def home():
     return render_template("index.html", pagetitle="MarinKino", **stats)
 
 
-# Apply rate limiting after blueprint registration
-@app.before_request
-def apply_limiter():
-    if request.endpoint:
-        if request.endpoint == "auth.login":
-            limiter.limit(
-                "150 per 15 minutes",
-                key_func=lambda: "login:" + get_remote_address(),
-            )(lambda: None)()
-        elif request.endpoint == "auth.forgot_password":
-            limiter.limit(
-                "150 per 15 minutes",
-                key_func=lambda: "forgot:" + get_remote_address(),
-            )(lambda: None)()
-        elif request.endpoint == "auth.reset_password":
-            limiter.limit(
-                "150 per 15 minutes",
-                key_func=lambda: "reset:" + get_remote_address(),
-            )(lambda: None)()
-        elif request.endpoint == "misc.pod_krinko.new_words":
-            limiter.limit(
-                "150 per 15 minutes",
-                key_func=lambda: "pod_krinko:" + get_remote_address(),
-            )(lambda: None)()
-
-
 if __name__ == "__main__":
     log.info("Started server")
     app.run(host="0.0.0.0", port=5000, debug=True)

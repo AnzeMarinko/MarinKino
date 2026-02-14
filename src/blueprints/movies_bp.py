@@ -197,12 +197,18 @@ def index():
         new_settings = {}
         genre_filter = request.args.get("genre", movies_settings.get("genre", ""))
         sort = request.args.get("sort", movies_settings.get("sort", ""))
-        onlyunwatched = request.args.get("onlyunwatched")
-        onlyrecommended = request.args.get("onlyrecommended")
+        onlyunwatched = request.args.get(
+            "onlyunwatched", movies_settings.get("onlyunwatched", "off")
+        )
+        onlyrecommended = request.args.get(
+            "onlyrecommended", movies_settings.get("onlyrecommended", "off")
+        )
         movietype = request.args.get("movietype", movies_settings.get("movietype", ""))
         new_settings["genre"] = genre_filter
         new_settings["sort"] = sort
         new_settings["movietype"] = movietype
+        new_settings["onlyunwatched"] = onlyunwatched
+        new_settings["onlyrecommended"] = onlyrecommended
         redis_client.hset(user_key, "movies", json.dumps(new_settings))
 
         search_query = request.args.get("q", "").strip().lower()

@@ -66,6 +66,8 @@ def login():
             redis_client.incr(f"auth:login:{date.today().isoformat()[:7]}:{username}")
             return redirect(url_for("home"))
         else:
+            client_ip = request.headers.get("X-Real-IP", request.remote_addr)
+            log.warning(f"ZAVRNJENA_PRIJAVA IP: {client_ip} Uporabnik: {username}")
             redis_client.incr(f"auth:reject:{date.today().isoformat()[:7]}:{username}")
             error = "Napačno uporabniško ime ali geslo."
             flash(error, "error")
@@ -152,6 +154,8 @@ def forgot_password():
     if request.method == "POST":
         email = request.form.get("email", "").strip()
         username = find_user_by_email(email, users)
+        client_ip = request.headers.get("X-Real-IP", request.remote_addr)
+        log.warning(f"ZAHTEVA_ZA_GESLO IP: {client_ip} Email: {email}")
         if username:
             token = secrets.token_urlsafe(32)
             expiry = (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()

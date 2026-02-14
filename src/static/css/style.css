@@ -652,7 +652,10 @@ video, img {
 
 .counter-cards .card-body {
     min-height: 250px;
-    border-radius: 12px;
+    border-radius: 2em;
+}
+.counter-cards .card {
+    border-radius: 2em;
 }
 .counter-cards .stat-icon {
     font-size: 3rem;
