@@ -398,6 +398,52 @@ video, img {
     border: 2px solid var(--temno-zelena);
 }
 
+/* Rating modal styles */
+#ratingModal {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+}
+#ratingModal .rating-modal-inner {
+    background: #fff;
+    padding: 16px;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 520px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+.rating-row { display: flex; gap: 8px; align-items: center; margin: 8px 0; flex-wrap: wrap; }
+.rating-row label { cursor: pointer; }
+.rating-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+
+/* star rating */
+.star { font-size: 24px; color: #ddd; cursor: pointer; margin-right: 4px; }
+.star.selected { color: var(--marinkino-orange); }
+.stars { display: inline-flex; align-items: center; }
+
+/* Continuous icon fill: base (gray) + colored overlay clipped by width */
+.icons-wrapper { position: relative; display: inline-block; line-height: 0; font-size: 0; }
+.icons-wrapper .icons-base, .icons-wrapper .icons-fill { display: inline-block; }
+    .icons-wrapper i { font-size: 22px; vertical-align: middle; color: #bfbfbf; margin-right: 4px; }
+    .icons-wrapper .icons-fill { position: absolute; left: 0; top: 0; width: 100%; color: #6b6b6b; }
+    .icons-wrapper.stars i { color: #bfbfbf; }
+    .icons-wrapper.stars .icons-fill { color: #f6c85f; } /* gold for stars */
+    .icons-wrapper.exclaims .icons-fill { color: var(--marinkino-red, #e74c3c); }
+    .icons-wrapper.sexual .icons-fill { color: #8e44ad; } /* purple for sexual */
+    .icons-wrapper .icons-base i { color: #bfbfbf; }
+
+/* discrete age options */
+.age-options { display: inline-flex; gap: 6px; align-items: center; }
+.age-option { padding: 6px 8px; border-radius: 6px; background: #f0f0f0; cursor: pointer; border: 1px solid #ddd; }
+.age-option.selected { background: var(--marinkino-orange); color: white; border-color: var(--marinkino-orange); font-weight: bold; }
+
 .error {
     color: var(--terdeca);
     margin-bottom: 1rem;

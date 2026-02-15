@@ -515,3 +515,185 @@ function deleteAlertOnPage(button, movieFolder, index) {
         alert('Napaka pri brisanju opozorila');
     });
 }
+
+// ===== Rating prompt logic =====
+(() => {
+    let ratingNeeded = false;
+    let ratingShown = false;
+    let intendedNav = null;
+
+    function createRatingModal() {
+        if (document.getElementById('ratingModal')) return;
+        const modal = document.createElement('div');
+        modal.id = 'ratingModal';
+        modal.style.display = 'none';
+        modal.innerHTML = `
+            <div class="rating-modal-inner">
+                <h3>Oceni film</h3>
+                <div class="rating-row"><label>Koliko bi priporočali ogled?</label> <span class="stars" data-name="would-watch">${[1,2,3,4,5].map(i=>`<span class="star" data-value="${i}"><i class="bi bi-star-fill"></i></span>`).join('')}</span></div>
+                <div class="rating-row"><label>Prisotni prizori nasilja:</label> <span class="stars" data-name="violence">${[1,2,3,4,5].map(i=>`<span class="star" data-value="${i}"><i class="bi bi-exclamation-triangle-fill"></i></span>`).join('')}</span></div>
+                <div class="rating-row"><label>Prisotni prizori spolnosti:</label> <span class="stars" data-name="sexual">${[1,2,3,4,5].map(i=>`<span class="star" data-value="${i}"><i class="bi bi-exclamation-triangle-fill"></i></span>`).join('')}</span></div>
+                <div class="rating-row"><label>Primerno starostni skupini:</label> <span class="age-options" data-name="age_group">${[3,6,10,14,18].map(v=>`<span class="age-option" data-value="${v}">+${v}</span>`).join('')}</span></div>
+                <div class="rating-row"><label>Kvaliteta videa:</label> <span class="stars" data-name="video_quality">${[1,2,3,4,5].map(i=>`<span class="star" data-value="${i}"><i class="bi bi-film"></i></span>`).join('')}</span></div>
+                <div class="rating-row"><label>Kvaliteta podnapisov:</label> <span class="stars" data-name="subtitles_quality">${[1,2,3,4,5].map(i=>`<span class="star" data-value="${i}"><i class="bi bi-chat-dots-fill"></i></span>`).join('')}</span></div>
+                <div class="rating-actions">
+                    <button id="ratingSkip">Preskoči</button>
+                    <button id="ratingSubmit">Pošlji oceno</button>
+                </div>
+            </div>`;
+        document.body.appendChild(modal);
+
+        document.getElementById('ratingSkip').addEventListener('click', () => {
+            hideRatingModal();
+            if (intendedNav) window.location = intendedNav;
+        });
+
+        document.getElementById('ratingSubmit').addEventListener('click', () => {
+            submitRating().then(() => {
+                hideRatingModal();
+                if (intendedNav) window.location = intendedNav;
+            }).catch(() => { alert('Napaka pri pošiljanju ocene'); });
+        });
+
+        // wire up stars
+        modal.querySelectorAll('.stars').forEach(box => {
+            box.querySelectorAll('.star').forEach(item => {
+                item.addEventListener('click', () => {
+                    const v = parseInt(item.getAttribute('data-value'));
+                    box.querySelectorAll('.star').forEach(ei => {
+                        const sv = parseInt(ei.getAttribute('data-value'));
+                        if (sv <= v) ei.classList.add('selected'); else ei.classList.remove('selected');
+                    });
+                    box.setAttribute('data-selected', v);
+                });
+            });
+        });
+
+        // wire up age options (discrete choices)
+        modal.querySelectorAll('.age-options').forEach(box => {
+            box.querySelectorAll('.age-option').forEach(opt => {
+                opt.addEventListener('click', () => {
+                    box.querySelectorAll('.age-option').forEach(o => o.classList.remove('selected'));
+                    opt.classList.add('selected');
+                    box.setAttribute('data-selected', opt.getAttribute('data-value'));
+                });
+            });
+        });
+    }
+
+    function showRatingModal() {
+        createRatingModal();
+        ratingShown = true;
+        const m = document.getElementById('ratingModal');
+        m.style.display = 'flex';
+    }
+
+    // Expose function to open modal from templates
+    window.openRatingModal = function() {
+        showRatingModal();
+    };
+
+    function hideRatingModal() {
+        const m = document.getElementById('ratingModal');
+        if (m) m.style.display = 'none';
+        ratingNeeded = false;
+    }
+
+    async function submitRating() {
+        const movieFolder = document.getElementById('rating-summary')?.getAttribute('data-movie-folder');
+        if (!movieFolder) throw 'no movie folder';
+        const violence = parseInt(document.querySelector('.stars[data-name="violence"]')?.getAttribute('data-selected') || 0);
+        const sexual = parseInt(document.querySelector('.stars[data-name="sexual"]')?.getAttribute('data-selected') || 0);
+        const age_group = parseInt(document.querySelector('.age-options')?.getAttribute('data-selected') || 0);
+        const would_watch_again = parseInt(document.querySelector('.stars[data-name="would-watch"]')?.getAttribute('data-selected') || 0);
+        const video_quality = parseInt(document.querySelector('.stars[data-name="video_quality"]')?.getAttribute('data-selected') || 0);
+        const subtitles_quality = parseInt(document.querySelector('.stars[data-name="subtitles_quality"]')?.getAttribute('data-selected') || 0);
+        const token = document.querySelector('meta[name="csrf-token"]').content;
+
+        const res = await fetch('/movies/rate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': token },
+            body: JSON.stringify({ movieFolder, violence, sexual, age_group, would_watch_again, video_quality, subtitles_quality })
+        });
+        const json = await res.json();
+        if (json.status !== 'success') throw 'error';
+        // update summary on page
+        if (json.summary) {
+            document.getElementById('violence-avg').textContent = json.summary.violence.avg;
+            document.getElementById('violence-count').textContent = json.summary.violence.count;
+            document.getElementById('sexual-avg').textContent = json.summary.sexual.avg;
+            document.getElementById('sexual-count').textContent = json.summary.sexual.count;
+            document.getElementById('age-avg').textContent = json.summary.age_group.avg;
+            document.getElementById('age-count').textContent = json.summary.age_group.count;
+            if (json.summary.would_watch_again) {
+                document.getElementById('would-watch-avg').textContent = json.summary.would_watch_again.avg;
+                document.getElementById('would-watch-again-count').textContent = json.summary.would_watch_again.count;
+            }
+            if (json.summary.video_quality) {
+                document.getElementById('video-quality-count').textContent = json.summary.video_quality.count;
+            }
+            if (json.summary.subtitles_quality) {
+                document.getElementById('subtitles-quality-count').textContent = json.summary.subtitles_quality.count;
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const video = document.getElementById('videoPlayer');
+        if (!video) return;
+
+        // Check if this is a collection - if so, skip rating
+        const ratingElement = document.getElementById('rating-summary');
+        const isCollection = ratingElement && ratingElement.getAttribute('data-is-collection') === 'true';
+        
+        if (isCollection) return;
+
+        video.addEventListener('timeupdate', () => {
+            if (!video.duration) return;
+            if (video.currentTime / video.duration > 0.8) {
+                ratingNeeded = true;
+            }
+        });
+
+        window.addEventListener('beforeunload', (e) => {
+            if (ratingNeeded && !ratingShown) {
+                // Try to show our modal, but as backup, browser will show default dialog
+                // This prevents leaving without acknowledging
+                e.preventDefault();
+                e.returnValue = 'Želite oceniti film preden zapustite stran?';
+                // Also try to show our modal
+                setTimeout(() => {
+                    if (!ratingShown) {
+                        showRatingModal();
+                    }
+                }, 100);
+            }
+        });
+
+        // Also handle page unload to catch direct URL navigation
+        window.addEventListener('unload', () => {
+            if (ratingNeeded && !ratingShown) {
+                // Last attempt - this fires just before leaving
+                navigator.sendBeacon('/api/user-left-without-rating', JSON.stringify({
+                    movieFolder: document.getElementById('rating-summary')?.getAttribute('data-movie-folder')
+                }));
+            }
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && ratingNeeded && !ratingShown) {
+                showRatingModal();
+            }
+        });
+
+        // intercept navigation links
+        document.addEventListener('click', (e) => {
+            const a = e.target.closest('a');
+            if (a && ratingNeeded && !ratingShown) {
+                e.preventDefault();
+                intendedNav = a.href;
+                showRatingModal();
+            }
+        });
+    });
+})();

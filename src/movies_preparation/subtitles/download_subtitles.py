@@ -120,12 +120,15 @@ def download_podnapisi_safe(url, extract_path):
 def get_subtitles(title, year, imdb_id, path, languages=["sl", "en"], num=3):
     # 1. OpenSubtitles
     subs, err = search_opensubtitles(imdb_id, languages, num)
+    time.sleep(1)
     if subs:
         for i, sub in enumerate(subs):
             download_opensubtitles(sub, i, path)
-        return
+            time.sleep(10)
+        return True
     elif err == "RateLimitError":
-        return err
+        print("RateLimitError")
+        return False
 
     # 2. podnapisi.net fallback
     subs = search_podnapisi_safe(title, year, languages)

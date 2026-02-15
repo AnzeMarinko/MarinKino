@@ -325,3 +325,5 @@ class MovieMetadata:
         self.imdb_id = metadata.get("imdb_id", "")
         self.recommendation_level = metadata.get("recommendation_level", "")
         self.user_notes = metadata.get("user_notes", {})
+
+        self.ratings = metadata.get("ratings", {})

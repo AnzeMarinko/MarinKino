@@ -15,6 +15,103 @@
         <hr>
         <b>{{ movie.players }}</b></br>
         <hr>{{ movie.description }}
+        <hr>
+        <div id="rating-summary" data-movie-folder="{{ movie.folder }}" data-is-collection="{{ 'true' if is_collection else 'false' }}">
+            <h4>Ocene filma</h4>
+            <div>
+                <strong>Priporočilo uporabnikov:</strong>
+                <small>(<span id="would-watch-again-count">{{ movie.ratings_summary.would_watch_again.count if movie.ratings_summary and movie.ratings_summary.would_watch_again else 0 }}</span>)</small>
+                {% set w_avg = (movie.ratings_summary.would_watch_again.avg if movie.ratings_summary and movie.ratings_summary.would_watch_again and movie.ratings_summary.would_watch_again.avg else 0) %}
+                {% set w_pct = (w_avg / 5.0 * 100) if w_avg else 0 %}
+                <span class="icons-wrapper stars" aria-hidden="true">
+                    <span class="icons-base">
+                        {% for i in range(5) %}
+                        {% set diff = ([w_avg|float - i, 0] | max) %}
+                        {% set w_pct = ([diff, 1] | min) * 100 %}
+                        <i style="color: color-mix(in srgb, var(--marinkino-orange) {{ w_pct }}%, #bfbfbf {{ 100 - w_pct }}%)" class="bi bi-star-fill"></i>
+                    {% endfor %}
+                </span>
+            </div>
+            {% set v_avg = (movie.ratings_summary.violence.avg if movie.ratings_summary and movie.ratings_summary.violence and movie.ratings_summary.violence.avg else 0) %}
+            {% if v_avg > 2 %}
+            <div>
+                <strong>Nasilje:</strong>
+                <small>(<span id="violence-count">{{ movie.ratings_summary.violence.count if movie.ratings_summary and movie.ratings_summary.violence else 0 }}</span>)</small>
+                
+                <span class="icons-wrapper stars" aria-hidden="true">
+                    <span class="icons-base">
+                        {% for i in range(5) %}
+                        {% set diff = ([v_avg|float - i, 0] | max) %}
+                        {% set v_pct = ([diff, 1] | min) * 100 %}
+                        <i style="color: color-mix(in srgb, var(--marinkino-orange) {{ v_pct }}%, #bfbfbf {{ 100 - v_pct }}%)" class="bi bi-exclamation-triangle-fill"></i>
+                    {% endfor %}
+                </span>
+            </div>
+            {% endif %}
+            {% set s_avg = (movie.ratings_summary.sexual.avg if movie.ratings_summary and movie.ratings_summary.sexual and movie.ratings_summary.sexual.avg else 0) %}
+            {% if s_avg > 2 %}
+            <div>
+                <strong>Spolnost:</strong>
+                <small>(<span id="sexual-count">{{ movie.ratings_summary.sexual.count if movie.ratings_summary and movie.ratings_summary.sexual else 0 }}</span>)</small>
+                
+                <span class="icons-wrapper sexual" aria-hidden="true">
+                    <span class="icons-base">
+                        {% for i in range(5) %}
+                        {% set diff = ([s_avg|float - i, 0] | max) %}
+                        {% set s_pct = ([diff, 1] | min) * 100 %}
+                        <i style="color: color-mix(in srgb, var(--marinkino-orange) {{ s_pct }}%, #bfbfbf {{ 100 - s_pct }}%)" class="bi bi-exclamation-triangle-fill"></i>
+                    {% endfor %}
+                </span>
+            </div>
+            {% endif %}
+            {% set age_avg = (movie.ratings_summary.age_group.avg if movie.ratings_summary and movie.ratings_summary.age_group and movie.ratings_summary.age_group.avg else 0) %}
+            {% if age_avg > 3 %}
+            <div style="margin: 10px;">
+                <strong>Primerno starostni skupini:</strong>
+                <small>(<span id="age-count">{{ movie.ratings_summary.age_group.count if movie.ratings_summary and movie.ratings_summary.age_group else 0 }}</span>)</small>
+                <span class="age-display">
+                    
+                    <span class="age-option {% if age_avg and (a == (age_avg|round(0, 'common')|int or a)) %}selected{% endif %}">+{{ age_avg | int }}</span>
+                </span>
+            </div>
+            {% endif %}
+            {% set vq_avg = (movie.ratings_summary.video_quality.avg if movie.ratings_summary and movie.ratings_summary.video_quality and movie.ratings_summary.video_quality.avg else 0) %}
+            {% if vq_avg > 0 %}
+            <div>
+                <strong>Kvaliteta videa:</strong>
+                <small>(<span id="video-quality-count">{{ movie.ratings_summary.video_quality.count if movie.ratings_summary and movie.ratings_summary.video_quality else 0 }}</span>)</small>
+                
+                <span class="icons-wrapper stars" aria-hidden="true">
+                    <span class="icons-base">
+                        {% for i in range(5) %}
+                        {% set diff = ([vq_avg|float - i, 0] | max) %}
+                        {% set vq_pct = ([diff, 1] | min) * 100 %}
+                        <i style="color: color-mix(in srgb, var(--marinkino-orange) {{ vq_pct }}%, #bfbfbf {{ 100 - vq_pct }}%)" class="bi bi-film"></i>
+                    {% endfor %}
+                </span>
+            </div>
+            {% endif %}
+            {% set sq_avg = (movie.ratings_summary.subtitles_quality.avg if movie.ratings_summary and movie.ratings_summary.subtitles_quality and movie.ratings_summary.subtitles_quality.avg else 0) %}
+            {% if sq_avg > 0 and subtitles %}
+            <div>
+                <strong>Kvaliteta podnapisov:</strong>
+                <small>(<span id="subtitles-quality-count">{{ movie.ratings_summary.subtitles_quality.count if movie.ratings_summary and movie.ratings_summary.subtitles_quality else 0 }}</span>)</small>
+                
+                <span class="icons-wrapper stars" aria-hidden="true">
+                    <span class="icons-base">
+                        {% for i in range(5) %}
+                        {% set diff = ([sq_avg|float - i, 0] | max) %}
+                        {% set sq_pct = ([diff, 1] | min) * 100 %}
+                        <i style="color: color-mix(in srgb, var(--marinkino-orange) {{ sq_pct }}%, #bfbfbf {{ 100 - sq_pct }}%)" class="bi bi-chat-dots-fill"></i>
+                    {% endfor %}
+                </span>
+            </div>
+            {% endif %}
+
+            <div style="margin-top:8px;">
+                <button type="button" class="btn btn-primary" onclick="openRatingModal()">Oceni film</button>
+            </div>
+        </div>
     {% if subtitle_buttons %}</br>
         <hr>Podnapisi (izberete v predvajalniku med možnostmi): {% for subtitle in subtitle_buttons %}<button class="subtitles">{{ subtitle }}</button> {% endfor %}
         {% endif %}</br>

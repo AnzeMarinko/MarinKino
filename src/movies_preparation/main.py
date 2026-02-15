@@ -14,10 +14,7 @@ def check_folder(folder, only_collect_metadata=True):
     folder_path = Path(folder)
     output_films = []
 
-    if (
-        not only_collect_metadata
-        and "06-the-chosen" not in str(folder_path).lower()
-    ):
+    if not only_collect_metadata and "0x-neurejeni-filmi" in str(folder_path).lower():
         videos = convert_videos(str(folder_path))
 
         if videos:
@@ -28,9 +25,7 @@ def check_folder(folder, only_collect_metadata=True):
     if get_videos_list(str(folder_path)):
         output_films.append(MovieMetadata(str(folder_path)))
 
-    subfolders = sorted(
-        [f for f in folder_path.iterdir() if f.is_dir()], reverse=True
-    )
+    subfolders = sorted([f for f in folder_path.iterdir() if f.is_dir()], reverse=True)
 
     if subfolders:
         iterator = (

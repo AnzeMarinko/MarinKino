@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 from pathlib import Path
 
 from .download_subtitles import get_subtitles
@@ -18,8 +19,8 @@ def prepare_subtitles(folder, video_file, metadata):
     folder_name_lower = folder_path.name.lower()
 
     # Preverimo, če gre za slovensko vsebino
-    is_slovenian_content = (
-        "slosinh" in folder_name_lower or "slovenski-filmi" in str(folder_path)
+    is_slovenian_content = "slosinh" in folder_name_lower or "slovenski-filmi" in str(
+        folder_path
     )
 
     # Prenos podnapisov, če jih ni
@@ -44,10 +45,7 @@ def prepare_subtitles(folder, video_file, metadata):
     if (
         (
             not existing_srts
-            or (
-                "0x-neurejeni-filmi" in folder
-                and "SloSubs-auto" in "".join(metadata.subtitles)
-            )
+            or "SloSubs-auto" in "".join([str(f) for f in existing_srts])
         )
         and not is_slovenian_content
         and metadata.imdb_id
@@ -68,31 +66,34 @@ def prepare_subtitles(folder, video_file, metadata):
 
     elif (
         (
-            # "0x-neurejeni-filmi" in folder and  # TODO to nekoč odkomentiraj, ko bodo povsod tudi angleški podnapisi
-            "SloSubs" in "".join(metadata.subtitles)
-            and "enSubs" not in "".join(metadata.subtitles)
+            "SloSubs" in "".join([str(f) for f in existing_srts])
+            and "enSubs" not in "".join([str(f) for f in existing_srts])
         )
         and not is_slovenian_content
         and metadata.imdb_id
     ):
         log.info(f"🔍 Pridobivam angleške podnapise za: {folder_path.name}")
         try:
-            get_subtitles(
+            if get_subtitles(
                 metadata.title,
                 metadata.year,
                 metadata.imdb_id,
                 str(folder_path),
                 languages=["en"],
                 num=1,
-            )
-            os.rename(
-                f"{folder_path}/subtitle0.en.srt",
-                f"{folder_path}/subtitles-enSubs.srt",
-            )
-            # Ponovno osvežimo seznam po prenosu
-            existing_srts = list(folder_path.glob("*.srt"))
+            ):
+                os.rename(
+                    f"{folder_path}/subtitle0.en.srt",
+                    f"{folder_path}/subtitles-enSubs.srt",
+                )
+                # Ponovno osvežimo seznam po prenosu
+                existing_srts = list(folder_path.glob("*.srt"))
+            else:
+                log.info(f"❌ Ni angleških podnapisov za: {folder_path.name}")
+                pass
         except Exception as e:
-            log.error(f"❌ Napaka pri branju metapodatkov ali prenosu: {e}")
+            log.error(f"❌ Napaka pri prenosu: {e}")
+        time.sleep(10)
 
     elif not is_slovenian_content and metadata.imdb_id:
         # Preverimo sumljive situacije z več podnapisi

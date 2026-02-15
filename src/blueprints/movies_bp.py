@@ -22,7 +22,14 @@ from flask import (
 from flask_login import current_user, login_required
 
 from movies_preparation import FILMS_ROOT, check_folder
-from utils import FLASK_ENV, is_current_admin_view, redis_client, safe_path
+from utils import (
+    FLASK_ENV,
+    is_current_admin_view,
+    redis_client,
+    safe_path,
+    send_mail,
+    users,
+)
 
 log = logging.getLogger(__name__)
 
@@ -99,6 +106,7 @@ all_films = {
         "recommendation_level": m.recommendation_level,
         "user_notes": m.user_notes,
         "is_chosen_series": m.is_chosen_series,
+        "ratings": m.ratings,
     }
     for i, m in enumerate(check_folder(FILMS_ROOT))
 }
@@ -342,12 +350,15 @@ def play_movie(movies_subfolder, movie_folder):
     video_files = film["video_files"]
     subtitles = film["subtitles"]
     subtitle_buttons = film["subtitle_buttons"]
+    ratings = film["ratings"]
 
     if len(video_files) > 0:
         slosubs_file = None
         for subs in subtitles:
             if "slo" in subs.lower() or "si" in subs.lower():
                 slosubs_file = subs
+        film["ratings_summary"] = _compute_ratings_summary(ratings)
+
         return render_template(
             "player.html",
             pagetitle=film["title"] + film["year"],
@@ -382,6 +393,166 @@ def play_movie(movies_subfolder, movie_folder):
     else:
         log.error("No video files!")
         return "", 404
+
+
+def _compute_ratings_summary(ratings):
+    # ratings may be lists of raw values or dicts like {"user": id, "value": v}
+    def extract(vals):
+        out = []
+        for v in vals or []:
+            if isinstance(v, dict):
+                out.append(v.get("value"))
+            else:
+                out.append(v)
+        return out
+
+    def summary(key):
+        vals = [x for x in extract(ratings.get(key, [])) if x is not None]
+        try:
+            nums = [float(x) for x in vals]
+        except Exception:
+            nums = []
+        if not nums:
+            return {"count": 0, "avg": None}
+        return {
+            "count": len(nums),
+            "avg": round(sum(nums) / len(nums), 1 if "age" not in key else 0),
+        }
+
+    return {
+        "would_watch_again": summary("would_watch_again"),
+        "violence": summary("violence"),
+        "sexual": summary("sexual"),
+        "age_group": summary("age_group"),
+        "video_quality": summary("video_quality"),
+        "subtitles_quality": summary("subtitles_quality"),
+    }
+
+
+@movies_bp.route("/movies/rate", methods=["POST"])
+@login_required
+def rate_movie():
+    try:
+        data = json.loads(request.data)
+        movie_folder = data.get("movieFolder")
+        if not movie_folder or movie_folder not in all_films:
+            return {"status": "error", "message": "Film ne obstaja"}, 404
+
+        violence = int(data.get("violence", 0))
+        sexual = int(data.get("sexual", 0))
+        age_group = int(data.get("age_group", 0))
+        would_watch = int(data.get("would_watch_again", 0))
+        video_quality = int(data.get("video_quality", 0))
+        subtitles_quality = int(data.get("subtitles_quality", 0))
+
+        metadata_file = os.path.join(FILMS_ROOT, movie_folder[1:], "readme.json")
+        with open(metadata_file, "r", encoding="utf-8") as f:
+            movie_metadata = json.loads(f.read())
+
+        if "ratings" not in movie_metadata:
+            movie_metadata["ratings"] = {
+                "violence": [],
+                "sexual": [],
+                "age_group": [],
+                "would_watch_again": [],
+                "video_quality": [],
+                "subtitles_quality": [],
+            }
+
+        user_id = getattr(current_user, "id", None) or str(current_user)
+
+        def upsert(key, value):
+            lst = movie_metadata["ratings"].setdefault(key, [])
+            # find existing entry by user
+            for item in lst:
+                if item.get("user") == user_id:
+                    item["value"] = value
+                    return
+            # otherwise append
+            lst.append({"user": user_id, "value": value})
+
+        # store when provided
+        if 1 <= violence <= 5:
+            upsert("violence", int(violence))
+        if 1 <= sexual <= 5:
+            upsert("sexual", int(sexual))
+        if 1 <= would_watch <= 5:
+            upsert("would_watch_again", int(would_watch))
+        if 1 <= video_quality <= 5:
+            upsert("video_quality", int(video_quality))
+        if 1 <= subtitles_quality <= 5:
+            upsert("subtitles_quality", int(subtitles_quality))
+        try:
+            # age_group might be years (any positive int)
+            if age_group and int(age_group) > 0:
+                upsert("age_group", int(age_group))
+        except Exception:
+            pass
+
+        with open(metadata_file, "w", encoding="utf-8") as f:
+            json.dump(movie_metadata, f, ensure_ascii=False, indent=4)
+
+        # update in-memory
+        all_films[movie_folder]["ratings"] = movie_metadata.get("ratings", {})
+
+        summary = _compute_ratings_summary(movie_metadata.get("ratings", {}))
+        log.info(f"New ratings added to {movie_folder}. New ratings: {summary}")
+
+        # Pošlji obvestilo administratorju o novih ocenah
+        try:
+            movie_title = all_films[movie_folder].get("title", movie_folder)
+            admin_email = users.get("admin", {}).get(
+                "emails", [os.getenv("GMAIL_USERNAME")]
+            )[0]
+            user_name = getattr(current_user, "username", str(current_user))
+
+            # Pripravi povzetek ocen
+            ratings_html = "<ul>"
+            if violence:
+                ratings_html += f"<li><strong>Nasilje:</strong> {violence}/5</li>"
+            if sexual:
+                ratings_html += f"<li><strong>Spolnost:</strong> {sexual}/5</li>"
+            if would_watch:
+                ratings_html += (
+                    f"<li><strong>Priporočilo:</strong> {would_watch}/5</li>"
+                )
+            if video_quality:
+                ratings_html += (
+                    f"<li><strong>Kvaliteta videa:</strong> {video_quality}/5</li>"
+                )
+            if subtitles_quality:
+                ratings_html += f"<li><strong>Kvaliteta podnapisov:</strong> {subtitles_quality}/5</li>"
+            if age_group:
+                ratings_html += (
+                    f"<li><strong>Primerna starost:</strong> +{age_group}</li>"
+                )
+            ratings_html += "</ul>"
+
+            email_html = f"""
+            <h2>Nove ocene za film: {movie_title}</h2>
+            <p><strong>Uporabnik:</strong> {user_name}</p>
+            <h3>Podane ocene:</h3>
+            {ratings_html}
+            <hr>
+            <p><a href="{os.getenv("DUCKDNS_DOMAIN")}/movies/play{movie_folder}">Pojdi na film</a></p>
+            """
+
+            send_mail(
+                to=[admin_email],
+                subject=f"Nove ocene za film: {movie_title}",
+                html=email_html,
+            )
+            log.info(
+                f"Obvestilo o novih ocenah poslan administratorju za film {movie_folder}"
+            )
+        except Exception as e:
+            log.error(f"Napaka pri pošiljanju obvestila o ocenah: {e}")
+
+        return {"status": "success"}, 200
+
+    except Exception as e:
+        log.error(f"Napaka pri shranjevanju ocene: {e}")
+        return {"status": "error", "message": "Napaka pri obdelavi ocene"}, 500
 
 
 @movies_bp.route("/movies/remove/<movies_subfolder>/<movie_folder>", methods=["POST"])
@@ -651,9 +822,6 @@ def add_comment():
         else:
             movie_title = "Splošno"
 
-        # Pošlji obvestilo administratorju
-        from utils import send_mail, users
-
         admin_email = users.get("admin", {}).get(
             "emails", [os.getenv("GMAIL_USERNAME")]
         )[0]
@@ -756,9 +924,6 @@ def admin_comment():
             movie_title = all_films[movie_folder]["title"]
         else:
             movie_title = "Splošno"
-
-        # Pošlji email avtorju komentarja
-        from utils import send_mail
 
         user_email = movie_metadata["user_notes"][comment_index]["email"]
 
