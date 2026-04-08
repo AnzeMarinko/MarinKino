@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.css">
+<style>
+.markdown-preview {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    min-height: 200px;
+}
+.markdown-preview h1, .markdown-preview h2, .markdown-preview h3 {
+    margin-top: 20px;
+}
+.markdown-preview p {
+    margin: 10px 0;
+}
+</style>
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">{{ "Nova objava" if not post else "Uredi objavo" }}</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Naslov *</label>
+                            <input type="text" class="form-control" id="title" name="title" value="{{ post.title if post else '' }}" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="subtitle" class="form-label">Podnaslov</label>
+                            <input type="text" class="form-control" id="subtitle" name="subtitle" value="{{ post.subtitle if post else '' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="excerpt" class="form-label">Izvleček</label>
+                            <textarea class="form-control" id="excerpt" name="excerpt" rows="3">{{ post.excerpt if post else '' }}</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="published" name="published" value="1" {% if post and post.get('published', False) %}checked{% endif %}>
+                                <label class="form-check-label" for="published">
+                                    Objavi javno
+                                </label>
+                                <div class="form-text">Če ni označeno, bo objava vidna samo administratorjem.</div>
+                            </div>
+                        </div>
+                        
+                        {% if post %}
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="alert alert-info">
+                                    <strong>Ustvarjena:</strong> {{ post.created_at_display }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="alert alert-info">
+                                    <strong>Objavljena:</strong> 
+                                    {% if post.get('published_at_display') %}
+                                        {{ post.published_at_display }}
+                                    {% else %}
+                                        <em>Še ni objavljena</em>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Slika objave</label>
+                            {% if post and post.image %}
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h6 class="card-title">Trenutna slika</h6>
+                                    <img src="{{ post.image }}" alt="Trenutna slika" class="img-fluid mb-2" style="max-height: 200px;">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="remove_image" name="remove_image" value="1">
+                                        <label class="form-check-label" for="remove_image">
+                                            Odstrani trenutno sliko
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="card-title">Naloži novo sliko</h6>
+                                    <input type="file" class="form-control" id="image_file" name="image_file" accept="image/*">
+                                    <div class="form-text">Naložite sliko s svojega računalnika. Datoteka se bo shranila na strežnik.{% if post and post.image %} Če naložite novo sliko, bo zamenjala trenutno.{% endif %}</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="image_desc" class="form-label">Opis slike</label>
+                            <input type="text" class="form-control" id="image_desc" name="image_desc" value="{{ post.image_desc if post else '' }}" placeholder="Opis slike za dostopnost in SEO">
+                            <div class="form-text">Opis slike se uporablja za alt atribut in izboljša dostopnost ter SEO.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="content" class="form-label">Vsebina (Markdown) *</label>
+                            <ul class="nav nav-tabs" id="editor-tabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="edit-tab" data-bs-toggle="tab" data-bs-target="#edit-pane" type="button" role="tab" aria-controls="edit-pane" aria-selected="true">Urejanje</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="preview-tab" data-bs-toggle="tab" data-bs-target="#preview-pane" type="button" role="tab" aria-controls="preview-pane" aria-selected="false">Predogled</button>
+                                </li>
+                            </ul>
+                            <div class="tab-content border p-3" id="editor-tab-content">
+                                <div class="tab-pane fade show active" id="edit-pane" role="tabpanel" aria-labelledby="edit-tab">
+                                    <textarea id="content-editor" name="content">{% if post %}{{ post.content }}{% endif %}</textarea>
+                                </div>
+                                <div class="tab-pane fade" id="preview-pane" role="tabpanel" aria-labelledby="preview-tab">
+                                    <div id="content-preview" class="markdown-preview"></div>
+                                </div>
+                            </div>
+                            <div class="form-text">
+                                Uporabite Markdown za oblikovanje: # naslov, ## podnaslov, *ležeče*, **krepko**, [povezava](url), itd.
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">{{ "Ustvari" if not post else "Posodobi" }}</button>
+                            <a href="/admin/blog" class="btn btn-outline-secondary">Prekliči</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var simplemde = new SimpleMDE({
+        element: document.getElementById("content-editor"),
+        spellChecker: false,
+        status: false,
+        toolbar: [
+            "bold", "italic", "heading", "|",
+            "code", "quote", "unordered-list", "ordered-list", "|",
+            "link", "image", "|",
+            "guide"
+        ],
+        previewRender: false
+    });
+
+    function updatePreview() {
+        const markdown = simplemde.value();
+        if (markdown) {
+            const html = marked.parse(markdown);
+            document.getElementById('content-preview').innerHTML = html;
+        } else {
+            document.getElementById('content-preview').innerHTML = '<p class="text-muted">Predogled se bo prikazal tukaj</p>';
+        }
+    }
+
+    simplemde.codemirror.on('change', updatePreview);
+
+    document.getElementById('preview-tab').addEventListener('shown.bs.tab', function (e) {
+        updatePreview();
+    });
+
+    updatePreview();
+});
+</script>
+{% endblock %}

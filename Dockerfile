@@ -17,7 +17,7 @@ COPY src ./src
 COPY credentials ./credentials
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -e .
+RUN pip install --default-timeout=1000 --no-cache-dir -e .
 
 # Create necessary directories
 RUN mkdir -p /app/cache/logs/server
@@ -26,4 +26,4 @@ RUN mkdir -p /app/cache/logs/server
 EXPOSE 5000
 
 # Run the application with waitress
-CMD ["waitress-serve", "--host=0.0.0.0", "--port=5000", "--trusted-proxy=*/", "src.app:app"]
+CMD ["waitress-serve", "--host=0.0.0.0", "--port=5000", "--trusted-proxy=*", "src.app:app"]

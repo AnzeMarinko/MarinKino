@@ -12,24 +12,45 @@
     <link rel="stylesheet" href="/static/css/style.css">
 {% endif %}
 
-<meta name="keywords" content="MarinKino, Filmi, Risanke, Glasba, SloFlix, Šale, Družinski, Anže, Marinko">
+{% if not current_user.is_authenticated or view_as == "anonymous" %}
+<meta name="keywords" content="Blog, Anže, Marinko, Sončnice, Rože dobrega">
+<meta name="description" content="Rože dobrega - blog Anžeta Marinka">
+<meta property="og:site_name" content="Sončnice">
+<meta property="og:description" content="{{ og_description if og_description else 'Rože dobrega - blog Anžeta Marinka' }}">
+<meta property="og:title" content="{{ og_title if og_title else 'Sončnice' }}">
+{% else %}
+<meta name="keywords" content="MarinKino, Filmi, Risanke, Glasba, SloFlix, Šale, Družinski, Anže, Marinko, Blog, Sončnice, Rože dobrega">
 <meta name="description" content="Zbirka kvalitetnega digitalnega razvedrila">
-<meta name="author" content="Anže Marinko">
-<link rel="icon" type="image/x-icon" href="https://{{ domain }}/static/favicon_io/favicon.ico">
-<link rel="apple-touch-icon" sizes="180x180" href="https://{{ domain }}/static/favicon_io/apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="32x32" href="https://{{ domain }}/static/favicon_io/favicon-32x32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="https://{{ domain }}/static/favicon_io/favicon-16x16.png">
-<link rel="icon" type="image/png" sizes="192x192" href="https://{{ domain }}/static/favicon_io/android-chrome-192x192.png">
-<link rel="icon" type="image/png" sizes="512x512" href="https://{{ domain }}/static/favicon_io/android-chrome-512x512.png">
-<link rel="manifest" href="https://{{ domain }}/static/favicon_io/site.webmanifest">
-<link rel="shortcut icon" href="https://{{ domain }}/static/favicon_io/favicon.ico">
-<meta name="theme-color" content="#9cc6f7">
-<meta name="msapplication-TileColor" content="#9cc6f7">
-
-<!-- Facebook Meta Tags -->
-<meta property="og:title" content="MarinKino">
-<meta property="og:type" content="website">
-<meta property="og:url" content="https://{{ domain }}">
-<meta property="og:image" content="https://{{ domain }}/static/favicon_io/android-chrome-512x512.png">
 <meta property="og:site_name" content="MarinKino">
-<meta property="og:description" content="Zbirka kvalitetnega digitalnega razvedrila">
+<meta property="og:description" content="{{ og_description if og_description else 'Zbirka kvalitetnega digitalnega razvedrila' }}">
+<meta property="og:title" content="{{ og_title if og_title else 'MarinKino' }}">
+{% endif %}
+<meta name="author" content="Anže Marinko">
+<meta name="theme-color" content="#ffcc5c">
+<meta name="msapplication-TileColor" content="#ffcc5c">
+{% if blog_view == "blog" %}
+<link rel="icon" type="image/x-icon" href="/static/blog_favicon_io/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="/static/blog_favicon_io/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/blog_favicon_io/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/static/blog_favicon_io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/static/blog_favicon_io/android-chrome-192x192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/static/blog_favicon_io/android-chrome-512x512.png">
+<link rel="manifest" href="/static/blog_favicon_io/site.webmanifest">
+<link rel="shortcut icon" href="/static/blog_favicon_io/favicon.ico">
+{% else %}
+<link rel="icon" type="image/x-icon" href="/static/favicon_io/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="/static/favicon_io/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon_io/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/static/favicon_io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/static/favicon_io/android-chrome-192x192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/static/favicon_io/android-chrome-512x512.png">
+<link rel="manifest" href="/static/favicon_io/site.webmanifest">
+<link rel="shortcut icon" href="/static/favicon_io/favicon.ico">
+<meta property="og:image" content="https://{{ domain }}/static/favicon_io/android-chrome-512x512.png">
+{% endif %}
+{% if og_image %}
+<meta property="og:image" content="{{ og_image }}">
+<meta property="og:image:secure_url" content="{{ og_image }}">
+{% endif %}
+<meta property="og:type" content="website">
+<meta property="og:url" content="{{ og_url if og_url else 'https://' + domain }}">

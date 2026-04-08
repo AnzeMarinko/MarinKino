@@ -203,7 +203,7 @@ def get_movie_metadata(folder, film, video_files):
 
     if "Collection" in folder:
         log.error("Missing data for collection: " + film)
-        return {}, "static/logo.png"
+        # return {}, "static/logo.png"
 
     result = {"Film": film}
     film_aux = re.sub(r"\b(19|20)\d{2}\b", "", film.replace("Collection", ""))

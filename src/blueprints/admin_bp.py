@@ -1,10 +1,13 @@
 import json
 import logging
 import os
+from datetime import date, datetime, timezone
 
 import pandas as pd
 from flask import (
     Blueprint,
+    abort,
+    flash,
     redirect,
     render_template,
     request,
@@ -12,6 +15,7 @@ from flask import (
     url_for,
 )
 from flask_login import current_user, login_required
+from werkzeug.utils import secure_filename
 
 from movies_preparation.config import LOG_FILENAME
 from utils import is_current_admin_view, redis_client
@@ -22,11 +26,41 @@ admin_bp = Blueprint("admin", __name__)
 
 users = {}
 
+BLOG_DATA_FILE = os.path.join(
+    os.path.dirname(__file__), "..", "..", "data", "blog_posts.json"
+)
+BLOG_IMAGES_DIR = os.path.join(os.path.dirname(__file__), "..", "static", "blog_images")
+
+
+def save_blog_image(file):
+    if not file:
+        return None
+    filename = secure_filename(file.filename)
+    if not filename:
+        return None
+    os.makedirs(BLOG_IMAGES_DIR, exist_ok=True)
+    filepath = os.path.join(BLOG_IMAGES_DIR, filename)
+    file.save(filepath)
+    return f"/static/blog_images/{filename}"
+
 
 def init_admin_bp(_users):
     """Initialize blueprint with app context"""
     global users
     users = _users
+
+
+def load_blog_posts():
+    if os.path.exists(BLOG_DATA_FILE):
+        with open(BLOG_DATA_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
+def save_blog_posts(posts):
+    os.makedirs(os.path.dirname(BLOG_DATA_FILE), exist_ok=True)
+    with open(BLOG_DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(posts, f, ensure_ascii=False, indent=2)
 
 
 @admin_bp.route("/admin")
@@ -309,6 +343,28 @@ def admin_panel():
         top_movies, key=lambda x: x["total_ratio"], reverse=True
     )[:20]
 
+    # Blog statistics
+    blog_views_daily = {}
+    total_views = 0
+    blog_total_hash = redis_client.hgetall("blog:views:total")
+    for date, views in blog_total_hash.items():
+        blog_views_daily[date] = int(views)
+        total_views += int(views)
+
+    blog_posts = load_blog_posts()
+    blog_stats = []
+    for post_id, post in blog_posts.items():
+        views_key = f"blog:views:{post_id}"
+        post_views = sum(int(v) for v in redis_client.hvals(views_key))
+        blog_stats.append(
+            {
+                "id": post_id,
+                "title": post["title"],
+                "views": post_views,
+                "created_at": post["created_at"],
+            }
+        )
+
     return render_template(
         "admin.html",
         pagetitle="MarinKino - Nadzorna plošča",
@@ -323,6 +379,9 @@ def admin_panel():
         access_stats_monthly=access_stats_monthly_dict,
         monthly_columns=monthly_columns,
         top_movies=top_movies_sorted,
+        blog_views_daily=blog_views_daily,
+        blog_stats=blog_stats,
+        total_blog_views=total_views,
     )
 
 
@@ -350,3 +409,187 @@ def clear_view_as():
 
     session.pop("view_as", None)
     return redirect(request.referrer or url_for("admin.admin_panel"))
+
+
+@admin_bp.route("/admin/blog")
+@login_required
+def admin_blog():
+    if not is_current_admin_view(current_user):
+        return redirect(url_for("home"))
+
+    posts = load_blog_posts()
+    sorted_posts = sorted(
+        posts.values(), key=lambda x: x.get("created_at", ""), reverse=True
+    )
+
+    # Get view stats for each post and format dates
+    for post in sorted_posts:
+        views_key = f"blog:views:{post['id']}"
+        post["views"] = sum(int(v) for v in redis_client.hvals(views_key))
+        # Format dates
+        if post.get("created_at"):
+            try:
+                dt = datetime.fromisoformat(post["created_at"].replace("Z", "+00:00"))
+                post["created_at_formatted"] = dt.strftime("%d.%m.%Y")
+            except:
+                post["created_at_formatted"] = post.get("created_at", "")
+        if post.get("published_at"):
+            try:
+                dt = datetime.fromisoformat(post["published_at"].replace("Z", "+00:00"))
+                post["published_at_formatted"] = dt.strftime("%d.%m.%Y")
+            except:
+                post["published_at_formatted"] = post.get("published_at", "")
+
+    return render_template("admin_blog.html", posts=sorted_posts)
+
+
+@admin_bp.route("/admin/blog/new", methods=["GET", "POST"])
+@login_required
+def admin_blog_new():
+    if not is_current_admin_view(current_user):
+        return redirect(url_for("home"))
+
+    if request.method == "POST":
+        title = request.form.get("title")
+        subtitle = request.form.get("subtitle")
+        content = request.form.get("content")
+        image = request.form.get("image")
+        excerpt = request.form.get("excerpt")
+        image_desc = request.form.get("image_desc")
+        published = request.form.get("published") == "1"
+        image_file = request.files.get("image_file")
+
+        if not title or not content:
+            flash("Naslov in vsebina sta obvezna.", "error")
+            return redirect(request.url)
+
+        # Handle image upload
+        if image_file and image_file.filename:
+            uploaded_image = save_blog_image(image_file)
+            if uploaded_image:
+                image = uploaded_image
+
+        posts = load_blog_posts()
+        # post_id made out of title and current timestamp to avoid collisions
+        # convert title to a slug-like format by replacing spaces with underscores and removing special characters (ščćž and their uppercase variants)
+        slug_title = (
+            "".join(c if c.isalnum() else "_" for c in title.lower())
+            .strip("_")
+            .replace("š", "s")
+            .replace("č", "c")
+            .replace("ć", "c")
+            .replace("ž", "z")
+        )
+        post_id = f"{slug_title}_{date.today().isoformat()}"
+        now = datetime.now(timezone.utc).isoformat()
+        posts[post_id] = {
+            "id": post_id,
+            "title": title,
+            "subtitle": subtitle,
+            "content": content,
+            "image": image,
+            "image_desc": image_desc,
+            "excerpt": excerpt,
+            "published": published,
+            "created_at": now,
+            "published_at": now if published else None,
+        }
+        save_blog_posts(posts)
+        flash("Blog objava ustvarjena.", "success")
+        return redirect(url_for("admin.admin_blog"))
+    return render_template("admin_blog_edit.html", post=None)
+
+
+@admin_bp.route("/admin/blog/edit/<post_id>", methods=["GET", "POST"])
+@login_required
+def admin_blog_edit(post_id):
+    if not is_current_admin_view(current_user):
+        return redirect(url_for("home"))
+
+    posts = load_blog_posts()
+    post = posts.get(post_id)
+    if not post:
+        abort(404)
+
+    if request.method == "POST":
+        title = request.form.get("title")
+        subtitle = request.form.get("subtitle")
+        content = request.form.get("content")
+        excerpt = request.form.get("excerpt")
+        image_desc = request.form.get("image_desc")
+        published = request.form.get("published") == "1"
+        image_file = request.files.get("image_file")
+        remove_image = request.form.get("remove_image") == "1"
+
+        if not title or not content:
+            flash("Naslov in vsebina sta obvezna.", "error")
+            return redirect(request.url)
+
+        # Start with current image
+        image = post.get("image")
+
+        # Handle image removal and upload
+        if remove_image:
+            image = None
+        elif image_file and image_file.filename:
+            uploaded_image = save_blog_image(image_file)
+            if uploaded_image:
+                image = uploaded_image
+
+        # Update published_at if just published
+        published_at = post.get("published_at")
+        if published and not published_at:
+            published_at = datetime.now(timezone.utc).isoformat()
+        elif not published:
+            published_at = None
+
+        posts[post_id] = {
+            "id": post_id,
+            "title": title,
+            "subtitle": subtitle,
+            "content": content,
+            "image": image,
+            "image_desc": image_desc,
+            "excerpt": excerpt,
+            "published": published,
+            "created_at": post.get(
+                "created_at", datetime.now(timezone.utc).isoformat()
+            ),
+            "published_at": published_at,
+        }
+        save_blog_posts(posts)
+        flash("Blog objava posodobljena.", "success")
+        return redirect(url_for("admin.admin_blog"))
+
+    # Format dates for display
+    if post:
+        if post.get("created_at"):
+            try:
+                dt = datetime.fromisoformat(post["created_at"].replace("Z", "+00:00"))
+                post["created_at_display"] = dt.strftime("%d.%m.%Y %H:%M")
+            except:
+                post["created_at_display"] = post.get("created_at", "")
+        if post.get("published_at"):
+            try:
+                dt = datetime.fromisoformat(post["published_at"].replace("Z", "+00:00"))
+                post["published_at_display"] = dt.strftime("%d.%m.%Y %H:%M")
+            except:
+                post["published_at_display"] = post.get("published_at", "")
+
+    return render_template("admin_blog_edit.html", post=post)
+
+
+@admin_bp.route("/admin/blog/delete/<post_id>", methods=["POST"])
+@login_required
+def admin_blog_delete(post_id):
+    if not is_current_admin_view(current_user):
+        return redirect(url_for("home"))
+
+    posts = load_blog_posts()
+    if post_id in posts:
+        del posts[post_id]
+        save_blog_posts(posts)
+        # Delete view stats
+        redis_client.delete(f"blog:views:{post_id}")
+        flash("Blog objava izbrisana.", "success")
+    return redirect(url_for("admin.admin_blog"))

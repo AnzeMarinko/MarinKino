@@ -1,12 +1,25 @@
 # Predlogi za filme
+* dva ali trije na letni čas:
+  * risanka/animirani/komedija/družinski,
+  * drama/romanca,
+  * (krščanski)
 
-## Februar 2026
-1. [Vrvež v moji glavi](https://anzemarinko.duckdns.org/movies/play/02-animirani-filmi/Inside.Out.2015.SloSinh)
-2. [Cinderella Man](https://anzemarinko.duckdns.org/movies/play/04-drugi-filmi/Cinderella.Man.2005)
-3. [The Chosen S1E1](https://anzemarinko.duckdns.org/movies/play/06-the-chosen/Season_1-Episode_1)
-
-## Marec 2026
-1. [Svižčev dan](https://anzemarinko.duckdns.org/movies/play/04-drugi-filmi/Groundhog.Day.1993)
+## Pomlad 2026 (marec)
 2. [Kristusov Pasijon](https://anzemarinko.duckdns.org/movies/play/04-drugi-filmi/The.Passion.Of.The.Christ)
 
-kasneje postopoma The Chosen, da je za post 2027 sezona 5
+## Poletje 2026 (junij)
+1. [Vrvež v moji glavi](https://anzemarinko.duckdns.org/movies/play/02-animirani-filmi/Inside.Out.2015.SloSinh)
+2. [Cinderella Man](https://anzemarinko.duckdns.org/movies/play/04-drugi-filmi/Cinderella.Man.2005)
+3. [Prva sezona The Chosen](https://anzemarinko.duckdns.org/movies/play/06-the-chosen/Season_1-Episode_1)
+
+## Jesen 2026 (september)
+3. [Druga sezona The Chosen](https://anzemarinko.duckdns.org/movies/play/06-the-chosen/Season_2-Episode_1)
+
+## Zima 2026 (december)
+1. [The Star](https://anzemarinko.duckdns.org/movies/play/02-animirani-filmi/The.Star.2017)
+3. [Tretja sezona The Chosen](https://anzemarinko.duckdns.org/movies/play/06-the-chosen/Season_3-Episode_1)
+
+## Pomlad 2027 (marec)
+3. [Četrta sezona The Chosen](https://anzemarinko.duckdns.org/movies/play/06-the-chosen/Season_4-Episode_1)
+
+2027 pridobi 6. sezono The Chosen in 2028 še 7. sezono

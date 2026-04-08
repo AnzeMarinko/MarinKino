@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="text-center mb-5">
+        <h3 class="display-6 fw-bold mb-3">Rože dobrega</h3>
+        <p class="lead text-muted">Blog</p>
+    </div>
+
+    <div class="row">
+        {% for post in posts %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100 shadow-sm">
+                {% if post.image %}
+                <a href="/blog/{{ post.id }}"><img src="{{ post.image }}" class="card-img-top" alt="{{ post.title }}"></a>
+                {% endif %}
+                <div class="card-body">
+                    <h5 class="card-title">{{ post.title }}</h5>
+                    <p class="card-text text-muted">{{ post.excerpt|truncate(100) }}</p>
+                    <p class="card-text"><small class="text-muted">{{ post.created_at_display }}</small></p>
+                    <a href="/blog/{{ post.id }}" class="btn btn-outline-primary">Preberi več</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -2,7 +2,7 @@ import logging
 import os
 from datetime import date, timedelta
 
-from flask import Flask, render_template, request, session
+from flask import Flask, redirect, render_template, request, session
 from flask_compress import Compress
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -15,6 +15,7 @@ from blueprints import (
     MUSIC_COUNT,
     admin_bp,
     auth_bp,
+    blog_bp,
     get_movies_statistics,
     init_admin_bp,
     init_auth_bp,
@@ -111,6 +112,7 @@ def load_user(user_id):
 # Register blueprints
 app.register_blueprint(auth_bp)
 app.register_blueprint(admin_bp)
+app.register_blueprint(blog_bp)
 app.register_blueprint(movies_bp)
 app.register_blueprint(memes_bp)
 app.register_blueprint(music_bp)
@@ -130,9 +132,9 @@ def home():
         stats = get_movies_statistics()
         stats["music_count"] = MUSIC_COUNT
         stats["memes_count"] = MEMES_COUNT
+        return render_template("index.html", pagetitle="MarinKino", **stats)
     else:
-        stats = {}
-    return render_template("index.html", pagetitle="MarinKino", **stats)
+        return redirect("/blog")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2">Upravljanje bloga</h1>
+        <a href="/admin/blog/new" class="btn btn-primary">Nova objava</a>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Blog objave</h5>
+                </div>
+                <div class="card-body">
+                    {% if posts %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Naslov</th>
+                                    <th>Status</th>
+                                    <th>Ustvarjena</th>
+                                    <th>Objavljena</th>
+                                    <th>Ogledi</th>
+                                    <th>Akcije</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for post in posts %}
+                                <tr>
+                                    <td>{{ post.title }}</td>
+                                    <td>
+                                        {% if post.get('published', False) %}
+                                        <span class="badge bg-success">Objavljeno</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Skrito</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ post.created_at_formatted }}</td>
+                                    <td>{% if post.get('published_at_formatted') %}{{ post.published_at_formatted }}{% else %}-{% endif %}</td>
+                                    <td>{{ post.views|default(0) }}</td>
+                                    <td>
+                                        <a href="/blog/{{ post.id }}" class="btn btn-sm btn-outline-info" target="_blank">Ogled</a>
+                                        <a href="/admin/blog/edit/{{ post.id }}" class="btn btn-sm btn-outline-secondary">Uredi</a>
+                                        <form method="post" action="/admin/blog/delete/{{ post.id }}" class="d-inline" onsubmit="return confirm('Ali res želite izbrisati to objavo?')">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">Izbriši</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">Ni še nobene objave.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Statistika bloga</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Skupaj objav:</strong> {{ posts|length }}</p>
+                    <p><strong>Skupaj ogledov:</strong> {{ posts|sum(attribute='views')|default(0) }}</p>
+                    <!-- Add daily views chart here if needed -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

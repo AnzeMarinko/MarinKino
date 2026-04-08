@@ -3,8 +3,8 @@
 
     <!-- LOGO + NASLOV -->
     <a class="navbar-brand d-flex align-items-center gap-2" href="/">
-      <img src="/static/logo.png" height="36">
-      <strong>MarinKino</strong>
+      <img {% if blog_view == "blog" %}src="/static/blog_favicon_io/android-chrome-512x512.png"{%else%}src="/static/logo.png"{% endif %} height="36">
+      <strong>{% if not current_user.is_authenticated or view_as == "anonymous" or blog_view == "blog" %}Sončnice{% else %}MarinKino{% endif %}</strong>
     </a>
 
     <!-- HAMBURGER -->
@@ -17,18 +17,23 @@
 
       <!-- LEVI MENI -->
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        {% if not current_user.is_authenticated or view_as == "anonymous" %}
+       {% else %}
+        <li class="nav-item"><a class="nav-link" href="/blog">Blog</a></li>
         <li class="nav-item"><a class="nav-link" href="/movies">Filmi</a></li>
-        <li class="nav-item"><a class="nav-link" href="/memes" {% if not current_user.is_authenticated or view_as == "anonymous" %} style="opacity: 0.5;" {% endif %}>Šale & navdihi</a></li>
-        <li class="nav-item"><a class="nav-link" href="/music" {% if not current_user.is_authenticated or view_as == "anonymous" %} style="opacity: 0.5;" {% endif %}>Glasba</a></li>
+        <li class="nav-item"><a class="nav-link" href="/memes">Šale & navdihi</a></li>
+        <li class="nav-item"><a class="nav-link" href="/music">Glasba</a></li>
         <li class="nav-item"><a class="nav-link" href="/pod_krinko">Pod krinko</a></li>
-        <li class="nav-item"><a class="nav-link" href="/suggestions" {% if not current_user.is_authenticated or view_as == "anonymous" %} style="opacity: 0.5;" {% endif %}>Predlogi</a></li>
-        <li class="nav-item"><a class="nav-link" href="/help" {% if not current_user.is_authenticated or view_as == "anonymous" %} style="opacity: 0.5;" {% endif %}>Pomoč</a></li>
+        <li class="nav-item"><a class="nav-link" href="/suggestions">Predlogi</a></li>
+        <li class="nav-item"><a class="nav-link" href="/help">Pomoč</a></li>
+      {% endif %}
       </ul>
 
       <!-- DESNI DEL: UPORABNIK -->
       <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-2">
         <span class="text-secondary">
-          Bog daj <span id="greeting"></span>, <strong>{{ current_user.id }}</strong>
+          Bog daj <span id="greeting"></span>{% if not current_user.is_authenticated or view_as == "anonymous" %}
+       {% else %}, <strong>{{ current_user.id }}</strong>{% endif %}
           <script>
             function getGreeting() {
                 const hour = new Date().getHours();
@@ -69,10 +74,7 @@
 </nav>
 
 {% if not is_music %}
-  <div style="padding-top: 80px;"></div>
-{% endif %}
-{% if not current_user.is_authenticated or view_as == "anonymous" %}
-<a href="/login"><div class="alert alert-danger text-center">Potrebna prijava!</div></a>
+  <div style="padding-top: 50px;"></div>
 {% endif %}
 
 <div id="flash-container" class="position-fixed top-0 start-50 translate-middle-x mt-3" style="z-index: 1055;">

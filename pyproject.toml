@@ -43,4 +43,5 @@ dependencies = [
   "mutagen",
   "redis",
   "yt-dlp",
+  "markdown",
 ]
