@@ -149,5 +149,5 @@ echo "⏳ Počakajmo, da se vse zažene ..."
 sleep 5
 
 echo "✅🎉 KONČANO! Tvoja aplikacija je dostopna na https://$DOMAIN"
-echo "Poglej log-e: docker compose logs -f"
+echo "Poglej log-e: docker compose logs -f app"
 echo "Ustavi celotno storitev: docker compose down"

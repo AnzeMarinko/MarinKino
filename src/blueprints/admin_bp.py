@@ -8,6 +8,7 @@ from flask import (
     Blueprint,
     abort,
     flash,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -353,17 +354,58 @@ def admin_panel():
 
     blog_posts = load_blog_posts()
     blog_stats = []
+    total_reading_time = 0
     for post_id, post in blog_posts.items():
         views_key = f"blog:views:{post_id}"
         post_views = sum(int(v) for v in redis_client.hvals(views_key))
+        reading_time = 0
+        for key in redis_client.scan_iter(f"blog:reading:{post_id}:*"):
+            parts = key.split(":")
+            if len(parts) >= 4:
+                reading_data = redis_client.hgetall(key)
+                for time_str in reading_data.values():
+                    time_seconds = int(time_str)
+                    total_reading_time += time_seconds
+                    reading_time += time_seconds
         blog_stats.append(
             {
                 "id": post_id,
                 "title": post["title"],
                 "views": post_views,
                 "created_at": post["created_at"],
+                "reading_time": reading_time,
             }
         )
+
+    # Referrer statistics
+    referrer_stats = {}
+    for key in redis_client.scan_iter("stats:referrer:*"):
+        date_part = key.split(":")[-1]
+        referrer_data = redis_client.hgetall(key)
+        for source, count in referrer_data.items():
+            referrer_stats.setdefault(source, {})
+            referrer_stats[source][date_part] = int(count)
+
+    # Geolocation statistics
+    geo_stats = {}
+    for key in redis_client.scan_iter("stats:geo:*"):
+        date_part = key.split(":")[-1]
+        geo_data = redis_client.hgetall(key)
+        for ip, location_json in geo_data.items():
+            try:
+                location = json.loads(location_json)
+                city = location.get("city", "Unknown")
+                geolocation = location.get("geolocation", "").split(",")
+
+                geo_stats.setdefault(city, {"count": 0})
+                geo_stats[city]["count"] += 1
+                if len(geolocation) == 2:
+                    geo_stats[city]["geolocation"] = (
+                        float(geolocation[0]),
+                        float(geolocation[1]),
+                    )
+            except:
+                continue
 
     return render_template(
         "admin.html",
@@ -382,6 +424,9 @@ def admin_panel():
         blog_views_daily=blog_views_daily,
         blog_stats=blog_stats,
         total_blog_views=total_views,
+        referrer_stats=referrer_stats,
+        geo_stats=geo_stats,
+        total_reading_time=total_reading_time,
     )
 
 
@@ -460,6 +505,13 @@ def admin_blog_new():
         image_file = request.files.get("image_file")
 
         if not title or not content:
+            if (
+                request.headers.get("X-Requested-With") == "XMLHttpRequest"
+                or request.is_json
+            ):
+                return jsonify(
+                    {"success": False, "message": "Naslov in vsebina sta obvezna."}
+                )
             flash("Naslov in vsebina sta obvezna.", "error")
             return redirect(request.url)
 
@@ -495,6 +547,20 @@ def admin_blog_new():
             "published_at": now if published else None,
         }
         save_blog_posts(posts)
+
+        # Vrni JSON če je AJAX zahtevek, drugače redirect
+        if (
+            request.headers.get("X-Requested-With") == "XMLHttpRequest"
+            or request.is_json
+        ):
+            return jsonify(
+                {
+                    "success": True,
+                    "message": "Blog objava ustvarjena.",
+                    "post_id": post_id,
+                }
+            )
+
         flash("Blog objava ustvarjena.", "success")
         return redirect(url_for("admin.admin_blog"))
     return render_template("admin_blog_edit.html", post=None)
@@ -522,6 +588,13 @@ def admin_blog_edit(post_id):
         remove_image = request.form.get("remove_image") == "1"
 
         if not title or not content:
+            if (
+                request.headers.get("X-Requested-With") == "XMLHttpRequest"
+                or request.is_json
+            ):
+                return jsonify(
+                    {"success": False, "message": "Naslov in vsebina sta obvezna."}
+                )
             flash("Naslov in vsebina sta obvezna.", "error")
             return redirect(request.url)
 
@@ -558,6 +631,14 @@ def admin_blog_edit(post_id):
             "published_at": published_at,
         }
         save_blog_posts(posts)
+
+        # Vrni JSON če je AJAX zahtevek, drugače redirect
+        if (
+            request.headers.get("X-Requested-With") == "XMLHttpRequest"
+            or request.is_json
+        ):
+            return jsonify({"success": True, "message": "Blog objava posodobljena."})
+
         flash("Blog objava posodobljena.", "success")
         return redirect(url_for("admin.admin_blog"))
 

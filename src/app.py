@@ -1,7 +1,9 @@
+import json
 import logging
 import os
 from datetime import date, timedelta
 
+import requests
 from flask import Flask, redirect, render_template, request, session
 from flask_compress import Compress
 from flask_limiter import Limiter
@@ -20,6 +22,7 @@ from blueprints import (
     init_admin_bp,
     init_auth_bp,
     init_misc_bp,
+    load_blog_posts,
     memes_bp,
     misc_bp,
     movies_bp,
@@ -33,7 +36,7 @@ app.secret_key = os.getenv("FLASK_KEY")
 app.permanent_session_lifetime = timedelta(days=365)
 app.config["REMEMBER_COOKIE_DURATION"] = timedelta(days=365)
 Compress(app)
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=2, x_host=1, x_proto=2)
 csrf = CSRFProtect(app)
 app.config["WTF_CSRF_TIME_LIMIT"] = None
 
@@ -47,6 +50,33 @@ limiter = Limiter(
     storage_uri=f"redis://{redis_host}:{redis_port}" if redis_host else None,
 )
 limiter.init_app(app)
+
+
+def get_location_from_ip(ip):
+    """Get location info from IP address using ipinfo.io (free tier: 50k requests/month)"""
+    try:
+        # Using ipinfo.io instead of ipapi.co (free tier: 50k/month)
+        response = requests.get(f"https://ipinfo.io/{ip}/json", timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            if "error" in data:
+                log.warning(f"ipinfo.io error for {ip}: {data}")
+                return {"country": "Unknown", "city": "Unknown", "region": "Unknown"}
+            return {
+                "country": data.get("country", "Unknown"),
+                "city": data.get("city", "Unknown"),
+                "region": data.get("region", "Unknown"),
+                "geolocation": data.get("loc"),
+                "postal": data.get("postal"),
+            }
+        else:
+            log.warning(
+                f"ipinfo.io request failed for {ip} with status {response.status_code}"
+            )
+            log.warning(f"IP API response content: {response.text}")
+    except Exception as e:
+        log.error(f"Error getting geolocation for {ip}: {e}")
+    return {"country": "Unknown", "city": "Unknown", "region": "Unknown"}
 
 
 # add variables to all template rendering
@@ -98,7 +128,51 @@ def log_response_info(response):
     key = f"stats:daily:{today}:{user_id}:{response.status}"
     redis_client.hincrby(key, request.method + " " + route, 1)
     if not redis_client.exists(key):
-        redis_client.expire(key, 2592000)
+        redis_client.expire(key, 2592000 * 3)
+
+    path_parts = request.path.split("/")
+    content_type = path_parts[1] if len(path_parts) > 1 else "other"
+
+    # Track referrer sources
+    referrer = request.headers.get("Referer", "")
+    if referrer and response.status_code < 400:
+        referrer_source = "direct"
+        if "facebook.com" in referrer:
+            referrer_source = "facebook"
+        elif "instagram.com" in referrer:
+            referrer_source = "instagram"
+        elif "google.com" in referrer:
+            referrer_source = "google"
+        elif "duckdns.org" in referrer or os.getenv("DUCKDNS_DOMAIN") in referrer:
+            referrer_source = "internal"
+        elif referrer:
+            log.info(f"Unknown referrer source: {referrer} for {request.path}")
+            referrer_source = "other"
+
+        redis_client.hincrby(
+            f"stats:referrer_content:{today}:{content_type}", referrer_source, 1
+        )
+        redis_client.expire(f"stats:referrer_content:{today}", 2592000 * 3)
+
+        redis_client.hincrby(f"stats:referrer:{today}", referrer_source, 1)
+        redis_client.expire(f"stats:referrer:{today}", 2592000 * 3)
+
+    # Track geolocation (only for successful requests and not too frequent)
+    client_ip = request.headers.get("X-Real-IP", request.remote_addr)
+
+    log.info(
+        f"Request from {client_ip} (remote_addr={request.remote_addr}) for {request.path} with status {response.status_code}"
+    )
+    if (
+        content_type == "blog"
+        and response.status_code < 400
+        and not redis_client.exists(f"stats:geo:{client_ip}:{today}")
+    ):
+        location = get_location_from_ip(client_ip)
+        if location["country"] != "Unknown":
+            redis_client.hset(f"stats:geo:{today}", client_ip, json.dumps(location))
+            redis_client.expire(f"stats:geo:{today}", 2592000 * 3)
+
     return response
 
 
@@ -132,6 +206,10 @@ def home():
         stats = get_movies_statistics()
         stats["music_count"] = MUSIC_COUNT
         stats["memes_count"] = MEMES_COUNT
+        stats["blog_count"] = len(
+            [v for v in load_blog_posts().values() if v.get("published", False)]
+        )
+
         return render_template("index.html", pagetitle="MarinKino", **stats)
     else:
         return redirect("/blog")

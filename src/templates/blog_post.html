@@ -35,4 +35,74 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let startTime = Date.now();
+    let readingTime = 0;
+    let isReading = false;
+    let readingInterval;
+    
+    function startReading() {
+        if (!isReading) {
+            isReading = true;
+            readingInterval = setInterval(() => {
+                readingTime += 5; // Increment by 5 seconds
+            }, 5000); // Every 5 seconds
+        }
+    }
+    
+    function stopReading() {
+        if (isReading) {
+            clearInterval(readingInterval);
+            isReading = false;
+        }
+    }
+    
+    // Start tracking when user starts reading (scroll or mouse move)
+    function handleUserActivity() {
+        startReading();
+    }
+    
+    // Track user activity
+    document.addEventListener('scroll', handleUserActivity);
+    document.addEventListener('mousemove', handleUserActivity);
+    document.addEventListener('keydown', handleUserActivity);
+    document.addEventListener('click', handleUserActivity);
+    
+    // Stop tracking when page becomes hidden
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            stopReading();
+        } else {
+            startReading();
+        }
+    });
+    
+    // Send reading time before page unload
+    window.addEventListener('beforeunload', function() {
+        if (readingTime > 0) {
+            const formData = new FormData();
+            formData.append('reading_time', readingTime.toString());
+            navigator.sendBeacon('/blog/track-reading/{{ post.id }}', formData);
+        }
+    });
+    
+    // Also send reading time periodically (every 10 seconds)
+    setInterval(() => {
+        if (readingTime > 0) {
+            fetch('/blog/track-reading/{{ post.id }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    "X-CSRFToken": "{{ csrf_token() }}"
+                },
+                body: JSON.stringify({
+                    reading_time: readingTime
+                })
+            });
+        }
+    }, 10000);
+});
+</script>
 {% endblock %}

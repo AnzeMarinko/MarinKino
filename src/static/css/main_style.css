@@ -47,6 +47,7 @@
     color-mix(in srgb, var(--marinkino-blue), var(--marinkino-gray) 20%) 100%);
   --zelena-background: linear-gradient(135deg, var(--temno-zelena) 0%, white 100%);
   --oranzno-zelena-background: linear-gradient(135deg, var(--svetlo-oranzna) 0%, var(--zelena) 100%);
+  --blog-background: linear-gradient(135deg, var(--marinkino-red) 0%, var(--marinkino-blue) 100%);
 }
 
 *, *::before, *::after {

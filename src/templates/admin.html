@@ -5,6 +5,9 @@
 {% block content %}
 <div style="padding: 30px;">
 <script src="https://cdn.plot.ly/plotly-3.3.1.min.js"></script>
+<!-- Leaflet CSS and JS for maps -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <h1>Nadzorna plošča</h1>
 
 <!-- View As Controls -->
@@ -137,71 +140,6 @@ document.addEventListener('DOMContentLoaded', function(){
         </tbody>
 </table>
 </div>
-
-<h2>Statistika bloga</h2>
-<div class="row">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">Ogledi blog objav</div>
-            <div class="card-body">
-                <p><strong>Skupaj ogledov:</strong> {{ total_blog_views }}</p>
-                <div class="table-responsive">
-                    <table class="table table-striped table-sm">
-                        <thead>
-                            <tr>
-                                <th>Naslov</th>
-                                <th>Ogledi</th>
-                                <th>Datum</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for stat in blog_stats %}
-                            <tr>
-                                <td>{{ stat.title }}</td>
-                                <td>{{ stat.views }}</td>
-                                <td>{{ stat.created_at }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">Dnevni ogledi bloga</div>
-            <div class="card-body">
-                <div id="blog-views-graph" style="min-height:300px; width:100%;"></div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function(){
-    // Blog views chart
-    const blogData = {{ blog_views_daily|tojson }};
-    const dates = Object.keys(blogData).sort();
-    const views = dates.map(date => blogData[date]);
-    
-    const blogTrace = {
-        x: dates,
-        y: views,
-        type: 'scatter',
-        mode: 'lines+markers',
-        name: 'Ogledi bloga'
-    };
-    
-    const blogLayout = {
-        title: 'Dnevni ogledi bloga',
-        xaxis: { title: 'Datum' },
-        yaxis: { title: 'Ogledi' }
-    };
-    
-    Plotly.newPlot('blog-views-graph', [blogTrace], blogLayout);
-});
-</script>
 
 <h2>Ogled statistike dostopa</h2>
 
@@ -607,6 +545,195 @@ function submitAdminResponse(button) {
 // Učitaj komentarje ob nalaganju strani
 document.addEventListener('DOMContentLoaded', loadComments);
 </script>
+
+<h2>Statistika bloga</h2>
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">Ogledi blog objav</div>
+            <div class="card-body">
+
+                <div class="alert alert-info">
+                    <strong>Skupni čas branja:</strong> {{ (total_reading_time / 60) | round(1) }} minut<br>
+                    <strong>Število sej branja:</strong> {{ total_blog_views }}<br>
+                    <strong>Povprečni čas branja na sejo:</strong> {{ (total_reading_time / total_blog_views / 60) | round(1) if total_blog_views > 0 else 0 }} minut
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-striped table-sm">
+                        <thead>
+                            <tr>
+                                <th>Naslov</th>
+                                <th>Ogledi</th>
+                                <th>Čas branja (min)</th>
+                                <th>Datum objave</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stat in blog_stats %}
+                            <tr>
+                                <td>{{ stat.title }}</td>
+                                <td>{{ stat.views }}</td>
+                                <td>{{ (stat.reading_time / 60) | round(1) }}</td>
+                                <td>{{ stat.created_at }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">Dnevni ogledi bloga</div>
+            <div class="card-body">
+                <div id="blog-views-graph" style="min-height:300px; width:100%;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+    // Blog views chart
+    const blogData = {{ blog_views_daily|tojson }};
+    const dates = Object.keys(blogData).sort();
+    const views = dates.map(date => blogData[date]);
+    
+    const blogTrace = {
+        x: dates,
+        y: views,
+        type: 'scatter',
+        mode: 'lines+markers',
+        name: 'Ogledi bloga'
+    };
+    
+    const blogLayout = {
+        title: 'Dnevni ogledi bloga',
+        xaxis: { title: 'Datum' },
+        yaxis: { title: 'Ogledi' }
+    };
+    
+    Plotly.newPlot('blog-views-graph', [blogTrace], blogLayout);
+});
+</script>
+
+
+<h2>Statistika vira obiskovalcev</h2>
+{% if referrer_stats %}
+<div class="table-responsive">
+<table class="table table-striped table-hover table-bordered">
+    <thead class="thead-light">
+        <tr>
+            <th>Vir</th>
+            <th>Skupaj obiskov</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for source, dates in referrer_stats.items() %}
+        <tr>
+            <td>{{ source }}</td>
+            <td>{{ dates.values() | sum }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% else %}
+<p>Ni podatkov o virih obiskovalcev.</p>
+{% endif %}
+
+<h2>Statistika lokacij obiskovalcev</h2>
+{% if geo_stats %}
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Zemljevid obiskovalcev</div>
+            <div class="card-body">
+                <div id="geo-map" style="height: 400px; width: 100%;"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Statistika po mestih</div>
+            <div class="card-body">
+                <div class="table-responsive">
+                <table class="table table-striped table-hover table-bordered">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Mesto</th>
+                            <th>Število obiskovalcev</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for city, stats in geo_stats.items() %}
+                        <tr>
+                            <td>{{ city }}</td>
+                            <td>{{ stats["count"] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<p>Ni podatkov o lokacijah obiskovalcev.</p>
+{% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const geoStats = {{ geo_stats | tojson | safe }};
+    
+    if (Object.keys(geoStats).length > 0) {
+        // Initialize map
+        const map = L.map('geo-map').setView([46.119944, 14.815333], 8); // Center on Slovenia
+        
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        
+        // Add markers for each city
+        Object.entries(geoStats).forEach(([city, stats]) => {
+            const coords = stats["geolocation"] || [46.0569, 14.5058];
+            const count = stats["count"];
+
+            if (coords[0] !== 0 || coords[1] !== 0) {  // Skip unknown locations at (0,0)
+                const marker = L.marker(coords).addTo(map);
+                
+                // Create popup content
+                const popupContent = `
+                    <div style="text-align: center;">
+                        <strong>${city}</strong><br>
+                        <span style="color: #007bff;">Obiskovalcev: ${count}</span>
+                    </div>
+                `;
+                
+                marker.bindPopup(popupContent);
+                
+                // Adjust marker size based on visitor count (optional enhancement)
+                if (count > 10) {
+                    marker.setIcon(L.icon({
+                        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                        iconSize: [25, 41],
+                        iconAnchor: [12, 41],
+                        popupAnchor: [1, -34],
+                        shadowSize: [41, 41]
+                    }));
+                }
+            }
+        });
+    }
+});
+</script>
+
 </div>
 
 {% endblock %}

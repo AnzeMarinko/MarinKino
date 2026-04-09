@@ -4,7 +4,7 @@ import os
 from datetime import datetime, timezone
 
 import markdown
-from flask import Blueprint, abort, render_template
+from flask import Blueprint, abort, render_template, request
 from flask_login import current_user
 
 from utils import redis_client
@@ -109,3 +109,31 @@ def blog_post(post_id):
         og_title=post.get("title"),
         og_description=post.get("excerpt") or post.get("subtitle"),
     )
+
+
+@blog_bp.route("/blog/track-reading/<post_id>", methods=["POST"])
+def track_reading_time(post_id):
+    """Track reading time for blog posts"""
+    reading_time = 0
+
+    # Try JSON first (from fetch requests)
+    if request.is_json:
+        data = request.get_json()
+        reading_time = data.get("reading_time", 0)
+    else:
+        # Try form data (from sendBeacon)
+        reading_time = request.form.get("reading_time", 0)
+        if isinstance(reading_time, str):
+            try:
+                reading_time = int(reading_time)
+            except:
+                reading_time = 0
+
+    today = datetime.now(timezone.utc).date().isoformat()
+    user_id = current_user.id if current_user.is_authenticated else "anonymus"
+
+    # Store reading time in seconds
+    if reading_time > 0:
+        redis_client.hincrby(f"blog:reading:{post_id}:{today}", user_id, reading_time)
+
+    return {"success": True}

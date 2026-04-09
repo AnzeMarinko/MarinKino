@@ -170,6 +170,68 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     updatePreview();
+
+    // Ctrl+S za shranjevanje (AJAX, ne redirect)
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            saveBlogPost();
+        }
+    });
+
+    function saveBlogPost() {
+        const form = document.querySelector('form');
+        const submitBtn = document.querySelector('button[type="submit"]');
+        const originalText = submitBtn.textContent;
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Shranjujem...";
+
+        const formData = new FormData(form);
+
+        fetch(form.action || window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Prikaži sporočilo o uspehu
+                showAlert('Blog objava shranjena.', 'success');
+            } else {
+                showAlert(data.message || 'Napaka pri shranjevanju.', 'error');
+            }
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        })
+        .catch(error => {
+            showAlert('Napaka pri shranjevanju: ' + error.message, 'error');
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        });
+    }
+
+    function showAlert(message, type) {
+        // Ustvari alert element
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.setAttribute('role', 'alert');
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        // Vstavi na začetek form-a
+        const form = document.querySelector('form');
+        form.parentElement.insertBefore(alertDiv, form);
+        
+        // Avtomatsko zapri po 3 sekundah
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 3000);
+    }
 });
 </script>
 {% endblock %}

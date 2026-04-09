@@ -13,11 +13,16 @@ RUN apt-get update && apt-get install -y \
 
 # Copy project files
 COPY pyproject.toml .
-COPY src ./src
-COPY credentials ./credentials
 
 # Install Python dependencies
 RUN pip install --default-timeout=1000 --no-cache-dir -e .
+
+# copy source code and other files
+COPY credentials ./credentials
+COPY src ./src
+
+# Ensure Python can import modules from src
+ENV PYTHONPATH=/app/src
 
 # Create necessary directories
 RUN mkdir -p /app/cache/logs/server
