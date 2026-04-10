@@ -26,7 +26,7 @@ maxretry = 3
 enabled = true
 filter = nginx-http-auth
 port    = http,https
-logpath = %(nginx_error_log)s
+logpath = /home/marinko/Desktop/MarinKino/cache/logs/nginx/error.log
 maxretry = 3
 bantime = 24h
 
@@ -34,7 +34,7 @@ bantime = 24h
 enabled = true
 filter  = nginx-botsearch
 port    = http,https
-logpath = %(nginx_error_log)s
+logpath = /home/marinko/Desktop/MarinKino/cache/logs/nginx/error.log
 maxretry = 2
 findtime = 30m
 bantime  = 48h
@@ -43,7 +43,7 @@ bantime  = 48h
 enabled  = true
 filter   = nginx-404
 port     = http,https
-logpath  = %(nginx_access_log)s
+logpath  = /home/marinko/Desktop/MarinKino/cache/logs/nginx/access.log
 # Strožje nastavitve za 404, da ne blokirate pravih uporabnikov
 findtime = 5m
 maxretry = 20

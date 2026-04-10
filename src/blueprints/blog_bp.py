@@ -104,6 +104,7 @@ def blog_post(post_id):
         pagetitle=post.get("title", "Sončnice"),
         blog_view="blog",
         og_image=og_image,
+        og_url=request.url,
         og_title=post.get("title"),
         og_description=post.get("excerpt") or post.get("subtitle"),
     )

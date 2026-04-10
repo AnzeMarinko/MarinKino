@@ -94,6 +94,9 @@ server {
     listen 443 ssl;
     server_name $DOMAIN;
 
+    access_log /var/log/nginx/access.log main;
+    error_log /var/log/nginx/error.log warn;
+
     ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
 

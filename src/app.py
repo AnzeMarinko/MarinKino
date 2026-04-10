@@ -106,7 +106,11 @@ def log_response_info(response):
             or ".well-known" in request_parts[0]
         ):
             return response
-        if len(request_parts) > 1 and "movies/file/" in request.path:
+        if (
+            len(request_parts) > 1
+            and "movies/file/" in request.path
+            and "blog/track-reading/" in request.path
+        ):
             return response
     user_id = current_user.id if current_user.is_authenticated else "anonymus"
     today = date.today().isoformat()
