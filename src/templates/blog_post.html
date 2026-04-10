@@ -16,8 +16,8 @@
                 </header>
                 
                 {% if post.image %}
-                <div class="mb-4">
-                    <img src="{{ post.image }}" class="img-fluid rounded" alt="{{ post.image_desc or post.title }}">
+                <div class="mb-4" style="align-items: center; display: flex; justify-content: center;">
+                    <img src="{{ post.image }}" class="img-fluid rounded" alt="{{ post.image_desc or post.title }}" style="max-height: 50vh;">
                 </div>
                 <p class="small text-muted">{{ post.image_desc }}</p>
                 {% endif %}

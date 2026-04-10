@@ -71,7 +71,7 @@ def login():
             redis_client.incr(f"auth:reject:{date.today().isoformat()[:7]}:{username}")
             error = "Napačno uporabniško ime ali geslo."
             flash(error, "error")
-    return render_template("login.html", pagetitle="Prijava v MarinKino")
+    return render_template("login.html", pagetitle="Prijava")
 
 
 @auth_bp.route("/admin/register", methods=["GET", "POST"])

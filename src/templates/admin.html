@@ -669,10 +669,10 @@ document.addEventListener('DOMContentLoaded', function(){
                         </tr>
                     </thead>
                     <tbody>
-                        {% for city, stats in geo_stats.items() %}
+                        {% for city, count in geo_stats.items() %}
                         <tr>
                             <td>{{ city }}</td>
-                            <td>{{ stats["count"] }}</td>
+                            <td>{{ count }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -688,7 +688,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const geoStats = {{ geo_stats | tojson | safe }};
+    const geoStats = {{ geo_stats_cities | tojson | safe }};
     
     if (Object.keys(geoStats).length > 0) {
         // Initialize map

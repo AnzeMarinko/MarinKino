@@ -31,6 +31,16 @@ def save_blog_posts(posts):
         json.dump(posts, f, ensure_ascii=False, indent=2)
 
 
+def blog_timestamp(blog):
+    timestamp = blog.get("published_at", blog.get("created_at", "")).replace(
+        "Z", "+00:00"
+    )
+    try:
+        return datetime.fromisoformat(timestamp)
+    except Exception:
+        return datetime.now(timezone.utc)
+
+
 @blog_bp.route("/blog")
 def blog_list():
     posts = load_blog_posts()
@@ -38,18 +48,11 @@ def blog_list():
     if not (current_user.is_authenticated and current_user.is_admin):
         posts = {k: v for k, v in posts.items() if v.get("published", False)}
     # Sort by date descending
-    sorted_posts = sorted(
-        posts.values(), key=lambda x: x.get("created_at", ""), reverse=True
-    )
+    sorted_posts = sorted(posts.values(), key=blog_timestamp, reverse=True)
 
     # Format dates
     for post in sorted_posts:
-        if post.get("created_at"):
-            try:
-                dt = datetime.fromisoformat(post["created_at"].replace("Z", "+00:00"))
-                post["created_at_display"] = dt.strftime("%d.%m.%Y")
-            except:
-                post["created_at_display"] = post.get("created_at", "")
+        post["created_at_display"] = blog_timestamp(post).strftime("%d. %m. %Y")
 
     return render_template(
         "blog_list.html",
@@ -78,12 +81,7 @@ def blog_post(post_id):
     )
 
     # Format dates
-    if post.get("created_at"):
-        try:
-            dt = datetime.fromisoformat(post["created_at"].replace("Z", "+00:00"))
-            post["created_at_display"] = dt.strftime("%d.%m.%Y")
-        except:
-            post["created_at_display"] = post.get("created_at", "")
+    post["created_at_display"] = blog_timestamp(post).strftime("%d. %m. %Y")
 
     # Increment view count
     today = datetime.now(timezone.utc).date().isoformat()

@@ -36,7 +36,7 @@ def init_misc_bp(_users, _send_mail=None):
 
 @misc_bp.route("/favicon.ico")
 def favicon():
-    return send_from_directory("static", "logo.png")
+    return send_from_directory("static", "blog_favicon_io/android-chrome-512x512.png")
 
 
 @misc_bp.route("/pod_krinko")

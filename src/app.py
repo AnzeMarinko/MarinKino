@@ -143,10 +143,10 @@ def log_response_info(response):
             referrer_source = "instagram"
         elif "google.com" in referrer:
             referrer_source = "google"
-        elif "duckdns.org" in referrer or os.getenv("DUCKDNS_DOMAIN") in referrer:
+        elif os.getenv("DUCKDNS_DOMAIN") in referrer:
             referrer_source = "internal"
         elif referrer:
-            log.info(f"Unknown referrer source: {referrer} for {request.path}")
+            # log.info(f"Unknown referrer source: {referrer} for {request.path}")
             referrer_source = "other"
 
         redis_client.hincrby(
@@ -160,9 +160,6 @@ def log_response_info(response):
     # Track geolocation (only for successful requests and not too frequent)
     client_ip = request.headers.get("X-Real-IP", request.remote_addr)
 
-    log.info(
-        f"Request from {client_ip} (remote_addr={request.remote_addr}) for {request.path} with status {response.status_code}"
-    )
     if (
         content_type == "blog"
         and response.status_code < 400

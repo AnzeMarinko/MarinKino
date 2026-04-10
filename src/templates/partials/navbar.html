@@ -3,8 +3,11 @@
 
     <!-- LOGO + NASLOV -->
     <a class="navbar-brand d-flex align-items-center gap-2" href="/">
-      <img {% if blog_view == "blog" %}src="/static/blog_favicon_io/android-chrome-512x512.png"{%else%}src="/static/logo.png"{% endif %} height="36">
-      <strong>{% if not current_user.is_authenticated or view_as == "anonymous" or blog_view == "blog" %}Sončnice{% else %}MarinKino{% endif %}</strong>
+        {% if not current_user.is_authenticated or view_as == "anonymous" or blog_view == "blog" %}
+         <img src="/static/blog_favicon_io/android-chrome-512x512.png" height="36"><strong>Sončnice</strong>
+        {% else %}
+         <img src="/static/logo.png" height="36"><strong>MarinKino</strong>
+        {% endif %}
     </a>
 
     <!-- HAMBURGER -->

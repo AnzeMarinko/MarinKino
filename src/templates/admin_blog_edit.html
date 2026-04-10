@@ -192,7 +192,8 @@ document.addEventListener('DOMContentLoaded', function() {
             method: 'POST',
             body: formData,
             headers: {
-                'X-Requested-With': 'XMLHttpRequest'
+                'X-Requested-With': 'XMLHttpRequest',
+                "X-CSRFToken": "{{ csrf_token() }}"
             }
         })
         .then(response => response.json())

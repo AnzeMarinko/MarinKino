@@ -388,24 +388,31 @@ def admin_panel():
 
     # Geolocation statistics
     geo_stats = {}
+    geo_stats_cities = {}
     for key in redis_client.scan_iter("stats:geo:*"):
         date_part = key.split(":")[-1]
         geo_data = redis_client.hgetall(key)
         for ip, location_json in geo_data.items():
             try:
                 location = json.loads(location_json)
+                country = location.get("country", "Unknown")
                 city = location.get("city", "Unknown")
+                city_key = f"{city} ({country})"
+                city = city_key if country == "SI" else country
                 geolocation = location.get("geolocation", "").split(",")
 
-                geo_stats.setdefault(city, {"count": 0})
-                geo_stats[city]["count"] += 1
+                geo_stats.setdefault(city, 0)
+                geo_stats[city] += 1
+                geo_stats_cities.setdefault(city_key, {"count": 0})
+                geo_stats_cities[city_key]["count"] += 1
                 if len(geolocation) == 2:
-                    geo_stats[city]["geolocation"] = (
+                    geo_stats_cities[city_key]["geolocation"] = (
                         float(geolocation[0]),
                         float(geolocation[1]),
                     )
             except:
                 continue
+    geo_stats = dict(sorted(geo_stats.items(), key=lambda x: -x[1]))
 
     return render_template(
         "admin.html",
@@ -426,6 +433,7 @@ def admin_panel():
         total_blog_views=total_views,
         referrer_stats=referrer_stats,
         geo_stats=geo_stats,
+        geo_stats_cities=geo_stats_cities,
         total_reading_time=total_reading_time,
     )
 
