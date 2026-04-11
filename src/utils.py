@@ -32,9 +32,7 @@ def safe_path(base_folder, filename):
 FLASK_ENV = os.getenv("FLASK_ENV", "development")
 
 # Load users
-users_file = (
-    "data/users.json" if FLASK_ENV == "production" else "data/test_users.json"
-)
+users_file = "data/users.json" if FLASK_ENV == "production" else "data/test_users.json"
 if not os.path.exists(users_file):
     # make admin user
     password = "".join(
@@ -84,13 +82,11 @@ def find_user_by_email(email, users_dict):
     return None
 
 
-def send_mail(
-    to, cc=None, bcc=None, subject="", text="", html="", batch_id=""
-):
+def send_mail(to, cc=None, bcc=None, subject="", text="", html="", batch_id=""):
     """Send email using Gmail SMTP"""
     msg = EmailMessage()
 
-    msg["From"] = f"MarinKino <{os.getenv('MAIL_USERNAME')}>"
+    msg["From"] = f"MarinKino <{os.getenv('MAIL_SENDER')}>"
     msg["To"] = ", ".join(to) if isinstance(to, list) else to
 
     if cc:

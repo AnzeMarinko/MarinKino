@@ -84,7 +84,7 @@ def get_location_from_ip(ip):
 def inject_global_variables():
     return {
         "current_year": date.today().year,
-        "domain": os.getenv("DUCKDNS_DOMAIN"),
+        "domain": os.getenv("WWW_DOMAIN"),
         "view_as": session.get("view_as", None),
     }
 
@@ -147,7 +147,10 @@ def log_response_info(response):
             referrer_source = "instagram"
         elif "google.com" in referrer:
             referrer_source = "google"
-        elif os.getenv("DUCKDNS_DOMAIN") in referrer:
+        elif (
+            os.getenv("MAIN_DOMAIN") in referrer
+            or os.getenv("DUCKDNS_DOMAIN") in referrer
+        ):
             referrer_source = "internal"
         elif referrer:
             # log.info(f"Unknown referrer source: {referrer} for {request.path}")

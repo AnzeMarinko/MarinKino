@@ -13,19 +13,17 @@ else
     exit 1
 fi
 
-# Preverimo, če sta spremenljivki nastavljeni
-if [ -z "$DUCKDNS_DOMAIN" ] || [ -z "$GMAIL_USERNAME" ]; then
-    echo "❌ NAPAKA: V .env datoteki manjkata DUCKDNS_DOMAIN ali GMAIL_USERNAME!"
-    echo "Prepričaj se, da imaš v .env zapisano:"
-    echo "DUCKDNS_DOMAIN=tvoja-poddomena.duckdns.org"
-    echo "GMAIL_USERNAME=tvoj-naslov@gmail.com"
+# Preveri spremenljivke
+if [ -z "$DUCKDNS_DOMAIN" ] || [ -z "$MAIN_DOMAIN" ] || [ -z "$GMAIL_USERNAME" ] || [ -z "$WWW_DOMAIN" ]; then
+    echo "❌ NAPAKA: V .env manjka DUCKDNS_DOMAIN, MAIN_DOMAIN, GMAIL_USERNAME ali WWW_DOMAIN!"
     exit 1
-else
-    EMAIL="$GMAIL_USERNAME"
-    DOMAIN="$DUCKDNS_DOMAIN"
 fi
 
-echo "🚀 Začenjam avtomatsko vzpostavitev za $DOMAIN ($EMAIL)..."
+EMAIL="$GMAIL_USERNAME"
+DOMAIN="$MAIN_DOMAIN"
+WWW_DOMAIN="$WWW_DOMAIN"
+
+echo "🚀 Začenjam vzpostavitev za $DOMAIN and $WWW_DOMAIN ..."
 
 chmod +x ./scripts/duckdns_refresh.sh
 chmod +x ./scripts/rclone/rclone-sync-gdrive.sh
@@ -41,16 +39,15 @@ if ! grep -q "duckdns" mycron; then
     ./scripts/duckdns_refresh.sh
 fi
 
-# 1. Ustvarimo začasno HTTP konfiguracijo (samo za verifikacijo)
+# 1. Začasna HTTP konfiguracija za Certbot (vključuje vse poddomene)
 mkdir -p cache/logs/server
 mkdir -p configuration/nginx/conf
 mkdir -p configuration/certbot/conf
-
-echo "📝 Generiram začasno HTTP konfiguracijo..."
+echo "📝 Generiram začasno HTTP konfiguracijo za verifikacijo..."
 cat > configuration/nginx/conf/app.conf <<EOF
 server {
     listen 80;
-    server_name $DOMAIN;
+    server_name $DOMAIN $WWW_DOMAIN *.$DOMAIN $DUCKDNS_DOMAIN;
     location /.well-known/acme-challenge/ { root /var/www/certbot; }
     location / { return 200 "Certbot validation mode"; }
 }
@@ -63,10 +60,10 @@ docker compose up -d nginx
 echo "⏳ Čakam 10 sekund, da se Nginx postavi..."
 sleep 10
 
-# 3. Zaženemo Certbot
-echo "🔑 Zahtevam certifikat..."
+# 2. Zahtevamo certifikat za več imen hkrati
+echo "🔑 Zahtevam certifikate..."
 docker compose run --rm --entrypoint "certbot" certbot certonly --webroot --webroot-path /var/www/certbot \
-    -d $DOMAIN \
+    -d $DOMAIN -d $WWW_DOMAIN -d $DUCKDNS_DOMAIN \
     --email $EMAIL \
     --agree-tos \
     --no-eff-email \
@@ -83,16 +80,35 @@ fi
 echo "✅ Certifikat pridobljen! Nameščam HTTPS konfiguracijo..."
 
 cat > configuration/nginx/conf/app.conf <<EOF
+# 1. Preusmeritev vseh HTTP na HTTPS
 server {
     listen 80;
-    server_name $DOMAIN;
+    server_name $DOMAIN $WWW_DOMAIN *.$DOMAIN $DUCKDNS_DOMAIN;
     location /.well-known/acme-challenge/ { root /var/www/certbot; }
     location / { return 301 https://\$host\$request_uri; }
 }
 
+# 2. Preusmeritev DuckDNS na WWW
 server {
     listen 443 ssl;
-    server_name $DOMAIN;
+    server_name $DUCKDNS_DOMAIN;
+
+    access_log /var/log/nginx/access.log main;
+    error_log /var/log/nginx/error.log warn;
+
+    ssl_certificate /etc/letsencrypt/live/anzemarinko.si/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/anzemarinko.si/privkey.pem;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+
+    return 301 https://$WWW_DOMAIN\$request_uri;
+}
+
+# 3. WWW poddomena
+server {
+    listen 443 ssl;
+    server_name $WWW_DOMAIN;
 
     access_log /var/log/nginx/access.log main;
     error_log /var/log/nginx/error.log warn;
@@ -112,21 +128,27 @@ server {
     }
 
     # --- Za hitro pretakanje vsebin ---
-    location /protected_music/ {
-        internal;  # Samo za interne preusmeritve, uporabnik ne more dostopati direktno
-        # Pot ZNOTRAJ Nginx kontejnerja
-        alias /music_data/; 
-    }
-    location /protected_movies/ {
-        internal;  # Samo za interne preusmeritve, uporabnik ne more dostopati direktno
-        # Pot ZNOTRAJ Nginx kontejnerja
-        alias /movies_data/; 
-    }
-    location /protected_memes/ {
-        internal;  # Samo za interne preusmeritve, uporabnik ne more dostopati direktno
-        # Pot ZNOTRAJ Nginx kontejnerja
-        alias /memes_data/; 
-    }
+    # Samo za interne preusmeritve, uporabnik ne more dostopati direktno (Pot ZNOTRAJ Nginx kontejnerja)
+    location /protected_music/ {internal; alias /music_data/;}
+    location /protected_movies/ {internal; alias /movies_data/;}
+    location /protected_memes/ {internal; alias /memes_data/;}
+}
+
+# 4. WILDCARD preusmeritev (Vse na WWW)
+server {
+    listen 443 ssl;
+    server_name $DOMAIN *.$DOMAIN;
+
+    access_log /var/log/nginx/access.log main;
+    error_log /var/log/nginx/error.log warn;
+
+    ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+
+    return 301 https://$WWW_DOMAIN\$request_uri;
 }
 EOF
 
@@ -151,6 +173,6 @@ echo "📅 Cron opravila so aktivna. Preveriš jih z: crontab -l"
 echo "⏳ Počakajmo, da se vse zažene ..."
 sleep 5
 
-echo "✅🎉 KONČANO! Tvoja aplikacija je dostopna na https://$DOMAIN"
+echo "✅🎉 KONČANO! Tvoja aplikacija je dostopna na https://$WWW_DOMAIN"
 echo "Poglej log-e: docker compose logs -f app"
 echo "Ustavi celotno storitev: docker compose down"

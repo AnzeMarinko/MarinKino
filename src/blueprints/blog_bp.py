@@ -92,7 +92,7 @@ def blog_post(post_id):
     if post.get("image"):
         og_image = post["image"]
         if og_image.startswith("/"):
-            domain = os.getenv("DUCKDNS_DOMAIN")
+            domain = os.getenv("WWW_DOMAIN")
             if domain:
                 og_image = f"https://{domain}{og_image}"
         elif og_image.startswith("//"):

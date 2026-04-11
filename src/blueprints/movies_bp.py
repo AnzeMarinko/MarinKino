@@ -534,7 +534,7 @@ def rate_movie():
             <h3>Podane ocene:</h3>
             {ratings_html}
             <hr>
-            <p><a href="{os.getenv("DUCKDNS_DOMAIN")}/movies/play{movie_folder}">Pojdi na film</a></p>
+            <p><a href="{os.getenv("WWW_DOMAIN")}/movies/play{movie_folder}">Pojdi na film</a></p>
             """
 
             send_mail(
@@ -833,7 +833,7 @@ def add_comment():
         <p><strong>Komentar:</strong></p>
         <p>{comment_text}</p>
         <hr>
-        <p><a href="{os.getenv("DUCKDNS_DOMAIN")}/admin">Pojdi v admin panel</a></p>
+        <p><a href="{os.getenv("WWW_DOMAIN")}/admin">Pojdi v admin panel</a></p>
         """
 
         try:

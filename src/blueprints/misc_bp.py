@@ -20,7 +20,7 @@ from utils import is_current_admin_view, redis_client, safe_path
 log = logging.getLogger(__name__)
 
 misc_bp = Blueprint("misc", __name__)
-DUCKDNS_DOMAIN = os.getenv("DUCKDNS_DOMAIN")
+WWW_DOMAIN = os.getenv("WWW_DOMAIN")
 
 # Global variables
 users = {}
@@ -134,7 +134,7 @@ def send_admin_emails():
                 send_mail(
                     to=emails,
                     subject="Filmski izbor MarinKino",
-                    text=f"https://{DUCKDNS_DOMAIN}/last_mail_newsletter",
+                    text=f"https://{WWW_DOMAIN}/last_mail_newsletter",
                     html=render_template(
                         template_name + ".html",
                         username=username,
