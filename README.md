@@ -14,7 +14,7 @@ Preko strani pa je dostopno tudi:
 * zbirka glasbe z okrog 1000 pesmimi brez oglasov (slovenske, klasične, krščanske, rokerske, ...). Stran z glasbo je že pripravljena, je pa izbor pesmi še potreben pregleda, saj sem pesmi počasi zbiral skozi leta in je vmes tudi, kaj vsebinsko nekvalitetnega, kar mi je bilo v nekem času zanimivo. Marsikatera zvrst, ki je nisem toliko poslušal, pa tudi manjka.
 * družabna igra Pod krinko (slovenska verzija igre Undercover).
 
-> Stran je dostopna preko [anzemarinko.duckdns.org](https://anzemarinko.duckdns.org). Je pa večina vsebin zaklenjenih le za prijavljene uporabnike.
+> Stran je dostopna preko [www.anzemarinko.si](https://www.anzemarinko.si). Je pa večina vsebin zaklenjenih le za prijavljene uporabnike.
 
 ## Navodila za razvijalce
 * [Nastavitev MarinKino serverja](docs/installation.md)
