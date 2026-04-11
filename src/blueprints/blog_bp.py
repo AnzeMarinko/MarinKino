@@ -7,7 +7,7 @@ import markdown
 from flask import Blueprint, abort, render_template, request
 from flask_login import current_user
 
-from utils import redis_client
+from utils import FLASK_ENV, redis_client
 
 log = logging.getLogger(__name__)
 
@@ -83,10 +83,15 @@ def blog_post(post_id):
     # Format dates
     post["created_at_display"] = blog_timestamp(post).strftime("%d. %m. %Y")
 
-    # Increment view count
-    today = datetime.now(timezone.utc).date().isoformat()
-    redis_client.hincrby(f"blog:views:{post_id}", today, 1)
-    redis_client.hincrby("blog:views:total", today, 1)
+    if (
+        not current_user.is_authenticated
+        or not current_user.is_admin
+        or FLASK_ENV != "production"
+    ):
+        # Increment view count
+        today = datetime.now(timezone.utc).date().isoformat()
+        redis_client.hincrby(f"blog:views:{post_id}", today, 1)
+        redis_client.hincrby("blog:views:total", today, 1)
 
     og_image = None
     if post.get("image"):

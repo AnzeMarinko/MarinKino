@@ -28,7 +28,7 @@ from blueprints import (
     movies_bp,
     music_bp,
 )
-from utils import User, redis_client, send_mail, users
+from utils import FLASK_ENV, User, redis_client, send_mail, users
 
 # Flask app setup
 app = Flask(__name__, static_url_path="/static", static_folder="static")
@@ -104,12 +104,8 @@ def log_response_info(response):
             or (len(request_parts) > 1 and "progress" in request_parts[1])
             or "favicon.ico" in request_parts[0]
             or ".well-known" in request_parts[0]
-        ):
-            return response
-        if (
-            len(request_parts) > 1
-            and "movies/file/" in request.path
-            and "blog/track-reading/" in request.path
+            or "movies/file/" in request.path
+            or "blog/track-reading/" in request.path
         ):
             return response
     user_id = current_user.id if current_user.is_authenticated else "anonymus"
@@ -134,48 +130,57 @@ def log_response_info(response):
     if not redis_client.exists(key):
         redis_client.expire(key, 2592000 * 3)
 
-    path_parts = request.path.split("/")
-    content_type = path_parts[1] if len(path_parts) > 1 else "other"
-
-    # Track referrer sources
-    referrer = request.headers.get("Referer", "")
-    if referrer and response.status_code < 400:
-        referrer_source = "direct"
-        if "facebook.com" in referrer:
-            referrer_source = "facebook"
-        elif "instagram.com" in referrer:
-            referrer_source = "instagram"
-        elif "google.com" in referrer:
-            referrer_source = "google"
-        elif (
-            os.getenv("MAIN_DOMAIN") in referrer
-            or os.getenv("DUCKDNS_DOMAIN") in referrer
-        ):
-            referrer_source = "internal"
-        elif referrer:
-            # log.info(f"Unknown referrer source: {referrer} for {request.path}")
-            referrer_source = "other"
-
-        redis_client.hincrby(
-            f"stats:referrer_content:{today}:{content_type}", referrer_source, 1
-        )
-        redis_client.expire(f"stats:referrer_content:{today}", 2592000 * 3)
-
-        redis_client.hincrby(f"stats:referrer:{today}", referrer_source, 1)
-        redis_client.expire(f"stats:referrer:{today}", 2592000 * 3)
-
-    # Track geolocation (only for successful requests and not too frequent)
-    client_ip = request.headers.get("X-Real-IP", request.remote_addr)
-
     if (
-        content_type == "blog"
-        and response.status_code < 400
-        and not redis_client.exists(f"stats:geo:{client_ip}:{today}")
+        (
+            not current_user.is_authenticated
+            or not current_user.is_admin
+            or FLASK_ENV != "production"
+        )
+        and "/file/" not in request.path
+        and "GET" in request.method
     ):
-        location = get_location_from_ip(client_ip)
-        if location["country"] != "Unknown":
-            redis_client.hset(f"stats:geo:{today}", client_ip, json.dumps(location))
-            redis_client.expire(f"stats:geo:{today}", 2592000 * 3)
+        path_parts = request.path.split("/")
+        content_type = path_parts[1] if len(path_parts) > 1 else "other"
+
+        # Track referrer sources
+        referrer = request.headers.get("Referer", "")
+        if referrer and response.status_code < 400:
+            referrer_source = "direct"
+            if "facebook.com" in referrer:
+                referrer_source = "facebook"
+            elif "instagram.com" in referrer:
+                referrer_source = "instagram"
+            elif "google.com" in referrer:
+                referrer_source = "google"
+            elif (
+                os.getenv("MAIN_DOMAIN") in referrer
+                or os.getenv("DUCKDNS_DOMAIN") in referrer
+            ):
+                referrer_source = "internal"
+            elif referrer:
+                # log.info(f"Unknown referrer source: {referrer} for {request.path}")
+                referrer_source = "other"
+
+            redis_client.hincrby(
+                f"stats:referrer_content:{today}:{content_type}", referrer_source, 1
+            )
+            redis_client.expire(f"stats:referrer_content:{today}", 2592000 * 3)
+
+            redis_client.hincrby(f"stats:referrer:{today}", referrer_source, 1)
+            redis_client.expire(f"stats:referrer:{today}", 2592000 * 3)
+
+        # Track geolocation (only for successful requests and not too frequent)
+        client_ip = request.headers.get("X-Real-IP", request.remote_addr)
+
+        if (
+            content_type == "blog"
+            and response.status_code < 400
+            and not redis_client.exists(f"stats:geo:{client_ip}:{today}")
+        ):
+            location = get_location_from_ip(client_ip)
+            if location["country"] != "Unknown":
+                redis_client.hset(f"stats:geo:{today}", client_ip, json.dumps(location))
+                redis_client.expire(f"stats:geo:{today}", 2592000 * 3)
 
     return response
 
