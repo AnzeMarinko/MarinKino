@@ -27,6 +27,7 @@ from blueprints import (
     misc_bp,
     movies_bp,
     music_bp,
+    seo_bp,
 )
 from utils import FLASK_ENV, User, redis_client, send_mail, users
 
@@ -54,6 +55,8 @@ limiter.init_app(app)
 
 def get_location_from_ip(ip):
     """Get location info from IP address using ipinfo.io (free tier: 50k requests/month)"""
+    if FLASK_ENV != "production":
+        return {"country": "SI", "city": "Ljubljana", "region": "Unknown"}
     try:
         # Using ipinfo.io instead of ipapi.co (free tier: 50k/month)
         response = requests.get(f"https://ipinfo.io/{ip}/json", timeout=5)
@@ -200,6 +203,7 @@ app.register_blueprint(movies_bp)
 app.register_blueprint(memes_bp)
 app.register_blueprint(music_bp)
 app.register_blueprint(misc_bp)
+app.register_blueprint(seo_bp)
 
 # Initialize blueprints with app context
 init_auth_bp(users, User, send_mail)

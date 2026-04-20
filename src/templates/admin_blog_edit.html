@@ -42,6 +42,20 @@
                         </div>
                         
                         <div class="mb-3">
+                            <label for="keywords" class="form-label">Ključne besede (SEO)</label>
+                            <input type="text" class="form-control" id="keywords" name="keywords" value="{{ post.keywords if post else '' }}" placeholder="Vera, Karolina, družina ...">
+                            <div class="form-text">Ločite ključne besede z vejico. Pomagajo pri iskanju v Googlu (5-7 besed).</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="seo_description" class="form-label">SEO opis</label>
+                            <textarea class="form-control" id="seo_description" name="seo_description" rows="2" maxlength="160">{{ post.seo_description if post else '' }}</textarea>
+                            <div class="form-text">
+                                <span id="seo-description-count">0</span>/160 znakov. Kratek opis za Google rezultate (155-160 znakov). Če prazno, se uporabi izvleček.
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="published" name="published" value="1" {% if post and post.get('published', False) %}checked{% endif %}>
                                 <label class="form-check-label" for="published">
@@ -77,7 +91,7 @@
                             <div class="card mb-3">
                                 <div class="card-body">
                                     <h6 class="card-title">Trenutna slika</h6>
-                                    <img src="{{ post.image }}" alt="Trenutna slika" class="img-fluid mb-2" style="max-height: 200px;">
+                                    <img src="/blog/image/{{ post.image }}" alt="Trenutna slika" class="img-fluid mb-2" style="max-height: 200px;">
                                     <div class="form-check">
                                         <input class="form-check-input" type="checkbox" id="remove_image" name="remove_image" value="1">
                                         <label class="form-check-label" for="remove_image">
@@ -143,11 +157,13 @@ document.addEventListener('DOMContentLoaded', function() {
     var simplemde = new SimpleMDE({
         element: document.getElementById("content-editor"),
         spellChecker: false,
-        status: false,
+        nativeSpellcheck: true,
+        status: ["lines", "words"],
         toolbar: [
-            "bold", "italic", "heading", "|",
+            "bold", "italic", "strikethrough", "|",
+            "heading-1", "heading-2", "heading-3", "|",
             "code", "quote", "unordered-list", "ordered-list", "|",
-            "link", "image", "|",
+            "link", "image", "table", "horizontal-rule", "|",
             "guide"
         ],
         previewRender: false
@@ -170,6 +186,19 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     updatePreview();
+
+    // Character counter za SEO opis
+    const seoDescriptionTextarea = document.getElementById('seo_description');
+    const seoDescriptionCount = document.getElementById('seo-description-count');
+    
+    function updateSeoDescriptionCount() {
+        const count = seoDescriptionTextarea.value.length;
+        seoDescriptionCount.textContent = count;
+        seoDescriptionCount.style.color = count > 155 ? '#dc3545' : count > 140 ? '#ffc107' : '#6c757d';
+    }
+    
+    seoDescriptionTextarea.addEventListener('input', updateSeoDescriptionCount);
+    updateSeoDescriptionCount(); // Initial count
 
     // Ctrl+S za shranjevanje (AJAX, ne redirect)
     document.addEventListener('keydown', function(e) {

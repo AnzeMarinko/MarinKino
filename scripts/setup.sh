@@ -132,6 +132,7 @@ server {
     location /protected_music/ {internal; alias /music_data/;}
     location /protected_movies/ {internal; alias /movies_data/;}
     location /protected_memes/ {internal; alias /memes_data/;}
+    location /protected_blog_images/ {internal; alias /blog_images_data/;}
 }
 
 # 4. WILDCARD preusmeritev (Vse na WWW)

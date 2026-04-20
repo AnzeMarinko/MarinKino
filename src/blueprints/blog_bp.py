@@ -2,12 +2,20 @@ import json
 import logging
 import os
 from datetime import datetime, timezone
+from urllib.parse import quote
 
 import markdown
-from flask import Blueprint, abort, render_template, request
+from flask import (
+    Blueprint,
+    abort,
+    make_response,
+    render_template,
+    request,
+    send_from_directory,
+)
 from flask_login import current_user
 
-from utils import FLASK_ENV, redis_client
+from utils import FLASK_ENV, redis_client, safe_path
 
 log = logging.getLogger(__name__)
 
@@ -32,7 +40,7 @@ def save_blog_posts(posts):
 
 
 def blog_timestamp(blog):
-    timestamp = blog.get("published_at", blog.get("created_at", "")).replace(
+    timestamp = (blog.get("published_at") or blog.get("created_at", "")).replace(
         "Z", "+00:00"
     )
     try:
@@ -70,9 +78,7 @@ def blog_post(post_id):
         abort(404)
 
     # Check if published for non-admin users
-    if not (current_user.is_authenticated and current_user.is_admin) and not post.get(
-        "published", False
-    ):
+    if not current_user.is_authenticated and not post.get("published", False):
         abort(404)
 
     # Render Markdown content
@@ -88,20 +94,16 @@ def blog_post(post_id):
         or not current_user.is_admin
         or FLASK_ENV != "production"
     ):
+        client_ip = request.headers.get("X-Real-IP", request.remote_addr)
         # Increment view count
         today = datetime.now(timezone.utc).date().isoformat()
-        redis_client.hincrby(f"blog:views:{post_id}", today, 1)
-        redis_client.hincrby("blog:views:total", today, 1)
+        redis_client.hincrby(f"blog:views:{post_id}:{today}", client_ip, 1)
 
     og_image = None
     if post.get("image"):
         og_image = post["image"]
-        if og_image.startswith("/"):
-            domain = os.getenv("WWW_DOMAIN")
-            if domain:
-                og_image = f"https://{domain}{og_image}"
-        elif og_image.startswith("//"):
-            og_image = f"https:{og_image}"
+        domain = os.getenv("WWW_DOMAIN")
+        og_image = f"https://{domain}/blog/image/{og_image}"
 
     return render_template(
         "blog_post.html",
@@ -111,33 +113,42 @@ def blog_post(post_id):
         og_image=og_image,
         og_url=request.url,
         og_title=post.get("title"),
-        og_description=post.get("excerpt") or post.get("subtitle"),
+        og_description=post.get("seo_description")
+        or post.get("excerpt")
+        or post.get("subtitle"),
     )
 
 
-@blog_bp.route("/blog/track-reading/<post_id>", methods=["POST"])
-def track_reading_time(post_id):
-    """Track reading time for blog posts"""
-    reading_time = 0
+@blog_bp.route("/blog/image/<file_name>")
+def blog_image_file(file_name):
+    try:
+        path = safe_path("../data/blog_images", file_name)
+        if not os.path.exists(os.path.join("data/blog_images", file_name)):
+            abort(404)
+    except ValueError:
+        abort(404)
+    if FLASK_ENV == "production":
+        response = make_response()
+        safe_filename = quote(file_name, safe="/")
+        if not safe_filename.startswith("/"):
+            safe_filename = "/" + safe_filename
+        response.headers["X-Accel-Redirect"] = f"/protected_blog_images{safe_filename}"
 
-    # Try JSON first (from fetch requests)
-    if request.is_json:
-        data = request.get_json()
-        reading_time = data.get("reading_time", 0)
+        lower_name = file_name.lower()
+        if lower_name.endswith(".jpg") or lower_name.endswith(".jpeg"):
+            response.headers["Content-Type"] = "image/jpeg"
+        elif lower_name.endswith(".png"):
+            response.headers["Content-Type"] = "image/png"
     else:
-        # Try form data (from sendBeacon)
-        reading_time = request.form.get("reading_time", 0)
-        if isinstance(reading_time, str):
-            try:
-                reading_time = int(reading_time)
-            except:
-                reading_time = 0
+        mimetype = None
+        lower_name = file_name.lower()
+        if lower_name.endswith(".jpg") or lower_name.endswith(".jpeg"):
+            mimetype = "image/jpeg"
+        elif lower_name.endswith(".png"):
+            mimetype = "image/png"
 
-    today = datetime.now(timezone.utc).date().isoformat()
-    user_id = current_user.id if current_user.is_authenticated else "anonymus"
-
-    # Store reading time in seconds
-    if reading_time > 0:
-        redis_client.hincrby(f"blog:reading:{post_id}:{today}", user_id, reading_time)
-
-    return {"success": True}
+        response = send_from_directory(
+            "../data/blog_images", file_name, mimetype=mimetype, conditional=True
+        )
+        response.headers["Accept-Ranges"] = "bytes"
+    return response

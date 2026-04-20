@@ -741,3 +741,28 @@ video, img {
 .next-meme-btn:hover {
     opacity: 1;
 }
+blockquote {
+    border-left: 5px solid #ead7d7;
+    margin: 1.5em 10px;
+    padding: 0.5em 10px;
+    color: #462f2f;
+}
+/* Glavni blok kode */
+.codehilite {
+    background-color: #ffeee0; /* Svetlo sivo ozadje */
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 15px;
+    overflow: auto;
+    margin: 20px 0;
+}
+
+/* Ciljamo na codehilite in vse elemente znotraj njega */
+.codehilite pre, 
+.codehilite code, 
+.codehilite span {
+    font-family: 'Inter', 'Segoe UI', Roboto, sans-serif !important;
+    font-variant-ligatures: none;
+    letter-spacing: normal;
+    line-height: 1.6;
+}

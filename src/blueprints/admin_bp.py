@@ -30,7 +30,7 @@ users = {}
 BLOG_DATA_FILE = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "blog_posts.json"
 )
-BLOG_IMAGES_DIR = os.path.join(os.path.dirname(__file__), "..", "static", "blog_images")
+BLOG_IMAGES_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "blog_images")
 
 
 def save_blog_image(file):
@@ -42,7 +42,7 @@ def save_blog_image(file):
     os.makedirs(BLOG_IMAGES_DIR, exist_ok=True)
     filepath = os.path.join(BLOG_IMAGES_DIR, filename)
     file.save(filepath)
-    return f"/static/blog_images/{filename}"
+    return filename
 
 
 def init_admin_bp(_users):
@@ -344,39 +344,6 @@ def admin_panel():
         top_movies, key=lambda x: x["total_ratio"], reverse=True
     )[:20]
 
-    # Blog statistics
-    blog_views_daily = {}
-    total_views = 0
-    blog_total_hash = redis_client.hgetall("blog:views:total")
-    for date, views in blog_total_hash.items():
-        blog_views_daily[date] = int(views)
-        total_views += int(views)
-
-    blog_posts = load_blog_posts()
-    blog_stats = []
-    total_reading_time = 0
-    for post_id, post in blog_posts.items():
-        views_key = f"blog:views:{post_id}"
-        post_views = sum(int(v) for v in redis_client.hvals(views_key))
-        reading_time = 0
-        for key in redis_client.scan_iter(f"blog:reading:{post_id}:*"):
-            parts = key.split(":")
-            if len(parts) >= 4:
-                reading_data = redis_client.hgetall(key)
-                for time_str in reading_data.values():
-                    time_seconds = int(time_str)
-                    total_reading_time += time_seconds
-                    reading_time += time_seconds
-        blog_stats.append(
-            {
-                "id": post_id,
-                "title": post["title"],
-                "views": post_views,
-                "created_at": post["created_at"],
-                "reading_time": reading_time,
-            }
-        )
-
     # Referrer statistics
     referrer_stats = {}
     for key in redis_client.scan_iter("stats:referrer:*"):
@@ -389,12 +356,16 @@ def admin_panel():
     # Geolocation statistics
     geo_stats = {}
     geo_stats_cities = {}
+    all_geo_data = {}
     for key in redis_client.scan_iter("stats:geo:*"):
         date_part = key.split(":")[-1]
         geo_data = redis_client.hgetall(key)
+
         for ip, location_json in geo_data.items():
             try:
                 location = json.loads(location_json)
+                if ip not in all_geo_data.keys():
+                    all_geo_data[ip] = location
                 country = location.get("country", "Unknown")
                 city = location.get("city", "Unknown")
                 city_key = f"{city} ({country})"
@@ -414,6 +385,38 @@ def admin_panel():
                 continue
     geo_stats = dict(sorted(geo_stats.items(), key=lambda x: -x[1]))
 
+    # Blog statistics
+    blog_views_daily = {}
+    blog_si_views_daily = {}
+    total_views = 0
+    total_si_views = 0
+    blog_posts = load_blog_posts()
+    blog_stats = []
+    for post_id, post in blog_posts.items():
+        views = 0
+        si_views = 0
+        for key in redis_client.scan_iter(f"blog:views:{post_id}:*"):
+            date_part = key.split(":")[-1]
+            for ip in redis_client.hgetall(key).keys():
+                views += 1
+                if all_geo_data.get(ip, {}).get("country") == "SI":
+                    si_views += 1
+            blog_views_daily[date_part] = blog_views_daily.get(date_part, 0) + views
+            blog_si_views_daily[date_part] = (
+                blog_si_views_daily.get(date_part, 0) + si_views
+            )
+        total_views += views
+        total_si_views += si_views
+        blog_stats.append(
+            {
+                "id": post_id,
+                "title": post["title"],
+                "views": views,
+                "si_views": si_views,
+                "created_at": post["created_at"][:16],
+            }
+        )
+
     return render_template(
         "admin.html",
         pagetitle="MarinKino - Nadzorna plošča",
@@ -429,12 +432,13 @@ def admin_panel():
         monthly_columns=monthly_columns,
         top_movies=top_movies_sorted,
         blog_views_daily=blog_views_daily,
+        blog_si_views_daily=blog_si_views_daily,
         blog_stats=blog_stats,
         total_blog_views=total_views,
+        total_si_views=total_si_views,
         referrer_stats=referrer_stats,
         geo_stats=geo_stats,
         geo_stats_cities=geo_stats_cities,
-        total_reading_time=total_reading_time,
     )
 
 
@@ -477,8 +481,10 @@ def admin_blog():
 
     # Get view stats for each post and format dates
     for post in sorted_posts:
-        views_key = f"blog:views:{post['id']}"
-        post["views"] = sum(int(v) for v in redis_client.hvals(views_key))
+        views = 0
+        for key in redis_client.scan_iter(f"blog:views:{post['id']}:*"):
+            views += len(redis_client.hgetall(key).keys())
+        post["views"] = views
         # Format dates
         if post.get("created_at"):
             try:
@@ -508,6 +514,8 @@ def admin_blog_new():
         content = request.form.get("content")
         image = request.form.get("image")
         excerpt = request.form.get("excerpt")
+        keywords = request.form.get("keywords")
+        seo_description = request.form.get("seo_description")
         image_desc = request.form.get("image_desc")
         published = request.form.get("published") == "1"
         image_file = request.files.get("image_file")
@@ -540,8 +548,10 @@ def admin_blog_new():
             .replace("ć", "c")
             .replace("ž", "z")
         )
-        post_id = f"{slug_title}_{date.today().isoformat()}"
+        post_id = slug_title
         now = datetime.now(timezone.utc).isoformat()
+        if post_id in posts:
+            post_id = f"{slug_title}_{datetime.now(timezone.utc).isoformat()[:16].replace(':', '-')}"
         posts[post_id] = {
             "id": post_id,
             "title": title,
@@ -550,6 +560,8 @@ def admin_blog_new():
             "image": image,
             "image_desc": image_desc,
             "excerpt": excerpt,
+            "keywords": keywords,
+            "seo_description": seo_description,
             "published": published,
             "created_at": now,
             "published_at": now if published else None,
@@ -590,6 +602,8 @@ def admin_blog_edit(post_id):
         subtitle = request.form.get("subtitle")
         content = request.form.get("content")
         excerpt = request.form.get("excerpt")
+        keywords = request.form.get("keywords")
+        seo_description = request.form.get("seo_description")
         image_desc = request.form.get("image_desc")
         published = request.form.get("published") == "1"
         image_file = request.files.get("image_file")
@@ -632,6 +646,8 @@ def admin_blog_edit(post_id):
             "image": image,
             "image_desc": image_desc,
             "excerpt": excerpt,
+            "keywords": keywords,
+            "seo_description": seo_description,
             "published": published,
             "created_at": post.get(
                 "created_at", datetime.now(timezone.utc).isoformat()

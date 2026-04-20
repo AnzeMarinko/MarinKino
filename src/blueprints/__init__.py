@@ -9,6 +9,7 @@ from .memes_bp import MEMES_COUNT, memes_bp
 from .misc_bp import init_misc_bp, misc_bp
 from .movies_bp import get_movies_statistics, movies_bp
 from .music_bp import MUSIC_COUNT, music_bp
+from .seo_bp import seo_bp
 
 __all__ = [
     "auth_bp",
@@ -18,6 +19,7 @@ __all__ = [
     "memes_bp",
     "music_bp",
     "misc_bp",
+    "seo_bp",
     "init_auth_bp",
     "init_admin_bp",
     "init_misc_bp",

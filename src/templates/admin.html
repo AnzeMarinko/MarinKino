@@ -554,9 +554,8 @@ document.addEventListener('DOMContentLoaded', loadComments);
             <div class="card-body">
 
                 <div class="alert alert-info">
-                    <strong>Skupni čas branja:</strong> {{ (total_reading_time / 60) | round(1) }} minut<br>
                     <strong>Število sej branja:</strong> {{ total_blog_views }}<br>
-                    <strong>Povprečni čas branja na sejo:</strong> {{ (total_reading_time / total_blog_views / 60) | round(1) if total_blog_views > 0 else 0 }} minut
+                    <strong>Od tega Slovenija:</strong> {{ total_si_views }}
                 </div>
                 <div class="table-responsive">
                     <table class="table table-striped table-sm">
@@ -564,7 +563,7 @@ document.addEventListener('DOMContentLoaded', loadComments);
                             <tr>
                                 <th>Naslov</th>
                                 <th>Ogledi</th>
-                                <th>Čas branja (min)</th>
+                                <th>Od tega SI</th>
                                 <th>Datum objave</th>
                             </tr>
                         </thead>
@@ -573,7 +572,7 @@ document.addEventListener('DOMContentLoaded', loadComments);
                             <tr>
                                 <td>{{ stat.title }}</td>
                                 <td>{{ stat.views }}</td>
-                                <td>{{ (stat.reading_time / 60) | round(1) }}</td>
+                                <td>{{ stat.si_views }}</td>
                                 <td>{{ stat.created_at }}</td>
                             </tr>
                             {% endfor %}
@@ -601,6 +600,9 @@ document.addEventListener('DOMContentLoaded', function(){
     const blogData = {{ blog_views_daily|tojson }};
     const dates = Object.keys(blogData).sort();
     const views = dates.map(date => blogData[date]);
+    const blogSiData = {{ blog_si_views_daily|tojson }};
+    const si_dates = Object.keys(blogSiData).sort();
+    const si_views = si_dates.map(date => blogSiData[date]);
     
     const blogTrace = {
         x: dates,
@@ -609,6 +611,13 @@ document.addEventListener('DOMContentLoaded', function(){
         mode: 'lines+markers',
         name: 'Ogledi bloga'
     };
+    const blogSiTrace = {
+        x: si_dates,
+        y: si_views,
+        type: 'scatter',
+        mode: 'lines+markers',
+        name: 'Ogledi bloga (SI)'
+    };
     
     const blogLayout = {
         title: 'Dnevni ogledi bloga',
@@ -616,7 +625,7 @@ document.addEventListener('DOMContentLoaded', function(){
         yaxis: { title: 'Ogledi' }
     };
     
-    Plotly.newPlot('blog-views-graph', [blogTrace], blogLayout);
+    Plotly.newPlot('blog-views-graph', [blogTrace, blogSiTrace], blogLayout);
 });
 </script>
 

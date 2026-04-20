@@ -38,6 +38,4 @@ data/memes/*.png
 data/music/**/*.mp3
 data/music/**/*.m4a
 data/movies/users_comments.json
-
-src/static/blog_images
-blog_posts.json
+data/blog_images
