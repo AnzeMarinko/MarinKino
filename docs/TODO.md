@@ -9,4 +9,6 @@
 
 * uredi, da se pravilno pošiljajo maili (izgled)
 * pošlji prve predloge filmov na mail in dodaj, da se zadnji predlog pošlje tudi novemu uporabniku
-* uredi ali odstrani navodila za uporabo, po možnosti samo priključi mailu z vpisnimi podatki
+* uredi ali odstrani navodila za uporabo, po možnosti samo priključi mailu z vpisnimi podatki, uredi navodila za inštalacijo glede na novo domeno
+* preveri, če bi s popravljenim algoritmom za zamik podnapisov kje dosti izboljšal in to izvedi
+* pravljice in radijske zgodbe posebej od glasbe (lahko pa ista koda za uporabniški vmesnik API ipd.)

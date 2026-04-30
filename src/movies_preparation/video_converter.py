@@ -24,9 +24,10 @@ def run_ffmpeg(command):
         return False
 
 
-def convert_to_mp4(input_path, output_path):
+def convert_to_mp4(input_path: str, output_path: str):
     """Unificirana funkcija za polno pretvorbo v MP4 (H.264 + AAC)."""
     log.info(f"🎬 Pretvarjam: {input_path.name} -> {output_path.name}")
+
     command = [
         "ffmpeg",
         "-y",
@@ -34,10 +35,12 @@ def convert_to_mp4(input_path, output_path):
         str(input_path),
         "-c:v",
         "libx264",
+        "-pix_fmt",
+        "yuv420p",
         "-preset",
         "fast",
         "-crf",
-        "20",
+        "22",
         "-c:a",
         "aac",
         "-ac",

@@ -157,7 +157,11 @@ def aux_rescale_captions(subtitles, speech):
         [
             [s, e]
             for s, e, text in subtitles
-            if (len(text) > 0 and sum(c in text[0] + text[-1] for c in "[]{}()") < 2)
+            if (
+                (len(text) > 0)
+                and (sum(c in text[0] + text[-1] for c in "[]{}()") < 2)
+                and ("<i>" not in text)
+            )
         ]
     )
 
@@ -171,8 +175,8 @@ def aux_rescale_captions(subtitles, speech):
             start_id, end_id = int(aux_np_subtitles[i, 0]), int(aux_np_subtitles[i, 1])
             if end_id > start_id:
                 subtitle_score += np.sum(
-                    np.log10(np.linspace(1, 0.2, end_id - start_id))
-                    + 1 * speech[start_id:end_id]
+                    (np.log10(np.linspace(1, 0.2, end_id - start_id)) + 1)
+                    * speech[start_id:end_id]
                 )
         return subtitle_score
 
@@ -194,8 +198,14 @@ def aux_rescale_captions(subtitles, speech):
         a, b = params
         return -compute_score(a, b)
 
-    bounds = [(0.93, 1.07), (-40, 40)]
-    res = differential_evolution(objective, bounds, x0=[1.0, 0.0])
+    bounds = [(0.90, 1.10), (-40, 40)]
+    res = differential_evolution(
+        objective,
+        bounds,
+        x0=[1.0, 0.0],
+        popsize=40,
+    )
+
     best_a, best_b = res.x
     best_score = -res.fun
 
