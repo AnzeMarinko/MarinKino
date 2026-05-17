@@ -504,7 +504,6 @@ def rate_movie():
             admin_email = users.get("admin", {}).get(
                 "emails", [os.getenv("GMAIL_USERNAME")]
             )[0]
-            user_name = getattr(current_user, "username", str(current_user))
 
             # Pripravi povzetek ocen
             ratings_html = "<ul>"
@@ -530,7 +529,7 @@ def rate_movie():
 
             email_html = f"""
             <h2>Nove ocene za film: {movie_title}</h2>
-            <p><strong>Uporabnik:</strong> {user_name}</p>
+            <p><strong>Uporabnik:</strong> {user_id}</p>
             <h3>Podane ocene:</h3>
             {ratings_html}
             <hr>

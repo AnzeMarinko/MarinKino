@@ -106,6 +106,33 @@
                                     <h6 class="card-title">Naloži novo sliko</h6>
                                     <input type="file" class="form-control" id="image_file" name="image_file" accept="image/*">
                                     <div class="form-text">Naložite sliko s svojega računalnika. Datoteka se bo shranila na strežnik.{% if post and post.image %} Če naložite novo sliko, bo zamenjala trenutno.{% endif %}</div>
+                                    <input type="hidden" id="crop_x" name="crop_x" value="">
+                                    <input type="hidden" id="crop_y" name="crop_y" value="">
+                                    <input type="hidden" id="crop_w" name="crop_w" value="">
+                                    <input type="hidden" id="crop_h" name="crop_h" value="">
+                                </div>
+                            </div>
+                            <div id="image-crop-container" class="card mb-3 d-none">
+                                <div class="card-body">
+                                    <h6 class="card-title">Izreži sliko (razmerje 6:5)</h6>
+                                    <div class="form-text mb-2">Prilagodite pozicijo in velikost izreza z drsniki.</div>
+                                    <div id="image-preview-wrapper" class="position-relative border" style="overflow:auto; border:1px solid #dee2e6;">
+                                        <img id="image-preview" class="d-block" src="" alt="Predogled slike" style="width:100%; height:auto;">
+                                        <div id="crop-box" class="position-absolute border border-warning rounded" style="box-sizing:border-box; touch-action:none; cursor:move; border-width:2px;"></div>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label for="crop-x-range" class="form-label mb-1">X pozicija (levo-desno)</label>
+                                        <input id="crop-x-range" type="range" class="form-range" min="0" max="100" step="1" value="10">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label for="crop-y-range" class="form-label mb-1">Y pozicija (zgoraj-spodaj)</label>
+                                        <input id="crop-y-range" type="range" class="form-range" min="0" max="100" step="1" value="10">
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <label for="crop-size-range" class="form-label mb-0">Velikost izreza</label>
+                                        <input id="crop-size-range" type="range" class="form-range flex-grow-1" min="20" max="100" step="1" value="80">
+                                        <span id="crop-size-label" class="small text-muted">80%</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -200,11 +227,215 @@ document.addEventListener('DOMContentLoaded', function() {
     seoDescriptionTextarea.addEventListener('input', updateSeoDescriptionCount);
     updateSeoDescriptionCount(); // Initial count
 
+    const imageFileInput = document.getElementById('image_file');
+    const imageCropContainer = document.getElementById('image-crop-container');
+    const imagePreview = document.getElementById('image-preview');
+    const imagePreviewWrapper = document.getElementById('image-preview-wrapper');
+    const cropBox = document.getElementById('crop-box');
+    const cropX = document.getElementById('crop_x');
+    const cropY = document.getElementById('crop_y');
+    const cropW = document.getElementById('crop_w');
+    const cropH = document.getElementById('crop_h');
+    const cropSizeRange = document.getElementById('crop-size-range');
+    const cropSizeLabel = document.getElementById('crop-size-label');
+    const cropXRange = document.getElementById('crop-x-range');
+    const cropYRange = document.getElementById('crop-y-range');
+
+    let cropState = {
+        dragging: false,
+        offsetX: 0,
+        offsetY: 0,
+    };
+
+    function showCropContainer() {
+        imageCropContainer.classList.remove('d-none');
+    }
+
+    function hideCropContainer() {
+        imageCropContainer.classList.add('d-none');
+        cropX.value = cropY.value = cropW.value = cropH.value = '';
+    }
+
+    function setCropBox(left, top, width, height) {
+        const imgWidth = imagePreview.clientWidth;
+        const imgHeight = imagePreview.clientHeight;
+
+        const maxLeft = Math.max(0, imgWidth - width);
+        const maxTop = Math.max(0, imgHeight - height);
+        left = Math.min(Math.max(0, left), maxLeft);
+        top = Math.min(Math.max(0, top), maxTop);
+
+        cropBox.style.left = left + 'px';
+        cropBox.style.top = top + 'px';
+        cropBox.style.width = width + 'px';
+        cropBox.style.height = height + 'px';
+
+        updateCropInputs();
+    }
+
+    function updateCropInputs() {
+        const imgWidth = imagePreview.clientWidth;
+        const imgHeight = imagePreview.clientHeight;
+        const left = parseFloat(cropBox.style.left || 0);
+        const top = parseFloat(cropBox.style.top || 0);
+        const width = parseFloat(cropBox.style.width || 0);
+        const height = parseFloat(cropBox.style.height || 0);
+
+        if (!imgWidth || !imgHeight || !width || !height) {
+            cropX.value = cropY.value = cropW.value = cropH.value = '';
+            return;
+        }
+
+        cropX.value = (left / imgWidth).toFixed(6);
+        cropY.value = (top / imgHeight).toFixed(6);
+        cropW.value = (width / imgWidth).toFixed(6);
+        cropH.value = (height / imgHeight).toFixed(6);
+        cropSizeLabel.textContent = `${Math.round((width / imgWidth) * 100)}%`;
+    }
+
+    function initCropBox() {
+        const wrapperWidth = imagePreviewWrapper.clientWidth;
+        const wrapperHeight = imagePreviewWrapper.clientHeight;
+        const imgWidth = imagePreview.clientWidth;
+        const imgHeight = imagePreview.clientHeight;
+        if (!imgWidth || !imgHeight) {
+            return;
+        }
+
+        let width = Math.min(imgWidth * 0.8, imgHeight * 6 / 5);
+        let height = width * 5 / 6;
+        if (height > imgHeight) {
+            height = imgHeight * 0.8;
+            width = height * 6 / 5;
+        }
+
+        const left = (imgWidth - width) / 2;
+        const top = (imgHeight - height) / 2;
+        setCropBox(left, top, width, height);
+        cropSizeRange.value = Math.round((width / imgWidth) * 100);
+        
+        const maxLeft = Math.max(0, imgWidth - width);
+        const maxTop = Math.max(0, imgHeight - height);
+        cropXRange.value = maxLeft > 0 ? Math.round((left / maxLeft) * 100) : 10;
+        cropYRange.value = maxTop > 0 ? Math.round((top / maxTop) * 100) : 10;
+    }
+
+    function validateCropSelection() {
+        if (!imageFileInput.files.length) {
+            return true;
+        }
+        if (!cropX.value || !cropY.value || !cropW.value || !cropH.value) {
+            showAlert('Pri nalaganju slike morate izbrati del slike v razmerju 6:5.', 'danger');
+            return false;
+        }
+        return true;
+    }
+
+    imageFileInput.addEventListener('change', function() {
+        const file = this.files[0];
+        if (!file) {
+            hideCropContainer();
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            imagePreview.src = e.target.result;
+            showCropContainer();
+            cropX.value = cropY.value = cropW.value = cropH.value = '';
+        };
+        reader.readAsDataURL(file);
+    });
+
+    imagePreview.addEventListener('load', function() {
+        setTimeout(initCropBox, 0);
+    });
+
+    window.addEventListener('resize', function() {
+        if (!imageCropContainer.classList.contains('d-none')) {
+            initCropBox();
+        }
+    });
+
+    cropBox.addEventListener('pointerdown', function(e) {
+        e.preventDefault();
+    });
+
+    cropXRange.addEventListener('input', function() {
+        const imgWidth = imagePreview.clientWidth;
+        const imgHeight = imagePreview.clientHeight;
+        if (!imgWidth || !imgHeight) {
+            return;
+        }
+        
+        const cropBoxWidth = parseFloat(cropBox.style.width || 0);
+        const maxLeft = Math.max(0, imgWidth - cropBoxWidth);
+        const left = (parseInt(this.value) / 100) * maxLeft;
+        const top = parseFloat(cropBox.style.top || 0);
+        const width = parseFloat(cropBox.style.width || 0);
+        const height = parseFloat(cropBox.style.height || 0);
+        
+        setCropBox(left, top, width, height);
+    });
+
+    cropYRange.addEventListener('input', function() {
+        const imgWidth = imagePreview.clientWidth;
+        const imgHeight = imagePreview.clientHeight;
+        if (!imgWidth || !imgHeight) {
+            return;
+        }
+        
+        const cropBoxHeight = parseFloat(cropBox.style.height || 0);
+        const maxTop = Math.max(0, imgHeight - cropBoxHeight);
+        const left = parseFloat(cropBox.style.left || 0);
+        const top = (parseInt(this.value) / 100) * maxTop;
+        const width = parseFloat(cropBox.style.width || 0);
+        const height = parseFloat(cropBox.style.height || 0);
+        
+        setCropBox(left, top, width, height);
+    });
+
+    document.addEventListener('pointerup', function() {
+        cropState.dragging = false;
+    });
+
+    imagePreviewWrapper.addEventListener('scroll', function() {
+        if (cropState.dragging) {
+            cropState.dragging = false;
+        }
+    });
+
+    cropSizeRange.addEventListener('input', function() {
+        const imgWidth = imagePreview.clientWidth;
+        const imgHeight = imagePreview.clientHeight;
+        if (!imgWidth || !imgHeight) {
+            return;
+        }
+        let width = Math.min(imgWidth * (Number(this.value) / 100), imgHeight * 6 / 5);
+        let height = width * 5 / 6;
+        if (height > imgHeight) {
+            height = imgHeight * 0.9;
+            width = height * 6 / 5;
+        }
+        const left = (imgWidth - width) / 2;
+        const top = (imgHeight - height) / 2;
+        setCropBox(left, top, width, height);
+    });
+
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        if (!validateCropSelection()) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    });
+
     // Ctrl+S za shranjevanje (AJAX, ne redirect)
     document.addEventListener('keydown', function(e) {
         if ((e.ctrlKey || e.metaKey) && e.key === 's') {
             e.preventDefault();
-            saveBlogPost();
+            if (validateCropSelection()) {
+                saveBlogPost();
+            }
         }
     });
 

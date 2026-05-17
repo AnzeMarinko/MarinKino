@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 
 import pandas as pd
 from flask import (
@@ -16,6 +16,7 @@ from flask import (
     url_for,
 )
 from flask_login import current_user, login_required
+from PIL import Image
 from werkzeug.utils import secure_filename
 
 from movies_preparation.config import LOG_FILENAME
@@ -30,10 +31,12 @@ users = {}
 BLOG_DATA_FILE = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "blog_posts.json"
 )
-BLOG_IMAGES_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "blog_images")
+BLOG_IMAGES_DIR = os.path.join(
+    os.path.dirname(__file__), "..", "data", "blog_images"
+)
 
 
-def save_blog_image(file):
+def save_blog_image(file, crop_data=None):
     if not file:
         return None
     filename = secure_filename(file.filename)
@@ -41,6 +44,38 @@ def save_blog_image(file):
         return None
     os.makedirs(BLOG_IMAGES_DIR, exist_ok=True)
     filepath = os.path.join(BLOG_IMAGES_DIR, filename)
+
+    if crop_data:
+        try:
+            file.stream.seek(0)
+            img = Image.open(file.stream)
+            img.load()
+            width, height = img.size
+            left = int(
+                round(max(0, min(width - 1, crop_data.get("x", 0) * width)))
+            )
+            top = int(
+                round(max(0, min(height - 1, crop_data.get("y", 0) * height)))
+            )
+            crop_width = int(
+                round(max(1, min(width - left, crop_data.get("w", 0) * width)))
+            )
+            crop_height = int(
+                round(
+                    max(1, min(height - top, crop_data.get("h", 0) * height))
+                )
+            )
+            right = min(width, left + crop_width)
+            bottom = min(height, top + crop_height)
+            if right <= left or bottom <= top:
+                raise ValueError("Invalid crop dimensions")
+            cropped = img.crop((left, top, right, bottom))
+            cropped.save(filepath)
+            return filename
+        except Exception:
+            pass
+
+    file.stream.seek(0)
     file.save(filepath)
     return filename
 
@@ -92,15 +127,21 @@ def admin_panel():
         access_stats_users[status][log_date].setdefault(user_id, {})
 
         for route_method, count in routes_data.items():
-            access_stats_users[status][log_date][user_id].setdefault("routes", {})
+            access_stats_users[status][log_date][user_id].setdefault(
+                "routes", {}
+            )
             access_stats_users[status][log_date][user_id]["routes"].setdefault(
                 route_method, 0
             )
-            access_stats_users[status][log_date][user_id]["routes"][route_method] += (
-                int(count)
+            access_stats_users[status][log_date][user_id]["routes"][
+                route_method
+            ] += int(count)
+            access_stats_users[status][log_date][user_id].setdefault(
+                "count", 0
             )
-            access_stats_users[status][log_date][user_id].setdefault("count", 0)
-            access_stats_users[status][log_date][user_id]["count"] += int(count)
+            access_stats_users[status][log_date][user_id]["count"] += int(
+                count
+            )
             if status.startswith("2") or status.startswith("3"):
                 user_counter.setdefault(user_id, 0)
                 user_counter[user_id] += int(count)
@@ -118,7 +159,9 @@ def admin_panel():
                             for v in sorted(
                                 [
                                     (int(count), f"{count}x {route_method}")
-                                    for route_method, count in v3["routes"].items()
+                                    for route_method, count in v3[
+                                        "routes"
+                                    ].items()
                                 ],
                                 reverse=True,
                             )[:10]
@@ -133,7 +176,9 @@ def admin_panel():
                     if v
                 }
             access_stats_users[k1] = {
-                k: v for k, v in sorted(list(access_stats_users[k1].items())) if v
+                k: v
+                for k, v in sorted(list(access_stats_users[k1].items()))
+                if v
             }
         access_stats_users = {
             k: v for k, v in sorted(list(access_stats_users.items())) if v
@@ -211,7 +256,10 @@ def admin_panel():
                     watched_count += 1
 
                 if current_max_start:
-                    if last_start_time == "-" or current_max_start > last_start_time:
+                    if (
+                        last_start_time == "-"
+                        or current_max_start > last_start_time
+                    ):
                         last_start_time = current_max_start
 
                 total_watch_time += watch_time
@@ -258,9 +306,12 @@ def admin_panel():
                     new_lines.append(" - ".join(last_line))
                     last_line = line
                 else:
-                    last_line[0] = last_line[0].split(" <-> ")[0] + " <-> " + line[0]
+                    last_line[0] = (
+                        last_line[0].split(" <-> ")[0] + " <-> " + line[0]
+                    )
                     last_line[1] = (
-                        str(int(last_line[1].replace("x", "")) + int(line[1])) + "x"
+                        str(int(last_line[1].replace("x", "")) + int(line[1]))
+                        + "x"
                     )
             new_lines.append(" - ".join(last_line))
 
@@ -320,12 +371,16 @@ def admin_panel():
                     movies_watch_stats[movie_folder]["total_ratio"] += ratio
                     movies_watch_stats[movie_folder]["count"] += 1
                     movies_watch_stats[movie_folder]["users"].add(user_id)
-                    movies_watch_stats[movie_folder]["total_duration"] += duration
+                    movies_watch_stats[movie_folder]["total_duration"] += (
+                        duration
+                    )
 
     # Calculate averages and sort
     top_movies = []
     for movie_folder, stats in movies_watch_stats.items():
-        avg_ratio = stats["total_ratio"] / stats["count"] if stats["count"] > 0 else 0
+        avg_ratio = (
+            stats["total_ratio"] / stats["count"] if stats["count"] > 0 else 0
+        )
         total_watch_hours = stats["total_duration"] / 3600
 
         top_movies.append(
@@ -401,7 +456,9 @@ def admin_panel():
                 views += 1
                 if all_geo_data.get(ip, {}).get("country") == "SI":
                     si_views += 1
-            blog_views_daily[date_part] = blog_views_daily.get(date_part, 0) + views
+            blog_views_daily[date_part] = (
+                blog_views_daily.get(date_part, 0) + views
+            )
             blog_si_views_daily[date_part] = (
                 blog_si_views_daily.get(date_part, 0) + si_views
             )
@@ -422,8 +479,12 @@ def admin_panel():
         pagetitle="MarinKino - Nadzorna plošča",
         system_log=system_log,
         access_stats_users=access_stats_users,
-        users=list(sorted(user_counter.keys(), key=lambda x: -user_counter[x])),
-        emails=", ".join([e for u in users for e in users[u].get("emails", [])]),
+        users=list(
+            sorted(user_counter.keys(), key=lambda x: -user_counter[x])
+        ),
+        emails=", ".join(
+            [e for u in users for e in users[u].get("emails", [])]
+        ),
         users_count=len(users),
         access_stats_routes=access_stats_routes,
         users_stats=users_stats_dict,
@@ -488,13 +549,17 @@ def admin_blog():
         # Format dates
         if post.get("created_at"):
             try:
-                dt = datetime.fromisoformat(post["created_at"].replace("Z", "+00:00"))
+                dt = datetime.fromisoformat(
+                    post["created_at"].replace("Z", "+00:00")
+                )
                 post["created_at_formatted"] = dt.strftime("%d.%m.%Y")
             except:
                 post["created_at_formatted"] = post.get("created_at", "")
         if post.get("published_at"):
             try:
-                dt = datetime.fromisoformat(post["published_at"].replace("Z", "+00:00"))
+                dt = datetime.fromisoformat(
+                    post["published_at"].replace("Z", "+00:00")
+                )
                 post["published_at_formatted"] = dt.strftime("%d.%m.%Y")
             except:
                 post["published_at_formatted"] = post.get("published_at", "")
@@ -526,14 +591,55 @@ def admin_blog_new():
                 or request.is_json
             ):
                 return jsonify(
-                    {"success": False, "message": "Naslov in vsebina sta obvezna."}
+                    {
+                        "success": False,
+                        "message": "Naslov in vsebina sta obvezna.",
+                    }
                 )
             flash("Naslov in vsebina sta obvezna.", "error")
             return redirect(request.url)
 
         # Handle image upload
         if image_file and image_file.filename:
-            uploaded_image = save_blog_image(image_file)
+            try:
+                crop_x = float(request.form.get("crop_x", ""))
+                crop_y = float(request.form.get("crop_y", ""))
+                crop_w = float(request.form.get("crop_w", ""))
+                crop_h = float(request.form.get("crop_h", ""))
+            except ValueError:
+                crop_x = crop_y = crop_w = crop_h = None
+
+            if (
+                crop_x is None
+                or crop_y is None
+                or crop_w is None
+                or crop_h is None
+            ):
+                if (
+                    request.headers.get("X-Requested-With") == "XMLHttpRequest"
+                    or request.is_json
+                ):
+                    return jsonify(
+                        {
+                            "success": False,
+                            "message": "Pri nalaganju slike morate izbrati del slike v razmerju 6:5.",
+                        }
+                    )
+                flash(
+                    "Pri nalaganju slike morate izbrati del slike v razmerju 6:5.",
+                    "error",
+                )
+                return redirect(request.url)
+
+            uploaded_image = save_blog_image(
+                image_file,
+                {
+                    "x": crop_x,
+                    "y": crop_y,
+                    "w": crop_w,
+                    "h": crop_h,
+                },
+            )
             if uploaded_image:
                 image = uploaded_image
 
@@ -615,7 +721,10 @@ def admin_blog_edit(post_id):
                 or request.is_json
             ):
                 return jsonify(
-                    {"success": False, "message": "Naslov in vsebina sta obvezna."}
+                    {
+                        "success": False,
+                        "message": "Naslov in vsebina sta obvezna.",
+                    }
                 )
             flash("Naslov in vsebina sta obvezna.", "error")
             return redirect(request.url)
@@ -627,7 +736,45 @@ def admin_blog_edit(post_id):
         if remove_image:
             image = None
         elif image_file and image_file.filename:
-            uploaded_image = save_blog_image(image_file)
+            try:
+                crop_x = float(request.form.get("crop_x", ""))
+                crop_y = float(request.form.get("crop_y", ""))
+                crop_w = float(request.form.get("crop_w", ""))
+                crop_h = float(request.form.get("crop_h", ""))
+            except ValueError:
+                crop_x = crop_y = crop_w = crop_h = None
+
+            if (
+                crop_x is None
+                or crop_y is None
+                or crop_w is None
+                or crop_h is None
+            ):
+                if (
+                    request.headers.get("X-Requested-With") == "XMLHttpRequest"
+                    or request.is_json
+                ):
+                    return jsonify(
+                        {
+                            "success": False,
+                            "message": "Pri nalaganju slike morate izbrati del slike v razmerju 6:5.",
+                        }
+                    )
+                flash(
+                    "Pri nalaganju slike morate izbrati del slike v razmerju 6:5.",
+                    "error",
+                )
+                return redirect(request.url)
+
+            uploaded_image = save_blog_image(
+                image_file,
+                {
+                    "x": crop_x,
+                    "y": crop_y,
+                    "w": crop_w,
+                    "h": crop_h,
+                },
+            )
             if uploaded_image:
                 image = uploaded_image
 
@@ -661,7 +808,9 @@ def admin_blog_edit(post_id):
             request.headers.get("X-Requested-With") == "XMLHttpRequest"
             or request.is_json
         ):
-            return jsonify({"success": True, "message": "Blog objava posodobljena."})
+            return jsonify(
+                {"success": True, "message": "Blog objava posodobljena."}
+            )
 
         flash("Blog objava posodobljena.", "success")
         return redirect(url_for("admin.admin_blog"))
@@ -670,13 +819,17 @@ def admin_blog_edit(post_id):
     if post:
         if post.get("created_at"):
             try:
-                dt = datetime.fromisoformat(post["created_at"].replace("Z", "+00:00"))
+                dt = datetime.fromisoformat(
+                    post["created_at"].replace("Z", "+00:00")
+                )
                 post["created_at_display"] = dt.strftime("%d.%m.%Y %H:%M")
             except:
                 post["created_at_display"] = post.get("created_at", "")
         if post.get("published_at"):
             try:
-                dt = datetime.fromisoformat(post["published_at"].replace("Z", "+00:00"))
+                dt = datetime.fromisoformat(
+                    post["published_at"].replace("Z", "+00:00")
+                )
                 post["published_at_display"] = dt.strftime("%d.%m.%Y %H:%M")
             except:
                 post["published_at_display"] = post.get("published_at", "")

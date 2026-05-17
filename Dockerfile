@@ -11,6 +11,15 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
+# Ensure Python can import modules from src
+ENV PYTHONPATH=/app/src
+
+# Create necessary directories
+RUN mkdir -p /app/cache/logs/server
+
+# Expose port
+EXPOSE 5000
+
 # Copy project files
 COPY pyproject.toml .
 
@@ -20,15 +29,6 @@ RUN pip install --default-timeout=1000 --no-cache-dir -e .
 # copy source code and other files
 COPY credentials ./credentials
 COPY src ./src
-
-# Ensure Python can import modules from src
-ENV PYTHONPATH=/app/src
-
-# Create necessary directories
-RUN mkdir -p /app/cache/logs/server
-
-# Expose port
-EXPOSE 5000
 
 # Run the application with waitress
 CMD ["waitress-serve", "--host=0.0.0.0", "--port=5000", "--trusted-proxy=*", "src.app:app"]
