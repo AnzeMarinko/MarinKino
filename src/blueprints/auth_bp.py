@@ -126,6 +126,10 @@ def register():
                 f"Vstopna stran: {WWW_DOMAIN}\n"
                 f"Uporabniško ime: {username}\nE-naslov: {' + '.join(emails)}"
                 f"\nGeslo: {password}\n\n"
+                "Dobrodošel v MarinKino!\n\n"
+                "MarinKino ponuja filme, meme, glasbo in igro Pod Krinko. "
+                "Vsi filmi imajo slovenske podnapise ali zvok.\n\n"
+                "Uporabi prijavno povezavo in si oglej vašo novo zbirko.\n\n"
                 "Lep pozdrav,\nMarinKino sistem"
             )
             requests.post(
@@ -148,15 +152,6 @@ def register():
                     is_for_mail=True,
                 ),
                 batch_id="new_user_credentials",
-            )
-            send_mail(
-                to=emails,
-                subject="Uporaba MarinKino",
-                text=f"https://{WWW_DOMAIN}/help",
-                html=render_template(
-                    "mail_user_intro.html", username=username, is_for_mail=True
-                ),
-                batch_id="new_user_introduction",
             )
             return redirect(url_for("home"))
     if error:

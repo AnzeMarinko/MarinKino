@@ -87,17 +87,6 @@ def newsletter_image(filename):
     )
 
 
-@misc_bp.route("/help")
-@login_required
-def help_page():
-    return render_template(
-        "mail_user_intro.html",
-        is_for_mail=False,
-        username=current_user.id if current_user.is_authenticated else "gost",
-        pagetitle="Navodila za uporabo MarinKino",
-    )
-
-
 @misc_bp.route("/admin/view_emails")
 @login_required
 def view_emails():

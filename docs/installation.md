@@ -1,163 +1,163 @@
 # Nastavitev MarinKino
 
-Spodaj so celotna navodila za nastavitev okolja, da se ob zagonu računalnika zažene tudi strežnik dostopen preko **HTTPS**.
+Tu so posodobljena navodila za lokalno in strežniško namestitev.
 
-## Zahteve sistema
-* Računalnik z operacijskim sistemom **Linux** (recimo Ubuntu 24.04 ali Raspberry Pi OS)
-* **Python 3.12** in **FFMPEG**
-* **Rezerviran IP** za strežnik (na routerju nastavi rezerviran IP za MAC naslov mrežne kartice svojega strežnika)
-* TLC **port forwarding** za 80-80 (notranji in zunanji vhod) in 443-443 nastavljen na routerju za rezerviran IP strežnika
-* Na **duckdns.org** nastavljeno poddomeno za svojo stran.
+## Sistemske zahteve
+* Linux (npr. Ubuntu 24.04 ali Raspberry Pi OS)
+* Python 3.12
+* FFMPEG
+* Rezerviran IP za strežnik (na routerju nastavi rezerviran IP za MAC naslov mrežne kartice svojega strežnika)
+* Port forwarding 80-80 (notranji in zunanji vhod) in 443-443 nastavljen na routerju za rezerviran IP strežnika
+* DuckDNS poddomena, če nimaš fiksnega IP
 
-## Navodila za lokalno vzpostavitev
+## Lokalna namestitev in razvoj
 
 ### 1. Kloniraj repozitorij
-Kloniraj repozitorij:
 ```
 git clone https://github.com/AnzeMarinko/MarinKino.git
-cd repozitorij
+cd MarinKino
 chmod +x ./scripts/setup.sh
 ```
 
-### 2. Posodobi ključe
-Kopiraj datoteko `.env.example` v `.env` ter posodobi vrednosti spremenljivk na
-svoje nastavitve in gesla. Dodaj tudi datoteko `credentials/gen-lang-client.json`,
-kjer je ključ za tvoje Google AI storitve. Slednja datoteka se uporablja le za prevajanje opisov filmov. Če tega ne potrebuješ, lahko odstraniš.
+### 2. Pripravi konfiguracijo
+1. Kopiraj `.env.example` v `.env`:
+   ```
+   cp .env.example .env
+   ```
+2. Uredi `.env` in nastavi svoje vrednosti.
+3. Če uporabljaš Google AI prevajanje, dodaj `credentials/gen-lang-client.json`.
 
-### 3. Ustvari virtualno okolje
+### 3. Ustvari virtualno okolje in namesti odvisnosti
 ```
 python3 -m venv .venv
-python3 -m pip install --upgrade pip
-python3 -m pip install uv
-uv pip install .
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install uv
+uv install .
 pre-commit install
 pre-commit run --all-files
 ```
 
-### 4. Namesti odvisnosti (Redis)
+### 4. Namesti Redis
 ```
-sudo apt update && sudo apt upgrade
-sudo apt install redis-server
-```
-
-### 5. Preveri, da ti deluje lokalno (pomembno zaradi razvoja)
-Postavi lokalno Flask aplikacijo dostopno znotraj tvojega Wi-Fi omrežja:
-```
-python src/app.py
+sudo apt update && sudo apt install -y redis-server
+sudo systemctl enable --now redis-server
 ```
 
-Po potrebi popravi poti v kodi.
-Ob prvem zagonu se avtomatsko generira datoteka `data/users.json` s prvim uporabnikom, ki je tudi administrator. Priporočeno je, da ročno spremenite uporabniško ime tega administratorja, uredite njegov e-naslov in iz datoteke obvezno odstranite dejansko vrednost gesla `initial_password`, ki vam služi za prvi vpis.
+### 5. Zaženi aplikacijo lokalno
+```
+uv run python src/app.py
+```
+
+Ob prvem zagonu se ustvari `data/users.json` z začetnim uporabnikom. Po prvi prijavi:
+* ročno spremeni uporabniško ime administratorja in posodobi e-naslov,
+* shrani in odstrani začetno geslo `initial_password`.
 
 ### 6. Dodaj vsebine
-V mape `movies`, `memes` in `music` postavi datoteke glede na [navodila za dodajanje datotek](docs/adding_data.md).
+V mape `movies`, `memes` in `music` dodaj datoteke glede na [navodila za dodajanje datotek](docs/adding_data.md).
 
-
-### 7. Daj pravice, da bodo imeli vsi (app in nginx) pravice za branje v data mapi
+### 7. Nastavi pravice za `data` mapo
 ```
-sudo apt-get install acl
+sudo apt-get install -y acl
 sudo setfacl -R -d -m o::rx ./data
 sudo setfacl -R -m o::rx ./data
 ```
 
-## Nastavitev serverja
+## Strežniška namestitev
 
-### 1. Nastavi omejitve IP-jem, ki iščejo luknje
-
-Naložite paket Fail2Ban:
+### 1. Nastavi Fail2Ban
 ```
-sudo apt update && sudo apt upgrade
-sudo apt install fail2ban -y
+sudo apt update && sudo apt install -y fail2ban
 ```
 
-Odprite konfiguracijo filtra za Nginx 404 odzive:
+Kopiraj konfiguracijske datoteke iz repozitorija v `/etc/fail2ban`:
 ```
-sudo nano /etc/fail2ban/filter.d/nginx-404.conf
+sudo cp configuration/fail2ban/filter.d/nginx-404.conf /etc/fail2ban/filter.d/nginx-404.conf
+sudo cp configuration/fail2ban/filter.d/marinkino-auth.conf /etc/fail2ban/filter.d/marinkino-auth.conf
+sudo cp configuration/fail2ban/jail.local /etc/fail2ban/jail.local
 ```
-in vso vsebino zamenjajte z vsebino datoteke `configuration/fail2ban/filter.d/nginx-404.conf` (Shranite s pritiskom na CTRL+O in nato Enter, ter zaprete s CTRL+X).
 
-Dodajte konfiguracijo filtra za zavrnjene prijave:
-```
-sudo nano /etc/fail2ban/filter.d/marinkino-auth.conf
-```
-in vso vsebino zamenjajte z vsebino datoteke `configuration/fail2ban/filter.d/marinkino-auth.conf` (Shranite s pritiskom na CTRL+O in nato Enter, ter zaprete s CTRL+X).
-
-Zdaj odprite glavno konfiguracijo:
-```
-sudo nano /etc/fail2ban/jail.local
-```
-in vso vsebino zamenjajte z vsebino datoteke `configuration/fail2ban/jail.local`.
-
-Posodobite konfiguracijo:
+Zaženi in preveri:
 ```
 sudo systemctl restart fail2ban
 sudo fail2ban-client status
-```
-in čez nekaj sekund preverite status:
-```
-sudo systemctl restart fail2ban
-sudo fail2ban-client status
-```
-
-preveri zapore
 sudo fail2ban-client status marinkino-auth
-
-### 2. Naloži Docker in zgradi Docker compose
-Naloži Docker:
 ```
-sudo apt update && sudo apt upgrade
+
+### 2. Namesti Docker in zaženi aplikacijo
+```
+sudo apt update && sudo apt install -y curl
 curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh
-sudo systemctl enable docker
+sudo systemctl enable --now docker
 ```
 
-Zgradi docker compose z našo aplikacijo (pred tem pregled `scripts.setup.sh` in `docker-compose.yml`, da je skladno z želenimi nastavitvami tvoje strani):
+Zaženi začetni Docker setup:
 ```
 sudo ./scripts/setup.sh
 sudo chmod -R 777 cache
 ```
+
 Ob koncu izvajanja te skripte mora biti stran dostopna preko HTTPS in vašega URL (DuckDNS poddomena).
 
-Dodaj pravice za docker brez sudo:
+
+Če želiš uporabljati Docker brez `sudo`, dodaj uporabnika v skupino `docker` in ponovno zaženi sejo:
 ```
 sudo usermod -aG docker $USER
 newgrp docker
 ```
 
-V primeru sprememb v kodi (karkoli v mapi `src`), ob ročnih spremembah v mapi `data` (vključno z ročnimi zagoni python skript) ali infrastrukturnih sprememb (uporabljene python knjižnice, `.env`, Dockerfile, Docker-compose ipd.) posodobimo aplikacijo:
+### 3. Posodabljanje aplikacije po spremembah
+Po spremembah v `src`, `.env`, Dockerfile ali `docker-compose.yml` ponovno pregradi:
 ```
 docker compose up -d --build
 ```
 
-## Nastavi varno shranje kopije datotek v oblak
+## Varna sinhronizacija v oblak z rclone
 
-Naloži in konfiguriraj rclone sinhronizacijo na oblak:
+Namesti in konfiguriraj rclone:
 ```
 sudo curl https://rclone.org/install.sh | sudo bash
 rclone config
 ```
-Sledite tem korakom (primer za Google Drive):
-1. **n) New remote** – vpišite ime (npr. `gdrive`).
-1. **Storage** – izberite številko za ponudnika (npr. Google Drive).
-1. **Client ID & Secret** – pustite prazno (pritisnite Enter), razen če ste napreden uporabnik.
-1. **Scope** – izberite 1 (Full access).
-1. **Edit advanced config** – n (No).
-1. **Use web browser to authenticate?** –
-    * Če delate na **osebnem računalniku**, vpišite y.
-    * Če delate na **oddaljenem strežniku brez grafičnega vmesnika**, vpišite n (sledite navodilom za "Remote Config").
-1. Ko se v brskalniku prijaviš in potrdiš dostop, se vrni v terminal in potrdi z y (Yes, this is OK).
 
-Preveri vsebino
+Primer konfiguracije za Google Drive:
+1. `n` – New remote
+2. izberi ime, npr. `gdrive`
+3. izberi ponudnika (Google Drive)
+4. pusti `Client ID` in `Secret` prazno, razen če želiš napredno konfiguracijo
+5. izberi `Scope` = Full access
+6. `Edit advanced config` = n
+7. uporabi spletni brskalnik za avtentikacijo
+
+Preveri dostopnost:
 ```
 rclone ls gdrive:
 ```
 
-Ko imaš rclone konfiguriran, uredi poti in ročno enkrat poženi skripto `./scripts/rclone/rclone-sync-gdrive.sh`. Ko konča, pripravi "cron job":
+Ročno poženite sinhronizacijo:
+```
+./scripts/rclone/rclone-sync-gdrive.sh
+```
+
+Za samodejno sinhronizacijo dodaj cron nalogo:
 ```
 sudo crontab -e
 ```
 
-Dodaj (popravi pot do datoteke):
+Dodaj vrstico (poskrbi, da pot ustreza tvojemu okolju):
 ```
 0 7 * * * /home/marinko/Desktop/MarinKino/scripts/rclone/rclone-sync-gdrive.sh
 ```
+
+## Uporaba lastne domene
+
+DuckDNS uporabljaj kot dinamičen DNS samo, če nimaš fiksnega IP ali želiš hitro testno rešitev.
+Za produkcijsko rabo priporočam svojo domeno, kjer upravljaš DNS zapise pri ponudniku domene.
+
+1. Nastavi A zapis na svoj fiksni javni IP naslov.
+2. Če imaš IPv6, dodaj tudi AAAA zapis.
+3. Za boljšo varnost nastavi tudi CAA zapise za izdajo SSL certifikatov.
+4. Če želiš, lahko lastno domeno usmeriš prek CNAME na DuckDNS poddomeno, vendar je najbolj stabilna rešitev neposredni A/AAAA zapis na ciljni strežnik.
+
+Za HTTPS uporabi certbot ali drugo TLS rešitev z lastno domeno, ne pa URL-ja DuckDNS kot primarno končno ime. DuckDNS naj ostane pomočnik za dinamičen DNS in začasno preusmeritev, če nimaš statičnega naslova.
