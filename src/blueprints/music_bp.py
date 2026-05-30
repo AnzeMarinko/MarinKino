@@ -22,7 +22,9 @@ music_bp = Blueprint("music", __name__)
 
 # Initialize music
 music_albums = {}
-music_files = [f[11:] for f in glob.iglob("data/music/**/*.mp3", recursive=True)]
+music_files = [
+    f[11:] for f in glob.iglob("data/music/**/*.mp3", recursive=True)
+]
 MUSIC_COUNT = len(music_files)
 for s in music_files:
     parts = s.split("/")[:-1]
@@ -44,7 +46,9 @@ for file in music_albums["Vse"]:
     genre = file.split("/")[0].strip()
 
     item = {
-        "title": ", ".join(audio.get("title", [".".join(file.split("/")[-1].split(".")[:-1])])),
+        "title": ", ".join(
+            audio.get("title", [".".join(file.split("/")[-1].split(".")[:-1])])
+        ),
         "artist": " - ".join(audio.get("artist", [])),
         "album": " - ".join(audio.get("album", [genre])),
         "genre": genre,
@@ -90,7 +94,9 @@ def music():
             pagetitle="MarinKino - Glasba",
             is_music=True,
             albums=[a for a in music_albums if "Neurejen" not in a["name"]],
-            music_metadata={k: v for k, v in music_metadata.items() if not v["only_admin"]},
+            music_metadata={
+                k: v for k, v in music_metadata.items() if not v["only_admin"]
+            },
         )
     return render_template(
         "music_player.html",
@@ -115,9 +121,13 @@ def song(filename):
         safe_filename = quote(filename, safe="/")
         if not safe_filename.startswith("/"):
             safe_filename = "/" + safe_filename
-        response.headers["X-Accel-Redirect"] = f"/protected_music{safe_filename}"
+        response.headers["X-Accel-Redirect"] = (
+            f"/protected_music{safe_filename}"
+        )
     else:
-        response = send_from_directory("../data/music", filename, conditional=True)
+        response = send_from_directory(
+            "../data/music", filename, conditional=True
+        )
         response.headers["Accept-Ranges"] = "bytes"
     if filename.endswith(".mp3"):
         response.headers["Content-Type"] = "audio/mpeg"

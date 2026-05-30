@@ -58,7 +58,10 @@ def convert_to_mp4(input_path: str, output_path: str):
 
 
 def ensure_aac_audio(filepath):
-    """Preveri kodek in po potrebi pretvori samo zvok v AAC brez izgube video kakovosti."""
+    """
+    Preveri kodek in po potrebi pretvori samo
+    zvok v AAC brez izgube video kakovosti.
+    """
     filepath = Path(filepath)
     cmd = [
         "ffprobe",
@@ -105,7 +108,11 @@ def ensure_aac_audio(filepath):
 def get_videos_list(folder):
     """Vrne seznam Path objektov za podprte video datoteke."""
     p = Path(folder)
-    return [f for f in p.iterdir() if f.is_file() and f.suffix.lower() in SUPPORTED_EXTENSIONS]
+    return [
+        f
+        for f in p.iterdir()
+        if f.is_file() and f.suffix.lower() in SUPPORTED_EXTENSIONS
+    ]
 
 
 def convert_videos(folder):

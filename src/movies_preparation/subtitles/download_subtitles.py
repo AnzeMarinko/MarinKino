@@ -75,11 +75,16 @@ def fetch_html(url, tries=5):
 
 
 def search_podnapisi_safe(title, year, languages):
-    title = re.sub(r"[^\w]+", " ", title.lower().replace(".slosinh", ""), flags=re.UNICODE)
+    title = re.sub(
+        r"[^\w]+", " ", title.lower().replace(".slosinh", ""), flags=re.UNICODE
+    )
     title = re.sub(r"\b(19|20)\d{2}\b", "", title).strip()
 
     base = "https://www.podnapisi.net"
-    url = f"{base}/sl/subtitles/search/advanced?keywords={title.replace(' ', '+')}"
+    url = (
+        f"{base}/sl/subtitles/search/advanced"
+        f"?keywords={title.replace(' ', '+')}"
+    )
 
     html = fetch_html(url)
     if not html:
@@ -93,8 +98,15 @@ def search_podnapisi_safe(title, year, languages):
         if row:
             href = str(row.attrs.get("href"))
             for lang in languages:
-                if "/subtitles/" in href and f"/{lang}" in href and href.endswith("/download") and year in href:
-                    if len(results.get(lang, [])) < 5 and base + href not in results.get(lang, []):
+                if (
+                    "/subtitles/" in href
+                    and f"/{lang}" in href
+                    and href.endswith("/download")
+                    and year in href
+                ):
+                    if len(
+                        results.get(lang, [])
+                    ) < 5 and base + href not in results.get(lang, []):
                         results[lang] = results.get(lang, []) + [base + href]
                         final_list.append(base + href)
 

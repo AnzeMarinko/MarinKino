@@ -43,3 +43,4 @@ data/blog_images
 
 build/
 *.egg-info
+.ruff_cache

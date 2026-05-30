@@ -15,7 +15,9 @@ from PIL import Image
 
 log = logging.getLogger(__name__)
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "credentials/gen-lang-client.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = (
+    "credentials/gen-lang-client.json"
+)
 TMDB_KEY = os.getenv("TMDB_KEY")
 TMDB_URL = "https://api.themoviedb.org/3"
 
@@ -80,9 +82,12 @@ def tmdb_movie_details(tmdb_id):
     if not has_overview:
         merged_data["overview"] = data_en.get("overview", "")
 
-    # Če manjka slovenski naslov (redko, a mogoče), vzemi angleškega ali originalnega
+    # Če manjka slovenski naslov (redko, a mogoče),
+    # vzemi angleškega ali originalnega
     if not merged_data.get("title"):
-        merged_data["title"] = data_en.get("title", data_en.get("original_title"))
+        merged_data["title"] = data_en.get(
+            "title", data_en.get("original_title")
+        )
 
     # Če manjka pot do slike v slovenščini, vzemi angleško
     if not has_poster:
@@ -106,7 +111,8 @@ def tmdb_cast(tmdb_id, limit=7):
     data = tmdb_get(f"/movie/{tmdb_id}/credits")
     cast = data.get("cast", [])
 
-    # Če je seznam prazen, poskusi EN (čeprav TMDB običajno vrne igralce ne glede na jezik)
+    # Če je seznam prazen, poskusi EN (čeprav TMDB običajno
+    #  vrne igralce ne glede na jezik)
     if not cast:
         data = tmdb_get(f"/movie/{tmdb_id}/credits", lang="en-US")
         cast = data.get("cast", [])
@@ -117,7 +123,9 @@ def tmdb_cast(tmdb_id, limit=7):
 def get_imdb_id_from_tmdb(tmdb_id):
     imdb_id = tmdb_get(f"/movie/{tmdb_id}/external_ids").get("imdb_id")
     if imdb_id is None:
-        imdb_id = tmdb_get(f"/movie/{tmdb_id}/external_ids", lang="en-US").get("imdb_id")
+        imdb_id = tmdb_get(f"/movie/{tmdb_id}/external_ids", lang="en-US").get(
+            "imdb_id"
+        )
     return imdb_id
 
 
@@ -129,7 +137,9 @@ def translate_text(text, target_language="sl"):
         return ""
 
     result = translate_client.translate(text, target_language=target_language)
-    return result["translatedText"]  # TODO: previdno uporabi za opise, lahko je drago
+    return result[
+        "translatedText"
+    ]  # TODO: previdno uporabi za opise, lahko je drago
 
 
 def create_thumbnail(src, height=250, quality=85):
@@ -235,7 +245,9 @@ def get_movie_metadata(folder, film, video_files):
         film_cover_file = "static/logo.png"
 
     runtimes = get_movie_runtimes(folder, video_files)
-    result["RuntimesByFiles"] = {file: runtime for file, runtime in zip(video_files, runtimes)}
+    result["RuntimesByFiles"] = {
+        file: runtime for file, runtime in zip(video_files, runtimes)
+    }
     runtime = None
     if len(runtimes) > 1:
         valid_r = [r for r in runtimes if r]
@@ -270,21 +282,33 @@ class MovieMetadata:
         self.title = " ".join(raw_name.split()).title()
 
         # Vsebino mape preberemo samo enkrat za večjo hitrost
-        folder_contents = list(self.path.iterdir()) if self.path.exists() else []
+        folder_contents = (
+            list(self.path.iterdir()) if self.path.exists() else []
+        )
 
         # Filtriranje datotek z uporabo pathlib suffixov (ki vključujejo piko)
         self.video_files = sorted(
-            [f.name for f in folder_contents if f.is_file() and f.suffix.lower() in self.SUPPORTED_VIDEO]
+            [
+                f.name
+                for f in folder_contents
+                if f.is_file() and f.suffix.lower() in self.SUPPORTED_VIDEO
+            ]
         )
 
-        self.subtitles = [f.name for f in folder_contents if f.is_file() and f.suffix.lower() == ".vtt"]
+        self.subtitles = [
+            f.name
+            for f in folder_contents
+            if f.is_file() and f.suffix.lower() == ".vtt"
+        ]
 
         # Logične zastavice
         self.slosinh = "sinh" in self.path.name.lower()
         self.is_collection = ".collection" in self.path.name.lower()
         self.is_chosen_series = "the-chosen/" in folder
 
-        metadata, cover = get_movie_metadata(folder, self.title, self.video_files)
+        metadata, cover = get_movie_metadata(
+            folder, self.title, self.video_files
+        )
 
         self.cover = cover
         self.thumbnail = create_thumbnail(cover)
@@ -298,7 +322,9 @@ class MovieMetadata:
         self.players = metadata.get("Players", "")
         if isinstance(self.players, list):
             self.players = "; ".join(self.players)
-        self.plot = html.unescape(metadata.get("Plot - translated", metadata.get("Plot", "")))
+        self.plot = html.unescape(
+            metadata.get("Plot - translated", metadata.get("Plot", ""))
+        )
         self.imdb_id = metadata.get("imdb_id", "")
         self.recommendation_level = metadata.get("recommendation_level", "")
         self.user_notes = metadata.get("user_notes", {})

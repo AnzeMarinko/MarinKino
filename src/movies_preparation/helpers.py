@@ -33,4 +33,6 @@ def remove(file):
             try:
                 os.remove(file)
             except PermissionError:
-                log.error(f"❌ Napaka pri brisanju {file}. Poskusi ročno odstraniti.")
+                log.error(
+                    f"❌ Napaka pri brisanju {file}. Poskusi ročno odstraniti."
+                )

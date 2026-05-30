@@ -68,7 +68,10 @@ def download_playlist(playlist_url, get_video=False):
 
             # Pridobimo ime playliste za izpis na koncu
             playlist_title = info.get("title", "Neznana playlista")
-            print(f"\n✅ Končano! Glasba je shranjena v mapi: {incoming_folder}/{playlist_title}")
+            print(
+                "\n✅ Končano! Glasba je shranjena v mapi:"
+                f" {incoming_folder}/{playlist_title}"
+            )
 
         except Exception as e:
             print(f"\n❌ Prišlo je do napake: {e}")
@@ -76,7 +79,12 @@ def download_playlist(playlist_url, get_video=False):
 
     if get_video:
         return True
-    for input_path in sorted(glob.iglob(f"{INCOMING_MUSIC_FOLDER}/{playlist_title}/**/*.mp3", recursive=True)):
+    for input_path in sorted(
+        glob.iglob(
+            f"{INCOMING_MUSIC_FOLDER}/{playlist_title}/**/*.mp3",
+            recursive=True,
+        )
+    ):
         normalizer = FFmpegNormalize(
             target_level=-16,
             true_peak=-1.0,
@@ -117,7 +125,11 @@ def get_current_metadata(music_file):
     audio = MP3(path, ID3=EasyID3)
     total_seconds = int(audio.info.length)
     return {
-        "title": ", ".join(audio.get("title", [".".join(music_file.split("/")[-1].split(".")[:-1])])),
+        "title": ", ".join(
+            audio.get(
+                "title", [".".join(music_file.split("/")[-1].split(".")[:-1])]
+            )
+        ),
         "artist": ", ".join(audio.get("artist", [])),
         "album": ", ".join(audio.get("album", [])),
         "filename": music_file,
@@ -138,7 +150,12 @@ def update_values(music_file, title, artist, album):
 
 @app.route("/")
 def index():
-    music_files = [f[11:] for f in glob.iglob(f"{INCOMING_MUSIC_FOLDER}/**/*.mp3", recursive=True)]
+    music_files = [
+        f[11:]
+        for f in glob.iglob(
+            f"{INCOMING_MUSIC_FOLDER}/**/*.mp3", recursive=True
+        )
+    ]
     return render_template(
         "music_editor.html",
         music=sorted(
@@ -182,7 +199,12 @@ def incoming_video_file(filename):
     elif lower_name.endswith(".mkv"):
         mimetype = "video/x-matroska"
 
-    response = send_from_directory(f"../{INCOMING_VIDEO_FOLDER}", filename, mimetype=mimetype, conditional=True)
+    response = send_from_directory(
+        f"../{INCOMING_VIDEO_FOLDER}",
+        filename,
+        mimetype=mimetype,
+        conditional=True,
+    )
     response.headers["Accept-Ranges"] = "bytes"
     return response
 
@@ -200,17 +222,25 @@ def delete_incoming_video():
 
         if not filename:
             return (
-                jsonify({"status": "error", "message": "Filename is required"}),
+                jsonify(
+                    {"status": "error", "message": "Filename is required"}
+                ),
                 400,
             )
 
         try:
             path = safe_path(INCOMING_VIDEO_FOLDER, filename)
         except ValueError:
-            return (jsonify({"status": "error", "message": "Invalid filename"}), 400)
+            return (
+                jsonify({"status": "error", "message": "Invalid filename"}),
+                400,
+            )
 
         if not os.path.exists(path):
-            return (jsonify({"status": "error", "message": "File does not exist"}), 404)
+            return (
+                jsonify({"status": "error", "message": "File does not exist"}),
+                404,
+            )
 
         os.remove(path)
         return jsonify({"status": "ok", "message": "File removed"})
@@ -226,17 +256,25 @@ def accept_incoming_video():
 
         if not filename:
             return (
-                jsonify({"status": "error", "message": "Filename is required"}),
+                jsonify(
+                    {"status": "error", "message": "Filename is required"}
+                ),
                 400,
             )
 
         try:
             src_path = safe_path(INCOMING_VIDEO_FOLDER, filename)
         except ValueError:
-            return (jsonify({"status": "error", "message": "Invalid filename"}), 400)
+            return (
+                jsonify({"status": "error", "message": "Invalid filename"}),
+                400,
+            )
 
         if not os.path.exists(src_path):
-            return (jsonify({"status": "error", "message": "File does not exist"}), 404)
+            return (
+                jsonify({"status": "error", "message": "File does not exist"}),
+                404,
+            )
 
         # Target folder for accepted memes
         target_folder = "data/memes"
@@ -273,7 +311,9 @@ def update_music_metadata():
 
         if not music_file:
             return (
-                jsonify({"status": "error", "message": "Filename je obavezen"}),
+                jsonify(
+                    {"status": "error", "message": "Filename je obavezen"}
+                ),
                 400,
             )
 
@@ -305,7 +345,9 @@ def delete_music_file():
 
         if not music_file:
             return (
-                jsonify({"status": "error", "message": "Filename je obavezen"}),
+                jsonify(
+                    {"status": "error", "message": "Filename je obavezen"}
+                ),
                 400,
             )
 
@@ -350,7 +392,10 @@ def download_yt_music():
                 jsonify(
                     {
                         "status": "error",
-                        "message": "Napaka pri prenašanju. Preveri, ali je YT-DL pravilno nameščen.",
+                        "message": (
+                            "Napaka pri prenašanju. Preveri, ali "
+                            "je YT-DL pravilno nameščen."
+                        ),
                     }
                 ),
                 500,

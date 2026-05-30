@@ -45,16 +45,23 @@ def translate(
         detected_lang, tekst = detect_srt_lang(input_srt_file)
         if detected_lang == target_language:
             log.info("✅ Podnapisi so že v ciljnem jeziku.")
-            output_srt_file = input_srt_file.replace(".srt", f"-{target_language_short_name}Subs.srt")
+            output_srt_file = input_srt_file.replace(
+                ".srt", f"-{target_language_short_name}Subs.srt"
+            )
             with open(output_srt_file, "w", encoding="utf-8") as file:
                 file.write(tekst)
             remove(input_srt_file)
         else:
-            log.info(f"🌍 Prevajam {input_srt_file} iz {detected_lang} v {target_language} ...\n")
+            log.info(
+                f"🌍 Prevajam {input_srt_file} iz {detected_lang}"
+                f" v {target_language} ...\n"
+            )
             gst.gemini_api_key = GEMINI_API_KEY
             gst.target_language = target_language_long_name
             gst.input_file = input_srt_file
-            output_srt_file = input_srt_file.replace(".srt", f"-{target_language_short_name}Subs-auto.srt")
+            output_srt_file = input_srt_file.replace(
+                ".srt", f"-{target_language_short_name}Subs-auto.srt"
+            )
             gst.output_file = output_srt_file
 
             gst.translate()

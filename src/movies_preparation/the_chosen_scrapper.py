@@ -25,8 +25,11 @@ logging.basicConfig(
 
 videos = {}
 for season in [1, 2, 3, 4, 5]:
-    # preberemo iz lokalno shranjenega html, ki se odpre kot seznam epizod v izbrani sezoni
-    with open(f"data/movies/06-the-chosen/seasons-metadata/{season}.html", "r") as f:
+    # preberemo iz lokalno shranjenega html,
+    # ki se odpre kot seznam epizod v izbrani sezoni
+    with open(
+        f"data/movies/06-the-chosen/seasons-metadata/{season}.html", "r"
+    ) as f:
         soup = BeautifulSoup(f.read(), "lxml")
 
     episodes = soup.find_all("img")
@@ -56,7 +59,11 @@ for season in [1, 2, 3, 4, 5]:
     episodes = soup.find_all("span")
     i = 0
     for e in episodes:
-        if e.contents and ":" in e.contents[0] and len(e.contents[0]) in [5, 7]:
+        if (
+            e.contents
+            and ":" in e.contents[0]
+            and len(e.contents[0]) in [5, 7]
+        ):
             i += 1
             times = e.contents[0].split(":")
             minutes = 0
@@ -87,7 +94,8 @@ headers = {
     "sec-gpc": "1",
     "upgrade-insecure-requests": "1",
     "user-agent": (
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
     ),
 }
 token = f"viewerToken={chosen_token}"
@@ -96,7 +104,9 @@ token = f"viewerToken={chosen_token}"
 def combine_to_mp4(
     video_path: str,
     audio_tracks: list[tuple[str, str, str]],  # (path, language, title)
-    subtitle_tracks: list[tuple[str, str, str]] = None,  # (path, language, title)
+    subtitle_tracks: list[
+        tuple[str, str, str]
+    ] = None,  # (path, language, title)
     output_path: str = "output.mp4",
     default_audio: int = 0,
     default_subtitle: int = 0,
@@ -207,10 +217,14 @@ async def get_master_url(video_id):
             await page.click('button[aria-label="Prijavite se"]')
 
             # počakamo, da se prikaže obrazec (če je asinhrono naložen)
-            await page.wait_for_selector('button[aria-label="Nadaljujte z e-pošto auth button"]')
+            await page.wait_for_selector(
+                'button[aria-label="Nadaljujte z e-pošto auth button"]'
+            )
 
             # klikni gumb "Sign in" ali podobno (preveri selector na strani)
-            await page.click('button[aria-label="Nadaljujte z e-pošto auth button"]')
+            await page.click(
+                'button[aria-label="Nadaljujte z e-pošto auth button"]'
+            )
 
             # počakamo, da se prikaže obrazec (če je asinhrono naložen)
             await page.wait_for_selector('input[name="username"]')
@@ -220,7 +234,9 @@ async def get_master_url(video_id):
             await page.fill('input[name="password"]', password)
 
             # klikni gumb "Sign in" ali podobno (preveri selector na strani)
-            await page.click('button[type="submit"], button:has-text("Prijava")')
+            await page.click(
+                'button[type="submit"], button:has-text("Prijava")'
+            )
 
             # počakaj, da se prijava zaključi in stran naloži
             await page.wait_for_load_state("networkidle")
@@ -296,8 +312,11 @@ def scrappe_video_data(
             "Year": "2023-2027",
             "Runtimes": runtime,
             "Plot": description,
-            "Plot outline": "Za slovenski zvok glejte preko lokalnega predvajalnika"
-            " filmov (npr. VLC), kjer lahko izberete jezik zvoka. Brskalnik ne omogoča izbire zvoka.",
+            "Plot outline": (
+                "Za slovenski zvok glejte preko lokalnega predvajalnika"
+                " filmov (npr. VLC), kjer lahko izberete jezik zvoka. "
+                "Brskalnik ne omogoča izbire zvoka."
+            ),
         }
         with open(readme_file, "w", encoding="utf-8") as f:
             json.dump(metadata, f, ensure_ascii=False, indent=4)
@@ -318,12 +337,25 @@ def scrappe_video_data(
         master.playlists,
         key=lambda p: -abs(target_video_height - p.stream_info.resolution[1]),
     )
-    audio_en_info = next(m for m in master.media if m.type == "AUDIO" and m.name == "English")
-    audio_sl_info = next(m for m in master.media if m.type == "AUDIO" and m.name == "Slovenian")
-    subs_en_info = next(m for m in master.media if m.type == "SUBTITLES" and m.name == "English")
-    subs_sl_info = next(m for m in master.media if m.type == "SUBTITLES" and m.name == "Slovenian")
+    audio_en_info = next(
+        m for m in master.media if m.type == "AUDIO" and m.name == "English"
+    )
+    audio_sl_info = next(
+        m for m in master.media if m.type == "AUDIO" and m.name == "Slovenian"
+    )
+    subs_en_info = next(
+        m
+        for m in master.media
+        if m.type == "SUBTITLES" and m.name == "English"
+    )
+    subs_sl_info = next(
+        m
+        for m in master.media
+        if m.type == "SUBTITLES" and m.name == "Slovenian"
+    )
     logging.info(
-        f"Izbrana kvaliteta: {video_best.stream_info.resolution} {video_best.stream_info.bandwidth}"
+        f"Izbrana kvaliteta: {video_best.stream_info.resolution} "
+        f"{video_best.stream_info.bandwidth}"
         f" {[m.stream_info.resolution for m in master.playlists]}"
     )
 

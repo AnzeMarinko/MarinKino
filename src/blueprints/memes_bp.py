@@ -4,7 +4,13 @@ import random
 from datetime import date
 from urllib.parse import quote
 
-from flask import Blueprint, abort, make_response, render_template, send_from_directory
+from flask import (
+    Blueprint,
+    abort,
+    make_response,
+    render_template,
+    send_from_directory,
+)
 from flask_login import current_user, login_required
 
 from utils import FLASK_ENV, is_current_admin_view, safe_path
@@ -20,7 +26,13 @@ user_meme_limit = 33
 
 # Initialize memes
 memes = os.listdir("data/memes")
-memes = [slika for slika in memes if slika.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp4"))]
+memes = [
+    slika
+    for slika in memes
+    if slika.lower().endswith(
+        (".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp4")
+    )
+]
 random.shuffle(memes)
 MEMES_COUNT = len(memes)
 
@@ -66,7 +78,9 @@ def meme_file(meme_file_name):
         safe_filename = quote(meme_file_name, safe="/")
         if not safe_filename.startswith("/"):
             safe_filename = "/" + safe_filename
-        response.headers["X-Accel-Redirect"] = f"/protected_memes{safe_filename}"
+        response.headers["X-Accel-Redirect"] = (
+            f"/protected_memes{safe_filename}"
+        )
 
         lower_name = meme_file_name.lower()
         if lower_name.endswith(".mp4"):
@@ -93,7 +107,12 @@ def meme_file(meme_file_name):
         elif lower_name.endswith(".webp"):
             mimetype = "image/webp"
 
-        response = send_from_directory("../data/memes", meme_file_name, mimetype=mimetype, conditional=True)
+        response = send_from_directory(
+            "../data/memes",
+            meme_file_name,
+            mimetype=mimetype,
+            conditional=True,
+        )
         response.headers["Accept-Ranges"] = "bytes"
     return response
 

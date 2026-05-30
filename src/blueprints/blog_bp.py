@@ -21,7 +21,9 @@ log = logging.getLogger(__name__)
 
 blog_bp = Blueprint("blog", __name__)
 
-BLOG_DATA_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "data", "blog_posts.json")
+BLOG_DATA_FILE = os.path.join(
+    os.path.dirname(__file__), "..", "..", "data", "blog_posts.json"
+)
 
 
 def load_blog_posts():
@@ -38,7 +40,9 @@ def save_blog_posts(posts):
 
 
 def blog_timestamp(blog):
-    timestamp = (blog.get("published_at") or blog.get("created_at", "")).replace("Z", "+00:00")
+    timestamp = (
+        blog.get("published_at") or blog.get("created_at", "")
+    ).replace("Z", "+00:00")
     try:
         return datetime.fromisoformat(timestamp)
     except Exception:
@@ -56,7 +60,9 @@ def blog_list():
 
     # Format dates
     for post in sorted_posts:
-        post["created_at_display"] = blog_timestamp(post).strftime("%d. %m. %Y")
+        post["created_at_display"] = blog_timestamp(post).strftime(
+            "%d. %m. %Y"
+        )
 
     return render_template(
         "blog_list.html",
@@ -78,12 +84,18 @@ def blog_post(post_id):
         abort(404)
 
     # Render Markdown content
-    post["content_html"] = markdown.markdown(post.get("content", ""), extensions=["extra", "codehilite"])
+    post["content_html"] = markdown.markdown(
+        post.get("content", ""), extensions=["extra", "codehilite"]
+    )
 
     # Format dates
     post["created_at_display"] = blog_timestamp(post).strftime("%d. %m. %Y")
 
-    if not current_user.is_authenticated or not current_user.is_admin or FLASK_ENV != "production":
+    if (
+        not current_user.is_authenticated
+        or not current_user.is_admin
+        or FLASK_ENV != "production"
+    ):
         client_ip = request.headers.get("X-Real-IP", request.remote_addr)
         # Increment view count
         today = datetime.now(timezone.utc).date().isoformat()
@@ -103,7 +115,9 @@ def blog_post(post_id):
         og_image=og_image,
         og_url=request.url,
         og_title=post.get("title"),
-        og_description=post.get("seo_description") or post.get("excerpt") or post.get("subtitle"),
+        og_description=post.get("seo_description")
+        or post.get("excerpt")
+        or post.get("subtitle"),
     )
 
 
@@ -120,7 +134,9 @@ def blog_image_file(file_name):
         safe_filename = quote(file_name, safe="/")
         if not safe_filename.startswith("/"):
             safe_filename = "/" + safe_filename
-        response.headers["X-Accel-Redirect"] = f"/protected_blog_images{safe_filename}"
+        response.headers["X-Accel-Redirect"] = (
+            f"/protected_blog_images{safe_filename}"
+        )
 
         lower_name = file_name.lower()
         if lower_name.endswith(".jpg") or lower_name.endswith(".jpeg"):
@@ -135,6 +151,11 @@ def blog_image_file(file_name):
         elif lower_name.endswith(".png"):
             mimetype = "image/png"
 
-        response = send_from_directory("../data/blog_images", file_name, mimetype=mimetype, conditional=True)
+        response = send_from_directory(
+            "../data/blog_images",
+            file_name,
+            mimetype=mimetype,
+            conditional=True,
+        )
         response.headers["Accept-Ranges"] = "bytes"
     return response

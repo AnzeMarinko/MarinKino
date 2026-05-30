@@ -19,7 +19,9 @@ def prepare_subtitles(folder, video_file, metadata):
     folder_name_lower = folder_path.name.lower()
 
     # Preverimo, če gre za slovensko vsebino
-    is_slovenian_content = "slosinh" in folder_name_lower or "slovenski-filmi" in str(folder_path)
+    is_slovenian_content = (
+        "slosinh" in folder_name_lower or "slovenski-filmi" in str(folder_path)
+    )
 
     # Prenos podnapisov, če jih ni
     existing_srts = list(folder_path.glob("*.srt"))
@@ -41,7 +43,10 @@ def prepare_subtitles(folder, video_file, metadata):
             existing_srts = list(folder_path.glob("*.srt"))
 
     if (
-        (not existing_srts or "SloSubs-auto" in "".join([str(f) for f in existing_srts]))
+        (
+            not existing_srts
+            or "SloSubs-auto" in "".join([str(f) for f in existing_srts])
+        )
         and not is_slovenian_content
         and metadata.imdb_id
     ):
@@ -97,7 +102,10 @@ def prepare_subtitles(folder, video_file, metadata):
         has_en = any("ensubs" in s.name.lower() for s in existing_srts)
 
         if has_main or not has_slo or not has_en or len(existing_srts) > 2:
-            log.warning(f"⚠️ Več podnapisov ({len(existing_srts)}) v mapi: {folder_path.name}")
+            log.warning(
+                f"⚠️ Več podnapisov ({len(existing_srts)}) v mapi:"
+                f" {folder_path.name}"
+            )
 
     # Rescale (izvedemo na vseh SRT datotekah v mapi)
     for srt in folder_path.glob("*.srt"):

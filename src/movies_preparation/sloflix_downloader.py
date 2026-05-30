@@ -6,13 +6,17 @@ Skripta za snemanje videov s Sloflix
 
 Spodaj nastavite ime mape OUTPUT_DIR, kamor se bodo videi shranili in
 slovar URLS s ključem za ime videa in vrednostjo kot
-par (URL povezava do "sf.strp2p.com" lokacije videa, trajanje videa v sekundah).
+par (URL povezava do "sf.strp2p.com" lokacije videa,
+trajanje videa v sekundah).
 URL povezavo do videa najdete v HTML strani izbranega videa (inspect).
 Poiščete povezavo oblike "https://sf.strp2p.com/#ebqgm...".
-Potem poženete skripto. Če želite snemati v nižji ločljivosti, začasno zmanjšajte
+Potem poženete skripto. Če želite snemati v nižji ločljivosti, začasno
+zmanjšajte
 ločljivost glavnega zaslona na izbrano ločljivost. Zvok naj bo vklopljen.
-Predvajanju zvoka se lahko izognete z uporabo slušalk, da se ne uporabijo glavni zvočniki.
-Morebitni podnapisi bodo avtomatsko "zapečeni" v sliko videa. Zaslon je lahko izklopljen,
+Predvajanju zvoka se lahko izognete z uporabo slušalk, da se ne uporabijo
+glavni zvočniki.
+Morebitni podnapisi bodo avtomatsko "zapečeni" v sliko videa.
+Zaslon je lahko izklopljen,
 ampak računalnik ne sme v način spanja ali zaklenjenega zaslona ipd.
 """
 
@@ -28,7 +32,7 @@ import pyautogui
 log = logging.getLogger(__name__)
 
 URLS = {
-    # "21. Anglež z omleto": ("movies/0x-neurejeni-filmi/Zelenjavcki.Collection",
+    # "21. Anglež": ("movies/0x-neurejeni-filmi/Zelenjavcki.Collection",
     #     "https://sf.strp2p.com/#ow6i9", 26 * 60),
 }
 
@@ -73,4 +77,6 @@ if __name__ == "__main__":
                 duration=duration + 30,  # trajanje v sekundah
             )
             pyautogui.hotkey("ctrl", "w")  # zapri zavihek
-            time.sleep(180)  # počakaj, če bo uporabnik pritisnil CTRL+C za izhod
+            time.sleep(
+                180
+            )  # počakaj, če bo uporabnik pritisnil CTRL+C za izhod

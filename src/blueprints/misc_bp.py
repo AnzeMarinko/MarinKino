@@ -36,7 +36,9 @@ def init_misc_bp(_users, _send_mail=None):
 
 @misc_bp.route("/favicon.ico")
 def favicon():
-    return send_from_directory("static", "blog_favicon_io/android-chrome-512x512.png")
+    return send_from_directory(
+        "static", "blog_favicon_io/android-chrome-512x512.png"
+    )
 
 
 @misc_bp.route("/pod_krinko")
@@ -48,14 +50,18 @@ def pod_krinko():
 
 
 # Initialize pod_krinko
-pod_krinko_words = pd.read_csv("data/pod_krinko_besede.csv", sep=";").to_dict(orient="split")["data"]
+pod_krinko_words = pd.read_csv("data/pod_krinko_besede.csv", sep=";").to_dict(
+    orient="split"
+)["data"]
 
 
 @misc_bp.route("/pod_krinko/new_words")
 def pod_krinko_new_words():
     import random
 
-    new_words = copy(pod_krinko_words[random.randint(0, len(pod_krinko_words) - 1)])
+    new_words = copy(
+        pod_krinko_words[random.randint(0, len(pod_krinko_words) - 1)]
+    )
     random.shuffle(new_words)
     word_1, word_2 = new_words[0], new_words[1]
     return [word_1.strip().lower(), word_2.strip().lower()]
@@ -67,10 +73,18 @@ def newsletter_image(filename):
         _ = safe_path("../data/newsletter_images", filename)
     except ValueError:
         return "", 404
-    user = current_user.id if current_user.is_authenticated else request.args.get("user", "guest")
+    user = (
+        current_user.id
+        if current_user.is_authenticated
+        else request.args.get("user", "guest")
+    )
     if user in users:
-        redis_client.incr(f"newsletter_views:{date.today().isoformat()[:7]}:{user}")
-    return send_from_directory("../data/newsletter_images", filename, conditional=True)
+        redis_client.incr(
+            f"newsletter_views:{date.today().isoformat()[:7]}:{user}"
+        )
+    return send_from_directory(
+        "../data/newsletter_images", filename, conditional=True
+    )
 
 
 @misc_bp.route("/help")
@@ -116,13 +130,16 @@ def send_admin_emails():
 
         data = json.loads(request.data)
         whole_list = data.get("whole_list") == "true"
-        list_of_emailed_users = [current_user.id] if not whole_list else list(users.keys())
+        list_of_emailed_users = (
+            [current_user.id] if not whole_list else list(users.keys())
+        )
         for username in list_of_emailed_users:
             emails = users.get(username, {}).get("emails", [])
             if emails:
                 # TODO: ob pošiljanju mailov spreminjaj ta klic funkcije
                 # if whole_list:
-                #     return {"error": "Pošiljanje mailov vsem uporabnikom je začasno onemogočeno."}
+                #     return {"error": "Pošiljanje mailov vsem uporabnikom
+                # je začasno onemogočeno."}
                 send_mail(
                     to=emails,
                     subject="Filmski izbor MarinKino",

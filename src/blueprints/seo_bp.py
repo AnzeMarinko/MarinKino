@@ -10,7 +10,9 @@ from flask import Blueprint
 
 seo_bp = Blueprint("seo", __name__)
 
-BLOG_DATA_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "data", "blog_posts.json")
+BLOG_DATA_FILE = os.path.join(
+    os.path.dirname(__file__), "..", "..", "data", "blog_posts.json"
+)
 
 
 def load_blog_posts():
@@ -23,7 +25,9 @@ def load_blog_posts():
 
 def blog_timestamp(blog):
     """Parse blog timestamp"""
-    timestamp = blog.get("published_at", blog.get("created_at", "")).replace("Z", "+00:00")
+    timestamp = blog.get("published_at", blog.get("created_at", "")).replace(
+        "Z", "+00:00"
+    )
     try:
         return datetime.fromisoformat(timestamp)
     except Exception:
@@ -64,7 +68,9 @@ def sitemap():
                 {
                     "loc": f"{protocol}://{domain}/blog/{post_id}",
                     "lastmod": (
-                        post.get("updated_at") or post.get("published_at") or post.get("created_at", "")
+                        post.get("updated_at")
+                        or post.get("published_at")
+                        or post.get("created_at", "")
                     ).replace("Z", "+00:00"),
                     "changefreq": "monthly",
                     "priority": 0.8,
@@ -73,9 +79,15 @@ def sitemap():
 
     # Generate XML
     sitemap_xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
-    sitemap_xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
-    sitemap_xml += ' xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"'
-    sitemap_xml += ' xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">\n'
+    sitemap_xml += (
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
+    )
+    sitemap_xml += (
+        ' xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"'
+    )
+    sitemap_xml += (
+        ' xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">\n'
+    )
 
     for entry in sitemap_entries:
         sitemap_xml += "  <url>\n"

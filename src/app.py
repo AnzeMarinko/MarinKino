@@ -54,7 +54,8 @@ limiter.init_app(app)
 
 
 def get_location_from_ip(ip):
-    """Get location info from IP address using ipinfo.io (free tier: 50k requests/month)"""
+    """Get location info from IP address using ipinfo.io
+    (free tier: 50k requests/month)"""
     if FLASK_ENV != "production":
         return {"country": "SI", "city": "Ljubljana", "region": "Unknown"}
     try:
@@ -64,7 +65,11 @@ def get_location_from_ip(ip):
             data = response.json()
             if "error" in data:
                 log.warning(f"ipinfo.io error for {ip}: {data}")
-                return {"country": "Unknown", "city": "Unknown", "region": "Unknown"}
+                return {
+                    "country": "Unknown",
+                    "city": "Unknown",
+                    "region": "Unknown",
+                }
             return {
                 "country": data.get("country", "Unknown"),
                 "city": data.get("city", "Unknown"),
@@ -73,7 +78,10 @@ def get_location_from_ip(ip):
                 "postal": data.get("postal"),
             }
         else:
-            log.warning(f"ipinfo.io request failed for {ip} with status {response.status_code}")
+            log.warning(
+                f"ipinfo.io request failed for {ip}"
+                f" with status {response.status_code}"
+            )
             log.warning(f"IP API response content: {response.text}")
     except Exception as e:
         log.error(f"Error getting geolocation for {ip}: {e}")
@@ -112,11 +120,21 @@ def log_response_info(response):
     user_id = current_user.id if current_user.is_authenticated else "anonymus"
     today = date.today().isoformat()
     month = date.today().strftime("%Y-%m")
-    route = request.path.split("/file/")[0] + "/file/..." if "/file/" in request.path else request.path
-    route = route.split("/password/reset/")[0] + "/password/reset/..." if "/password/reset/" in route else route
+    route = (
+        request.path.split("/file/")[0] + "/file/..."
+        if "/file/" in request.path
+        else request.path
+    )
+    route = (
+        route.split("/password/reset/")[0] + "/password/reset/..."
+        if "/password/reset/" in route
+        else route
+    )
 
     if response.status_code < 400:
-        redis_client.hincrby(f"stats:monthly:{month}", request.method + " " + route, 1)
+        redis_client.hincrby(
+            f"stats:monthly:{month}", request.method + " " + route, 1
+        )
 
     key = f"stats:daily:{today}:{user_id}:{response.status}"
     redis_client.hincrby(key, request.method + " " + route, 1)
@@ -124,7 +142,11 @@ def log_response_info(response):
         redis_client.expire(key, 2592000 * 3)
 
     if (
-        (not current_user.is_authenticated or not current_user.is_admin or FLASK_ENV != "production")
+        (
+            not current_user.is_authenticated
+            or not current_user.is_admin
+            or FLASK_ENV != "production"
+        )
         and "/file/" not in request.path
         and "GET" in request.method
     ):
@@ -141,13 +163,21 @@ def log_response_info(response):
                 referrer_source = "instagram"
             elif "google.com" in referrer:
                 referrer_source = "google"
-            elif os.getenv("MAIN_DOMAIN") in referrer or os.getenv("DUCKDNS_DOMAIN") in referrer:
+            elif (
+                os.getenv("MAIN_DOMAIN") in referrer
+                or os.getenv("DUCKDNS_DOMAIN") in referrer
+            ):
                 referrer_source = "internal"
             elif referrer:
-                # log.info(f"Unknown referrer source: {referrer} for {request.path}")
+                # log.info(f"Unknown referrer source: {referrer} for
+                #  {request.path}")
                 referrer_source = "other"
 
-            redis_client.hincrby(f"stats:referrer_content:{today}:{content_type}", referrer_source, 1)
+            redis_client.hincrby(
+                f"stats:referrer_content:{today}:{content_type}",
+                referrer_source,
+                1,
+            )
             redis_client.expire(f"stats:referrer_content:{today}", 2592000 * 3)
 
             redis_client.hincrby(f"stats:referrer:{today}", referrer_source, 1)
@@ -163,7 +193,9 @@ def log_response_info(response):
         ):
             location = get_location_from_ip(client_ip)
             if location["country"] != "Unknown":
-                redis_client.hset(f"stats:geo:{today}", client_ip, json.dumps(location))
+                redis_client.hset(
+                    f"stats:geo:{today}", client_ip, json.dumps(location)
+                )
                 redis_client.expire(f"stats:geo:{today}", 2592000 * 3)
 
     return response
@@ -196,11 +228,20 @@ init_misc_bp(users)
 @app.route("/")
 def home():
     """Home page with statistics cards"""
-    if current_user.is_authenticated and session.get("view_as", None) != "anonymous":
+    if (
+        current_user.is_authenticated
+        and session.get("view_as", None) != "anonymous"
+    ):
         stats = get_movies_statistics()
         stats["music_count"] = MUSIC_COUNT
         stats["memes_count"] = MEMES_COUNT
-        stats["blog_count"] = len([v for v in load_blog_posts().values() if v.get("published", False)])
+        stats["blog_count"] = len(
+            [
+                v
+                for v in load_blog_posts().values()
+                if v.get("published", False)
+            ]
+        )
 
         return render_template("index.html", pagetitle="MarinKino", **stats)
     else:

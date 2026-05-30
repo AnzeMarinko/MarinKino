@@ -51,13 +51,13 @@ dependencies = [
 ]
 
 [tool.ruff]
-line-length = 120
+line-length = 79
 target-version = "py312"
 exclude = ["cache", ".venv", "build", "dist", "__pycache__", ".git"]
 
 [tool.isort]
 profile = "black"
-line_length = 120
+line_length = 79
 src_paths = ["src"]
 
 [tool.ruff.lint]
@@ -74,10 +74,28 @@ select = [
 known-first-party = ["blueprints", "movies_preparation"]
 
 [tool.basedpyright]
+venvPath = "."
+venv = ".venv"
+exclude = [
+    "**/__pycache__",
+    "**/site-packages",
+    "**/node_modules",
+    "**/cdk.out",
+    "**/.venv",
+    "**/.ruff_cache",
+    "**/.pytest_cache",
+    "**/.gitlab",
+    "**/local_testing",
+    "**/.vscode",
+    "cache",
+    ".venv",
+    "build",
+    "dist",
+    "__pycache__"
+]
 pythonVersion = "3.12"
 failOnWarnings = false
 include = ["src"]
-exclude = ["cache", ".venv", "build", "dist", "__pycache__"]
 typeCheckingMode = "basic"
 reportPrivateImportUsage = "warning"
 reportMissingImports = "warning"
