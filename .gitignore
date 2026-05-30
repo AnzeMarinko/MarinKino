@@ -36,6 +36,7 @@ data/memes/*.jpeg
 data/memes/*.webp
 data/memes/*.WEBP
 data/memes/*.png
+data/radio-stories/**/*.mp3
 data/music/**/*.mp3
 data/music/**/*.m4a
 data/movies/users_comments.json

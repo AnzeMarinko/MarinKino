@@ -130,6 +130,7 @@ server {
     # --- Za hitro pretakanje vsebin ---
     # Samo za interne preusmeritve, uporabnik ne more dostopati direktno (Pot ZNOTRAJ Nginx kontejnerja)
     location /protected_music/ {internal; alias /music_data/;}
+    location /protected_radio_stories/ {internal; alias /radio_stories_data/;}
     location /protected_movies/ {internal; alias /movies_data/;}
     location /protected_memes/ {internal; alias /memes_data/;}
     location /protected_blog_images/ {internal; alias /blog_images_data/;}

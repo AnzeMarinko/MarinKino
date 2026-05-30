@@ -1,7 +1,31 @@
-const root = document.getElementById("albums-root");
-const albums = JSON.parse(root.dataset.albums);
-const metadata_root = document.getElementById("metadata-root");
-const music_metadata = JSON.parse(metadata_root.dataset.music);
+let albums = [];
+let music_metadata = {};
+
+const albumsRoot = document.getElementById("albums-root");
+const metadataRoot = document.getElementById("metadata-root");
+
+if (albumsRoot && albumsRoot.dataset && albumsRoot.dataset.albums) {
+    try {
+        albums = JSON.parse(albumsRoot.dataset.albums);
+    } catch (e) {
+        albums = [];
+    }
+}
+if (metadataRoot && metadataRoot.dataset && metadataRoot.dataset.music) {
+    try {
+        music_metadata = JSON.parse(metadataRoot.dataset.music);
+    } catch (e) {
+        music_metadata = {};
+    }
+}
+
+// Fallback: radio-stories endpoint may expose globals directly
+if ((!albums || albums.length === 0) && window.RADIO_STORIES_FILES) {
+    albums = [{ name: "Vse", songs: window.RADIO_STORIES_FILES }];
+}
+if ((!music_metadata || Object.keys(music_metadata).length === 0) && window.RADIO_STORIES_METADATA) {
+    music_metadata = window.RADIO_STORIES_METADATA;
+}
 
 const albumListEl = document.getElementById("albumList");
 const trackListEl = document.getElementById("trackList");
@@ -59,11 +83,19 @@ function loadAlbum(album) {
     trackListEl.innerHTML = "";
     currentSongs.forEach((s, i) => {
         const div = document.createElement("div");
-        const trackMetadata = music_metadata[s];
-        const title = trackMetadata["title"];
-        const artist = trackMetadata["artist"];
-        const album = trackMetadata["album"];
-        div.innerHTML = `<i>${album}</i> : ${artist} : <b>${title}</b>`;
+        const trackMetadata = music_metadata[s] || {};
+        const title = trackMetadata["title"] || s.split('/').slice(-1)[0];
+        const artist = trackMetadata["artist"] || "";
+        const album = trackMetadata["album"] || "";
+        // If this page is radio-stories, don't show album/genre; show duration instead
+        let innerHtml;
+        if (window.RADIO_STORIES_FILES) {
+            const dur = trackMetadata["duration"] || 0;
+            innerHtml = `${artist} : <b>${title}</b> <span class="track-duration">${formatTime(dur)}</span>`;
+        } else {
+            innerHtml = `<i>${album}</i> : ${artist} : <b>${title}</b>`;
+        }
+        div.innerHTML = innerHtml;
 
         div.className = "track-item" + (s===currentTrack?" active":"");
 
@@ -119,7 +151,8 @@ function playTrack(i) {
     updateMediaSession(title, artist, album);
 
     // 1. Nastavi vir
-    audio.src = "/music/file/" + currentTrack;
+    const mediaBase = window.MEDIA_FILE_BASE || "/music/file/";
+    audio.src = mediaBase + currentTrack;
 
     // 2. Samo enkrat naloži
     audio.load();
@@ -345,7 +378,11 @@ progress.addEventListener("input", () => {
 // update on metadata load (set max) and immediately refresh background
 audio.onloadedmetadata = () => {
     progress.max = audio.duration;
-    if (currentTime && currentTrack === audio.src.replace("/music/", "")) audio.currentTime = currentTime;
+    try {
+        if (currentTime && audio.src.includes(currentTrack)) audio.currentTime = currentTime;
+    } catch (e) {
+        // ignore
+    }
     updateSeekBarBackground();
 };
 
@@ -369,7 +406,8 @@ function formatTime(s) {
 function izbrisiPesem() {
     const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     if (confirm("Res želiš izbrisati to pesem?")) {
-        fetch(`/music/delete/` + currentTrack, {
+        const deleteBase = window.MEDIA_DELETE_BASE || '/music/delete/';
+        fetch(deleteBase + currentTrack, {
             method: 'DELETE',
             headers: {
                 'X-CSRFToken': token

@@ -85,6 +85,48 @@ music_albums = [
 ]
 
 
+# Initialize radio stories
+radio_stories_files = [
+    f[19:] for f in glob.iglob("data/radio-stories/**/*.mp3", recursive=True)
+]
+STORIES_COUNT = len(radio_stories_files)
+
+radio_stories_metadata = {}
+for file in radio_stories_files:
+    try:
+        audio = MP3(os.path.join("data/radio-stories", file), ID3=EasyID3)
+    except HeaderNotFoundError:
+        audio = {}
+    except Exception as e:
+        log.error(f"❌ Napaka pri {file}: {e}")
+        audio = {}
+
+    item = {
+        "title": ", ".join(
+            audio.get("title", [".".join(file.split("/")[-1].split(".")[:-1])])
+        ),
+        "artist": " - ".join(audio.get("artist", [])),
+        "album": "Radijska zgodba",
+        "duration": int(
+            getattr(getattr(audio, "info", None), "length", 0)
+            if hasattr(audio, "info")
+            else 0
+        ),
+    }
+    radio_stories_metadata[file] = item
+
+radio_stories_metadata = {
+    k: v
+    for k, v in sorted(
+        radio_stories_metadata.items(),
+        key=lambda item: (
+            item[1]["artist"],
+            item[1]["title"],
+        ),
+    )
+}
+
+
 @music_bp.route("/music")
 @login_required
 def music():
@@ -104,6 +146,19 @@ def music():
         is_music=True,
         albums=music_albums,
         music_metadata=music_metadata,
+    )
+
+
+@music_bp.route("/radio-stories")
+@login_required
+def radio_stories():
+    """Separate page for radio stories (Radijske-zgodbe)."""
+    return render_template(
+        "radio_stories.html",
+        pagetitle="MarinKino - Radijske zgodbe",
+        is_music=True,
+        radio_stories_files=list(radio_stories_metadata.keys()),
+        radio_stories_metadata=radio_stories_metadata,
     )
 
 
@@ -145,6 +200,52 @@ def song_remove(filename):
         return "", 204
     try:
         path = safe_path("data/music", filename)
+    except ValueError:
+        return "", 404
+    if not os.path.exists(path):
+        return "", 404
+    os.remove(path)
+    return "", 204
+
+
+@music_bp.route("/radio-stories/file/<path:filename>")
+@login_required
+def radio_story_file(filename):
+    try:
+        _ = safe_path("../data/radio-stories", filename)
+        if not os.path.exists(os.path.join("data/radio-stories", filename)):
+            abort(404)
+    except ValueError:
+        abort(404)
+    if FLASK_ENV == "production":
+        response = make_response()
+        safe_filename = quote(filename, safe="/")
+        if not safe_filename.startswith("/"):
+            safe_filename = "/" + safe_filename
+        response.headers["X-Accel-Redirect"] = (
+            f"/protected_radio_stories{safe_filename}"
+        )
+    else:
+        response = send_from_directory(
+            "../data/radio-stories", filename, conditional=True
+        )
+        response.headers["Accept-Ranges"] = "bytes"
+    if filename.endswith(".mp3"):
+        response.headers["Content-Type"] = "audio/mpeg"
+    elif filename.endswith(".m4a"):
+        response.headers["Content-Type"] = "audio/mp4"
+    elif filename.endswith(".wav"):
+        response.headers["Content-Type"] = "audio/wav"
+    return response
+
+
+@music_bp.route("/radio-stories/delete/<path:filename>", methods=["DELETE"])
+@login_required
+def radio_story_remove(filename):
+    if not is_current_admin_view(current_user):
+        return "", 204
+    try:
+        path = safe_path("data/radio-stories", filename)
     except ValueError:
         return "", 404
     if not os.path.exists(path):
