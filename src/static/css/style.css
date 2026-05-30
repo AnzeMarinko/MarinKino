@@ -289,7 +289,7 @@ video {
     border-radius: 12px;
 }
 .movie-page .movie-player-right-side {
-    max-width: 100%; 
+    max-width: 100%;
     width: 1000px;
 }
 .movie-page .movie-player-right-side .alert-actions {
@@ -646,9 +646,9 @@ video, img {
 #views-table th.sortable { cursor: pointer; user-select: none; }
 .sort-indicator { margin-left: 6px; font-size: 0.8em; opacity: 0.85; }
 
-.min-vh-100 { 
-    min-height: 100vh; 
-    background: var(--movie-page-background); 
+.min-vh-100 {
+    min-height: 100vh;
+    background: var(--movie-page-background);
 }
 .rounded-3 { border-radius: 1rem; }
 .rounded-2 { border-radius: 0.5rem; }
@@ -685,8 +685,8 @@ video, img {
 }
 
 .suggestions {
-    background: var(--modro-rdeca-background); 
-    min-height: 100vh; 
+    background: var(--modro-rdeca-background);
+    min-height: 100vh;
     padding: 60px 0;
     margin: 20px;
     border-radius: 12px;
@@ -758,8 +758,8 @@ blockquote {
 }
 
 /* Ciljamo na codehilite in vse elemente znotraj njega */
-.codehilite pre, 
-.codehilite code, 
+.codehilite pre,
+.codehilite code,
 .codehilite span {
     font-family: 'Inter', 'Segoe UI', Roboto, sans-serif !important;
     font-variant-ligatures: none;

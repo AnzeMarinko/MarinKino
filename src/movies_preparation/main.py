@@ -29,9 +29,7 @@ def check_folder(folder, only_collect_metadata=True):
 
     if subfolders:
         iterator = (
-            tqdm.tqdm(subfolders, desc=f"Procesiram {folder_path.name}")
-            if not only_collect_metadata
-            else subfolders
+            tqdm.tqdm(subfolders, desc=f"Procesiram {folder_path.name}") if not only_collect_metadata else subfolders
         )
 
         for sub in iterator:

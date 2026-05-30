@@ -40,3 +40,6 @@ data/music/**/*.mp3
 data/music/**/*.m4a
 data/movies/users_comments.json
 data/blog_images
+
+build/
+*.egg-info

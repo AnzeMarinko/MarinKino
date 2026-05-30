@@ -48,9 +48,7 @@ def pod_krinko():
 
 
 # Initialize pod_krinko
-pod_krinko_words = pd.read_csv("data/pod_krinko_besede.csv", sep=";").to_dict(
-    orient="split"
-)["data"]
+pod_krinko_words = pd.read_csv("data/pod_krinko_besede.csv", sep=";").to_dict(orient="split")["data"]
 
 
 @misc_bp.route("/pod_krinko/new_words")
@@ -66,14 +64,10 @@ def pod_krinko_new_words():
 @misc_bp.route("/newsletter_image/file/<path:filename>")
 def newsletter_image(filename):
     try:
-        path = safe_path("../data/newsletter_images", filename)
+        _ = safe_path("../data/newsletter_images", filename)
     except ValueError:
         return "", 404
-    user = (
-        current_user.id
-        if current_user.is_authenticated
-        else request.args.get("user", "guest")
-    )
+    user = current_user.id if current_user.is_authenticated else request.args.get("user", "guest")
     if user in users:
         redis_client.incr(f"newsletter_views:{date.today().isoformat()[:7]}:{user}")
     return send_from_directory("../data/newsletter_images", filename, conditional=True)
@@ -81,7 +75,7 @@ def newsletter_image(filename):
 
 @misc_bp.route("/help")
 @login_required
-def help():
+def help_page():
     return render_template(
         "mail_user_intro.html",
         is_for_mail=False,
@@ -122,9 +116,7 @@ def send_admin_emails():
 
         data = json.loads(request.data)
         whole_list = data.get("whole_list") == "true"
-        list_of_emailed_users = (
-            [current_user.id] if not whole_list else list(users.keys())
-        )
+        list_of_emailed_users = [current_user.id] if not whole_list else list(users.keys())
         for username in list_of_emailed_users:
             emails = users.get(username, {}).get("emails", [])
             if emails:

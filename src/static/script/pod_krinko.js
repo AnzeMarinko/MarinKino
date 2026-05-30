@@ -319,10 +319,10 @@ let elementToEliminate = null;
 function izkljuci(element) {
     elementToEliminate = element;
     playerToEliminate = parseInt(element.parentNode.id.substring(4));
-    
+
     const modalText = document.getElementById("modal-body-text");
     modalText.innerHTML = `Ali res želite izločiti igralca <b>${igralci[playerToEliminate].ime}</b>?`;
-    
+
     const myModal = new bootstrap.Modal(document.getElementById('confirmModal'));
     myModal.show();
 }
@@ -332,9 +332,9 @@ document.getElementById("confirmEliminationBtn").onclick = function() {
     const modalEl = document.getElementById('confirmModal');
     const modal = bootstrap.Modal.getInstance(modalEl);
     modal.hide();
-    
+
     // Tukaj pokliči svojo originalno logiko izključitve, ki si jo imel prej
-    dokončaj_izključitev(elementToEliminate); 
+    dokončaj_izključitev(elementToEliminate);
 };
 
 // Preveri podvojena imena (case-insensitive)
@@ -379,7 +379,7 @@ async function start_new_game() {
     for (var i = 0; i < nPlayers - nUndercovers - nWhites; i++) nerazdeljene_vloge.push("prebivalec");
     for (var i = 0; i < nUndercovers; i++) nerazdeljene_vloge.push("vohun");
     for (var i = 0; i < nWhites; i++) nerazdeljene_vloge.push("gospod-v-belem");
-    
+
     isMrMeme = document.getElementById("nemec").checked ? Math.max(0, Math.ceil(Math.random() * nPlayers) - 1) : -1;
 
     for (var i = 0; i < nPlayers; i++) {
@@ -409,25 +409,25 @@ async function start_new_game() {
             igralci[i].nove_tocke = 0;
             var last_div = document.getElementById("card" + i.toString());
         }
-        
+
         last_div.querySelector('.name').innerHTML = currentName;
         last_div.style.opacity = 1;
         last_div.className = (currentGender === "m") ? "button button_neznanec" : "button button_neznanka";
     }
 
     saveGameState(); // Shrani ob vsakem novem krogu
-    
+
     // UI preklop
     document.getElementById("igra").style.display = "block";
     document.getElementById("menu").style.display = "block";
     document.getElementById("nastavitve").style.display = "none";
-    
+
     // Besede
     const response = await fetch(`/pod_krinko/new_words`);
     const besedi = await response.json();
     beseda_prebivalci = besedi[0];
     if (nUndercovers > 0) beseda_vohuni = besedi[1];
-    
+
     del_igre = deli_igre.IZBIRA_BESED;
 
     zmagovalci = {};
@@ -445,7 +445,7 @@ window.onload = function() {
         const data = JSON.parse(savedData);
         nPlayersSlider.value = data.nPlayers;
         set_number_of_players(); // To bo generiralo input polja
-        
+
         data.igralci.forEach((savedPlayer, index) => {
             const inputDiv = document.getElementById(index.toString());
             if (inputDiv) {
@@ -547,7 +547,7 @@ function nalozi_zadnja_imena() {
     if (savedData) {
         const prejsnjaImena = JSON.parse(savedData);
         const inputs = document.querySelectorAll('.nameInput input[type="text"]');
-        
+
         prejsnjaImena.forEach((podatki, index) => {
             if (index < inputs.length) {
                 inputs[index].value = podatki.ime;
@@ -571,4 +571,3 @@ set_number_of_players = function() {
     original_set_players();
     nalozi_zadnja_imena();
 };
-

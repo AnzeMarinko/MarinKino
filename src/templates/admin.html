@@ -209,7 +209,7 @@ document.addEventListener('DOMContentLoaded', function(){
 </div>
 
 <script>
-    var accessDataUsers = {{ access_stats_users | tojson | safe }};  
+    var accessDataUsers = {{ access_stats_users | tojson | safe }};
     var statuses = Object.keys(accessDataUsers);
     var currentStatus = statuses[0] || null;
 
@@ -225,7 +225,7 @@ document.addEventListener('DOMContentLoaded', function(){
     function plotStatus(selectedStatusToPlot) {
         currentStatus = selectedStatusToPlot;
         var dates = Object.keys(accessDataUsers[selectedStatusToPlot]);
-        var userNames = {{ users | tojson | safe }}; 
+        var userNames = {{ users | tojson | safe }};
         var data = [];
         userNames.forEach(function(user) {
                 var yValues = dates.map(function(date) {
@@ -258,7 +258,7 @@ document.addEventListener('DOMContentLoaded', function(){
     // Prikaži začetni graf za prvi status
     plotStatus(statuses[0]);
 
-    var accessData = {{ access_stats_routes | tojson | safe }};  
+    var accessData = {{ access_stats_routes | tojson | safe }};
     var dates = Object.keys(accessData);
     var routeNames = Object.keys(accessData[dates[0]]);
     function renderRoutes(){
@@ -466,12 +466,12 @@ function loadComments() {
         .then(response => response.json())
         .then(data => {
             const container = document.getElementById('comments-container');
-            
+
             if (data.comments.length === 0) {
                 container.innerHTML = '<p>Ni novih komentarjev.</p>';
                 return;
             }
-            
+
             let html = '';
             data.comments.forEach(comment => {
                 const hasResponse = comment.admin_response ? true : false;
@@ -496,7 +496,7 @@ function loadComments() {
                     </div>
                 `;
             });
-            
+
             container.innerHTML = html;
         })
         .catch(error => console.error('Error:', error));
@@ -507,18 +507,18 @@ function submitAdminResponse(button) {
     const response = textarea.value.trim();
     const movieFolder = textarea.dataset.movie;
     const commentIndex = textarea.dataset.index;
-    
+
     if (!response) {
         alert('Odgovor ne sme biti prazen');
         return;
     }
-    
+
     const data = {
         movieFolder: movieFolder,
         commentIndex: commentIndex,
         response: response
     };
-    
+
     fetch('/movies/admin-comment', {
         method: 'POST',
         headers: {
@@ -603,7 +603,7 @@ document.addEventListener('DOMContentLoaded', function(){
     const blogSiData = {{ blog_si_views_daily|tojson }};
     const si_dates = Object.keys(blogSiData).sort();
     const si_views = si_dates.map(date => blogSiData[date]);
-    
+
     const blogTrace = {
         x: dates,
         y: views,
@@ -618,13 +618,13 @@ document.addEventListener('DOMContentLoaded', function(){
         mode: 'lines+markers',
         name: 'Ogledi bloga (SI)'
     };
-    
+
     const blogLayout = {
         title: 'Dnevni ogledi bloga',
         xaxis: { title: 'Datum' },
         yaxis: { title: 'Ogledi' }
     };
-    
+
     Plotly.newPlot('blog-views-graph', [blogTrace, blogSiTrace], blogLayout);
 });
 </script>
@@ -698,16 +698,16 @@ document.addEventListener('DOMContentLoaded', function(){
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const geoStats = {{ geo_stats_cities | tojson | safe }};
-    
+
     if (Object.keys(geoStats).length > 0) {
         // Initialize map
         const map = L.map('geo-map').setView([46.119944, 14.815333], 8); // Center on Slovenia
-        
+
         // Add OpenStreetMap tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
-        
+
         // Add markers for each city
         Object.entries(geoStats).forEach(([city, stats]) => {
             const coords = stats["geolocation"] || [46.0569, 14.5058];
@@ -715,7 +715,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (coords[0] !== 0 || coords[1] !== 0) {  // Skip unknown locations at (0,0)
                 const marker = L.marker(coords).addTo(map);
-                
+
                 // Create popup content
                 const popupContent = `
                     <div style="text-align: center;">
@@ -723,9 +723,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         <span style="color: #007bff;">Obiskovalcev: ${count}</span>
                     </div>
                 `;
-                
+
                 marker.bindPopup(popupContent);
-                
+
                 // Adjust marker size based on visitor count (optional enhancement)
                 if (count > 10) {
                     marker.setIcon(L.icon({

@@ -30,23 +30,23 @@
                             <label for="title" class="form-label">Naslov *</label>
                             <input type="text" class="form-control" id="title" name="title" value="{{ post.title if post else '' }}" required>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label for="subtitle" class="form-label">Podnaslov</label>
                             <input type="text" class="form-control" id="subtitle" name="subtitle" value="{{ post.subtitle if post else '' }}">
                         </div>
-                        
+
                         <div class="mb-3">
                             <label for="excerpt" class="form-label">Izvleček</label>
                             <textarea class="form-control" id="excerpt" name="excerpt" rows="3">{{ post.excerpt if post else '' }}</textarea>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label for="keywords" class="form-label">Ključne besede (SEO)</label>
                             <input type="text" class="form-control" id="keywords" name="keywords" value="{{ post.keywords if post else '' }}" placeholder="Vera, Karolina, družina ...">
                             <div class="form-text">Ločite ključne besede z vejico. Pomagajo pri iskanju v Googlu (5-7 besed).</div>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label for="seo_description" class="form-label">SEO opis</label>
                             <textarea class="form-control" id="seo_description" name="seo_description" rows="2" maxlength="160">{{ post.seo_description if post else '' }}</textarea>
@@ -54,7 +54,7 @@
                                 <span id="seo-description-count">0</span>/160 znakov. Kratek opis za Google rezultate (155-160 znakov). Če prazno, se uporabi izvleček.
                             </div>
                         </div>
-                        
+
                         <div class="mb-3">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="published" name="published" value="1" {% if post and post.get('published', False) %}checked{% endif %}>
@@ -64,7 +64,7 @@
                                 <div class="form-text">Če ni označeno, bo objava vidna samo administratorjem.</div>
                             </div>
                         </div>
-                        
+
                         {% if post %}
                         <div class="row mb-3">
                             <div class="col-md-6">
@@ -74,7 +74,7 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="alert alert-info">
-                                    <strong>Objavljena:</strong> 
+                                    <strong>Objavljena:</strong>
                                     {% if post.get('published_at_display') %}
                                         {{ post.published_at_display }}
                                     {% else %}
@@ -84,7 +84,7 @@
                             </div>
                         </div>
                         {% endif %}
-                        
+
                         <div class="mb-3">
                             <label class="form-label">Slika objave</label>
                             {% if post and post.image %}
@@ -136,13 +136,13 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label for="image_desc" class="form-label">Opis slike</label>
                             <input type="text" class="form-control" id="image_desc" name="image_desc" value="{{ post.image_desc if post else '' }}" placeholder="Opis slike za dostopnost in SEO">
                             <div class="form-text">Opis slike se uporablja za alt atribut in izboljša dostopnost ter SEO.</div>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label for="content" class="form-label">Vsebina (Markdown) *</label>
                             <ul class="nav nav-tabs" id="editor-tabs" role="tablist">
@@ -165,7 +165,7 @@
                                 Uporabite Markdown za oblikovanje: # naslov, ## podnaslov, *ležeče*, **krepko**, [povezava](url), itd.
                             </div>
                         </div>
-                        
+
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-primary">{{ "Ustvari" if not post else "Posodobi" }}</button>
                             <a href="/admin/blog" class="btn btn-outline-secondary">Prekliči</a>
@@ -217,13 +217,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // Character counter za SEO opis
     const seoDescriptionTextarea = document.getElementById('seo_description');
     const seoDescriptionCount = document.getElementById('seo-description-count');
-    
+
     function updateSeoDescriptionCount() {
         const count = seoDescriptionTextarea.value.length;
         seoDescriptionCount.textContent = count;
         seoDescriptionCount.style.color = count > 155 ? '#dc3545' : count > 140 ? '#ffc107' : '#6c757d';
     }
-    
+
     seoDescriptionTextarea.addEventListener('input', updateSeoDescriptionCount);
     updateSeoDescriptionCount(); // Initial count
 
@@ -313,7 +313,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const top = (imgHeight - height) / 2;
         setCropBox(left, top, width, height);
         cropSizeRange.value = Math.round((width / imgWidth) * 100);
-        
+
         const maxLeft = Math.max(0, imgWidth - width);
         const maxTop = Math.max(0, imgHeight - height);
         cropXRange.value = maxLeft > 0 ? Math.round((left / maxLeft) * 100) : 10;
@@ -366,14 +366,14 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!imgWidth || !imgHeight) {
             return;
         }
-        
+
         const cropBoxWidth = parseFloat(cropBox.style.width || 0);
         const maxLeft = Math.max(0, imgWidth - cropBoxWidth);
         const left = (parseInt(this.value) / 100) * maxLeft;
         const top = parseFloat(cropBox.style.top || 0);
         const width = parseFloat(cropBox.style.width || 0);
         const height = parseFloat(cropBox.style.height || 0);
-        
+
         setCropBox(left, top, width, height);
     });
 
@@ -383,14 +383,14 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!imgWidth || !imgHeight) {
             return;
         }
-        
+
         const cropBoxHeight = parseFloat(cropBox.style.height || 0);
         const maxTop = Math.max(0, imgHeight - cropBoxHeight);
         const left = parseFloat(cropBox.style.left || 0);
         const top = (parseInt(this.value) / 100) * maxTop;
         const width = parseFloat(cropBox.style.width || 0);
         const height = parseFloat(cropBox.style.height || 0);
-        
+
         setCropBox(left, top, width, height);
     });
 
@@ -483,11 +483,11 @@ document.addEventListener('DOMContentLoaded', function() {
             ${message}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         `;
-        
+
         // Vstavi na začetek form-a
         const form = document.querySelector('form');
         form.parentElement.insertBefore(alertDiv, form);
-        
+
         // Avtomatsko zapri po 3 sekundah
         setTimeout(() => {
             alertDiv.remove();

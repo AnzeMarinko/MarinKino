@@ -66,7 +66,7 @@ function loadAlbum(album) {
         div.innerHTML = `<i>${album}</i> : ${artist} : <b>${title}</b>`;
 
         div.className = "track-item" + (s===currentTrack?" active":"");
-        
+
         div.onclick = () => {
             div.style.transform = "scale(0.98)";
             setTimeout(() => div.style.transform = "scale(1)", 100);
@@ -81,7 +81,7 @@ function loadAlbum(album) {
 function playTrack(i) {
     if (isLoadingTrack) return; // Prepreči hkratne klice
     isLoadingTrack = true;
-    
+
     currentIndex = i;
     currentTrack = currentSongs[i];
     const trackMetadata = music_metadata[currentTrack];
@@ -96,16 +96,16 @@ function playTrack(i) {
     nowPlayingTitle.style.opacity = "0.7";
     nowPlayingArtist.style.opacity = "0.7";
     nowPlayingAlbum.style.opacity = "0.7";
-    
+
     setTimeout(() => {
         nowPlayingTitle.textContent = title;
         nowPlayingArtist.textContent = artist;
         nowPlayingAlbum.textContent = album;
-        
+
         nowPlayingTitle.style.transition = "opacity 0.3s ease";
         nowPlayingArtist.style.transition = "opacity 0.3s ease";
         nowPlayingAlbum.style.transition = "opacity 0.3s ease";
-        
+
         nowPlayingTitle.style.opacity = "1";
         nowPlayingArtist.style.opacity = "1";
         nowPlayingAlbum.style.opacity = "1";
@@ -114,15 +114,15 @@ function playTrack(i) {
     // Animiraj album cover
     albumCover.style.transform = "scale(1)";
     albumCover.style.transition = "transform 0.3s ease";
-    
+
     // Posodobimo Media Session
     updateMediaSession(title, artist, album);
 
     // 1. Nastavi vir
     audio.src = "/music/file/" + currentTrack;
-    
+
     // 2. Samo enkrat naloži
-    audio.load(); 
+    audio.load();
 
     // 3. Play
     const playPromise = audio.play();
@@ -172,14 +172,14 @@ function updateMediaSession(title, artist, album) {
         });
         navigator.mediaSession.setActionHandler("previoustrack", prev);
         navigator.mediaSession.setActionHandler("nexttrack", next);
-        
+
         navigator.mediaSession.setActionHandler("seekto", (details) => {
             if (details.fastSeek && 'fastSeek' in audio) {
               audio.fastSeek(details.seekTime);
               return;
             }
             audio.currentTime = details.seekTime;
-            updatePositionState(); 
+            updatePositionState();
         });
     }
 }
@@ -204,7 +204,7 @@ function highlightTrack() {
     document.querySelectorAll(".track-item").forEach((t, idx) => {
         const wasActive = t.classList.contains("active");
         const isActive = idx === currentIndex;
-        
+
         if (isActive && !wasActive) {
             // Prehod iz ne-aktivnega v aktivnega
             t.style.transition = "all 0.3s ease";
@@ -219,7 +219,7 @@ function scrollToActiveTrack() {
 }
 
 // Controls
-function togglePlay() { 
+function togglePlay() {
     if (audio.paused) {
         const playPromise = audio.play();
         if (playPromise !== undefined) {
@@ -246,7 +246,7 @@ function prev() {
     // Če pesem igra že več kot 3 sekunde, jo samo resetiraj na začetek
     if (audio.currentTime > 3) {
         audio.currentTime = 0;
-    } 
+    }
     // Sicer pojdi na prejšnjo
     else if (currentIndex > 0) {
         playTrack(currentIndex - 1);
@@ -269,7 +269,7 @@ function toggleRandom() {
     randomMode = !randomMode;
     localStorage.setItem("random", randomMode);
     updateShuffleBtn();
-    
+
     // Animiraj gumb
     shuffleBtn.style.transform = "rotate(360deg) scale(1.15)";
     setTimeout(() => {
@@ -412,7 +412,7 @@ let filteredSongs = [];
 
 function filterSongs() {
     const searchTerm = searchInput.value.toLowerCase();
-    
+
     if (!searchTerm) {
         filteredSongs = currentSongs;
     } else {
@@ -421,13 +421,13 @@ function filterSongs() {
             const title = (metadata["title"] || "").toLowerCase();
             const artist = (metadata["artist"] || "").toLowerCase();
             const album = (metadata["album"] || "").toLowerCase();
-            
-            return title.includes(searchTerm) || 
-                   artist.includes(searchTerm) || 
+
+            return title.includes(searchTerm) ||
+                   artist.includes(searchTerm) ||
                    album.includes(searchTerm);
         });
     }
-    
+
     renderFilteredTracks();
 }
 
@@ -437,7 +437,7 @@ function renderFilteredTracks() {
         trackListEl.innerHTML = "<i style='color: #999; padding: 20px; text-align: center;'>Ni rezultatov iskanja.</i>";
         return;
     }
-    
+
     filteredSongs.forEach((s, idx) => {
         const div = document.createElement("div");
         const trackMetadata = music_metadata[s];
@@ -450,7 +450,7 @@ function renderFilteredTracks() {
         div.style.opacity = "0";
         div.style.animation = "fadeIn 0.3s ease forwards";
         div.style.animationDelay = (idx * 0.03) + "s";
-        
+
         div.onclick = () => {
             // Najdi indeks v originalnem currentSongs polju
             const originalIndex = currentSongs.indexOf(s);
@@ -466,28 +466,28 @@ searchInput.addEventListener("input", filterSongs);
 // ===== MOBILE TOGGLE FUNCTIONALITY =====
 function initializeBrowserToggle() {
     console.log("initializeBrowserToggle called");
-    
+
     const albumsSection = document.getElementById("albums");
     const tracksSection = document.getElementById("tracks");
     const toggleButtons = document.querySelectorAll(".toggle-btn");
-    
+
     console.log("Elements found:", {
         albumsSection: !!albumsSection,
         tracksSection: !!tracksSection,
         toggleButtonsCount: toggleButtons.length
     });
-    
+
     // Preverka je browser v mobilnem modu
     const isMobile = window.innerWidth <= 768;
-    
+
     if (!albumsSection || !tracksSection) {
         console.error("Album or tracks section not found");
         return;
     }
-    
+
     function switchView(target) {
         console.log("switchView called with target:", target, "Mobile:", isMobile);
-        
+
         toggleButtons.forEach(btn => {
             console.log("Processing button with data-target:", btn.dataset.target);
             btn.classList.remove("active");
@@ -495,7 +495,7 @@ function initializeBrowserToggle() {
                 btn.classList.add("active");
             }
         });
-        
+
         if (target === "albums") {
             albumsSection.classList.add("active");
             tracksSection.classList.remove("active");
@@ -505,11 +505,11 @@ function initializeBrowserToggle() {
             albumsSection.classList.remove("active");
             console.log("Showing tracks");
         }
-        
+
         // Spremi preference v localStorage
         localStorage.setItem("musicBrowserTab", target);
     }
-    
+
     // Postavi event listenerjee na toggle gumbe
     console.log("Setting up click handlers for", toggleButtons.length, "buttons");
     toggleButtons.forEach((btn, index) => {
@@ -521,12 +521,12 @@ function initializeBrowserToggle() {
             switchView(btn.dataset.target);
         });
     });
-    
+
     // Napolni prejšnjo izbiro ali privzeto Album
     const savedTab = localStorage.getItem("musicBrowserTab") || "albums";
     console.log("Initializing with saved tab:", savedTab, "or default: albums");
     switchView(savedTab);
-    
+
     // Dodaj event listener za orientationchange
     window.addEventListener("orientationchange", () => {
         console.log("Orientation changed");

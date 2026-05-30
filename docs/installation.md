@@ -27,8 +27,11 @@ kjer je ključ za tvoje Google AI storitve. Slednja datoteka se uporablja le za 
 ### 3. Ustvari virtualno okolje
 ```
 python3 -m venv .venv
-pip install --upgrade pip
-pip install -e .
+python3 -m pip install --upgrade pip
+python3 -m pip install uv
+uv pip install .
+pre-commit install
+pre-commit run --all-files
 ```
 
 ### 4. Namesti odvisnosti (Redis)
@@ -144,7 +147,7 @@ Sledite tem korakom (primer za Google Drive):
     * Če delate na **oddaljenem strežniku brez grafičnega vmesnika**, vpišite n (sledite navodilom za "Remote Config").
 1. Ko se v brskalniku prijaviš in potrdiš dostop, se vrni v terminal in potrdi z y (Yes, this is OK).
 
-Preveri vsebino 
+Preveri vsebino
 ```
 rclone ls gdrive:
 ```

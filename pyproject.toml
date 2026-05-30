@@ -44,4 +44,56 @@ dependencies = [
   "redis",
   "yt-dlp",
   "markdown",
+  "pre-commit",
+  "ruff",
+  "isort",
+  "basedpyright",
 ]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+exclude = ["cache", ".venv", "build", "dist", "__pycache__", ".git"]
+
+[tool.isort]
+profile = "black"
+line_length = 120
+src_paths = ["src"]
+
+[tool.ruff.lint]
+select = [
+    "A",    # warn about shadowing built-ins
+    "E",    # style stuff, whitespaces
+    "F",    # important pyflakes lints
+    "I",    # import sorting
+    "N",    # naming
+    "T100"
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["blueprints", "movies_preparation"]
+
+[tool.basedpyright]
+pythonVersion = "3.12"
+failOnWarnings = false
+include = ["src"]
+exclude = ["cache", ".venv", "build", "dist", "__pycache__"]
+typeCheckingMode = "basic"
+reportPrivateImportUsage = "warning"
+reportMissingImports = "warning"
+reportOptionalMemberAccess = "warning"
+reportOptionalSubscript = "warning"
+reportOptionalOperand = "warning"
+reportOptionalIterable = "warning"
+reportMissingTypeArgument = "warning"
+reportOperatorIssue = "warning"
+reportArgumentType = "warning"
+reportAssignmentType = "warning"
+reportAttributeAccessIssue = "warning"
+reportCallIssue = "warning"
+reportReturnType = "warning"
+reportIndexIssue = "warning"
+reportGeneralTypeIssues = "warning"
+reportIncompatibleMethodOverride = "warning"
+reportUnknownParameterType = "warning"
+reportUnusedCallResult = false

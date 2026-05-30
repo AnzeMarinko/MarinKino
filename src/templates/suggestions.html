@@ -18,7 +18,7 @@
                 <div class="card border-0 shadow-lg rounded-3 overflow-hidden mb-4">
                     <div class="card-body p-5">
                         <h2 class="h4 mb-4">Pošlji svoj predlog</h2>
-                        
+
                         <form id="suggestionForm" onsubmit="submitSuggestion(event)">
                             <div class="mb-4">
                                 <label for="suggestionType" class="form-label fw-semibold">Vrsta predloga</label>
@@ -32,13 +32,13 @@
                                     <option value="komentar">💬 Drug komentar</option>
                                 </select>
                             </div>
-                            
+
                             <div class="mb-4">
                                 <label for="suggestionText" class="form-label fw-semibold">Tvoj predlog</label>
                                 <textarea id="suggestionText" name="suggestion" class="form-control form-control-lg" required minlength="10" rows="6" placeholder="Napišite svoj predlog ali idejo..."></textarea>
                                 <small class="text-muted d-block mt-2">Najmanj 10 znakov</small>
                             </div>
-                            
+
                             <div class="d-grid gap-2">
                                 <button type="submit" class="btn btn-primary btn-lg rounded-2 fw-bold">
                                     <i class="bi bi-send me-2"></i>Pošlji predlog
@@ -66,25 +66,25 @@
 <script>
 function submitSuggestion(event) {
     event.preventDefault();
-    
+
     const comment_type = document.getElementById('suggestionType').value;
     const text = document.getElementById('suggestionText').value.trim();
     const statusDiv = document.getElementById('suggestionStatus');
-    
+
     if (!comment_type || !text) {
         statusDiv.className = 'status-message error';
         statusDiv.textContent = '❌ Prosim izpolnite vsa polja.';
         return;
     }
-    
+
     const data = {
         comment_type: comment_type,
         movieFolder: "Splošno",
         comment: text
     };
-    
+
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-    
+
     fetch('/movies/add-comment', {
         method: 'POST',
         headers: {
@@ -99,7 +99,7 @@ function submitSuggestion(event) {
             statusDiv.className = 'status-message success';
             statusDiv.textContent = '✓ Hvala! Tvoj predlog je bil uspešno poslan. Administrator ga bo kmalu pregledal.';
             document.getElementById('suggestionForm').reset();
-            
+
             setTimeout(() => {
                 statusDiv.textContent = '';
                 statusDiv.className = 'status-message';

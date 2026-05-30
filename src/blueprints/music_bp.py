@@ -36,7 +36,7 @@ music_metadata = {}
 for file in music_albums["Vse"]:
     try:
         audio = MP3(os.path.join("data/music", file), ID3=EasyID3)
-    except HeaderNotFoundError as e:
+    except HeaderNotFoundError:
         audio = {}
     except Exception as e:
         log.error(f"❌ Napaka pri {file}: {e}")
@@ -44,9 +44,7 @@ for file in music_albums["Vse"]:
     genre = file.split("/")[0].strip()
 
     item = {
-        "title": ", ".join(
-            audio.get("title", [".".join(file.split("/")[-1].split(".")[:-1])])
-        ),
+        "title": ", ".join(audio.get("title", [".".join(file.split("/")[-1].split(".")[:-1])])),
         "artist": " - ".join(audio.get("artist", [])),
         "album": " - ".join(audio.get("album", [genre])),
         "genre": genre,
@@ -92,9 +90,7 @@ def music():
             pagetitle="MarinKino - Glasba",
             is_music=True,
             albums=[a for a in music_albums if "Neurejen" not in a["name"]],
-            music_metadata={
-                k: v for k, v in music_metadata.items() if not v["only_admin"]
-            },
+            music_metadata={k: v for k, v in music_metadata.items() if not v["only_admin"]},
         )
     return render_template(
         "music_player.html",
@@ -109,7 +105,7 @@ def music():
 @login_required
 def song(filename):
     try:
-        path = safe_path("../data/music", filename)
+        _ = safe_path("../data/music", filename)
         if not os.path.exists(os.path.join("data/music", filename)):
             abort(404)
     except ValueError:

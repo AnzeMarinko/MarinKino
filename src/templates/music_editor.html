@@ -369,7 +369,7 @@
             td {
                 max-width: 150px;
             }
-            
+
             input[type="text"],
             select {
                 font-size: 12px;
@@ -431,10 +431,10 @@
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('totalCount').textContent = allMusic.length;
             renderTable(allMusic);
-            
+
             // Iskanje
             document.getElementById('searchInput').addEventListener('keyup', handleSearch);
-            
+
             // YouTube preuzimanje
             document.getElementById('downloadBtn').addEventListener('click', downloadFromYouTube);
             document.getElementById('ytUrl').addEventListener('keypress', function(e) {
@@ -580,7 +580,7 @@
         function saveRowData(row, filename) {
             const statusCell = row.querySelector('.status-cell');
             const saveBtn = row.querySelector('.save-btn');
-            
+
             // Zberem podatke iz input polj
             const data = {
                 filename: filename
@@ -614,7 +614,7 @@
                     statusCell.textContent = '✓ Shranjeno';
                     row.classList.add('saved');
                     changedRows.delete(filename);
-                    
+
                     setTimeout(() => {
                         row.classList.remove('saved');
                         statusCell.textContent = '';
@@ -628,7 +628,7 @@
                 statusCell.className = 'status error';
                 statusCell.textContent = '✗ Napaka';
                 console.error('Napaka pri shranjevanju:', error);
-                
+
                 setTimeout(() => {
                     statusCell.textContent = '';
                     statusCell.className = 'status-cell';
@@ -648,7 +648,7 @@
 
             const deleteBtn = row.querySelector('.delete-btn');
             const statusCell = row.querySelector('.status-cell');
-            
+
             // Prikaži, da se briše
             deleteBtn.classList.add('loading');
             deleteBtn.disabled = true;
@@ -669,7 +669,7 @@
                     statusCell.className = 'status ok';
                     statusCell.textContent = '✓ Izbrisano';
                     row.classList.add('saved');
-                    
+
                     // Odstrani vrstico iz tabele
                     setTimeout(() => {
                         row.remove();
@@ -688,10 +688,10 @@
                 statusCell.className = 'status error';
                 statusCell.textContent = '✗ Napaka';
                 console.error('Napaka pri brisanju:', error);
-                
+
                 deleteBtn.classList.remove('loading');
                 deleteBtn.disabled = false;
-                
+
                 setTimeout(() => {
                     statusCell.textContent = '';
                     statusCell.className = 'status-cell';
@@ -701,7 +701,7 @@
 
         function handleSearch() {
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            
+
             if (!searchTerm) {
                 renderTable(allMusic);
                 return;
@@ -713,8 +713,8 @@
                 const album = (music.album || '').toLowerCase();
                 const folder = (music.folder || '').toLowerCase();
 
-                return title.includes(searchTerm) || 
-                       artist.includes(searchTerm) || 
+                return title.includes(searchTerm) ||
+                       artist.includes(searchTerm) ||
                        album.includes(searchTerm) ||
                        folder.includes(searchTerm);
             });
@@ -751,7 +751,7 @@
                 if (result.status === 'ok') {
                     showStatus(`✓ Uspešno prenešeno! Dodane pesmi. Osveži stran da vidiš nove pesmi.`, 'success', statusDiv);
                     document.getElementById('ytUrl').value = '';
-                    
+
                     // Osveži tabelo čez par sekund
                     setTimeout(() => {
                         location.reload();
@@ -771,7 +771,7 @@
         function showStatus(message, type, element) {
             element.textContent = message;
             element.className = `download-status show ${type}`;
-            
+
             if (type !== 'loading') {
                 setTimeout(() => {
                     element.classList.remove('show');

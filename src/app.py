@@ -29,7 +29,7 @@ from blueprints import (
     music_bp,
     seo_bp,
 )
-from utils import FLASK_ENV, User, redis_client, send_mail, users
+from utils import FLASK_ENV, User, redis_client, users
 
 # Flask app setup
 app = Flask(__name__, static_url_path="/static", static_folder="static")
@@ -73,9 +73,7 @@ def get_location_from_ip(ip):
                 "postal": data.get("postal"),
             }
         else:
-            log.warning(
-                f"ipinfo.io request failed for {ip} with status {response.status_code}"
-            )
+            log.warning(f"ipinfo.io request failed for {ip} with status {response.status_code}")
             log.warning(f"IP API response content: {response.text}")
     except Exception as e:
         log.error(f"Error getting geolocation for {ip}: {e}")
@@ -114,16 +112,8 @@ def log_response_info(response):
     user_id = current_user.id if current_user.is_authenticated else "anonymus"
     today = date.today().isoformat()
     month = date.today().strftime("%Y-%m")
-    route = (
-        request.path.split("/file/")[0] + "/file/..."
-        if "/file/" in request.path
-        else request.path
-    )
-    route = (
-        route.split("/password/reset/")[0] + "/password/reset/..."
-        if "/password/reset/" in route
-        else route
-    )
+    route = request.path.split("/file/")[0] + "/file/..." if "/file/" in request.path else request.path
+    route = route.split("/password/reset/")[0] + "/password/reset/..." if "/password/reset/" in route else route
 
     if response.status_code < 400:
         redis_client.hincrby(f"stats:monthly:{month}", request.method + " " + route, 1)
@@ -134,11 +124,7 @@ def log_response_info(response):
         redis_client.expire(key, 2592000 * 3)
 
     if (
-        (
-            not current_user.is_authenticated
-            or not current_user.is_admin
-            or FLASK_ENV != "production"
-        )
+        (not current_user.is_authenticated or not current_user.is_admin or FLASK_ENV != "production")
         and "/file/" not in request.path
         and "GET" in request.method
     ):
@@ -155,18 +141,13 @@ def log_response_info(response):
                 referrer_source = "instagram"
             elif "google.com" in referrer:
                 referrer_source = "google"
-            elif (
-                os.getenv("MAIN_DOMAIN") in referrer
-                or os.getenv("DUCKDNS_DOMAIN") in referrer
-            ):
+            elif os.getenv("MAIN_DOMAIN") in referrer or os.getenv("DUCKDNS_DOMAIN") in referrer:
                 referrer_source = "internal"
             elif referrer:
                 # log.info(f"Unknown referrer source: {referrer} for {request.path}")
                 referrer_source = "other"
 
-            redis_client.hincrby(
-                f"stats:referrer_content:{today}:{content_type}", referrer_source, 1
-            )
+            redis_client.hincrby(f"stats:referrer_content:{today}:{content_type}", referrer_source, 1)
             redis_client.expire(f"stats:referrer_content:{today}", 2592000 * 3)
 
             redis_client.hincrby(f"stats:referrer:{today}", referrer_source, 1)
@@ -206,9 +187,9 @@ app.register_blueprint(misc_bp)
 app.register_blueprint(seo_bp)
 
 # Initialize blueprints with app context
-init_auth_bp(users, User, send_mail)
+init_auth_bp(users, User)
 init_admin_bp(users)
-init_misc_bp(users, send_mail)
+init_misc_bp(users)
 
 
 # Root path handled by movies blueprint
@@ -219,9 +200,7 @@ def home():
         stats = get_movies_statistics()
         stats["music_count"] = MUSIC_COUNT
         stats["memes_count"] = MEMES_COUNT
-        stats["blog_count"] = len(
-            [v for v in load_blog_posts().values() if v.get("published", False)]
-        )
+        stats["blog_count"] = len([v for v in load_blog_posts().values() if v.get("published", False)])
 
         return render_template("index.html", pagetitle="MarinKino", **stats)
     else:

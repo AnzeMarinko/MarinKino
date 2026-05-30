@@ -401,27 +401,27 @@ html, body {
     .albums-section {
         width: 30%;
     }
-    
+
     .player-section {
         padding: 20px;
         min-height: auto;
     }
-    
+
     .now-playing-info {
         gap: 15px;
         margin-bottom: 5px;
     }
-    
+
     .album-cover {
         width: 70px;
         height: 70px;
         font-size: 2rem;
     }
-    
+
     .track-title {
         font-size: 1.2rem;
     }
-    
+
     .track-artist {
         font-size: 0.9rem;
     }
@@ -432,14 +432,14 @@ html, body {
         flex-direction: column;
         height: 100vh;
     }
-    
+
     #browser {
         flex-direction: column;
         flex: 1;
         position: relative;
         overflow: hidden;
     }
-    
+
     .browser-toggle {
         display: flex !important;
         gap: 0;
@@ -452,7 +452,7 @@ html, body {
     .section-header {
         display: none
     }
-    
+
     .toggle-btn {
         flex: 1;
         padding: 12px 15px;
@@ -467,17 +467,17 @@ html, body {
         -webkit-appearance: none;
         -webkit-tap-highlight-color: transparent;
     }
-    
+
     .toggle-btn:hover {
         background: #eee;
     }
-    
+
     .toggle-btn.active {
         color: var(--vijolicna);
         border-bottom-color: var(--vijolicna);
         background: white;
     }
-    
+
     .albums-section {
         width: 100%;
         flex: 1;
@@ -487,11 +487,11 @@ html, body {
         display: none !important;
         flex-direction: column;
     }
-    
+
     .albums-section.active {
         display: flex !important;
     }
-    
+
     .tracks-section {
         width: 100%;
         flex: 1;
@@ -499,44 +499,44 @@ html, body {
         display: none !important;
         flex-direction: column;
     }
-    
+
     .tracks-section.active {
         display: flex !important;
     }
-    
+
     .player-section {
         padding: 15px;
         gap: 15px;
     }
-    
+
     .now-playing-info {
         gap: 10px;
     }
-    
+
     .album-cover {
         width: 60px;
         height: 60px;
         font-size: 1.8rem;
     }
-    
+
     .track-title {
         font-size: 1rem;
     }
-    
+
     .track-artist {
         font-size: 0.8rem;
     }
-    
+
     .track-album {
         font-size: 0.75rem;
     }
-    
+
     .control-btn {
         width: 12vw;
         height: 12vw;
         font-size: 1.5rem;
     }
-    
+
     .btn-play {
         width: 18vw;
         height: 18vw;
@@ -551,14 +551,14 @@ html, body {
             flex-direction: column;
             height: 100vh;
         }
-        
+
         #browser {
             flex-direction: column;
             flex: 1;
             position: relative;
             overflow: hidden;
         }
-        
+
         .browser-toggle {
             display: flex !important;
             gap: 0;
@@ -568,7 +568,7 @@ html, body {
             flex-shrink: 0;
             height: 50px;
         }
-        
+
         .toggle-btn {
             flex: 1;
             padding: 12px 15px;
@@ -583,13 +583,13 @@ html, body {
             -webkit-appearance: none;
             -webkit-tap-highlight-color: transparent;
         }
-        
+
         .toggle-btn.active {
             color: var(--vijolicna);
             border-bottom-color: var(--vijolicna);
             background: white;
         }
-        
+
         .albums-section {
             width: 100%;
             flex: 1;
@@ -599,11 +599,11 @@ html, body {
             display: none !important;
             flex-direction: column;
         }
-        
+
         .albums-section.active {
             display: flex !important;
         }
-        
+
         .tracks-section {
             width: 100%;
             flex: 1;
@@ -611,7 +611,7 @@ html, body {
             display: none !important;
             flex-direction: column;
         }
-        
+
         .tracks-section.active {
             display: flex !important;
         }

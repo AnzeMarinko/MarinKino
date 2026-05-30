@@ -28,7 +28,8 @@ import pyautogui
 log = logging.getLogger(__name__)
 
 URLS = {
-    # "21. Anglež z omleto": ("movies/0x-neurejeni-filmi/Zelenjavcki.Collection", "https://sf.strp2p.com/#ow6i9", 26 * 60),
+    # "21. Anglež z omleto": ("movies/0x-neurejeni-filmi/Zelenjavcki.Collection",
+    #     "https://sf.strp2p.com/#ow6i9", 26 * 60),
 }
 
 
@@ -68,9 +69,8 @@ if __name__ == "__main__":
             pyautogui.press("f11")  # celozaslonski način
             time.sleep(1)
             start_recording(
-                filename, duration=duration + 30  # trajanje v sekundah
+                filename,
+                duration=duration + 30,  # trajanje v sekundah
             )
             pyautogui.hotkey("ctrl", "w")  # zapri zavihek
-            time.sleep(
-                180
-            )  # počakaj, če bo uporabnik pritisnil CTRL+C za izhod
+            time.sleep(180)  # počakaj, če bo uporabnik pritisnil CTRL+C za izhod

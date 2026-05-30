@@ -24,26 +24,26 @@
   --barva-akcija: var(--gorcicna);
   --barva-fantazijski: var(--marelicna);
   --barva-drugi-zanri: var(--rdeckasto-rjava);
-  
+
   --movie-page-background: linear-gradient(
-    135deg, 
-    color-mix(in srgb, var(--marinkino-orange), white 70%) 0%, 
+    135deg,
+    color-mix(in srgb, var(--marinkino-orange), white 70%) 0%,
     color-mix(in srgb, var(--marinkino-red), white 70%) 100%);
   --oranzno-rdeca-background: linear-gradient(
-    135deg, 
-    color-mix(in srgb, var(--marinkino-red), white 20%) 0%, 
+    135deg,
+    color-mix(in srgb, var(--marinkino-red), white 20%) 0%,
     color-mix(in srgb, var(--marinkino-orange), white 20%) 100%);
   --modro-rdeca-background: linear-gradient(
-    135deg, 
-    color-mix(in srgb, var(--marinkino-blue), white 20%) 0%, 
+    135deg,
+    color-mix(in srgb, var(--marinkino-blue), white 20%) 0%,
     color-mix(in srgb, var(--marinkino-red), white 20%) 100%);
   --music-background: linear-gradient(
-    135deg, 
-    color-mix(in srgb, var(--marinkino-blue), var(--marinkino-gray) 20%) 0%, 
+    135deg,
+    color-mix(in srgb, var(--marinkino-blue), var(--marinkino-gray) 20%) 0%,
     color-mix(in srgb, var(--vijolicna), var(--marinkino-gray) 70%) 100%);
   --music-neg-background: linear-gradient(
-    135deg, 
-    color-mix(in srgb, var(--vijolicna), var(--marinkino-gray) 70%) 0%, 
+    135deg,
+    color-mix(in srgb, var(--vijolicna), var(--marinkino-gray) 70%) 0%,
     color-mix(in srgb, var(--marinkino-blue), var(--marinkino-gray) 20%) 100%);
   --zelena-background: linear-gradient(135deg, var(--temno-zelena) 0%, white 100%);
   --oranzno-zelena-background: linear-gradient(135deg, var(--svetlo-oranzna) 0%, var(--zelena) 100%);

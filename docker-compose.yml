@@ -71,7 +71,7 @@ services:
       - ./configuration/certbot/conf:/etc/letsencrypt:rw
     # Ta ukaz preverja certifikate vsakih 12 ur
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
-    
+
 networks:
   marinkino-network:
     driver: bridge

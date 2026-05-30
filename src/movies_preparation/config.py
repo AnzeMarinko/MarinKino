@@ -22,13 +22,7 @@ if not os.path.exists(LOG_DIR):
         print(f"Napaka pri ustvarjanju mape {LOG_DIR}: {e}")
 else:
     try:
-        files = sorted(
-            [
-                os.path.join(LOG_DIR, f)
-                for f in os.listdir(LOG_DIR)
-                if f"server_start_{FLASK_ENV}_" in f
-            ]
-        )
+        files = sorted([os.path.join(LOG_DIR, f) for f in os.listdir(LOG_DIR) if f"server_start_{FLASK_ENV}_" in f])
         for f in files[:-5]:
             os.remove(f)
     except OSError as e:

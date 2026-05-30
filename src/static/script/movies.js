@@ -17,7 +17,7 @@ function odstraniMovieCard(event, form) {
         card.remove(); // odstrani iz DOM
     }
 
-    return false; 
+    return false;
 }
 
 let currentPage = 0;
@@ -179,7 +179,7 @@ document.addEventListener("change", (e) => {
 
         fetch("/movies/progress-change", {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': token
             },
@@ -200,7 +200,7 @@ document.addEventListener("change", (e) => {
 
         fetch("/movies/recommend", {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': token
             },
@@ -239,15 +239,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
   filterForm.addEventListener('submit', function(e) {
     e.preventDefault();
-    
+
     const formData = new FormData(this);
     const params = new URLSearchParams();
-    
+
     // Handle all form fields
     formData.forEach((value, key) => {
       params.append(key, value);
     });
-    
+
     // Handle checkboxes - ensure unchecked ones are included with "off" value
     const checkboxes = this.querySelectorAll('input[type="checkbox"]');
     checkboxes.forEach(checkbox => {
@@ -255,9 +255,9 @@ document.addEventListener('DOMContentLoaded', function() {
         params.append(checkbox.name, 'off');
       }
     });
-    
+
     console.log('Filter params:', params.toString()); // Debug
-    
+
     // Build new URL and navigate
     const baseUrl = this.getAttribute('action') || window.location.pathname;
     window.location.href = baseUrl + '?' + params.toString();
@@ -318,17 +318,17 @@ document.addEventListener("DOMContentLoaded", function () {
 
 function submitComment(event, movieFolder) {
     event.preventDefault();
-    
+
     const commentText = document.getElementById('commentText').value;
     const statusDiv = document.getElementById('commentStatus');
-    
+
     const data = {
         movieFolder: movieFolder,
         comment: commentText,
         comment_type: "komentar na film"
     };
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-    
+
     fetch('/movies/add-comment', {
         method: 'POST',
         headers: {
@@ -343,7 +343,7 @@ function submitComment(event, movieFolder) {
             statusDiv.className = 'status-message success';
             statusDiv.textContent = 'Hvala! Vaš komentar je bil poslan. Administrator bo kmalu odgovoril.';
             document.getElementById('commentForm').reset();
-            
+
             // Počisti status po 5 sekundah
             setTimeout(() => {
                 statusDiv.textContent = '';
@@ -370,19 +370,19 @@ function submitAlertOnPage(movieFolder) {
     const text = document.getElementById('alert_text').value.trim();
     const type = document.getElementById('alert_type').value;
     const icon = ALERT_TYPES_PAGE[type] || 'bi-lightbulb-fill';
-    
+
     if (!text) {
         alert('Besedilo opozorila je obvezno');
         return;
     }
-    
+
     const data = {
         movieFolder: movieFolder,
         text: text,
         type: type,
         icon: icon
     };
-    
+
     fetch('/movies/add-warning', {
         method: 'POST',
         headers: {
@@ -414,12 +414,12 @@ function editAlertOnPage(button, movieFolder, index) {
     const noteHeader = noteElement.querySelector('.note-header');
     const alertText = noteHeader.textContent.trim();
     const alertType = noteElement.className.match(/note-type-(\w+)/)?.[1] || 'opozorilo';
-    
+
     editingAlertData = {
         movieFolder: movieFolder,
         index: index
     };
-    
+
     document.getElementById('edit_alert_text').value = alertText;
     document.getElementById('edit_alert_type').value = alertType;
     document.getElementById('editAlertModal').style.display = 'block';
@@ -438,12 +438,12 @@ function saveEditedAlert() {
         "ideja": "bi-lightbulb-fill"
     };
     const icon = ALERT_TYPES_PAGE[type] || 'bi-lightbulb-fill';
-    
+
     if (!text) {
         alert('Besedilo opozorila je obvezno');
         return;
     }
-    
+
     const data = {
         movieFolder: editingAlertData.movieFolder,
         warningIndex: editingAlertData.index,
@@ -451,7 +451,7 @@ function saveEditedAlert() {
         type: type,
         icon: icon
     };
-    
+
     fetch('/movies/edit-warning', {
         method: 'POST',
         headers: {
@@ -487,12 +487,12 @@ function deleteAlertOnPage(button, movieFolder, index) {
     if (!confirm('Ali si prepričan, da želiš izbrisati to opozorilo?')) {
         return;
     }
-    
+
     const data = {
         movieFolder: movieFolder,
         warningIndex: index
     };
-    
+
     fetch('/movies/delete-warning', {
         method: 'POST',
         headers: {
@@ -645,7 +645,7 @@ function deleteAlertOnPage(button, movieFolder, index) {
         // Check if this is a collection - if so, skip rating
         const ratingElement = document.getElementById('rating-summary');
         const isCollection = ratingElement && ratingElement.getAttribute('data-is-collection') === 'true';
-        
+
         if (isCollection) return;
 
         video.addEventListener('timeupdate', () => {

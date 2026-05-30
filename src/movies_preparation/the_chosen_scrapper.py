@@ -86,7 +86,9 @@ headers = {
     "sec-fetch-user": "?1",
     "sec-gpc": "1",
     "upgrade-insecure-requests": "1",
-    "user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+    "user-agent": (
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+    ),
 }
 token = f"viewerToken={chosen_token}"
 
@@ -205,9 +207,7 @@ async def get_master_url(video_id):
             await page.click('button[aria-label="Prijavite se"]')
 
             # počakamo, da se prikaže obrazec (če je asinhrono naložen)
-            await page.wait_for_selector(
-                'button[aria-label="Nadaljujte z e-pošto auth button"]'
-            )
+            await page.wait_for_selector('button[aria-label="Nadaljujte z e-pošto auth button"]')
 
             # klikni gumb "Sign in" ali podobno (preveri selector na strani)
             await page.click('button[aria-label="Nadaljujte z e-pošto auth button"]')
@@ -260,7 +260,7 @@ def swap_audio_tracks(input_file, output_file):
     ]
 
     try:
-        result = subprocess.run(command, check=True, capture_output=True, text=True)
+        subprocess.run(command, check=True, capture_output=True, text=True)
         print(f"Uspešno! Nova datoteka ustvarjena: {output_file}")
 
     except subprocess.CalledProcessError as e:
@@ -296,7 +296,8 @@ def scrappe_video_data(
             "Year": "2023-2027",
             "Runtimes": runtime,
             "Plot": description,
-            "Plot outline": "Za slovenski zvok glejte preko lokalnega predvajalnika filmov (npr. VLC), kjer lahko izberete jezik zvoka. Brskalnik ne omogoča izbire zvoka.",
+            "Plot outline": "Za slovenski zvok glejte preko lokalnega predvajalnika"
+            " filmov (npr. VLC), kjer lahko izberete jezik zvoka. Brskalnik ne omogoča izbire zvoka.",
         }
         with open(readme_file, "w", encoding="utf-8") as f:
             json.dump(metadata, f, ensure_ascii=False, indent=4)
@@ -317,20 +318,13 @@ def scrappe_video_data(
         master.playlists,
         key=lambda p: -abs(target_video_height - p.stream_info.resolution[1]),
     )
-    audio_en_info = next(
-        m for m in master.media if m.type == "AUDIO" and m.name == "English"
-    )
-    audio_sl_info = next(
-        m for m in master.media if m.type == "AUDIO" and m.name == "Slovenian"
-    )
-    subs_en_info = next(
-        m for m in master.media if m.type == "SUBTITLES" and m.name == "English"
-    )
-    subs_sl_info = next(
-        m for m in master.media if m.type == "SUBTITLES" and m.name == "Slovenian"
-    )
+    audio_en_info = next(m for m in master.media if m.type == "AUDIO" and m.name == "English")
+    audio_sl_info = next(m for m in master.media if m.type == "AUDIO" and m.name == "Slovenian")
+    subs_en_info = next(m for m in master.media if m.type == "SUBTITLES" and m.name == "English")
+    subs_sl_info = next(m for m in master.media if m.type == "SUBTITLES" and m.name == "Slovenian")
     logging.info(
-        f"Izbrana kvaliteta: {video_best.stream_info.resolution} {video_best.stream_info.bandwidth} {[m.stream_info.resolution for m in master.playlists]}"
+        f"Izbrana kvaliteta: {video_best.stream_info.resolution} {video_best.stream_info.bandwidth}"
+        f" {[m.stream_info.resolution for m in master.playlists]}"
     )
 
     video_url = urljoin(url, video_best.uri)

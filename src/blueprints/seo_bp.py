@@ -10,9 +10,7 @@ from flask import Blueprint
 
 seo_bp = Blueprint("seo", __name__)
 
-BLOG_DATA_FILE = os.path.join(
-    os.path.dirname(__file__), "..", "..", "data", "blog_posts.json"
-)
+BLOG_DATA_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "data", "blog_posts.json")
 
 
 def load_blog_posts():
@@ -25,9 +23,7 @@ def load_blog_posts():
 
 def blog_timestamp(blog):
     """Parse blog timestamp"""
-    timestamp = blog.get("published_at", blog.get("created_at", "")).replace(
-        "Z", "+00:00"
-    )
+    timestamp = blog.get("published_at", blog.get("created_at", "")).replace("Z", "+00:00")
     try:
         return datetime.fromisoformat(timestamp)
     except Exception:
@@ -68,9 +64,7 @@ def sitemap():
                 {
                     "loc": f"{protocol}://{domain}/blog/{post_id}",
                     "lastmod": (
-                        post.get("updated_at")
-                        or post.get("published_at")
-                        or post.get("created_at", "")
+                        post.get("updated_at") or post.get("published_at") or post.get("created_at", "")
                     ).replace("Z", "+00:00"),
                     "changefreq": "monthly",
                     "priority": 0.8,

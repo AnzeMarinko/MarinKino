@@ -37,7 +37,7 @@
             <div>
                 <strong>Nasilje:</strong>
                 <small>(<span id="violence-count">{{ movie.ratings_summary.violence.count if movie.ratings_summary and movie.ratings_summary.violence else 0 }}</span>)</small>
-                
+
                 <span class="icons-wrapper stars" aria-hidden="true">
                     <span class="icons-base">
                         {% for i in range(5) %}
@@ -53,7 +53,7 @@
             <div>
                 <strong>Spolnost:</strong>
                 <small>(<span id="sexual-count">{{ movie.ratings_summary.sexual.count if movie.ratings_summary and movie.ratings_summary.sexual else 0 }}</span>)</small>
-                
+
                 <span class="icons-wrapper sexual" aria-hidden="true">
                     <span class="icons-base">
                         {% for i in range(5) %}
@@ -70,7 +70,7 @@
                 <strong>Primerno starostni skupini:</strong>
                 <small>(<span id="age-count">{{ movie.ratings_summary.age_group.count if movie.ratings_summary and movie.ratings_summary.age_group else 0 }}</span>)</small>
                 <span class="age-display">
-                    
+
                     <span class="age-option {% if age_avg and (a == (age_avg|round(0, 'common')|int or a)) %}selected{% endif %}">+{{ age_avg | int }}</span>
                 </span>
             </div>
@@ -80,7 +80,7 @@
             <div>
                 <strong>Kvaliteta videa:</strong>
                 <small>(<span id="video-quality-count">{{ movie.ratings_summary.video_quality.count if movie.ratings_summary and movie.ratings_summary.video_quality else 0 }}</span>)</small>
-                
+
                 <span class="icons-wrapper stars" aria-hidden="true">
                     <span class="icons-base">
                         {% for i in range(5) %}
@@ -96,7 +96,7 @@
             <div>
                 <strong>Kvaliteta podnapisov:</strong>
                 <small>(<span id="subtitles-quality-count">{{ movie.ratings_summary.subtitles_quality.count if movie.ratings_summary and movie.ratings_summary.subtitles_quality else 0 }}</span>)</small>
-                
+
                 <span class="icons-wrapper stars" aria-hidden="true">
                     <span class="icons-base">
                         {% for i in range(5) %}
@@ -118,7 +118,7 @@
         <hr>{% if is_collection and not movie.is_chosen_series %}
             <div>
                 {% for video_file in video_files %}
-                    <button class="video-btn" style="--watch: {{ movie.watch_info[video_file]['watch_ratio']|default(0) }}%;" 
+                    <button class="video-btn" style="--watch: {{ movie.watch_info[video_file]['watch_ratio']|default(0) }}%;"
                         onclick="playVideo('/movies/file/{{ group_folder }}/{{ folder }}/{{ video_file }}', {{ movie.watch_info[video_file]['last_play_time']|default(0) }}, this)">
                         {{ video_file|replace('.mp4', '') }} ({{ movie.runtimes_by_files[video_file] }} min)
                     </button>
@@ -134,7 +134,7 @@
                 <input type="radio" id="opcija2-{{ movie.movie_id }}" name="izbor-{{ movie.movie_id }}" value="100">
                 <label for="opcija2-{{ movie.movie_id }}">Pogledano</label>
             </div>
-        
+
             {% if view_as != "anonymous" and view_as != "user" and current_user.is_authenticated and current_user.is_admin %}
             <div class="buttons">
                 <hr>
@@ -224,7 +224,7 @@
         <label for="videoSourceSelect">Izberi jezik zvoka: </label>
         <select id="videoSourceSelect">
             {% for file in video_file_languages %}
-                <option value="/movies/file/{{ group_folder }}/{{ folder }}/{{ file.filename }}" 
+                <option value="/movies/file/{{ group_folder }}/{{ folder }}/{{ file.filename }}"
                         {% if file.filename == video_file %}selected{% endif %}>
                     {{ file.label }}
                 </option>
@@ -237,7 +237,7 @@
         {% if slosubs_file %}
             <track src="/movies/file/{{ group_folder }}/{{ folder }}/{{ slosubs_file }}" kind="subtitles" srclang="sl" label="{{ slosubs_file|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" default>
         {% endif %}
-        
+
         {% for subtitle in subtitles %}
             {% if subtitle != slosubs_file %}
             <track src="/movies/file/{{ group_folder }}/{{ folder }}/{{ subtitle }}" kind="subtitles" srclang="{{ subtitle|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" label="{{ subtitle|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}">
@@ -248,9 +248,9 @@
     <script>
         const video = document.getElementById('videoPlayer');
         const sourceSelector = document.getElementById('videoSourceSelect');
-        
+
         // Začetni čas (iz baze)
-        const savedTime = {{ movie.last_play_time|default(0) }}; 
+        const savedTime = {{ movie.last_play_time|default(0) }};
 
         // Nastavi začetni čas ob prvem nalaganju
         video.addEventListener('loadedmetadata', function onFirstLoad() {
@@ -270,7 +270,7 @@
 
             // 2. Zamenjaj vir
             video.src = newSrc;
-            
+
             // 3. Ko se novi video naloži, skoči na pravi čas
             video.onloadedmetadata = () => {
                 video.currentTime = currentTime;
@@ -280,7 +280,7 @@
                 // Počistimo event listener
                 video.onloadedmetadata = null;
             };
-            
+
             // 4. Naloži nov vir
             video.load();
         });
@@ -292,7 +292,7 @@
         {% if slosubs_file %}
             <track src="/movies/file/{{ group_folder }}/{{ folder }}/{{ slosubs_file }}" kind="subtitles" srclang="sl" label="{{ slosubs_file|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" default>
         {% endif %}
-        
+
         {% for subtitle in subtitles %}
             {% if subtitle != slosubs_file %}
             <track src="/movies/file/{{ group_folder }}/{{ folder }}/{{ subtitle }}" kind="subtitles" srclang="{{ subtitle|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" label="{{ subtitle|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}">
@@ -321,7 +321,7 @@
         // Označi izbran gumb
         document.querySelectorAll('.video-btn').forEach(btn => btn.classList.remove('selected'));
         button.classList.add('selected');
-        
+
         // Predvajaj video
         const video = document.getElementById('videoPlayer');
         const source = document.getElementById('videoSource');

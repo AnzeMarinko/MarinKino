@@ -28,12 +28,8 @@ admin_bp = Blueprint("admin", __name__)
 
 users = {}
 
-BLOG_DATA_FILE = os.path.join(
-    os.path.dirname(__file__), "..", "..", "data", "blog_posts.json"
-)
-BLOG_IMAGES_DIR = os.path.join(
-    os.path.dirname(__file__), "..", "data", "blog_images"
-)
+BLOG_DATA_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "data", "blog_posts.json")
+BLOG_IMAGES_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "blog_images")
 
 
 def save_blog_image(file, crop_data=None):
@@ -51,20 +47,10 @@ def save_blog_image(file, crop_data=None):
             img = Image.open(file.stream)
             img.load()
             width, height = img.size
-            left = int(
-                round(max(0, min(width - 1, crop_data.get("x", 0) * width)))
-            )
-            top = int(
-                round(max(0, min(height - 1, crop_data.get("y", 0) * height)))
-            )
-            crop_width = int(
-                round(max(1, min(width - left, crop_data.get("w", 0) * width)))
-            )
-            crop_height = int(
-                round(
-                    max(1, min(height - top, crop_data.get("h", 0) * height))
-                )
-            )
+            left = int(round(max(0, min(width - 1, crop_data.get("x", 0) * width))))
+            top = int(round(max(0, min(height - 1, crop_data.get("y", 0) * height))))
+            crop_width = int(round(max(1, min(width - left, crop_data.get("w", 0) * width))))
+            crop_height = int(round(max(1, min(height - top, crop_data.get("h", 0) * height))))
             right = min(width, left + crop_width)
             bottom = min(height, top + crop_height)
             if right <= left or bottom <= top:
@@ -127,21 +113,11 @@ def admin_panel():
         access_stats_users[status][log_date].setdefault(user_id, {})
 
         for route_method, count in routes_data.items():
-            access_stats_users[status][log_date][user_id].setdefault(
-                "routes", {}
-            )
-            access_stats_users[status][log_date][user_id]["routes"].setdefault(
-                route_method, 0
-            )
-            access_stats_users[status][log_date][user_id]["routes"][
-                route_method
-            ] += int(count)
-            access_stats_users[status][log_date][user_id].setdefault(
-                "count", 0
-            )
-            access_stats_users[status][log_date][user_id]["count"] += int(
-                count
-            )
+            access_stats_users[status][log_date][user_id].setdefault("routes", {})
+            access_stats_users[status][log_date][user_id]["routes"].setdefault(route_method, 0)
+            access_stats_users[status][log_date][user_id]["routes"][route_method] += int(count)
+            access_stats_users[status][log_date][user_id].setdefault("count", 0)
+            access_stats_users[status][log_date][user_id]["count"] += int(count)
             if status.startswith("2") or status.startswith("3"):
                 user_counter.setdefault(user_id, 0)
                 user_counter[user_id] += int(count)
@@ -159,9 +135,7 @@ def admin_panel():
                             for v in sorted(
                                 [
                                     (int(count), f"{count}x {route_method}")
-                                    for route_method, count in v3[
-                                        "routes"
-                                    ].items()
+                                    for route_method, count in v3["routes"].items()
                                 ],
                                 reverse=True,
                             )[:10]
@@ -175,26 +149,16 @@ def admin_panel():
                     )
                     if v
                 }
-            access_stats_users[k1] = {
-                k: v
-                for k, v in sorted(list(access_stats_users[k1].items()))
-                if v
-            }
-        access_stats_users = {
-            k: v for k, v in sorted(list(access_stats_users.items())) if v
-        }
+            access_stats_users[k1] = {k: v for k, v in sorted(list(access_stats_users[k1].items())) if v}
+        access_stats_users = {k: v for k, v in sorted(list(access_stats_users.items())) if v}
 
     if access_stats_routes:
         df_routes = pd.DataFrame(access_stats_routes).T
         access_stats_routes = df_routes.fillna(0).astype(int)
-        access_stats_routes = access_stats_routes[
-            sorted(access_stats_routes.columns, reverse=True)
-        ].T
+        access_stats_routes = access_stats_routes[sorted(access_stats_routes.columns, reverse=True)].T
         access_stats_routes["total"] = access_stats_routes.sum(axis=1)
         access_stats_routes = (
-            access_stats_routes.sort_values(by="total", ascending=False)
-            .drop(columns=["total"])
-            .head(10)
+            access_stats_routes.sort_values(by="total", ascending=False).drop(columns=["total"]).head(10)
         )
         access_stats_routes = access_stats_routes.to_dict()
 
@@ -206,20 +170,13 @@ def admin_panel():
         access_stats_monthly[month_label] = {}
         for route_method, count in monthly_data.items():
             route = "/" + "/".join(route_method.split("/")[1:3])
-            access_stats_monthly[month_label][route] = access_stats_monthly[
-                month_label
-            ].get(route, 0) + int(count)
+            access_stats_monthly[month_label][route] = access_stats_monthly[month_label].get(route, 0) + int(count)
 
     if access_stats_monthly:
         df_monthly = pd.DataFrame(access_stats_monthly).T.fillna(0).astype(int)
         df_monthly = df_monthly[sorted(df_monthly.columns, reverse=True)].T
         df_monthly["total"] = df_monthly.sum(axis=1)
-        df_monthly = (
-            df_monthly.sort_values(by="total", ascending=False)
-            .drop(columns=["total"])
-            .head(20)
-            .T
-        )
+        df_monthly = df_monthly.sort_values(by="total", ascending=False).drop(columns=["total"]).head(20).T
         access_stats_monthly_dict = df_monthly.to_dict(orient="index")
         monthly_columns = df_monthly.columns
     else:
@@ -256,10 +213,7 @@ def admin_panel():
                     watched_count += 1
 
                 if current_max_start:
-                    if (
-                        last_start_time == "-"
-                        or current_max_start > last_start_time
-                    ):
+                    if last_start_time == "-" or current_max_start > last_start_time:
                         last_start_time = current_max_start
 
                 total_watch_time += watch_time
@@ -278,9 +232,7 @@ def admin_panel():
         }
 
     if users_stats:
-        df_users = pd.DataFrame(users_stats).T.sort_values(
-            by=["Število ogledanih", "Skupen čas"], ascending=False
-        )
+        df_users = pd.DataFrame(users_stats).T.sort_values(by=["Število ogledanih", "Skupen čas"], ascending=False)
         users_stats_dict = df_users.to_dict(orient="index")
         users_stats_columns = df_users.columns
     else:
@@ -293,26 +245,16 @@ def admin_panel():
             "r",
             encoding="utf-8",
         ) as f:
-            lines = [l.split(" - ") for l in f.read().split("\n")]
+            lines = [line.split(" - ") for line in f.read().split("\n")]
             new_lines = []
             last_line = lines[0]
             for line in lines[1:]:
-                if (
-                    len(last_line) < 4
-                    or len(line) < 4
-                    or line[3] != last_line[3]
-                    or line[2] != last_line[2]
-                ):
+                if len(last_line) < 4 or len(line) < 4 or line[3] != last_line[3] or line[2] != last_line[2]:
                     new_lines.append(" - ".join(last_line))
                     last_line = line
                 else:
-                    last_line[0] = (
-                        last_line[0].split(" <-> ")[0] + " <-> " + line[0]
-                    )
-                    last_line[1] = (
-                        str(int(last_line[1].replace("x", "")) + int(line[1]))
-                        + "x"
-                    )
+                    last_line[0] = last_line[0].split(" <-> ")[0] + " <-> " + line[0]
+                    last_line[1] = str(int(last_line[1].replace("x", "")) + int(line[1])) + "x"
             new_lines.append(" - ".join(last_line))
 
             system_log = "\n".join(new_lines[-500:])
@@ -371,16 +313,12 @@ def admin_panel():
                     movies_watch_stats[movie_folder]["total_ratio"] += ratio
                     movies_watch_stats[movie_folder]["count"] += 1
                     movies_watch_stats[movie_folder]["users"].add(user_id)
-                    movies_watch_stats[movie_folder]["total_duration"] += (
-                        duration
-                    )
+                    movies_watch_stats[movie_folder]["total_duration"] += duration
 
     # Calculate averages and sort
     top_movies = []
     for movie_folder, stats in movies_watch_stats.items():
-        avg_ratio = (
-            stats["total_ratio"] / stats["count"] if stats["count"] > 0 else 0
-        )
+        avg_ratio = stats["total_ratio"] / stats["count"] if stats["count"] > 0 else 0
         total_watch_hours = stats["total_duration"] / 3600
 
         top_movies.append(
@@ -395,9 +333,7 @@ def admin_panel():
         )
 
     # Sort by total_ratio (highest first) and get top 20
-    top_movies_sorted = sorted(
-        top_movies, key=lambda x: x["total_ratio"], reverse=True
-    )[:20]
+    top_movies_sorted = sorted(top_movies, key=lambda x: x["total_ratio"], reverse=True)[:20]
 
     # Referrer statistics
     referrer_stats = {}
@@ -436,7 +372,7 @@ def admin_panel():
                         float(geolocation[0]),
                         float(geolocation[1]),
                     )
-            except:
+            except Exception:
                 continue
     geo_stats = dict(sorted(geo_stats.items(), key=lambda x: -x[1]))
 
@@ -456,12 +392,8 @@ def admin_panel():
                 views += 1
                 if all_geo_data.get(ip, {}).get("country") == "SI":
                     si_views += 1
-            blog_views_daily[date_part] = (
-                blog_views_daily.get(date_part, 0) + views
-            )
-            blog_si_views_daily[date_part] = (
-                blog_si_views_daily.get(date_part, 0) + si_views
-            )
+            blog_views_daily[date_part] = blog_views_daily.get(date_part, 0) + views
+            blog_si_views_daily[date_part] = blog_si_views_daily.get(date_part, 0) + si_views
         total_views += views
         total_si_views += si_views
         blog_stats.append(
@@ -479,12 +411,8 @@ def admin_panel():
         pagetitle="MarinKino - Nadzorna plošča",
         system_log=system_log,
         access_stats_users=access_stats_users,
-        users=list(
-            sorted(user_counter.keys(), key=lambda x: -user_counter[x])
-        ),
-        emails=", ".join(
-            [e for u in users for e in users[u].get("emails", [])]
-        ),
+        users=list(sorted(user_counter.keys(), key=lambda x: -user_counter[x])),
+        emails=", ".join([e for u in users for e in users[u].get("emails", [])]),
         users_count=len(users),
         access_stats_routes=access_stats_routes,
         users_stats=users_stats_dict,
@@ -536,9 +464,7 @@ def admin_blog():
         return redirect(url_for("home"))
 
     posts = load_blog_posts()
-    sorted_posts = sorted(
-        posts.values(), key=lambda x: x.get("created_at", ""), reverse=True
-    )
+    sorted_posts = sorted(posts.values(), key=lambda x: x.get("created_at", ""), reverse=True)
 
     # Get view stats for each post and format dates
     for post in sorted_posts:
@@ -549,19 +475,15 @@ def admin_blog():
         # Format dates
         if post.get("created_at"):
             try:
-                dt = datetime.fromisoformat(
-                    post["created_at"].replace("Z", "+00:00")
-                )
+                dt = datetime.fromisoformat(post["created_at"].replace("Z", "+00:00"))
                 post["created_at_formatted"] = dt.strftime("%d.%m.%Y")
-            except:
+            except Exception:
                 post["created_at_formatted"] = post.get("created_at", "")
         if post.get("published_at"):
             try:
-                dt = datetime.fromisoformat(
-                    post["published_at"].replace("Z", "+00:00")
-                )
+                dt = datetime.fromisoformat(post["published_at"].replace("Z", "+00:00"))
                 post["published_at_formatted"] = dt.strftime("%d.%m.%Y")
-            except:
+            except Exception:
                 post["published_at_formatted"] = post.get("published_at", "")
 
     return render_template("admin_blog.html", posts=sorted_posts)
@@ -586,10 +508,7 @@ def admin_blog_new():
         image_file = request.files.get("image_file")
 
         if not title or not content:
-            if (
-                request.headers.get("X-Requested-With") == "XMLHttpRequest"
-                or request.is_json
-            ):
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
                 return jsonify(
                     {
                         "success": False,
@@ -609,16 +528,8 @@ def admin_blog_new():
             except ValueError:
                 crop_x = crop_y = crop_w = crop_h = None
 
-            if (
-                crop_x is None
-                or crop_y is None
-                or crop_w is None
-                or crop_h is None
-            ):
-                if (
-                    request.headers.get("X-Requested-With") == "XMLHttpRequest"
-                    or request.is_json
-                ):
+            if crop_x is None or crop_y is None or crop_w is None or crop_h is None:
+                if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
                     return jsonify(
                         {
                             "success": False,
@@ -645,7 +556,8 @@ def admin_blog_new():
 
         posts = load_blog_posts()
         # post_id made out of title and current timestamp to avoid collisions
-        # convert title to a slug-like format by replacing spaces with underscores and removing special characters (ščćž and their uppercase variants)
+        # convert title to a slug-like format by replacing spaces with underscores
+        # and removing special characters (ščćž and their uppercase variants)
         slug_title = (
             "".join(c if c.isalnum() else "_" for c in title.lower())
             .strip("_")
@@ -675,10 +587,7 @@ def admin_blog_new():
         save_blog_posts(posts)
 
         # Vrni JSON če je AJAX zahtevek, drugače redirect
-        if (
-            request.headers.get("X-Requested-With") == "XMLHttpRequest"
-            or request.is_json
-        ):
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
             return jsonify(
                 {
                     "success": True,
@@ -716,10 +625,7 @@ def admin_blog_edit(post_id):
         remove_image = request.form.get("remove_image") == "1"
 
         if not title or not content:
-            if (
-                request.headers.get("X-Requested-With") == "XMLHttpRequest"
-                or request.is_json
-            ):
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
                 return jsonify(
                     {
                         "success": False,
@@ -744,16 +650,8 @@ def admin_blog_edit(post_id):
             except ValueError:
                 crop_x = crop_y = crop_w = crop_h = None
 
-            if (
-                crop_x is None
-                or crop_y is None
-                or crop_w is None
-                or crop_h is None
-            ):
-                if (
-                    request.headers.get("X-Requested-With") == "XMLHttpRequest"
-                    or request.is_json
-                ):
+            if crop_x is None or crop_y is None or crop_w is None or crop_h is None:
+                if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
                     return jsonify(
                         {
                             "success": False,
@@ -796,21 +694,14 @@ def admin_blog_edit(post_id):
             "keywords": keywords,
             "seo_description": seo_description,
             "published": published,
-            "created_at": post.get(
-                "created_at", datetime.now(timezone.utc).isoformat()
-            ),
+            "created_at": post.get("created_at", datetime.now(timezone.utc).isoformat()),
             "published_at": published_at,
         }
         save_blog_posts(posts)
 
         # Vrni JSON če je AJAX zahtevek, drugače redirect
-        if (
-            request.headers.get("X-Requested-With") == "XMLHttpRequest"
-            or request.is_json
-        ):
-            return jsonify(
-                {"success": True, "message": "Blog objava posodobljena."}
-            )
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+            return jsonify({"success": True, "message": "Blog objava posodobljena."})
 
         flash("Blog objava posodobljena.", "success")
         return redirect(url_for("admin.admin_blog"))
@@ -819,19 +710,15 @@ def admin_blog_edit(post_id):
     if post:
         if post.get("created_at"):
             try:
-                dt = datetime.fromisoformat(
-                    post["created_at"].replace("Z", "+00:00")
-                )
+                dt = datetime.fromisoformat(post["created_at"].replace("Z", "+00:00"))
                 post["created_at_display"] = dt.strftime("%d.%m.%Y %H:%M")
-            except:
+            except Exception:
                 post["created_at_display"] = post.get("created_at", "")
         if post.get("published_at"):
             try:
-                dt = datetime.fromisoformat(
-                    post["published_at"].replace("Z", "+00:00")
-                )
+                dt = datetime.fromisoformat(post["published_at"].replace("Z", "+00:00"))
                 post["published_at_display"] = dt.strftime("%d.%m.%Y %H:%M")
-            except:
+            except Exception:
                 post["published_at_display"] = post.get("published_at", "")
 
     return render_template("admin_blog_edit.html", post=post)

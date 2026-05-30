@@ -20,11 +20,7 @@ user_meme_limit = 33
 
 # Initialize memes
 memes = os.listdir("data/memes")
-memes = [
-    slika
-    for slika in memes
-    if slika.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp4"))
-]
+memes = [slika for slika in memes if slika.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp4"))]
 random.shuffle(memes)
 MEMES_COUNT = len(memes)
 
@@ -60,7 +56,7 @@ def meme():
 @login_required
 def meme_file(meme_file_name):
     try:
-        path = safe_path("../data/memes", meme_file_name)
+        _ = safe_path("../data/memes", meme_file_name)
         if not os.path.exists(os.path.join("data/memes", meme_file_name)):
             abort(404)
     except ValueError:
@@ -97,9 +93,7 @@ def meme_file(meme_file_name):
         elif lower_name.endswith(".webp"):
             mimetype = "image/webp"
 
-        response = send_from_directory(
-            "../data/memes", meme_file_name, mimetype=mimetype, conditional=True
-        )
+        response = send_from_directory("../data/memes", meme_file_name, mimetype=mimetype, conditional=True)
         response.headers["Accept-Ranges"] = "bytes"
     return response
 

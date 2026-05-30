@@ -1,7 +1,7 @@
 # MarinKino
 
 To je repozitorij za domači kino. Preko HTTPS serverja so tako filmi z domačega diska varno dostopni preko spleta le izbranemu krogu uporabnikom (prijavljenim). Ta server omogoča enostavno izbiro in ogled filmov kar v brskalniku. Koda avtomatizirano poskrbi:
-* da je vsak film v eni `mp4` datoteki za zmanjšanje datoteke in tudi za združevanje `.vob` ter drugih podobnih nekompresiranih formatov, 
+* da je vsak film v eni `mp4` datoteki za zmanjšanje datoteke in tudi za združevanje `.vob` ter drugih podobnih nekompresiranih formatov,
 * priskrbi naslovnice, opise in druge podatke o filmih ter opise po potrebi z umetno inteligenco prevede v slovenščino,
 * po potrebi priskrbi podnapise z interneta (ročno je potrebno izbrani najboljšo datoteko),
 * z umetno inteligenco zazna govor in poravna podnapise z zvokom (zamik in skaliranje),

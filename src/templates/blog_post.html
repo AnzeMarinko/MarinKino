@@ -11,7 +11,7 @@
                     <li class="breadcrumb-item active" aria-current="page">{{ post.title }}</li>
                 </ol>
             </nav>
-            
+
             <article itemscope itemtype="https://schema.org/BlogPosting">
                 <header class="mb-4">
                     <h1 class="display-4 fw-bold mb-3" itemprop="headline">{{ post.title }}</h1>
@@ -23,12 +23,12 @@
                             <span itemprop="datePublished" content="{{ post.created_at }}">Objavljeno: {{ post.created_at_display }}</span>
                         </small>
                     </div>
-                    
+
                     <!-- Author Information -->
                     <div class="card bg-light mb-3" itemprop="author" itemscope itemtype="https://schema.org/Person">
                         <div class="card-body">
                             <small>
-                                <strong>Avtor:</strong> 
+                                <strong>Avtor:</strong>
                                 <a href="/blog/o-meni" itemprop="url">
                                     <span itemprop="name">Anže Marinko</span>
                                 </a>
@@ -36,11 +36,11 @@
                         </div>
                     </div>
                 </header>
-                
+
                 {% if post.image %}
                 <div class="mb-4" style="align-items: center; display: flex; justify-content: center;">
-                    <img src="/blog/image/{{ post.image }}" 
-                         class="img-fluid rounded" 
+                    <img src="/blog/image/{{ post.image }}"
+                         class="img-fluid rounded"
                          alt="{{ post.image_desc or post.title }}"
                          itemprop="image"
                          style="max-height: 50vh;">
@@ -49,15 +49,15 @@
                 <p class="small text-muted text-center">{{ post.image_desc }}</p>
                 {% endif %}
                 {% endif %}
-                
+
                 <!-- Main Content -->
                 <div class="blog-content" itemprop="articleBody">
                     {{ post.content_html|safe }}
                 </div>
             </article>
-            
+
             <hr class="my-5">
-            
+
             <div class="text-center">
                 <a href="/blog" class="btn btn-outline-primary">Nazaj na seznam blogov</a>
             </div>

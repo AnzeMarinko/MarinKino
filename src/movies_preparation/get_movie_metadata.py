@@ -117,9 +117,7 @@ def tmdb_cast(tmdb_id, limit=7):
 def get_imdb_id_from_tmdb(tmdb_id):
     imdb_id = tmdb_get(f"/movie/{tmdb_id}/external_ids").get("imdb_id")
     if imdb_id is None:
-        imdb_id = tmdb_get(f"/movie/{tmdb_id}/external_ids", lang="en-US").get(
-            "imdb_id"
-        )
+        imdb_id = tmdb_get(f"/movie/{tmdb_id}/external_ids", lang="en-US").get("imdb_id")
     return imdb_id
 
 
@@ -154,15 +152,6 @@ def create_thumbnail(src, height=250, quality=85):
 
 
 ia = Cinemagoer()
-
-
-def namesInList(nameList):
-    names = ""
-    if nameList is None:
-        return ""
-    for i in nameList[:3]:
-        names = names + "; " + str(i.get("name"))
-    return names[2:]
 
 
 def get_movie_runtimes(folder, video_files):
@@ -246,9 +235,7 @@ def get_movie_metadata(folder, film, video_files):
         film_cover_file = "static/logo.png"
 
     runtimes = get_movie_runtimes(folder, video_files)
-    result["RuntimesByFiles"] = {
-        file: runtime for file, runtime in zip(video_files, runtimes)
-    }
+    result["RuntimesByFiles"] = {file: runtime for file, runtime in zip(video_files, runtimes)}
     runtime = None
     if len(runtimes) > 1:
         valid_r = [r for r in runtimes if r]
@@ -287,18 +274,10 @@ class MovieMetadata:
 
         # Filtriranje datotek z uporabo pathlib suffixov (ki vključujejo piko)
         self.video_files = sorted(
-            [
-                f.name
-                for f in folder_contents
-                if f.is_file() and f.suffix.lower() in self.SUPPORTED_VIDEO
-            ]
+            [f.name for f in folder_contents if f.is_file() and f.suffix.lower() in self.SUPPORTED_VIDEO]
         )
 
-        self.subtitles = [
-            f.name
-            for f in folder_contents
-            if f.is_file() and f.suffix.lower() == ".vtt"
-        ]
+        self.subtitles = [f.name for f in folder_contents if f.is_file() and f.suffix.lower() == ".vtt"]
 
         # Logične zastavice
         self.slosinh = "sinh" in self.path.name.lower()
@@ -319,9 +298,7 @@ class MovieMetadata:
         self.players = metadata.get("Players", "")
         if isinstance(self.players, list):
             self.players = "; ".join(self.players)
-        self.plot = html.unescape(
-            metadata.get("Plot - translated", metadata.get("Plot", ""))
-        )
+        self.plot = html.unescape(metadata.get("Plot - translated", metadata.get("Plot", "")))
         self.imdb_id = metadata.get("imdb_id", "")
         self.recommendation_level = metadata.get("recommendation_level", "")
         self.user_notes = metadata.get("user_notes", {})

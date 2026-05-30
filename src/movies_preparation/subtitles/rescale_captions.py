@@ -103,10 +103,8 @@ def extract_audio(folder, video_path):
         (get_speech_timestamps, _, _, _, _) = utils
 
         data = get_speech_timestamps(audio, model, sampling_rate=sr)
-        DOWNSAMPLE_RATE = int(16000 / TARGET_RATE)
-        reshaped = np.abs(
-            audio[: len(audio) // DOWNSAMPLE_RATE * DOWNSAMPLE_RATE]
-        ).reshape(-1, DOWNSAMPLE_RATE)
+        downsample_rate = int(16000 / TARGET_RATE)
+        reshaped = np.abs(audio[: len(audio) // downsample_rate * downsample_rate]).reshape(-1, downsample_rate)
         envelope = reshaped.max(axis=1)
         envelope = envelope / (np.max(envelope) + 1e-9)
 
@@ -134,9 +132,7 @@ def extract_audio(folder, video_path):
 
 # Formatiranje časa za SRT datoteko
 def format_time(seconds):
-    timestamp = str(datetime.timedelta(seconds=round(seconds, 3))).replace(".", ",")[
-        :-3
-    ]
+    timestamp = str(datetime.timedelta(seconds=round(seconds, 3))).replace(".", ",")[:-3]
     return ("0" if "0:" == timestamp[:2] else "") + timestamp
 
 
@@ -145,9 +141,7 @@ def generate_srt(shift, scale, transcription_data, output_file):
     with open(output_file, "w", encoding="UTF-8") as srt_file:
         for i, (start, end, text) in enumerate(transcription_data):
             srt_file.write(f"{i + 1}\n")
-            srt_file.write(
-                f"{format_time(start * scale + shift)} --> {format_time(end * scale + shift)}\n"
-            )
+            srt_file.write(f"{format_time(start * scale + shift)} --> {format_time(end * scale + shift)}\n")
             srt_file.write(f"{text}\n\n")
 
 
@@ -157,33 +151,24 @@ def aux_rescale_captions(subtitles, speech):
         [
             [s, e]
             for s, e, text in subtitles
-            if (
-                (len(text) > 0)
-                and (sum(c in text[0] + text[-1] for c in "[]{}()") < 2)
-                and ("<i>" not in text)
-            )
+            if ((len(text) > 0) and (sum(c in text[0] + text[-1] for c in "[]{}()") < 2) and ("<i>" not in text))
         ]
     )
 
     @njit
     def compute_score(a, b):
-        aux_np_subtitles = np.clip(
-            (a * np_subtitles + b) * TARGET_RATE, 0, len(speech) - 1
-        )
+        aux_np_subtitles = np.clip((a * np_subtitles + b) * TARGET_RATE, 0, len(speech) - 1)
         subtitle_score = 0.0
         for i in range(aux_np_subtitles.shape[0]):
             start_id, end_id = int(aux_np_subtitles[i, 0]), int(aux_np_subtitles[i, 1])
             if end_id > start_id:
                 subtitle_score += np.sum(
-                    (np.log10(np.linspace(1, 0.2, end_id - start_id)) + 1)
-                    * speech[start_id:end_id]
+                    (np.log10(np.linspace(1, 0.2, end_id - start_id)) + 1) * speech[start_id:end_id]
                 )
         return subtitle_score
 
     def aux_get_subtitle_audio(a, b):
-        aux_np_subtitles = np.clip(
-            (a * np_subtitles + b) * TARGET_RATE, 0, len(speech) - 1
-        )
+        aux_np_subtitles = np.clip((a * np_subtitles + b) * TARGET_RATE, 0, len(speech) - 1)
         subtitle_audio = np.zeros_like(speech)
         for i in range(aux_np_subtitles.shape[0]):
             start_id, end_id = int(aux_np_subtitles[i, 0]), int(aux_np_subtitles[i, 1])
@@ -228,9 +213,7 @@ def rescale_subtitles(folder, subtitle_path, video_path, plot=False):
         subtitles = extract_subtitles(subtitle_path)
         if subtitles and len(subtitles) >= 5:
             log.info(f"⚙ Poravnavam podnapise: {video_path}")
-            scale, shift, aux_get_subtitle_audio = aux_rescale_captions(
-                subtitles, speech
-            )
+            scale, shift, aux_get_subtitle_audio = aux_rescale_captions(subtitles, speech)
             if abs(scale - 1) < 0.05 and abs(shift) < 30:
                 generate_srt(0, 1, subtitles, original_file)
                 last_sub_end = subtitles[-1][1]
