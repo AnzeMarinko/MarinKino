@@ -7,6 +7,25 @@
         <p class="lead text-muted">Blog</p>
     </div>
 
+    <div class="row mb-4">
+        <div class="col-md-8 offset-md-2">
+            <div class="card p-3">
+                <form method="post" action="/blog/subscribe" class="row g-2 align-items-center">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="col-auto">
+                        <label for="subscribe-email" class="col-form-label">Naroči se na nove objave:</label>
+                    </div>
+                    <div class="col-md-8">
+                        <input type="email" name="email" id="subscribe-email" class="form-control" placeholder="Vaš e-poštni naslov">
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-primary" type="submit">Naroči</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <div class="row">
         {% for post in posts %}
         <div class="col-md-6 col-lg-4 mb-4">

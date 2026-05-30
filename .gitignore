@@ -10,6 +10,7 @@ credentials/*.json
 configuration/nginx
 configuration/certbot
 docs/TODO-plans.md
+data/blog_subscribers.json
 
 data/users.json
 data/test_users.json

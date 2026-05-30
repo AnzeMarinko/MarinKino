@@ -8,14 +8,25 @@ import markdown
 from flask import (
     Blueprint,
     abort,
+    flash,
     make_response,
+    redirect,
     render_template,
     request,
     send_from_directory,
+    url_for,
 )
 from flask_login import current_user
 
-from utils import FLASK_ENV, redis_client, safe_path
+from utils import (
+    FLASK_ENV,
+    load_blog_subscribers,
+    redis_client,
+    safe_path,
+    save_blog_subscribers,
+    send_mail,
+    users,
+)
 
 log = logging.getLogger(__name__)
 
@@ -70,6 +81,44 @@ def blog_list():
         pagetitle="Sončnice",
         blog_view="blog",
     )
+
+
+@blog_bp.route("/blog/subscribe", methods=["POST"])
+def blog_subscribe():
+    email = request.form.get("email")
+    if not email or "@" not in email:
+        flash("Prosimo vnesite veljaven e-poštni naslov.", "error")
+        return redirect(url_for("blog.blog_list"))
+    subs = load_blog_subscribers()
+    email = email.strip().lower()
+    if email not in subs:
+        subs.append(email)
+        save_blog_subscribers(subs)
+
+        # Notify admins about new subscriber
+        try:
+            admin_emails = []
+            for username, data in users.items():
+                if data.get("is_admin"):
+                    admin_emails += data.get("emails", [])
+            if not admin_emails:
+                admin_emails = [os.getenv("GMAIL_USERNAME")]
+            subject = f"Nov naročnik na blog: {email}"
+            text = f"Nov naročnik na blog: {email}\nStran: {request.host_url}"
+            send_mail(
+                to=admin_emails,
+                subject=subject,
+                text=text,
+                batch_id="new_subscriber",
+            )
+        except Exception:
+            log.exception("Napaka pri pošiljanju obvestila o novem naročniku")
+
+    flash(
+        "Hvala! Uspešno ste se naročili na obvestila o novih objavah.",
+        "success",
+    )
+    return redirect(url_for("blog.blog_list"))
 
 
 @blog_bp.route("/blog/<post_id>")

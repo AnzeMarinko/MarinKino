@@ -7,6 +7,7 @@ import smtplib
 import ssl
 from datetime import date
 from email.message import EmailMessage
+from typing import List
 
 import redis
 from flask import session
@@ -19,6 +20,28 @@ redis_client = redis.Redis(
     port=int(os.getenv("REDIS_PORT", "6379")),
     decode_responses=True,
 )
+
+SUBSCRIBERS_FILE = os.path.join(
+    os.path.dirname(__file__), "..", "data", "blog_subscribers.json"
+)
+
+
+def load_blog_subscribers() -> List[str]:
+    path = os.path.normpath(SUBSCRIBERS_FILE)
+    if os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return []
+    return []
+
+
+def save_blog_subscribers(subscribers: List[str]):
+    path = os.path.normpath(SUBSCRIBERS_FILE)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(subscribers, f, ensure_ascii=False, indent=2)
 
 
 def safe_path(base_folder, filename):
@@ -85,12 +108,22 @@ def find_user_by_email(email, users_dict):
 
 
 def send_mail(
-    to, cc=None, bcc=None, subject="", text="", html="", batch_id=""
+    to,
+    cc=None,
+    bcc=None,
+    subject="",
+    text="",
+    html="",
+    batch_id="",
+    blog=False,
 ):
     """Send email using Gmail SMTP"""
     msg = EmailMessage()
 
-    msg["From"] = f"MarinKino <{os.getenv('MAIL_SENDER')}>"
+    msg["From"] = (
+        f"{'Rože dobrega' if blog else 'MarinKino'}"
+        f" <{os.getenv('MAIL_SENDER')}>"
+    )
     msg["To"] = ", ".join(to) if isinstance(to, list) else to
 
     if cc:
