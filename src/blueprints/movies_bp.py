@@ -234,29 +234,10 @@ def index():
         movies = [
             m
             for m in all_films.values()
-            if (m["group_folder"] == movietype) or (movietype == "")
+            if (m["group_folder"] == movietype)
+            or (movietype == "")
+            or search_query
         ]
-        movies = [add_watch_info(m, user_data) for m in movies]
-
-        if genre_filter:
-            movies = [m for m in movies if genre_filter in m.get("genres", [])]
-        if onlyunwatched == "on":
-            movies = [m for m in movies if m["watch_ratio"] < 100]
-        if onlyrecommended == "on":
-            movies = [m for m in movies if m["recommendation_level"]]
-
-        if sort:
-            movies = sorted(
-                movies,
-                key=lambda m: (
-                    str_to_int(m["runtimes"])
-                    if "runtime" in sort
-                    else m["title"]
-                ),
-                reverse="desc" in sort,
-            )
-        else:
-            random.shuffle(movies)
 
         if search_query:
             scored = []
@@ -281,6 +262,30 @@ def index():
                     scored.append(m)
 
             movies = sorted(scored, key=lambda x: x["_score"], reverse=True)
+        else:
+            if genre_filter:
+                movies = [
+                    m for m in movies if genre_filter in m.get("genres", [])
+                ]
+            if onlyrecommended == "on":
+                movies = [m for m in movies if m["recommendation_level"]]
+
+            if sort:
+                movies = sorted(
+                    movies,
+                    key=lambda m: (
+                        str_to_int(m["runtimes"])
+                        if "runtime" in sort
+                        else m["title"]
+                    ),
+                    reverse="desc" in sort,
+                )
+            else:
+                random.shuffle(movies)
+
+        movies = [add_watch_info(m, user_data) for m in movies]
+        if not search_query and onlyunwatched == "on":
+            movies = [m for m in movies if m["watch_ratio"] < 100]
 
         movie_ids = [m["movie_id"] for m in movies]
         cache_key = f"cache:movies:{current_user.id}"

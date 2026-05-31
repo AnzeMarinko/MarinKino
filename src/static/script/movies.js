@@ -210,29 +210,6 @@ document.addEventListener("change", (e) => {
     }
 });
 
-document.addEventListener("DOMContentLoaded", function () {
-    const onlyunwatched_checkbox = document.getElementById("onlyunwatched");
-    const onlyunwatched_label = document.getElementById("onlyunwatchedlabel");
-    if (!onlyunwatched_checkbox) return;
-
-    onlyunwatched_label.innerHTML = onlyunwatched_checkbox.checked ? "Prikaži pogledano" : "Skrij pogledano"
-
-    onlyunwatched_checkbox.addEventListener("change", function () {
-        onlyunwatched_label.innerHTML = onlyunwatched_checkbox.checked ? "Prikaži pogledano" : "Skrij pogledano"
-    });
-
-    const onlyrecommended_checkbox = document.getElementById("onlyrecommended");
-    const onlyrecommended_label = document.getElementById("onlyrecommendedlabel");
-    if (!onlyrecommended_checkbox) return;
-
-    onlyrecommended_label.innerHTML = onlyrecommended_checkbox.checked ? "Tudi brez priporočil" : "Samo priporočeni"
-
-    // ko uporabnik klikne, shrani
-    onlyrecommended_checkbox.addEventListener("change", function () {
-        onlyrecommended_label.innerHTML = onlyrecommended_checkbox.checked ? "Tudi brez priporočil" : "Samo priporočeni"
-    });
-});
-
 document.addEventListener('DOMContentLoaded', function() {
   const filterForm = document.querySelector('form');
   if (!filterForm) return;

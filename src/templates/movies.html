@@ -55,27 +55,29 @@
     </div>
 
     <div class="col-6 col-md-3 col-lg-2">
-      <input type="checkbox"
-            class="btn-check"
-            id="onlyunwatched"
-            name="onlyunwatched"
-            {% if onlyunwatched %}checked{% endif %}>
-      <label class="btn btn-outline-secondary w-100 text-nowrap" for="onlyunwatched"
-            id="onlyunwatchedlabel">
-        Skrij pogledano
-      </label>
+      <div class="form-check">
+        <input type="checkbox"
+              class="form-check-input"
+              id="onlyunwatched"
+              name="onlyunwatched"
+              {% if onlyunwatched %}checked{% endif %}>
+        <label class="form-check-label" for="onlyunwatched">
+          Skrij pogledano
+        </label>
+      </div>
     </div>
 
     <div class="col-6 col-md-3 col-lg-2">
-      <input type="checkbox"
-            class="btn-check"
-            id="onlyrecommended"
-            name="onlyrecommended"
-            {% if onlyrecommended %}checked{% endif %}>
-      <label class="btn btn-outline-secondary w-100 text-nowrap" for="onlyrecommended"
-            id="onlyrecommendedlabel">
-        Samo priporočeni
-      </label>
+      <div class="form-check">
+        <input type="checkbox"
+              class="form-check-input"
+              id="onlyrecommended"
+              name="onlyrecommended"
+              {% if onlyrecommended %}checked{% endif %}>
+        <label class="form-check-label" for="onlyrecommended">
+          Samo priporočeni
+        </label>
+      </div>
     </div>
 
     <div class="col-12 col-md-6 col-lg-4">
