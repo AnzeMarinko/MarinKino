@@ -20,7 +20,12 @@ from PIL import Image
 from werkzeug.utils import secure_filename
 
 from movies_preparation.config import LOG_FILENAME
-from utils import is_current_admin_view, redis_client
+from utils import (
+    is_current_admin_view,
+    load_blog_subscribers,
+    redis_client,
+    send_mail,
+)
 
 log = logging.getLogger(__name__)
 
@@ -458,16 +463,20 @@ def admin_panel():
         views = 0
         si_views = 0
         for key in redis_client.scan_iter(f"blog:views:{post_id}:*"):
+            part_views = 0
+            part_si_views = 0
             date_part = key.split(":")[-1]
             for ip in redis_client.hgetall(key).keys():
-                views += 1
+                part_views += 1
                 if all_geo_data.get(ip, {}).get("country") == "SI":
-                    si_views += 1
+                    part_si_views += 1
+            views += part_views
+            si_views += part_si_views
             blog_views_daily[date_part] = (
-                blog_views_daily.get(date_part, 0) + views
+                blog_views_daily.get(date_part, 0) + part_views
             )
             blog_si_views_daily[date_part] = (
-                blog_si_views_daily.get(date_part, 0) + si_views
+                blog_si_views_daily.get(date_part, 0) + part_si_views
             )
         total_views += views
         total_si_views += si_views
@@ -689,6 +698,7 @@ def admin_blog_new():
             "published": published,
             "created_at": now,
             "published_at": now if published else None,
+            "mail_date": None,
         }
         save_blog_posts(posts)
 
@@ -805,6 +815,9 @@ def admin_blog_edit(post_id):
         elif not published:
             published_at = None
 
+        # preserve existing mail_date if present
+        existing_mail_date = post.get("mail_date")
+
         posts[post_id] = {
             "id": post_id,
             "title": title,
@@ -820,6 +833,7 @@ def admin_blog_edit(post_id):
                 "created_at", datetime.now(timezone.utc).isoformat()
             ),
             "published_at": published_at,
+            "mail_date": existing_mail_date,
         }
         save_blog_posts(posts)
 
@@ -871,3 +885,118 @@ def admin_blog_delete(post_id):
         redis_client.delete(f"blog:views:{post_id}")
         flash("Blog objava izbrisana.", "success")
     return redirect(url_for("admin.admin_blog"))
+
+
+@admin_bp.route("/admin/blog/send_mail/<post_id>", methods=["POST"])
+@login_required
+def admin_blog_send_mail(post_id):
+    if not is_current_admin_view(current_user):
+        return redirect(url_for("home"))
+
+    posts = load_blog_posts()
+    post = posts.get(post_id)
+    if not post:
+        abort(404)
+
+    if not post.get("published"):
+        if (
+            request.is_json
+            or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        ):
+            return jsonify(
+                {
+                    "success": False,
+                    "message": (
+                        "Objava mora biti objavljena, da pošljete mail."
+                    ),
+                }
+            )
+        flash("Objava mora biti objavljena, da pošljete mail.", "error")
+        return redirect(request.referrer or url_for("admin.admin_blog"))
+
+    if post.get("mail_date"):
+        if (
+            request.is_json
+            or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        ):
+            return jsonify(
+                {
+                    "success": False,
+                    "message": "E-pošta za to objavo je bila že poslana.",
+                }
+            )
+        flash("E-pošta za to objavo je bila že poslana.", "error")
+        return redirect(request.referrer or url_for("admin.admin_blog"))
+
+    subs = load_blog_subscribers()
+    if not subs:
+        if (
+            request.is_json
+            or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        ):
+            return jsonify(
+                {"success": False, "message": "Ni naročnikov za pošiljanje."}
+            )
+        flash("Ni naročnikov za pošiljanje.", "error")
+        return redirect(request.referrer or url_for("admin.admin_blog"))
+
+    # prepare email
+    subject = f"Nov blog: {post.get('title', '')}"
+    try:
+        html = render_template(
+            "mail_blog_post.html", post=post, domain=os.getenv("WWW_DOMAIN")
+        )
+    except Exception:
+        if (
+            request.is_json
+            or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        ):
+            return jsonify(
+                {"success": False, "message": "Napaka pri oblikovanju maila."}
+            )
+        flash("Napaka pri oblikovanju maila.", "error")
+        return redirect(request.referrer or url_for("admin.admin_blog"))
+
+    # send as BCC to subscribers, direct To to admin email
+    admin_emails = []
+    for username, data in users.items():
+        if data.get("is_admin"):
+            admin_emails += data.get("emails", [])
+    if not admin_emails:
+        admin_emails = [os.getenv("GMAIL_USERNAME")]
+
+    try:
+        send_mail(
+            to=admin_emails[0],
+            bcc=subs,
+            subject=subject,
+            html=html,
+            batch_id=post_id,
+            blog=True,
+        )
+    except Exception:
+        log.exception("Napaka pri pošiljanju maila naročnikom")
+        if (
+            request.is_json
+            or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        ):
+            return jsonify(
+                {"success": False, "message": "Napaka pri pošiljanju maila."}
+            )
+        flash("Napaka pri pošiljanju maila.", "error")
+        return redirect(request.referrer or url_for("admin.admin_blog"))
+
+    # mark as sent
+    posts[post_id]["mail_date"] = datetime.now(timezone.utc).isoformat()
+    save_blog_posts(posts)
+
+    if (
+        request.is_json
+        or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+    ):
+        return jsonify(
+            {"success": True, "message": "E-pošta poslana naročnikom."}
+        )
+
+    flash("E-pošta poslana naročnikom.", "success")
+    return redirect(request.referrer or url_for("admin.admin_blog"))

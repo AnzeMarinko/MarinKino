@@ -169,6 +169,11 @@
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-primary">{{ "Ustvari" if not post else "Posodobi" }}</button>
                             <a href="/admin/blog" class="btn btn-outline-secondary">Prekliči</a>
+                            {% if post and post.get('published') and not post.get('mail_date') %}
+                            <button type="button" id="send-mail-btn" class="btn btn-warning">Pošlji naročnikom</button>
+                            {% elif post and post.get('mail_date') %}
+                            <button type="button" class="btn btn-success" disabled>Pošlji naročnikom (poslano)</button>
+                            {% endif %}
                         </div>
                     </form>
                 </div>
@@ -492,6 +497,41 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
             alertDiv.remove();
         }, 3000);
+    }
+    // Send mail to subscribers
+    const sendMailBtn = document.getElementById('send-mail-btn');
+    if (sendMailBtn) {
+        sendMailBtn.addEventListener('click', function() {
+            if (!confirm('Ali res želite poslati e-pošto vsem naročnikom?')) return;
+            sendMailBtn.disabled = true;
+            sendMailBtn.textContent = 'Pošiljam...';
+            fetch(window.location.pathname.replace('/edit/', '/send_mail/'), {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': '{{ csrf_token() }}',
+                },
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert(data.message || 'E-pošta poslana.', 'success');
+                    sendMailBtn.textContent = 'Pošlji naročnikom (poslano)';
+                    sendMailBtn.classList.remove('btn-warning');
+                    sendMailBtn.classList.add('btn-success');
+                    sendMailBtn.disabled = true;
+                } else {
+                    showAlert(data.message || 'Napaka pri pošiljanju.', 'danger');
+                    sendMailBtn.disabled = false;
+                    sendMailBtn.textContent = 'Pošlji naročnikom';
+                }
+            })
+            .catch(err => {
+                showAlert('Napaka pri pošiljanju: ' + err.message, 'danger');
+                sendMailBtn.disabled = false;
+                sendMailBtn.textContent = 'Pošlji naročnikom';
+            });
+        });
     }
 });
 </script>

@@ -22,9 +22,20 @@ log = logging.getLogger(__name__)
 misc_bp = Blueprint("misc", __name__)
 WWW_DOMAIN = os.getenv("WWW_DOMAIN")
 
+BLOG_DATA_FILE = os.path.join(
+    os.path.dirname(__file__), "..", "..", "data", "blog_posts.json"
+)
+
 # Global variables
 users = {}
 send_mail = None
+
+
+def load_blog_posts():
+    if os.path.exists(BLOG_DATA_FILE):
+        with open(BLOG_DATA_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
 
 
 def init_misc_bp(_users, _send_mail=None):
@@ -103,6 +114,7 @@ def view_emails():
         expiry_minutes=30,
         reset_link="https://...",
         pagetitle="Naslov - MarinKino",
+        post=load_blog_posts().get("moja_srcna_izbranka"),
     )
 
 

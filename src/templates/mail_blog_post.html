@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+<table width="100%" cellpadding="0" cellspacing="0" style="background: #ffffff;">
+<tr>
+<td align="center" style="padding: 8px;">
+
+<table width="100%" style="max-width:600px;background:#ffffff;border-radius:16px;padding:20px;">
+<tr>
+<td align="center" style="padding:20px 0;">
+    <a href="https://{{ domain }}"><div style="background:linear-gradient(135deg, #ef9918 0%, #ffcc5c 100%);width:100px;height:100px;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto;margin-bottom:15px;box-shadow:none;">
+        <img src="https://{{ domain }}/static/blog_favicon_io/android-chrome-512x512.png" width="80" style="max-width:100%;height:auto;" alt="MarinKino">
+    </div></a>
+    <h2 style="margin:0 0 8px;color:#333;font-size:28px;font-weight:700;">{{ post.title }}</h2>
+    <div style="margin:0;color:#666;font-size:15px;font-weight:500;">
+          {% if post.excerpt %}
+            <p>{{ post.excerpt }}</p>
+          {% elif post.subtitle %}
+            <p>{{ post.subtitle }}</p>
+          {% endif %}
+
+          <p style="margin-top:12px;"><a href="https://{{ domain }}{{ url_for('blog.blog_post', post_id=post.id) }}" style="color:#007bff;">Preberi celotno objavo</a></p>
+    </div>
+
+    <div style="margin-top:18px;">
+      <p>Lep pozdrav,<br>Anže Marinko</p>
+    </div>
+</td>
+</tr>
+
+<tr>
+<td align="center" style="padding:20px 0 0;font-size:13px;color:#999;border-top:1px solid #eee;line-height:1.8;">
+    To je samodejno sporočilo. Če ne želite več prejemati obvestil, odgovorite na to sporočilo.
+</td>
+</tr>
+</table>
+
+{% endblock %}
