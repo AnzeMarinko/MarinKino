@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import time
 from datetime import date, timedelta
 
 import requests
@@ -52,19 +53,28 @@ limiter = Limiter(
 )
 limiter.init_app(app)
 
+last_timeout_time = 0
+
 
 def get_location_from_ip(ip):
     """Get location info from IP address using ipinfo.io
     (free tier: 50k requests/month)"""
+    global last_timeout_time
     if FLASK_ENV != "production":
         return {"country": "SI", "city": "Ljubljana", "region": "Unknown"}
+    if time.time() - last_timeout_time < 60 * 60:
+        return {
+            "country": "Unknown",
+            "city": "Unknown",
+            "region": "Unknown",
+        }
     try:
         # Using ipinfo.io instead of ipapi.co (free tier: 50k/month)
         response = requests.get(f"https://ipinfo.io/{ip}/json", timeout=5)
         if response.status_code == 200:
             data = response.json()
             if "error" in data:
-                log.warning(f"ipinfo.io error for {ip}: {data}")
+                log.warning(f"ipinfo.io error: {data}")
                 return {
                     "country": "Unknown",
                     "city": "Unknown",
@@ -78,13 +88,21 @@ def get_location_from_ip(ip):
                 "postal": data.get("postal"),
             }
         else:
-            log.warning(
-                f"ipinfo.io request failed for {ip}"
-                f" with status {response.status_code}"
-            )
-            log.warning(f"IP API response content: {response.text}")
+            if response.status_code == 429:
+                last_timeout_time = time.time()
+                log.warning("ipinfo.io rate limit exceeded")
+            else:
+                log.warning(
+                    f"ipinfo.io request failed"
+                    f" with status {response.status_code} and"
+                    f" response content: {response.text}"
+                )
     except Exception as e:
-        log.error(f"Error getting geolocation for {ip}: {e}")
+        if "timeout" in str(e).lower():
+            last_timeout_time = time.time()
+            log.error("ipinfo.io timeout")
+        else:
+            log.error(f"Error getting geolocation: {str(e)}")
     return {"country": "Unknown", "city": "Unknown", "region": "Unknown"}
 
 
@@ -188,6 +206,7 @@ def log_response_info(response):
 
         if (
             content_type == "blog"
+            and len(request.path.split("/")) == 3
             and response.status_code < 400
             and not redis_client.exists(f"stats:geo:{client_ip}:{today}")
         ):

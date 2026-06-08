@@ -307,6 +307,12 @@ def admin_panel():
             new_lines = []
             last_line = lines[0]
             for line in lines[1:]:
+                if "waitress.queue: Task queue depth is" in " - ".join(line):
+                    try:
+                        if int(line[-1].split(" ")[-1]) < 10:
+                            continue
+                    except Exception:
+                        pass
                 if (
                     len(last_line) < 4
                     or len(line) < 4
