@@ -295,7 +295,7 @@ def scrappe_video_data(
     target_video_height=1440,
 ):
     folder = (
-        f"data/movies/06-the-chosen-series/Season_{season}-Episode_{episode}"
+        f"data/movies/06-the-chosen-series/The.Chosen.S0{season}E0{episode}"
     )
     if not os.path.exists(folder):
         os.mkdir(folder)

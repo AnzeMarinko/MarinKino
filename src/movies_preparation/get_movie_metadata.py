@@ -397,7 +397,7 @@ class MovieMetadata:
         # Logične zastavice
         self.slosinh = "sinh" in self.path.name.lower()
         self.is_collection = ".collection" in self.path.name.lower()
-        self.is_chosen_series = "the-chosen-series/" in folder
+        self.is_chosen_series = "The.Chosen.S" in folder
 
         # Očistimo ime filma
         # replace(".", " ") bi lahko pokvaril kratice, zato čistimo le ločila

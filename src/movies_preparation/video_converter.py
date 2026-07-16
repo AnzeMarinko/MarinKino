@@ -564,7 +564,7 @@ def convert_to_m3u8(video_path):
     za slabe povezave,
     sicer pa obdrži le eno (originalno) kvaliteto.
     """
-    is_chosen_series = "the-chosen-series" in str(video_path).lower()
+    is_chosen_series = "The.Chosen.S" in str(video_path).lower()
     abs_original = os.path.abspath(video_path)
     original = Path(abs_original)
 
