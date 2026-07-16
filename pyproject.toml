@@ -26,7 +26,7 @@ dependencies = [
   "torch",
   "torchaudio",
   "matplotlib",
-  "gemini-srt-translator",
+  "gemini-srt-translator==3.5.9",
   "google-cloud-translate",
   "chardet",
   "langdetect",

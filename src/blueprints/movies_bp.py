@@ -1,20 +1,24 @@
 import difflib
+import io
 import json
 import logging
 import os
 import random
 import re
 import shutil
+import zipfile
 from datetime import datetime, timezone
 from urllib.parse import quote, unquote
 
 from flask import (
     Blueprint,
     abort,
+    flash,
     make_response,
     redirect,
     render_template,
     request,
+    send_file,
     send_from_directory,
     session,
     url_for,
@@ -113,7 +117,8 @@ all_films = {
 
 groups = [f["group_folder"] for f in all_films.values()]
 group_folders = {
-    g: g[3:].replace("-", " ").title() + f" ({groups.count(g)})"
+    g: g[3:].replace("-", " ").replace("series", "(Serija)").title().strip()
+    + f" ({groups.count(g)})"
     for g in sorted(list(set(groups)))
 }
 recommendation_levels = ["", "recommend", "warm-recommend"]
@@ -133,11 +138,21 @@ def add_watch_info(movie, user_data):
     total_play_time = 0
     total_duration = 0
     for video_file in movie["video_files"]:
-        file_path = os.path.join(movie["folder"][1:], video_file)
+        file_path = os.path.join(movie["folder"][1:], video_file).replace(
+            ".mp4", ""
+        )
         watch_inf = user_data.get(file_path, {})
         last_play_time = watch_inf.get("last_play_time", 0)
         duration = watch_inf.get(
-            "duration", float(movie["runtimes_by_files"][video_file]) * 60
+            "duration",
+            float(
+                movie["runtimes_by_files"][
+                    video_file.replace(".mp4", "")
+                    .replace("_Slo", "")
+                    .replace("_Eng", "")
+                ]
+            )
+            * 60,
         )
         watch_ratio = round(last_play_time / duration * 100)
         if watch_ratio > 95 or abs(duration - last_play_time) < 30:
@@ -180,8 +195,6 @@ def get_movies_statistics():
         try:
             runtimes_by_files = film.get("runtimes_by_files", {})
             runtime = sum(float(r) for r in runtimes_by_files.values())
-            if "the-chosen-series" in film["group_folder"].lower():
-                runtime /= 2
             if "01-zbirke-risank" in film["group_folder"].lower():
                 stats["cartoons_count"] += 1
                 stats["cartoons_duration"] += runtime / 60
@@ -368,6 +381,7 @@ def play_movie(movies_subfolder, movie_folder):
     if film_candidate is None:
         log.error("There is no film candidates!")
         return "", 404
+
     film = add_watch_info(film_candidate, user_data)
     video_files = film["video_files"]
     subtitles = film["subtitles"]
@@ -412,6 +426,107 @@ def play_movie(movies_subfolder, movie_folder):
             slosubs_file=slosubs_file,
             subtitle_buttons=subtitle_buttons,
         )
+    else:
+        log.error("No video files!")
+        return "", 404
+
+
+@movies_bp.route("/movies/download/<movies_subfolder>/<movie_folder>")
+@login_required
+def download_movie(movies_subfolder, movie_folder):
+    user_data = get_user_progress_data(current_user.id)
+
+    film_candidate = all_films.get(
+        os.path.sep + os.path.join("", movies_subfolder, movie_folder)
+    )
+    if film_candidate is None:
+        log.error("There is no film candidates!")
+        return "", 404
+    film = add_watch_info(film_candidate, user_data)
+    video_files = film["video_files"]
+    subtitles = film["subtitles"]
+
+    if len(video_files) > 0:
+        max_zip_size = 4 * 1024**3  # 4 GB
+        total_size = 0
+        file_paths = []
+
+        for video_file in video_files:
+            p = os.path.join(
+                FILMS_ROOT, movies_subfolder, movie_folder, video_file
+            )
+            if os.path.exists(p):
+                total_size += os.path.getsize(p)
+                file_paths.append((p, video_file))
+
+        for subtitle in subtitles:
+            p = os.path.join(
+                FILMS_ROOT, movies_subfolder, movie_folder, subtitle
+            )
+            if os.path.exists(p):
+                total_size += os.path.getsize(p)
+                file_paths.append((p, subtitle))
+
+        # add cover image
+        cover_image_path = os.path.join(
+            FILMS_ROOT, movies_subfolder, movie_folder, "cover_image.jpg"
+        )
+        if os.path.exists(cover_image_path):
+            total_size += os.path.getsize(cover_image_path)
+            file_paths.append((cover_image_path, "cover_image.jpg"))
+
+        if total_size > max_zip_size:
+            log.warning(
+                f"Download blocked: {movie_folder} is too large"
+                f" ({total_size / (1024**3):.2f} GB)"
+            )
+            flash(
+                "Ta film je prevelik za prenos (nad 4 GB). "
+                "Prosimo, oglejte si ga neposredno v predvajalniku.",
+                "warning",
+            )
+            return redirect(request.referrer or "/")
+
+        # 3. PAKIRANJE V RAM (Zgodi se le, če je pod mejo)
+        zip_filename = f"{movie_folder}.zip"
+        memory_file = io.BytesIO()
+
+        # add some selected metadata from film object
+        metadata = {
+            "source": "MarinKino",
+            "title": film["title"],
+            "original_title": film["original_title"],
+            "year": film["year"],
+            "description": film["description"],
+            "genres": film["genres"],
+            "players": film["players"],
+            "runtimes": film["runtimes"],
+            "slosinh": film["slosinh"],
+            "recommendation_level": film["recommendation_level"],
+        }
+
+        with zipfile.ZipFile(memory_file, "w", zipfile.ZIP_STORED) as zipf:
+            for full_path, archive_name in file_paths:
+                zipf.write(full_path, archive_name)
+            # add metadata.json
+            zipf.writestr(
+                "metadata.json",
+                json.dumps(metadata, ensure_ascii=False, indent=4),
+            )
+
+        memory_file.seek(0)
+
+        response = send_file(
+            memory_file,
+            as_attachment=True,
+            download_name=zip_filename,
+            mimetype="application/zip",
+        )
+        response.headers["X-Accel-Buffering"] = "no"
+        response.headers["X-Accel-Limit-Rate"] = str(
+            10 * 1024 * 1024
+        )  # 10 MB/s
+        return response
     else:
         log.error("No video files!")
         return "", 404
@@ -669,41 +784,65 @@ def remcommend_movie():
     }
 
 
-@movies_bp.route("/movies/file/<movies_subfolder>/<movie_folder>/<filename>")
+@movies_bp.route("/movies/file/<path:filename>")
 @login_required
-def movie_file(movies_subfolder, movie_folder, filename):
+def movie_file(filename):
     try:
-        relative_path = os.path.join(movies_subfolder, movie_folder, filename)
+        # Preverimo varnost poti (da ne more nihče z ../ uiti iz mape s filmi)
         _ = safe_path(
             "../" + FILMS_ROOT,
-            relative_path,
+            filename,
         )
-        if not os.path.exists(os.path.join(FILMS_ROOT, relative_path)):
+        if not os.path.exists(os.path.join(FILMS_ROOT, filename)):
             abort(404)
     except ValueError:
         abort(404)
 
     if FLASK_ENV == "production":
+        # Nginx X-Accel-Redirect (Produkcija)
         response = make_response()
-        safe_uri_path = quote(f"{movies_subfolder}/{movie_folder}/{filename}")
+        safe_uri_path = quote(filename)
         if not safe_uri_path.startswith("/"):
             safe_uri_path = "/" + safe_uri_path
+
         response.headers["X-Accel-Redirect"] = (
             f"/protected_movies{safe_uri_path}"
         )
+
+        # Nginx bo sam določil MIME tip na podlagi končnic (.m3u8, .mp4, .vtt)
+        response.headers["Content-Type"] = ""
     else:
+        # Lokalni razvoj (Flask)
+        mimetype = None
+        if filename.endswith(".m3u8"):
+            mimetype = "application/vnd.apple.mpegurl"
+        elif filename.endswith(".mp4"):
+            mimetype = "video/mp4"
+        elif filename.endswith(".vtt"):
+            mimetype = "text/vtt"
+        elif filename.endswith(".srt"):
+            mimetype = "application/x-subrip"
+
+        # send_from_directory zdaj sprejme celotno pot
+        # 'filename' neposredno iz korena
         response = send_from_directory(
             "../data/movies",
-            relative_path,
+            filename,
             conditional=True,
-            mimetype="video/mp4" if filename.endswith(".mp4") else None,
+            mimetype=mimetype,
         )
         response.headers["Accept-Ranges"] = "bytes"
         if filename.endswith(".mp4"):
             response.direct_passthrough = True
 
+    # =========================================================
+    # METRIKA IN REDIS (Samo za video datoteke)
+    # =========================================================
     if filename.endswith(".mp4"):
-        response.headers["Content-Type"] = "video/mp4"
+        if FLASK_ENV != "production":
+            response.headers["Content-Type"] = "video/mp4"
+
+        # Beleženje začetka ogleda v Redis
         range_header = request.headers.get("Range")
         if range_header:
             match = re.match(r"bytes=(\d+)-(\d+)?", range_header)
@@ -711,11 +850,14 @@ def movie_file(movies_subfolder, movie_folder, filename):
                 start = int(match.group(1))
                 if start == 0:
                     try:
-                        full_filename = (
-                            f"{movies_subfolder}/{movie_folder}/{filename}"
+                        aux_filename = "/".join(
+                            filename.replace(".mp4", "")
+                            .replace("_Slo", "")
+                            .replace("_Eng", "")
+                            .split("/")[:3]
                         )
                         user_key = f"prog:{current_user.id}"
-                        data = redis_client.hget(user_key, full_filename)
+                        data = redis_client.hget(user_key, aux_filename)
                         data = json.loads(data) if data else {}
                         data["last_start_time"] = datetime.now().isoformat()[
                             :16
@@ -724,18 +866,23 @@ def movie_file(movies_subfolder, movie_folder, filename):
                             data.get("count_start_time", 0) + 1
                         )
                         redis_client.hset(
-                            user_key, full_filename, json.dumps(data)
+                            user_key, aux_filename, json.dumps(data)
                         )
                     except Exception as e:
-                        print(
-                            f"Redis error: {e}"
-                        )  # Da napaka v Redisu ne sesuje videa
+                        print(f"Redis error: {e}")
                         pass
+
+    # Slikice (platnice)
     elif "cover_thumb.jpg" in filename:
         response.headers["Content-Type"] = "image/jpeg"
         response.headers["Cache-Control"] = "public, max-age=2592000"  # 30 dni
-    elif filename.endswith(".srt"):
+
+    # Podnapisi (Lokalni razvoj)
+    elif filename.endswith(".vtt") and FLASK_ENV != "production":
+        response.headers["Content-Type"] = "text/vtt"
+    elif filename.endswith(".srt") and FLASK_ENV != "production":
         response.headers["Content-Type"] = "application/x-subrip"
+
     return response
 
 
@@ -743,7 +890,14 @@ def movie_file(movies_subfolder, movie_folder, filename):
 @login_required
 def video_progress():
     data = json.loads(request.data)
-    filename = unquote(data["filename"].split("/movies/file/")[-1])
+    filename = "/".join(
+        unquote(data["filename"])
+        .split("/movies/file/")[-1]
+        .replace(".mp4", "")
+        .replace("_Slo", "")
+        .replace("_Eng", "")
+        .split("/")[:3]
+    )
     if filename == "unknown":
         return "", 404
 
@@ -786,7 +940,13 @@ def video_progress_change():
     user_key = f"prog:{current_user.id}"
 
     for video_file in selected_movie["video_files"]:
-        filename = os.path.join(selected_movie["folder"][1:], video_file)
+        filename = "/".join(
+            os.path.join(selected_movie["folder"][1:], video_file)
+            .replace(".mp4", "")
+            .replace("_Slo", "")
+            .replace("_Eng", "")
+            .split("/")[:3]
+        )
         user_data = redis_client.hget(user_key, filename)
         user_data = json.loads(user_data) if user_data else {}
 

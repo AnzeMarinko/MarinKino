@@ -37,7 +37,7 @@ BLOG_DATA_FILE = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "blog_posts.json"
 )
 BLOG_IMAGES_DIR = os.path.join(
-    os.path.dirname(__file__), "..", "data", "blog_images"
+    os.path.dirname(__file__), "..", "..", "data", "blog_images"
 )
 
 
@@ -331,7 +331,7 @@ def admin_panel():
                     )
             new_lines.append(" - ".join(last_line))
 
-            system_log = "\n".join(new_lines[-500:])
+            system_log = "\n".join(new_lines[-100:])
         with open(
             LOG_FILENAME,
             "w",
@@ -950,7 +950,10 @@ def admin_blog_send_mail(post_id):
     subject = f"Nov blog: {post.get('title', '')}"
     try:
         html = render_template(
-            "mail_blog_post.html", post=post, domain=os.getenv("WWW_DOMAIN")
+            "mail_blog_post.html",
+            post=post,
+            is_for_mail=True,
+            domain=os.getenv("WWW_DOMAIN"),
         )
     except Exception:
         if (

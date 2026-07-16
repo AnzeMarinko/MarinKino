@@ -28,7 +28,7 @@ for season in [1, 2, 3, 4, 5]:
     # preberemo iz lokalno shranjenega html,
     # ki se odpre kot seznam epizod v izbrani sezoni
     with open(
-        f"data/movies/06-the-chosen/seasons-metadata/{season}.html", "r"
+        f"data/movies/06-the-chosen-series/seasons-metadata/{season}.html", "r"
     ) as f:
         soup = BeautifulSoup(f.read(), "lxml")
 
@@ -294,7 +294,9 @@ def scrappe_video_data(
     runtime,
     target_video_height=1440,
 ):
-    folder = f"data/movies/06-the-chosen/Season_{season}-Episode_{episode}"
+    folder = (
+        f"data/movies/06-the-chosen-series/Season_{season}-Episode_{episode}"
+    )
     if not os.path.exists(folder):
         os.mkdir(folder)
 

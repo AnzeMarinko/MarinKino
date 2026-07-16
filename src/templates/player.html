@@ -2,6 +2,9 @@
 
 {% block content %}
 
+<link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+<script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
+
 <main class="container">
 <div class="movie-page">
     <div class="description">
@@ -222,7 +225,7 @@
 {% if movie.is_chosen_series %}
     <div style="margin-bottom: 10px;">
         <label for="videoSourceSelect">Izberi jezik zvoka: </label>
-        <select id="videoSourceSelect">
+        <select id="videoSourceSelect" style="background: #343a40; color: white; border: 1px solid #555; padding: 4px 8px; border-radius: 4px; cursor: pointer;">
             {% for file in video_file_languages %}
                 <option value="/movies/file/{{ group_folder }}/{{ folder }}/{{ file.filename }}"
                         {% if file.filename == video_file %}selected{% endif %}>
@@ -231,112 +234,196 @@
             {% endfor %}
         </select>
     </div>
-    <video id="videoPlayer" controls playsinline>
-
-        <source src="/movies/file/{{ group_folder }}/{{ folder }}/{{ video_file }}" type="video/mp4">
-        {% if slosubs_file %}
-            <track src="/movies/file/{{ group_folder }}/{{ folder }}/{{ slosubs_file }}" kind="subtitles" srclang="sl" label="{{ slosubs_file|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" default>
-        {% endif %}
-
-        {% for subtitle in subtitles %}
-            {% if subtitle != slosubs_file %}
-            <track src="/movies/file/{{ group_folder }}/{{ folder }}/{{ subtitle }}" kind="subtitles" srclang="{{ subtitle|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" label="{{ subtitle|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}">
+    <div class="plyr-container">
+        <video id="videoPlayer" controls playsinline preload="metadata">
+            <source src="/movies/file/{{ group_folder }}/{{ folder }}/{{ video_file }}" type="video/mp4">
+            {% if slosubs_file %}
+                <track src="/movies/file/{{ group_folder }}/{{ folder }}/{{ slosubs_file }}" kind="subtitles" srclang="sl" label="{{ slosubs_file|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" default>
             {% endif %}
-        {% endfor %}
-        Tvoj brskalnik ne podpira videa.
-    </video>
+            {% for subtitle in subtitles %}
+                {% if subtitle != slosubs_file %}
+                <track src="/movies/file/{{ group_folder }}/{{ folder }}/{{ subtitle }}" kind="subtitles" srclang="{{ subtitle|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" label="{{ subtitle|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}">
+                {% endif %}
+            {% endfor %}
+            Tvoj brskalnik ne podpira videa.
+        </video>
+    </div>
     <script>
-        const video = document.getElementById('videoPlayer');
-        const sourceSelector = document.getElementById('videoSourceSelect');
+        document.addEventListener('DOMContentLoaded', () => {
+            const video = document.getElementById('videoPlayer');
+            const sourceSelector = document.getElementById('videoSourceSelect');
+            const savedTime = {{ movie.last_play_time|default(0) }};
 
-        // Začetni čas (iz baze)
-        const savedTime = {{ movie.last_play_time|default(0) }};
-
-        // Nastavi začetni čas ob prvem nalaganju
-        video.addEventListener('loadedmetadata', function onFirstLoad() {
-            if (savedTime < video.duration && video.currentTime === 0) {
-                video.currentTime = savedTime;
-            }
-            // Odstranimo listener, da ne skače nazaj, ko kasneje ročno menjamo video
-            video.removeEventListener('loadedmetadata', onFirstLoad);
-        });
-
-        // LOGIKA ZA MENJAVO VIDEA (ZVOKA)
-        sourceSelector.addEventListener('change', (e) => {
-            // 1. Zapomni si trenutni čas predvajanja in stanje (play/pause)
-            const currentTime = video.currentTime;
-            const isPlaying = !video.paused;
-            const newSrc = e.target.value;
-
-            // 2. Zamenjaj vir
-            video.src = newSrc;
-
-            // 3. Ko se novi video naloži, skoči na pravi čas
-            video.onloadedmetadata = () => {
-                video.currentTime = currentTime;
-                if (isPlaying) {
-                    video.play();
+            // Inicializacija Plyr-a
+            const player = new Plyr(video, {
+                controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'captions', 'settings', 'fullscreen', 'download'],
+                urls: { download: '/movies/download/{{ group_folder }}/{{ folder }}' },
+                keyboard: {
+                    focused: true,  // Bližnjice delujejo, ko je predvajalnik fokusiran
+                    global: true    // Bližnjice (kot je Space) delujejo globalno na strani
                 }
-                // Počistimo event listener
-                video.onloadedmetadata = null;
-            };
+            });
 
-            // 4. Naloži nov vir
-            video.load();
+            player.on('ready', () => {
+                if (savedTime < player.duration) {
+                    player.currentTime = savedTime;
+                }
+            });
+
+            // Logika za preklop jezika (MP4 zamenjava vira)
+            sourceSelector.addEventListener('change', (e) => {
+                const currentTime = player.currentTime;
+                const isPlaying = player.playing;
+                const newSrc = e.target.value;
+
+                // Dinamično zamenjamo vir v Plyr-u
+                player.source = {
+                    type: 'video',
+                    sources: [{ src: newSrc, type: 'video/mp4' }],
+                    tracks: [
+                        {% if slosubs_file %}
+                        { kind: 'subtitles', label: '{{ slosubs_file|replace("subtitles-", "")|replace(".vtt", "")|replace("subs_", "") }}', srclang: 'sl', src: '/movies/file/{{ group_folder }}/{{ folder }}/{{ slosubs_file }}', default: true },
+                        {% endif %}
+                        {% for subtitle in subtitles %}
+                            {% if subtitle != slosubs_file %}
+                            { kind: 'subtitles', label: '{{ subtitle|replace("subtitles-", "")|replace(".vtt", "")|replace("subs_", "") }}', srclang: '{{ subtitle|replace("subtitles-", "")|replace(".vtt", "")|replace("subs_", "")|lower }}', src: '/movies/file/{{ group_folder }}/{{ folder }}/{{ subtitle }}' },
+                            {% endif %}
+                        {% endfor %}
+                    ]
+                };
+
+                // Po menjavi vira skočimo nazaj na sekundo in nadaljujemo s predvajanjem
+                player.on('ready', function seekAfterChange() {
+                    player.currentTime = currentTime;
+                    if (isPlaying) player.play();
+                    player.off('ready', seekAfterChange);
+                });
+            });
         });
     </script>
 {% elif not is_collection %}
-    <video id="videoPlayer" controls playsinline>
-
-        <source src="/movies/file/{{ group_folder }}/{{ folder }}/{{ video_file }}" type="video/mp4">
-        {% if slosubs_file %}
-            <track src="/movies/file/{{ group_folder }}/{{ folder }}/{{ slosubs_file }}" kind="subtitles" srclang="sl" label="{{ slosubs_file|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" default>
-        {% endif %}
-
-        {% for subtitle in subtitles %}
-            {% if subtitle != slosubs_file %}
-            <track src="/movies/file/{{ group_folder }}/{{ folder }}/{{ subtitle }}" kind="subtitles" srclang="{{ subtitle|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" label="{{ subtitle|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}">
+    <div class="plyr-container">
+        <video id="videoPlayer" controls playsinline preload="metadata">
+            <source src="/movies/file/{{ group_folder }}/{{ folder }}/{{ video_file }}" type="video/mp4">
+            {% if slosubs_file %}
+                <track src="/movies/file/{{ group_folder }}/{{ folder }}/{{ slosubs_file }}" kind="subtitles" srclang="sl" label="{{ slosubs_file|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" default>
             {% endif %}
-        {% endfor %}
-        Tvoj brskalnik ne podpira videa.
-    </video>
+            {% for subtitle in subtitles %}
+                {% if subtitle != slosubs_file %}
+                <track src="/movies/file/{{ group_folder }}/{{ folder }}/{{ subtitle }}" kind="subtitles" srclang="{{ subtitle|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" label="{{ subtitle|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}">
+                {% endif %}
+            {% endfor %}
+            Tvoj brskalnik ne podpira videa.
+        </video>
+    </div>
     <script>
-        const video = document.getElementById('videoPlayer');
-        const lastTime = {{ movie.last_play_time|default(0) }}; // v sekundah
+        document.addEventListener('DOMContentLoaded', () => {
+            const video = document.getElementById('videoPlayer');
+            const lastTime = {{ movie.last_play_time|default(0) }};
 
-        video.addEventListener('loadedmetadata', () => {
-            if (lastTime < video.duration) {
-                video.currentTime = lastTime;
-            }
+            const player = new Plyr(video, {
+                controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'captions', 'settings', 'fullscreen', 'download'],
+                urls: { download: '/movies/download/{{ group_folder }}/{{ folder }}' },
+                keyboard: {
+                    focused: true,  // Bližnjice delujejo, ko je predvajalnik fokusiran
+                    global: true    // Bližnjice (kot je Space) delujejo globalno na strani
+                }
+            });
+
+            player.on('ready', () => {
+                if (lastTime < player.duration) {
+                    player.currentTime = lastTime;
+                }
+            });
         });
     </script>
 {% else %}
-    <video id="videoPlayer" width="100%" controls playsinline>
-        <source id="videoSource" src="" type="video/mp4">
-        Tvoj brskalnik ne podpira videa.
-    </video>
+    <div class="plyr-container">
+        <video id="videoPlayer" controls playsinline preload="metadata">
+            <source id="videoSource" src="" type="video/mp4">
+            Tvoj brskalnik ne podpira videa.
+        </video>
+    </div>
 
     <script>
+    let globalPlayer = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Inicializiramo prazen Plyr za zbirke
+        globalPlayer = new Plyr('#videoPlayer', {
+            controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'settings', 'fullscreen', 'download'],
+            urls: { download: '/movies/download/{{ group_folder }}/{{ folder }}' },
+            keyboard: {
+                focused: true,  // Bližnjice delujejo, ko je predvajalnik fokusiran
+                global: true    // Bližnjice (kot je Space) delujejo globalno na strani
+            }
+        });
+    });
+
     function playVideo(src, startTime = 0, button) {
         // Označi izbran gumb
         document.querySelectorAll('.video-btn').forEach(btn => btn.classList.remove('selected'));
         button.classList.add('selected');
 
-        // Predvajaj video
-        const video = document.getElementById('videoPlayer');
-        const source = document.getElementById('videoSource');
-        source.src = src;
-        video.load();
-        video.addEventListener('loadedmetadata', function setStartTime() {
-            if (startTime < video.duration) {
-                video.currentTime = startTime;
-            }
-            video.play();
-            video.removeEventListener('loadedmetadata', setStartTime);
-        });
+        if (globalPlayer) {
+            // Naložimo nov .mp4 vir neposredno v Plyr predvajalnik
+            globalPlayer.source = {
+                type: 'video',
+                sources: [{ src: src, type: 'video/mp4' }]
+            };
+
+            globalPlayer.on('ready', function setStartTime() {
+                if (startTime < globalPlayer.duration) {
+                    globalPlayer.currentTime = startTime;
+                }
+                globalPlayer.play();
+                globalPlayer.off('ready', setStartTime);
+            });
+        }
     }
     </script>
 {% endif %}
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const hasAutoSloSubs = {{ 'true' if slosubs_file and ('auto' in slosubs_file|lower) else 'false' }};
+
+        if (!hasAutoSloSubs) {
+            return;
+        }
+
+        const warning = document.createElement('div');
+        warning.textContent = 'Pozor: Slovenski podnapisi so avtomatski prevod.';
+        warning.setAttribute('role', 'status');
+        warning.style.position = 'fixed';
+        warning.style.top = '14px';
+        warning.style.left = '50%';
+        warning.style.transform = 'translate(-50%, -12px)';
+        warning.style.background = '#ffcc00';
+        warning.style.color = '#1f1f1f';
+        warning.style.padding = '10px 14px';
+        warning.style.borderRadius = '8px';
+        warning.style.border = '1px solid #d39e00';
+        warning.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.2)';
+        warning.style.fontWeight = '700';
+        warning.style.zIndex = '2500';
+        warning.style.opacity = '0';
+        warning.style.transition = 'opacity 220ms ease, transform 220ms ease';
+
+        document.body.appendChild(warning);
+
+        requestAnimationFrame(() => {
+            warning.style.opacity = '1';
+            warning.style.transform = 'translate(-50%, 0)';
+        });
+
+        setTimeout(() => {
+            warning.style.opacity = '0';
+            warning.style.transform = 'translate(-50%, -12px)';
+            setTimeout(() => warning.remove(), 220);
+        }, 3200);
+    });
+    </script>
 
     <!-- Forma za dodajanje komentarja -->
     <div class="comment-form-section">

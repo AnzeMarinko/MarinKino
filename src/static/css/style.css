@@ -26,6 +26,13 @@ input, button {
     gap: 20px;
     padding-bottom: 50px;
 }
+.plyr {
+  container-type: inline-size;
+}
+.plyr__caption {
+  font-size: clamp(14px, 4cqw, 32px) !important;
+  line-height: 1.4 !important;
+}
 
 .movie-card {
     display: flex;

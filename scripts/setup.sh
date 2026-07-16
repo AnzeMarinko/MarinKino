@@ -131,7 +131,24 @@ server {
     # Samo za interne preusmeritve, uporabnik ne more dostopati direktno (Pot ZNOTRAJ Nginx kontejnerja)
     location /protected_music/ {internal; alias /music_data/;}
     location /protected_radio_stories/ {internal; alias /radio_stories_data/;}
-    location /protected_movies/ {internal; alias /movies_data/;}
+    location /protected_movies/ {
+        internal;
+        alias /movies_data/;
+        limit_rate_after 30m;
+        limit_rate 3750k;
+        types {
+            video/mp4 mp4;
+            application/vnd.apple.mpegurl  m3u8;
+            video/mp2t                     ts;
+        }
+        add_header 'Access-Control-Allow-Origin' '*' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+        add_header 'Access-Control-Allow-Headers' 'Range, Content-Type' always;
+        add_header 'Access-Control-Expose-Headers' 'Content-Length, Content-Range' always;
+
+        proxy_force_ranges on;
+        access_log off;
+    }
     location /protected_memes/ {internal; alias /memes_data/;}
     location /protected_blog_images/ {internal; alias /blog_images_data/;}
 }
@@ -169,6 +186,11 @@ fi
 # 4. Namestitev novega crontaba in brisanje začasne datoteke
 crontab mycron
 rm mycron
+
+# ce je raspberry pi, namestimo packager-linux-arm64, sicer packager-linux-x64
+wget https://github.com/shaka-project/shaka-packager/releases/latest/download/packager-linux-arm64 -O packager
+chmod +x packager
+sudo mv packager /usr/local/bin/packager
 
 echo "📅 Cron opravila so aktivna. Preveriš jih z: crontab -l"
 

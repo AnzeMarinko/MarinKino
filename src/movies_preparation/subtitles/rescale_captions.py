@@ -205,7 +205,7 @@ def aux_rescale_captions(subtitles, speech):
         a, b = params
         return -compute_score(a, b)
 
-    bounds = [(0.90, 1.10), (-40, 40)]
+    bounds = [(0.85, 1.15), (-90, 90)]
     res = differential_evolution(
         objective,
         bounds,
@@ -240,7 +240,7 @@ def rescale_subtitles(folder, subtitle_path, video_path, plot=False):
             scale, shift, aux_get_subtitle_audio = aux_rescale_captions(
                 subtitles, speech
             )
-            if abs(scale - 1) < 0.05 and abs(shift) < 30:
+            if abs(scale - 1) < 0.1 and abs(shift) < 60:
                 generate_srt(0, 1, subtitles, original_file)
                 last_sub_end = subtitles[-1][1]
                 subtitles.append(
