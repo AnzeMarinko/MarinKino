@@ -44,6 +44,7 @@ data/music/**/*.mp3
 data/music/**/*.m4a
 data/movies/users_comments.json
 data/blog_images
+tmp_download
 
 build/
 *.egg-info

@@ -1,20 +1,26 @@
 import difflib
+import io
 import json
 import logging
 import os
 import random
 import re
 import shutil
+import subprocess
+import zipfile
 from datetime import datetime, timezone
+from pathlib import Path
 from urllib.parse import quote, unquote
 
 from flask import (
     Blueprint,
     abort,
+    flash,
     make_response,
     redirect,
     render_template,
     request,
+    send_file,
     send_from_directory,
     session,
     url_for,
@@ -414,6 +420,185 @@ def play_movie(movies_subfolder, movie_folder):
             slosubs_file=slosubs_file,
             subtitle_buttons=subtitle_buttons,
         )
+    else:
+        log.error("No video files!")
+        return "", 404
+
+
+def download_m3u8_to_mp4(m3u8_path, output_mp4_path):
+    """
+    Prenese in združi HLS tok (.m3u8) v enotno MP4 datoteko.
+    Združeni MP4 NE bo fragmentiran, ampak bo optimiziran za spletni prenos
+    (vsebuje 'faststart' metapodatke na začetku datoteke).
+    """
+    output_path = Path(output_mp4_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-i",
+        str(m3u8_path),
+        "-map",
+        "0:v",
+        "-map",
+        "0:a",
+        "-c",
+        "copy",
+        "-movflags",
+        "+faststart",
+        str(output_path),
+    ]
+
+    try:
+        log.info(f"📥 Pripravljam MP4 (faststart) iz HLS: {m3u8_path}")
+        subprocess.run(
+            cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE
+        )
+        log.info(f"🎉 MP4 uspešno ustvarjen: {output_path.name}")
+        return True
+    except subprocess.CalledProcessError as e:
+        log.error(f"❌ Napaka pri ustvarjanju MP4: {e.stderr.decode('utf-8')}")
+        return False
+    except Exception as e:
+        log.error(f"❌ Splošna napaka: {e}")
+        return False
+
+
+@movies_bp.route("/movies/download/<movies_subfolder>/<movie_folder>")
+@login_required
+def download_movie(movies_subfolder, movie_folder):
+    # TODO: če je m3u8 uporabi zgornjo funkcijo
+    # ko je v zip lahko to začasno datoteko izbrišeš
+    user_data = get_user_progress_data(current_user.id)
+
+    film_candidate = all_films.get(
+        os.path.sep + os.path.join("", movies_subfolder, movie_folder)
+    )
+    if film_candidate is None:
+        log.error("There is no film candidates!")
+        return "", 404
+    film = add_watch_info(film_candidate, user_data)
+    video_files = film["video_files"]
+    video_files_m3u8 = film["video_files_m3u8"]
+    subtitles = film["subtitles"]
+
+    video_file_m3u8 = (
+        os.path.join(
+            FILMS_ROOT,
+            movies_subfolder,
+            movie_folder,
+            video_files_m3u8[0],
+            "master.m3u8",
+        )
+        if video_files_m3u8
+        else None
+    )
+
+    if len(video_files) > 0 or video_file_m3u8:
+        max_zip_size = 4 * 1024**3  # 4 GB
+        total_size = 0
+        file_paths = []
+
+        if video_file_m3u8:
+            tmp_folder = Path("tmp_download")
+            tmp_folder.mkdir(parents=True, exist_ok=True)
+            tmp_file = tmp_folder / f"{movie_folder}.mp4"
+            if not tmp_file.exists():
+                download_m3u8_to_mp4(video_file_m3u8, tmp_file)
+            if tmp_file.exists():
+                total_size += tmp_file.stat().st_size
+                file_paths.append((tmp_file, f"{movie_folder}.mp4"))
+
+            for f in tmp_folder.iterdir():
+                if (
+                    f.is_file()
+                    and (
+                        datetime.now(timezone.utc)
+                        - datetime.fromtimestamp(
+                            f.stat().st_mtime, timezone.utc
+                        )
+                    ).total_seconds()
+                    > 3600
+                ):
+                    f.unlink()
+        else:
+            for video_file in video_files:
+                p = os.path.join(
+                    FILMS_ROOT, movies_subfolder, movie_folder, video_file
+                )
+                if os.path.exists(p):
+                    total_size += os.path.getsize(p)
+                    file_paths.append((p, video_file))
+
+        for subtitle in subtitles:
+            p = os.path.join(
+                FILMS_ROOT, movies_subfolder, movie_folder, subtitle
+            )
+            if os.path.exists(p):
+                total_size += os.path.getsize(p)
+                file_paths.append((p, subtitle))
+
+        # add cover image
+        cover_image_path = os.path.join(
+            FILMS_ROOT, movies_subfolder, movie_folder, "cover_image.jpg"
+        )
+        if os.path.exists(cover_image_path):
+            total_size += os.path.getsize(cover_image_path)
+            file_paths.append((cover_image_path, "cover_image.jpg"))
+
+        if total_size > max_zip_size:
+            log.warning(
+                f"Download blocked: {movie_folder} is too large"
+                f" ({total_size / (1024**3):.2f} GB)"
+            )
+            flash(
+                "Ta film je prevelik za prenos (nad 4 GB). "
+                "Prosimo, oglejte si ga neposredno v predvajalniku.",
+                "warning",
+            )
+            return redirect(request.referrer or "/")
+
+        # 3. PAKIRANJE V RAM (Zgodi se le, če je pod mejo)
+        zip_filename = f"{movie_folder}.zip"
+        memory_file = io.BytesIO()
+
+        # add some selected metadata from film object
+        metadata = {
+            "source": "MarinKino",
+            "title": film["title"],
+            "original_title": film["original_title"],
+            "year": film["year"],
+            "description": film["description"],
+            "genres": film["genres"],
+            "players": film["players"],
+            "runtimes": film["runtimes"],
+            "slosinh": film["slosinh"],
+            "recommendation_level": film["recommendation_level"],
+        }
+
+        with zipfile.ZipFile(memory_file, "w", zipfile.ZIP_STORED) as zipf:
+            for full_path, archive_name in file_paths:
+                zipf.write(full_path, archive_name)
+            # add metadata.json
+            zipf.writestr(
+                "metadata.json",
+                json.dumps(metadata, ensure_ascii=False, indent=4),
+            )
+
+        memory_file.seek(0)
+
+        response = send_file(
+            memory_file,
+            as_attachment=True,
+            download_name=zip_filename,
+            mimetype="application/zip",
+        )
+        response.headers["X-Accel-Buffering"] = "no"
+        response.headers["X-Accel-Limit-Rate"] = str(
+            10 * 1024 * 1024
+        )  # 10 MB/s
+        return response
     else:
         log.error("No video files!")
         return "", 404

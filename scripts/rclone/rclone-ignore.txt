@@ -35,3 +35,4 @@ Thumbs.db
 node_modules/**
 configuration/certbot/conf/live/**
 cache/**
+tmp_download/**

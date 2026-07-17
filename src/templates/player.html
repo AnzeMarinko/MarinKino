@@ -260,7 +260,8 @@
 
             // Inicializacija Plyr-a
             const player = new Plyr(video, {
-                controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'captions', 'settings', 'fullscreen'],
+                controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'captions', 'settings', 'fullscreen', 'download'],
+                urls: { download: '/movies/download/{{ group_folder }}/{{ folder }}' },
                 keyboard: { focused: true, global: true }
             });
 
@@ -407,7 +408,8 @@
             const lastTime = {{ movie.last_play_time|default(0) }};
 
             const player = new Plyr(video, {
-                controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'captions', 'settings', 'fullscreen'],
+                controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'captions', 'settings', 'fullscreen', 'download'],
+                urls: { download: '/movies/download/{{ group_folder }}/{{ folder }}' },
                 keyboard: {
                     focused: true,  // Bližnjice delujejo, ko je predvajalnik fokusiran
                     global: true    // Bližnjice (kot je Space) delujejo globalno na strani
@@ -435,7 +437,8 @@
     document.addEventListener('DOMContentLoaded', () => {
         // Inicializiramo prazen Plyr za zbirke
         globalPlayer = new Plyr('#videoPlayer', {
-            controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'settings', 'fullscreen'],
+            controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'settings', 'fullscreen', 'download'],
+            urls: { download: '/movies/download/{{ group_folder }}/{{ folder }}' },
             keyboard: {
                 focused: true,  // Bližnjice delujejo, ko je predvajalnik fokusiran
                 global: true    // Bližnjice (kot je Space) delujejo globalno na strani
