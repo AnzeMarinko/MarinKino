@@ -18,6 +18,8 @@ data/redis_data/dump.rdb
 data/newsletter_images
 data/pod_krinko_besede.csv
 data/movies/**/*.mp4
+data/movies/**/*.m3u8
+data/movies/**/*.ts
 data/movies/*-the-chosen-series/seasons-metadata/*.html
 data/movies/**/cover_image.jpg
 data/movies/**/cover_thumb.jpg

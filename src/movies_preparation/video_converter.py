@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -314,7 +315,7 @@ def ensure_aac_audio(filepath):
         "-v",
         "error",
         "-show_entries",
-        "stream=codec_name,pix_fmt,codec_type:format=format_name",
+        "stream=codec_name,pix_fmt,codec_type:format=format_name,is_streamable",  # noqa E501
         "-of",
         "json",
         str(filepath),
@@ -559,12 +560,7 @@ def convert_to_m3u8(video_path):
     Spremeni klasičen MP4 film v HLS format (master.m3u8) z ločenimi tokovi.
     Zastavice -movflags fragmentirajo začasne MP4 datoteke, da niso
     več 'faststart'.
-
-    Če je višina videa > 480p, ustvari dodatno 480p LD različico
-    za slabe povezave,
-    sicer pa obdrži le eno (originalno) kvaliteto.
     """
-    is_chosen_series = "The.Chosen.S" in str(video_path).lower()
     abs_original = os.path.abspath(video_path)
     original = Path(abs_original)
 
@@ -572,36 +568,23 @@ def convert_to_m3u8(video_path):
         log.error(f"Datoteka ne obstaja: {original}")
         return False
 
-    if is_chosen_series and "_Slo" in original.name:
-        return False
-
-    second_audio_path = None
-    if is_chosen_series:
-        second_audio_candidate = original.with_name(
-            original.stem.replace("_Eng", "_Slo") + original.suffix
-        )
-        if second_audio_candidate.exists():
-            second_audio_path = second_audio_candidate
-
     # Ustvarimo mapo z imenom brez .mp4
     mapa = Path(os.path.abspath(original.with_suffix("")))
-    if is_chosen_series:
-        mapa = mapa.with_name(mapa.name.replace("_Eng", ""))
     mapa.mkdir(parents=True, exist_ok=True)
 
     # Začasne datoteke (fragmentirane)
-    tmp_video_hd = mapa / "tmp_raw_video_hd.mp4"
-    tmp_video_ld = mapa / "tmp_raw_video_ld.mp4"
-    tmp_audio1 = mapa / "tmp_raw_audio1.mp4"
-    tmp_audio2 = mapa / "tmp_raw_audio2.mp4"
+    tmp_video = mapa / "tmp_raw_video.mp4"
+    tmp_audio = mapa / "tmp_raw_audio.mp4"
 
     # Končni izhodi v mapi
-    out_video_hd = mapa / "video.mp4"
-    out_video_ld = mapa / "video_ld.mp4"
-    out_audio1 = mapa / "audio.mp4"
-    out_audio2 = mapa / "audio2.mp4"
+    out_video = mapa / "video.ts"
+    out_audio = mapa / "audio.ts"
     master_dash = mapa / "master.mpd"
     master_hls = mapa / "master.m3u8"
+
+    if master_hls.exists():
+        log.info(f"ℹ️ HLS že obstaja za {original.name}. Preskočim pretvorbo.")
+        return True
 
     # FFmpeg parametri za fragmentiran MP4
     # (prepreči faststart/buffer napake v Shaka)
@@ -629,36 +612,6 @@ def convert_to_m3u8(video_path):
         )
         video_codec = probe_codec_res.stdout.strip()
 
-        log.info("📏 Preverjam višino videa...")
-        probe_height_cmd = [
-            "ffprobe",
-            "-v",
-            "error",
-            "-select_streams",
-            "v:0",
-            "-show_entries",
-            "stream=height",
-            "-of",
-            "default=noprint_wrappers=1:nokey=1",
-            abs_original,
-        ]
-        probe_height_res = subprocess.run(
-            probe_height_cmd, capture_output=True, text=True, check=True
-        )
-
-        try:
-            video_height = int(probe_height_res.stdout.strip())
-            log.info(f"📏 Višina originalnega videa: {video_height}px")
-        except ValueError:
-            log.warning(
-                "⚠️ Ni mogoče zaznati višine videa. "
-                "Privzeto omogočam LD različico."
-            )
-            video_height = 1080
-
-        # Ali je smiselno ustvariti 720p LD različico?
-        needs_ld = video_height > 720
-
         # Nastavitve za primarni video (HD oz. originalna kakovost)
         if video_codec != "h264":
             log.warning(
@@ -674,7 +627,7 @@ def convert_to_m3u8(video_path):
             ]
         else:
             log.info("🎬 Kopiram video tok...")
-            video_transcode_args = ["-c:v", "copy"]
+            video_transcode_args = ["-c:v", "copy", "-map", "0:v:0"]
 
         # ==========================================
         # KORAK 2: FFmpeg Demuxing & Kodiranje (Fragmentiran MP4 izhod)
@@ -684,87 +637,42 @@ def convert_to_m3u8(video_path):
             ["ffmpeg", "-y", "-i", abs_original, "-an"]
             + video_transcode_args
             + frag_opts
-            + [str(tmp_video_hd)],
+            + [str(tmp_video)],
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
 
-        # 2b. Sekundarni video (480p LD) - samo če je original večji od 480p
-        if needs_ld:
-            log.info("📉 Ustvarjam 480p video različico za slabe povezave...")
-            ld_transcode_args = [
-                "-c:v",
-                "libx264",
-                "-preset",
-                "veryfast",
-                "-vf",
-                "scale=854:-2",
-                "-crf",
-                "33",
-                "-maxrate",
-                "500k",
-                "-bufsize",
-                "1000k",
-            ]
-            subprocess.run(
-                ["ffmpeg", "-y", "-i", abs_original, "-an"]
-                + ld_transcode_args
-                + frag_opts
-                + [str(tmp_video_ld)],
-                check=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-
-        # 2c. Prvi avdio del
-        log.info("🎵 Kopiram prvi zvočni tok...")
+        # 2b. avdio del
+        log.info("🎵 Kopiram zvočni tok...")
         subprocess.run(
-            ["ffmpeg", "-y", "-i", abs_original, "-vn", "-c:a", "copy"]
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                abs_original,
+                "-vn",
+                "-c:a",
+                "copy",
+                "-map",
+                "0:a:0",
+            ]
             + frag_opts
-            + [str(tmp_audio1)],
+            + [str(tmp_audio)],
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-
-        # 2d. Drugi avdio del (če obstaja)
-        has_second_audio = False
-        if second_audio_path:
-            abs_second_audio = os.path.abspath(second_audio_path)
-            if Path(abs_second_audio).exists():
-                log.info("🎵 Kopiram drugi zvočni tok...")
-                subprocess.run(
-                    [
-                        "ffmpeg",
-                        "-y",
-                        "-i",
-                        abs_second_audio,
-                        "-vn",
-                        "-c:a",
-                        "copy",
-                    ]
-                    + frag_opts
-                    + [str(tmp_audio2)],
-                    check=True,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                has_second_audio = True
-            else:
-                log.warning(
-                    f"⚠️ Drugi avdio vir ne obstaja: {second_audio_path}"
-                )
 
         # ==========================================
         # KORAK 3: Shaka Packager pakira v HLS
         # ==========================================
         log.info("📦 Shaka Packager pakira v HLS...")
 
-        shaka_in_video_hd = str(tmp_video_hd).replace(",", "\\,")
-        shaka_in_audio1 = str(tmp_audio1).replace(",", "\\,")
-        shaka_out_video_hd = str(out_video_hd).replace(",", "\\,")
-        shaka_out_audio1 = str(out_audio1).replace(",", "\\,")
+        shaka_in_video = str(tmp_video).replace(",", "\\,")
+        shaka_in_audio = str(tmp_audio).replace(",", "\\,")
+        shaka_out_video = str(out_video).replace(",", "\\,")
+        shaka_out_audio = str(out_audio).replace(",", "\\,")
         shaka_master_dash = str(master_dash).replace(",", "\\,")
         shaka_master_hls = str(master_hls).replace(",", "\\,")
 
@@ -773,30 +681,13 @@ def convert_to_m3u8(video_path):
 
         # Dodamo HD video
         packager_cmd.append(
-            f"in={shaka_in_video_hd},stream=video,output={shaka_out_video_hd},format=mp4"
+            f"in={shaka_in_video},stream=video,output={shaka_out_video},format=mp4"  # noqa E501
         )
-
-        # Dodamo LD video le, če smo ga ustvarili
-        if needs_ld:
-            shaka_in_video_ld = str(tmp_video_ld).replace(",", "\\,")
-            shaka_out_video_ld = str(out_video_ld).replace(",", "\\,")
-            packager_cmd.append(
-                f"in={shaka_in_video_ld},stream=video,output={shaka_out_video_ld},format=mp4"
-            )
 
         # Prvi avdio tok
         packager_cmd.append(
-            f"in={shaka_in_audio1},stream=audio,output={shaka_out_audio1},format=mp4"
-            + ("" if not has_second_audio else ",language=eng")
+            f"in={shaka_in_audio},stream=audio,output={shaka_out_audio},format=mp4"  # noqa E501
         )
-
-        # Drugi avdio tok
-        if has_second_audio:
-            shaka_in_audio2 = str(tmp_audio2).replace(",", "\\,")
-            shaka_out_audio2 = str(out_audio2).replace(",", "\\,")
-            packager_cmd.append(
-                f"in={shaka_in_audio2},stream=audio,output={shaka_out_audio2},format=mp4,language=slo"
-            )
 
         # Dodamo izhodne poti
         packager_cmd.extend(
@@ -808,9 +699,27 @@ def convert_to_m3u8(video_path):
             ]
         )
 
-        subprocess.run(
-            packager_cmd, check=True, capture_output=True, text=True
-        )
+        # Ustvarimo začasno mapo na NVMe disku za Shaka Packager buffer
+        shaka_tmp_dir = mapa / "shaka_tmp"
+        shaka_tmp_dir.mkdir(exist_ok=True)
+
+        # Pripravimo okoljske spremenljivke s preusmeritvijo začasne mape
+        custom_env = os.environ.copy()
+        custom_env["TMPDIR"] = str(shaka_tmp_dir)
+
+        try:
+            subprocess.run(
+                packager_cmd,
+                check=True,
+                capture_output=True,
+                text=True,
+                env=custom_env,  # Prisilimo Shako, da piše na NVMe
+            )
+        finally:
+            # Varno počistimo Shaka začasni direktorij takoj ko konča
+            # (uspešno ali ne)
+            if shaka_tmp_dir.exists():
+                shutil.rmtree(shaka_tmp_dir, ignore_errors=True)
 
         # ==========================================
         # KORAK 4: Popravilo absolutnih poti v master.m3u8 v relativne
@@ -829,12 +738,12 @@ def convert_to_m3u8(video_path):
         # ==========================================
         log.info("🧹 Čiščenje začasnih datotek...")
         master_dash.unlink(missing_ok=True)
-        tmp_video_hd.unlink(missing_ok=True)
-        tmp_video_ld.unlink(missing_ok=True)
-        tmp_audio1.unlink(missing_ok=True)
-        if has_second_audio:
-            tmp_audio2.unlink(missing_ok=True)
-
+        tmp_video.unlink(missing_ok=True)
+        tmp_audio.unlink(missing_ok=True)
+        original.unlink(missing_ok=True)
+        (original.parent / ".detected-voice-activity.pkl").unlink(
+            missing_ok=True
+        )
         log.info(f"🎉 Uspešno ustvarjen HLS za film: {original.name}")
         return True
 
@@ -842,17 +751,17 @@ def convert_to_m3u8(video_path):
         log.error("❌ Napaka med izvajanjem zunanjega procesa!")
         log.error(f"STDOUT: {e.stdout}")
         log.error(f"STDERR: {e.stderr}")
-        tmp_video_hd.unlink(missing_ok=True)
-        tmp_video_ld.unlink(missing_ok=True)
-        tmp_audio1.unlink(missing_ok=True)
-        if has_second_audio:
-            tmp_audio2.unlink(missing_ok=True)
+        master_dash.unlink(missing_ok=True)
+        tmp_video.unlink(missing_ok=True)
+        tmp_audio.unlink(missing_ok=True)
+        if mapa.exists():
+            shutil.rmtree(mapa, ignore_errors=True)
         return False
     except Exception as e:
         log.error(f"❌ Splošna napaka: {e}")
-        tmp_video_hd.unlink(missing_ok=True)
-        tmp_video_ld.unlink(missing_ok=True)
-        tmp_audio1.unlink(missing_ok=True)
-        if has_second_audio:
-            tmp_audio2.unlink(missing_ok=True)
+        master_dash.unlink(missing_ok=True)
+        tmp_video.unlink(missing_ok=True)
+        tmp_audio.unlink(missing_ok=True)
+        if mapa.exists():
+            shutil.rmtree(mapa, ignore_errors=True)
         return False

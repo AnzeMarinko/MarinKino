@@ -4,6 +4,7 @@
 
 <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
 <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
 
 <main class="container">
 <div class="movie-page">
@@ -118,7 +119,7 @@
     {% if subtitle_buttons %}</br>
         <hr>Podnapisi (izberete v predvajalniku med možnostmi): {% for subtitle in subtitle_buttons %}<button class="subtitles">{{ subtitle }}</button> {% endfor %}
         {% endif %}</br>
-        <hr>{% if is_collection and not movie.is_chosen_series %}
+        <hr>{% if is_collection %}
             <div>
                 {% for video_file in video_files %}
                     <button class="video-btn" style="--watch: {{ movie.watch_info[video_file]['watch_ratio']|default(0) }}%;"
@@ -222,21 +223,18 @@
     </div>
     {% endif %}
 
-{% if movie.is_chosen_series %}
-    <div style="margin-bottom: 10px;">
-        <label for="videoSourceSelect">Izberi jezik zvoka: </label>
-        <select id="videoSourceSelect" style="background: #343a40; color: white; border: 1px solid #555; padding: 4px 8px; border-radius: 4px; cursor: pointer;">
-            {% for file in video_file_languages %}
-                <option value="/movies/file/{{ group_folder }}/{{ folder }}/{{ file.filename }}"
-                        {% if file.filename == video_file %}selected{% endif %}>
-                    {{ file.label }}
-                </option>
-            {% endfor %}
+
+{% if video_file_m3u8 %}
+    <!-- Izbira jezika za HLS (m3u8) - privzeto skrita z display: none -->
+    <div id="hlsAudioContainer" style="display: none; margin-bottom: 12px; background: #2b3035; padding: 10px; border-radius: 6px; border: 1px solid #4f5358;">
+        <label for="hlsAudioSelect" style="font-weight: bold; margin-right: 8px; color: #fff;">Izberi jezik zvoka: </label>
+        <select id="hlsAudioSelect" style="background: #1e2125; color: white; border: 1px solid #555; padding: 6px 12px; border-radius: 4px; cursor: pointer; min-width: 150px;">
+            <option value="">Nalagam jezike...</option>
         </select>
     </div>
-    <div class="plyr-container">
-        <video id="videoPlayer" controls playsinline preload="metadata">
-            <source src="/movies/file/{{ group_folder }}/{{ folder }}/{{ video_file }}" type="video/mp4">
+
+    <div class="plyr-container hls-player-block" style="margin-bottom: 20px;">
+        <video id="hlsVideoPlayer" controls playsinline preload="metadata">
             {% if slosubs_file %}
                 <track src="/movies/file/{{ group_folder }}/{{ folder }}/{{ slosubs_file }}" kind="subtitles" srclang="sl" label="{{ slosubs_file|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" default>
             {% endif %}
@@ -248,56 +246,143 @@
             Tvoj brskalnik ne podpira videa.
         </video>
     </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const video = document.getElementById('videoPlayer');
-            const sourceSelector = document.getElementById('videoSourceSelect');
+
+            const video = document.getElementById('hlsVideoPlayer');
+            const src = "/movies/file/{{ group_folder }}/{{ folder }}/{{ video_file_m3u8 }}";
+            window.hlsVideoSrc = src;
             const savedTime = {{ movie.last_play_time|default(0) }};
+            const audioContainer = document.getElementById('hlsAudioContainer');
+            const audioSelect = document.getElementById('hlsAudioSelect');
+
 
             // Inicializacija Plyr-a
             const player = new Plyr(video, {
-                controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'captions', 'settings', 'fullscreen', 'download'],
-                urls: { download: '/movies/download/{{ group_folder }}/{{ folder }}' },
-                keyboard: {
-                    focused: true,  // Bližnjice delujejo, ko je predvajalnik fokusiran
-                    global: true    // Bližnjice (kot je Space) delujejo globalno na strani
-                }
+                controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'captions', 'settings', 'fullscreen'],
+                keyboard: { focused: true, global: true }
             });
+
+            // Pomožna funkcija za lepši izpis jezikov
+            function getLanguageLabel(langCode, name, index) {
+                const code = (langCode || name || "").toLowerCase();
+                if (code === 'sl' || code === 'slv' || code === 'slo') {
+                    return 'Slovenščina 🇸🇮';
+                } else if (code === 'en' || code === 'eng') {
+                    return 'Angleščina 🇬🇧';
+                }
+                return name || langCode || `Zvok ${index + 1}`;
+            }
+
+            // Polnjenje select menija
+            function populateAudioTracks(tracks, currentTrackIndex, setTrackCallback) {
+
+                // Prikažemo select samo, če imamo več kot 1 zvočno sled
+                if (tracks && tracks.length > 1) {
+                    audioContainer.style.display = 'block'; // Prikažemo kontejner
+                    audioSelect.innerHTML = ''; // Počistimo "Nalagam..."
+
+                    tracks.forEach((track, index) => {
+
+                        const option = document.createElement('option');
+                        option.value = index;
+                        option.textContent = getLanguageLabel(track.lang || track.language, track.name || track.label, index);
+
+                        if (currentTrackIndex === index || track.enabled) {
+                            option.selected = true;
+                        }
+                        audioSelect.appendChild(option);
+                    });
+
+                    // Osvežitev poslušalca dogodkov
+                    audioSelect.replaceWith(audioSelect.cloneNode(true));
+                    const newSelect = document.getElementById('hlsAudioSelect');
+
+                    newSelect.addEventListener('change', (e) => {
+                        const selectedIndex = parseInt(e.target.value, 10);
+                        if (!isNaN(selectedIndex)) {
+                            setTrackCallback(selectedIndex);
+                        }
+                    });
+                } else {
+                    audioContainer.style.display = 'none'; // Poskrbimo, da ostane skrit
+                }
+            }
+
+            // Način 1: HLS.js (Chrome, Firefox, Edge, Android...)
+            if (Hls.isSupported()) {
+
+                const hls = new Hls({
+                    debug: false
+                });
+
+                hls.loadSource(src);
+                hls.attachMedia(video);
+
+                // Poslušamo AUDIO_TRACKS_UPDATED za zanesljivo zaznavanje vseh sledi
+                hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, (event, data) => {
+                    populateAudioTracks(
+                        hls.audioTracks,
+                        hls.audioTrack,
+                        (index) => {
+                            hls.audioTrack = index;
+                        }
+                    );
+                });
+
+                hls.on(Hls.Events.ERROR, (event, data) => {
+                    if (data.fatal) {
+                        console.error("%cHLS.js kritična napaka:", "color: red; font-weight: bold;", data);
+                    } else {
+                        console.warn("HLS.js nekritična opozorilna napaka:", data.details);
+                    }
+                });
+
+            }
+            // Način 2: Native Safari / Apple HLS
+            else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = src;
+
+                const handleNativeTracks = () => {
+                    const tracks = video.audioTracks;
+
+                    if (tracks) {
+                        const trackArray = [];
+                        let activeIndex = 0;
+
+                        for (let i = 0; i < tracks.length; i++) {
+                            trackArray.push(tracks[i]);
+                            if (tracks[i].enabled) activeIndex = i;
+                        }
+
+                        populateAudioTracks(trackArray, activeIndex, (selectedIndex) => {
+                            for (let i = 0; i < tracks.length; i++) {
+                                tracks[i].enabled = (i === selectedIndex);
+                            }
+                        });
+                    } else {
+                        console.error("Napaka: video.audioTracks objekt ne obstaja v tem brskalniku.");
+                    }
+                };
+
+                video.addEventListener('loadedmetadata', handleNativeTracks);
+
+                if (video.readyState >= 1) {
+                    handleNativeTracks();
+                }
+            }
+            // Brez podpore
+            else {
+                audioContainer.style.background = "#5c1c1c";
+                audioContainer.style.display = "block"; // Prikažemo napako
+                audioSelect.innerHTML = '<option>HLS ni podprt v brskalniku</option>';
+            }
 
             player.on('ready', () => {
                 if (savedTime < player.duration) {
                     player.currentTime = savedTime;
                 }
-            });
-
-            // Logika za preklop jezika (MP4 zamenjava vira)
-            sourceSelector.addEventListener('change', (e) => {
-                const currentTime = player.currentTime;
-                const isPlaying = player.playing;
-                const newSrc = e.target.value;
-
-                // Dinamično zamenjamo vir v Plyr-u
-                player.source = {
-                    type: 'video',
-                    sources: [{ src: newSrc, type: 'video/mp4' }],
-                    tracks: [
-                        {% if slosubs_file %}
-                        { kind: 'subtitles', label: '{{ slosubs_file|replace("subtitles-", "")|replace(".vtt", "")|replace("subs_", "") }}', srclang: 'sl', src: '/movies/file/{{ group_folder }}/{{ folder }}/{{ slosubs_file }}', default: true },
-                        {% endif %}
-                        {% for subtitle in subtitles %}
-                            {% if subtitle != slosubs_file %}
-                            { kind: 'subtitles', label: '{{ subtitle|replace("subtitles-", "")|replace(".vtt", "")|replace("subs_", "") }}', srclang: '{{ subtitle|replace("subtitles-", "")|replace(".vtt", "")|replace("subs_", "")|lower }}', src: '/movies/file/{{ group_folder }}/{{ folder }}/{{ subtitle }}' },
-                            {% endif %}
-                        {% endfor %}
-                    ]
-                };
-
-                // Po menjavi vira skočimo nazaj na sekundo in nadaljujemo s predvajanjem
-                player.on('ready', function seekAfterChange() {
-                    player.currentTime = currentTime;
-                    if (isPlaying) player.play();
-                    player.off('ready', seekAfterChange);
-                });
             });
         });
     </script>
@@ -322,8 +407,7 @@
             const lastTime = {{ movie.last_play_time|default(0) }};
 
             const player = new Plyr(video, {
-                controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'captions', 'settings', 'fullscreen', 'download'],
-                urls: { download: '/movies/download/{{ group_folder }}/{{ folder }}' },
+                controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'captions', 'settings', 'fullscreen'],
                 keyboard: {
                     focused: true,  // Bližnjice delujejo, ko je predvajalnik fokusiran
                     global: true    // Bližnjice (kot je Space) delujejo globalno na strani
@@ -351,8 +435,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         // Inicializiramo prazen Plyr za zbirke
         globalPlayer = new Plyr('#videoPlayer', {
-            controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'settings', 'fullscreen', 'download'],
-            urls: { download: '/movies/download/{{ group_folder }}/{{ folder }}' },
+            controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'settings', 'fullscreen'],
             keyboard: {
                 focused: true,  // Bližnjice delujejo, ko je predvajalnik fokusiran
                 global: true    // Bližnjice (kot je Space) delujejo globalno na strani

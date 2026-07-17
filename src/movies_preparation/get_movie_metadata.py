@@ -397,7 +397,6 @@ class MovieMetadata:
         # Logične zastavice
         self.slosinh = "sinh" in self.path.name.lower()
         self.is_collection = ".collection" in self.path.name.lower()
-        self.is_chosen_series = "The.Chosen.S" in folder
 
         # Očistimo ime filma
         # replace(".", " ") bi lahko pokvaril kratice, zato čistimo le ločila
@@ -418,7 +417,10 @@ class MovieMetadata:
             ]
         )
         self.video_files_m3u8 = sorted(
-            [str(f.relative_to(self.path)) for f in self.path.rglob("*.m3u8")]
+            [
+                str(f.relative_to(self.path).parent)
+                for f in self.path.rglob("*master.m3u8")
+            ]
         )
 
         self.subtitles = [

@@ -242,7 +242,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 document.addEventListener("DOMContentLoaded", function () {
-    const video = document.getElementById("videoPlayer");
+    const video = document.getElementById("videoPlayer") || document.getElementById("hlsVideoPlayer");
     if (!video) return;
 
     video.addEventListener("dblclick", () => {
@@ -271,25 +271,32 @@ document.addEventListener("DOMContentLoaded", function () {
     const intervalMillis = 20 * 1000;
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     setInterval(() => {
-            if (video && !video.paused && !video.ended) {
-                fetch("/movies/video-progress", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-CSRFToken": csrfToken
-                    },
-                    body: JSON.stringify({
-                        filename: video.currentSrc,
-                        currentTime: video.currentTime,
-                        duration: video.duration
-                    })
-                }).catch(() => {});
-                const selectedButton = document.querySelector('.video-btn.selected');
-                if (selectedButton) {
-                    selectedButton.style.setProperty('--watch', Math.round(video.currentTime / video.duration * 100) + '%');
-                }
+        if (video && !video.paused && !video.ended) {
+            let currentFilename = video.currentSrc;
+            const isHlsPlayer = video.id === "hlsVideoPlayer" || currentFilename.endsWith('.ts') || currentFilename.includes('stream_');
+
+            if (isHlsPlayer) {
+                currentFilename = window.hlsVideoSrc || currentFilename;
             }
-        }, intervalMillis);
+
+            fetch("/movies/video-progress", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrfToken
+                },
+                body: JSON.stringify({
+                    filename: currentFilename,
+                    currentTime: video.currentTime,
+                    duration: video.duration
+                })
+            }).catch(() => {});
+            const selectedButton = document.querySelector('.video-btn.selected');
+            if (selectedButton) {
+                selectedButton.style.setProperty('--watch', Math.round(video.currentTime / video.duration * 100) + '%');
+            }
+        }
+    }, intervalMillis);
 });
 
 
@@ -616,7 +623,7 @@ function deleteAlertOnPage(button, movieFolder, index) {
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        const video = document.getElementById('videoPlayer');
+        const video = document.getElementById("videoPlayer") || document.getElementById("hlsVideoPlayer");
         if (!video) return;
 
         // Check if this is a collection - if so, skip rating
