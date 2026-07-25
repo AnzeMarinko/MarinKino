@@ -51,7 +51,7 @@ def extract_subtitles_to_srt(video_path: Path, base_srt_path: Path):
     """
     if base_srt_path.parent.exists():
         return True
-    base_srt_path.parent.mkdir(parents=True, exist_ok=True)
+
     # 1. Pridobimo podatke o vseh podnapisih z ffprobe (v JSON formatu)
     probe_cmd = [
         "ffprobe",
@@ -82,6 +82,7 @@ def extract_subtitles_to_srt(video_path: Path, base_srt_path: Path):
         log.info(f"ℹ️ {video_path.name} ne vsebuje vgrajenih podnapisov.")
         return False
 
+    base_srt_path.parent.mkdir(parents=True, exist_ok=True)
     log.info(
         f"📂 Najdenih {len(streams)} podnapisov v {video_path.name}. "
         "Začenjam ekstrakcijo..."

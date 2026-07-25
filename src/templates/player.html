@@ -124,7 +124,7 @@
                 {% for video_file in video_files %}
                     <button class="video-btn" style="--watch: {{ movie.watch_info[video_file]['watch_ratio']|default(0) }}%;"
                         onclick="playVideo('/movies/file/{{ group_folder }}/{{ folder }}/{{ video_file }}', {{ movie.watch_info[video_file]['last_play_time']|default(0) }}, this)">
-                        {{ video_file|replace('.mp4', '') }} ({{ movie.runtimes_by_files[video_file] }} min)
+                        {{ video_file|replace('.mp4', '') }} ({{ movie.runtimes_by_files[video_file|replace('.mp4', '')] }} min)
                     </button>
                 {% endfor %}
                 </div></br>
@@ -424,9 +424,13 @@
         });
     </script>
 {% else %}
-    <div class="plyr-container">
+    <div id="chooseVideoNotice" class="alert alert-warning" role="status" style="margin-bottom: 16px;">
+        Za začetek predvajanja najprej izberi epizodo oziroma datoteko videa.
+    </div>
+
+    <div id="collectionPlayerContainer" class="plyr-container" style="display: none;">
         <video id="videoPlayer" controls playsinline preload="metadata">
-            <source id="videoSource" src="" type="video/mp4">
+            <source src="" type="video/mp4">
             Tvoj brskalnik ne podpira videa.
         </video>
     </div>
@@ -434,36 +438,51 @@
     <script>
     let globalPlayer = null;
 
-    document.addEventListener('DOMContentLoaded', () => {
-        // Inicializiramo prazen Plyr za zbirke
-        globalPlayer = new Plyr('#videoPlayer', {
-            controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'settings', 'fullscreen', 'download'],
-            urls: { download: '/movies/download/{{ group_folder }}/{{ folder }}' },
-            keyboard: {
-                focused: true,  // Bližnjice delujejo, ko je predvajalnik fokusiran
-                global: true    // Bližnjice (kot je Space) delujejo globalno na strani
-            }
-        });
-    });
+    function ensureCollectionPlayer() {
+        const playerContainer = document.getElementById('collectionPlayerContainer');
+        const chooseVideoNotice = document.getElementById('chooseVideoNotice');
+
+        if (chooseVideoNotice) {
+            chooseVideoNotice.style.display = 'none';
+        }
+        if (playerContainer) {
+            playerContainer.style.display = 'block';
+        }
+
+        if (!globalPlayer) {
+            globalPlayer = new Plyr('#videoPlayer', {
+                controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'settings', 'fullscreen', 'download'],
+                urls: { download: '/movies/download/{{ group_folder }}/{{ folder }}' },
+                keyboard: {
+                    focused: true,
+                    global: true
+                }
+            });
+        }
+
+        return globalPlayer;
+    }
 
     function playVideo(src, startTime = 0, button) {
         // Označi izbran gumb
         document.querySelectorAll('.video-btn').forEach(btn => btn.classList.remove('selected'));
         button.classList.add('selected');
 
-        if (globalPlayer) {
-            // Naložimo nov .mp4 vir neposredno v Plyr predvajalnik
-            globalPlayer.source = {
+        const player = ensureCollectionPlayer();
+
+        if (player) {
+            // Predvajalnik inicializiramo in napolnimo šele po izbiri datoteke
+            player.source = {
                 type: 'video',
                 sources: [{ src: src, type: 'video/mp4' }]
             };
 
-            globalPlayer.on('ready', function setStartTime() {
-                if (startTime < globalPlayer.duration) {
-                    globalPlayer.currentTime = startTime;
+            player.on('ready', function setStartTime() {
+                if (startTime < player.duration) {
+                    player.currentTime = startTime;
                 }
-                globalPlayer.play();
-                globalPlayer.off('ready', setStartTime);
+                player.play();
+                player.off('ready', setStartTime);
             });
         }
     }

@@ -27,7 +27,7 @@ from flask import (
 )
 from flask_login import current_user, login_required
 
-from movies_preparation import FILMS_ROOT, check_folder
+from content_preparation import FILMS_ROOT, check_folder
 from utils import (
     FLASK_ENV,
     is_current_admin_view,
@@ -1015,7 +1015,9 @@ def video_progress_change():
 
     user_key = f"prog:{current_user.id}"
 
-    for video_file in selected_movie["video_files"]:
+    for video_file in (
+        selected_movie["video_files"] + selected_movie["video_files_m3u8"]
+    ):
         filename = "/".join(
             os.path.join(selected_movie["folder"][1:], video_file)
             .replace(".mp4", "")

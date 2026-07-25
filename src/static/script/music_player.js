@@ -36,6 +36,7 @@ const nowPlayingAlbum = document.getElementById("nowPlayingAlbum");
 const progress = document.getElementById("seekBar");
 const timeDisplay = document.getElementById("timeDisplay");
 const albumCover = document.querySelector(".album-cover");
+const isRadioStoriesPage = Boolean(window.RADIO_STORIES_FILES);
 
 let currentAlbum = localStorage.getItem("album") || "Vse";
 let currentTrack = localStorage.getItem("track") || null;
@@ -89,15 +90,19 @@ function loadAlbum(album) {
         const album = trackMetadata["album"] || "";
         // If this page is radio-stories, don't show album/genre; show duration instead
         let innerHtml;
-        if (window.RADIO_STORIES_FILES) {
+        if (isRadioStoriesPage) {
             const dur = trackMetadata["duration"] || 0;
-            innerHtml = `${artist} : <b>${title}</b> <span class="track-duration">${formatTime(dur)}</span>`;
+            const artistPrefix = artist ? `${artist} : ` : "";
+            innerHtml = `<span class="track-main">${artistPrefix}<b>${title}</b></span><span class="track-duration">${formatTime(dur)}</span>`;
         } else {
             innerHtml = `<i>${album}</i> : ${artist} : <b>${title}</b>`;
         }
         div.innerHTML = innerHtml;
 
         div.className = "track-item" + (s===currentTrack?" active":"");
+        if (isRadioStoriesPage) {
+            div.classList.add("radio-track-item");
+        }
 
         div.onclick = () => {
             div.style.transform = "scale(0.98)";
@@ -116,13 +121,13 @@ function playTrack(i) {
 
     currentIndex = i;
     currentTrack = currentSongs[i];
-    const trackMetadata = music_metadata[currentTrack];
+    const trackMetadata = music_metadata[currentTrack] || {};
 
     localStorage.setItem("track", currentTrack);
 
-    const title = trackMetadata["title"];
-    const artist = trackMetadata["artist"];
-    const album = trackMetadata["album"];
+    const title = trackMetadata["title"] || currentTrack;
+    const artist = trackMetadata["artist"] || "";
+    const album = trackMetadata["album"] || "";
 
     // Animiraj spremembo teksta
     nowPlayingTitle.style.opacity = "0.7";
@@ -455,7 +460,7 @@ function filterSongs() {
         filteredSongs = currentSongs;
     } else {
         filteredSongs = currentSongs.filter(song => {
-            const metadata = music_metadata[song];
+            const metadata = music_metadata[song] || {};
             const title = (metadata["title"] || "").toLowerCase();
             const artist = (metadata["artist"] || "").toLowerCase();
             const album = (metadata["album"] || "").toLowerCase();
@@ -478,13 +483,22 @@ function renderFilteredTracks() {
 
     filteredSongs.forEach((s, idx) => {
         const div = document.createElement("div");
-        const trackMetadata = music_metadata[s];
-        const title = trackMetadata["title"];
-        const artist = trackMetadata["artist"];
-        const album = trackMetadata["album"];
-        div.innerHTML = `<i>${album}</i> : ${artist} : <b>${title}</b>`;
+        const trackMetadata = music_metadata[s] || {};
+        const title = trackMetadata["title"] || s.split('/').slice(-1)[0];
+        const artist = trackMetadata["artist"] || "";
+        const album = trackMetadata["album"] || "";
+        if (isRadioStoriesPage) {
+            const dur = trackMetadata["duration"] || 0;
+            const artistPrefix = artist ? `${artist} : ` : "";
+            div.innerHTML = `<span class="track-main">${artistPrefix}<b>${title}</b></span><span class="track-duration">${formatTime(dur)}</span>`;
+        } else {
+            div.innerHTML = `<i>${album}</i> : ${artist} : <b>${title}</b>`;
+        }
 
         div.className = "track-item" + (s === currentTrack ? " active" : "");
+        if (isRadioStoriesPage) {
+            div.classList.add("radio-track-item");
+        }
         div.style.opacity = "0";
         div.style.animation = "fadeIn 0.3s ease forwards";
         div.style.animationDelay = (idx * 0.03) + "s";
@@ -524,6 +538,9 @@ function initializeBrowserToggle() {
     }
 
     function switchView(target) {
+        if (isRadioStoriesPage && target === "albums") {
+            target = "tracks";
+        }
         console.log("switchView called with target:", target, "Mobile:", isMobile);
 
         toggleButtons.forEach(btn => {
@@ -560,16 +577,23 @@ function initializeBrowserToggle() {
         });
     });
 
-    // Napolni prejšnjo izbiro ali privzeto Album
-    const savedTab = localStorage.getItem("musicBrowserTab") || "albums";
-    console.log("Initializing with saved tab:", savedTab, "or default: albums");
-    switchView(savedTab);
+    // Napolni prejšnjo izbiro ali privzeto zavihek; radio stories vedno odpre "tracks"
+    const defaultTab = isRadioStoriesPage ? "tracks" : "albums";
+    const savedTabRaw = localStorage.getItem("musicBrowserTab");
+    const savedTab = (savedTabRaw === "albums" || savedTabRaw === "tracks") ? savedTabRaw : defaultTab;
+    const initialTab = isRadioStoriesPage ? "tracks" : savedTab;
+    console.log("Initializing with tab:", initialTab, "default:", defaultTab);
+    switchView(initialTab);
 
     // Dodaj event listener za orientationchange
     window.addEventListener("orientationchange", () => {
         console.log("Orientation changed");
         setTimeout(() => {
-            switchView(localStorage.getItem("musicBrowserTab") || "albums");
+            const tab = localStorage.getItem("musicBrowserTab");
+            const nextTab = isRadioStoriesPage
+                ? "tracks"
+                : ((tab === "albums" || tab === "tracks") ? tab : defaultTab);
+            switchView(nextTab);
         }, 200);
     });
 }

@@ -19,7 +19,7 @@ from flask_login import current_user, login_required
 from PIL import Image
 from werkzeug.utils import secure_filename
 
-from movies_preparation.config import LOG_FILENAME
+from content_preparation.config import LOG_FILENAME
 from utils import (
     is_current_admin_view,
     load_blog_subscribers,

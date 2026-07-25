@@ -18,11 +18,14 @@
 /* Duration styling: italic, a bit separated and right-aligned in a small fixed box */
 .track-duration {
     font-style: italic;
-    margin-left: 12px;
-    display: inline-block;
-    min-width: 3.8em;
-    text-align: right;
     color: #666;
+}
+
+@media (max-width: 768px) {
+    #browserToggle,
+    .browser-toggle {
+        display: none !important;
+    }
 }
 </style>
 
