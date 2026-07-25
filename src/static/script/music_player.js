@@ -36,7 +36,11 @@ const nowPlayingAlbum = document.getElementById("nowPlayingAlbum");
 const progress = document.getElementById("seekBar");
 const timeDisplay = document.getElementById("timeDisplay");
 const albumCover = document.querySelector(".album-cover");
-const isRadioStoriesPage = Boolean(window.RADIO_STORIES_FILES);
+const isRadioStoriesPage = Boolean(
+    window.IS_RADIO_STORIES_PAGE || window.RADIO_STORIES_FILES
+);
+const fileBase = window.MEDIA_FILE_BASE || "/music/file/";
+const hlsBase = window.MEDIA_HLS_BASE || "/music/hls/";
 
 let currentAlbum = localStorage.getItem("album") || "Vse";
 let currentTrack = localStorage.getItem("track") || null;
@@ -44,6 +48,83 @@ let currentTime = parseFloat(localStorage.getItem("time") || 0);
 let currentSongs = [];
 let currentIndex = -1;
 let isLoadingTrack = false;
+let pendingRestoreTime = currentTime;
+let hlsInstance = null;
+
+function getTrackMetadata(trackId) {
+    return music_metadata[trackId] || {};
+}
+
+function destroyHlsInstance() {
+    if (hlsInstance) {
+        hlsInstance.destroy();
+        hlsInstance = null;
+    }
+}
+
+function resolveTrackSource(trackId) {
+    const metadata = getTrackMetadata(trackId);
+    const filePath = metadata.file_path || trackId;
+    const hlsPath = metadata.hls_path || null;
+
+    return {
+        fileUrl: filePath ? fileBase + filePath : null,
+        hlsUrl: hlsPath ? hlsBase + hlsPath : null,
+    };
+}
+
+function attachTrackSource(trackId) {
+    const source = resolveTrackSource(trackId);
+
+    destroyHlsInstance();
+    audio.pause();
+    audio.removeAttribute("src");
+    audio.load();
+
+    if (source.hlsUrl) {
+        if (audio.canPlayType("application/vnd.apple.mpegurl")) {
+            audio.src = source.hlsUrl;
+            audio.load();
+            return Promise.resolve();
+        }
+
+        if (window.Hls && window.Hls.isSupported()) {
+            return new Promise((resolve, reject) => {
+                hlsInstance = new window.Hls();
+                hlsInstance.loadSource(source.hlsUrl);
+                hlsInstance.attachMedia(audio);
+
+                hlsInstance.on(window.Hls.Events.MANIFEST_PARSED, () => {
+                    resolve();
+                });
+
+                hlsInstance.on(window.Hls.Events.ERROR, (_event, data) => {
+                    if (!data || !data.fatal) {
+                        return;
+                    }
+
+                    destroyHlsInstance();
+                    if (source.fileUrl) {
+                        audio.src = source.fileUrl;
+                        audio.load();
+                        resolve();
+                        return;
+                    }
+
+                    reject(new Error(data.details || "HLS playback failed"));
+                });
+            });
+        }
+    }
+
+    if (source.fileUrl) {
+        audio.src = source.fileUrl;
+        audio.load();
+        return Promise.resolve();
+    }
+
+    return Promise.reject(new Error("No playable source found"));
+}
 
 // Render albumi
 function renderAlbums() {
@@ -115,15 +196,21 @@ function loadAlbum(album) {
     albumCover.style.opacity = "1";
 }
 
-function playTrack(i) {
+async function playTrack(i) {
     if (isLoadingTrack) return; // Prepreči hkratne klice
     isLoadingTrack = true;
 
     currentIndex = i;
     currentTrack = currentSongs[i];
-    const trackMetadata = music_metadata[currentTrack] || {};
+    const trackMetadata = getTrackMetadata(currentTrack);
+    const storedTrack = localStorage.getItem("track");
+    const storedTime = parseFloat(localStorage.getItem("time") || 0);
+    pendingRestoreTime = currentTrack === storedTrack ? storedTime : 0;
 
     localStorage.setItem("track", currentTrack);
+    if (!pendingRestoreTime) {
+        localStorage.setItem("time", 0);
+    }
 
     const title = trackMetadata["title"] || currentTrack;
     const artist = trackMetadata["artist"] || "";
@@ -155,14 +242,15 @@ function playTrack(i) {
     // Posodobimo Media Session
     updateMediaSession(title, artist, album);
 
-    // 1. Nastavi vir
-    const mediaBase = window.MEDIA_FILE_BASE || "/music/file/";
-    audio.src = mediaBase + currentTrack;
+    try {
+        await attachTrackSource(currentTrack);
+    } catch (error) {
+        console.error("Napaka pri pripravi vira:", error);
+        updatePlayBtn("false");
+        isLoadingTrack = false;
+        return;
+    }
 
-    // 2. Samo enkrat naloži
-    audio.load();
-
-    // 3. Play
     const playPromise = audio.play();
 
     if (playPromise !== undefined) {
@@ -382,12 +470,15 @@ progress.addEventListener("input", () => {
 
 // update on metadata load (set max) and immediately refresh background
 audio.onloadedmetadata = () => {
-    progress.max = audio.duration;
+    progress.max = Number.isFinite(audio.duration) ? audio.duration : 0;
     try {
-        if (currentTime && audio.src.includes(currentTrack)) audio.currentTime = currentTime;
+        if (pendingRestoreTime > 0) {
+            audio.currentTime = pendingRestoreTime;
+        }
     } catch (e) {
         // ignore
     }
+    pendingRestoreTime = 0;
     updateSeekBarBackground();
 };
 
@@ -412,7 +503,9 @@ function izbrisiPesem() {
     const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     if (confirm("Res želiš izbrisati to pesem?")) {
         const deleteBase = window.MEDIA_DELETE_BASE || '/music/delete/';
-        fetch(deleteBase + currentTrack, {
+        const trackMetadata = getTrackMetadata(currentTrack);
+        const deletePath = trackMetadata.delete_path || currentTrack;
+        fetch(deleteBase + deletePath, {
             method: 'DELETE',
             headers: {
                 'X-CSRFToken': token
@@ -436,6 +529,10 @@ audio.addEventListener('waiting', () => {
 audio.addEventListener('playing', () => {
     console.log("Audio igra.");
     albumCover.style.opacity = "1";
+});
+
+audio.addEventListener('emptied', () => {
+    updatePlayBtn("false");
 });
 
 let initialAlbum = albums[0];

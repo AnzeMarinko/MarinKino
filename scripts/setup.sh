@@ -129,8 +129,44 @@ server {
 
     # --- Za hitro pretakanje vsebin ---
     # Samo za interne preusmeritve, uporabnik ne more dostopati direktno (Pot ZNOTRAJ Nginx kontejnerja)
-    location /protected_music/ {internal; alias /music_data/;}
-    location /protected_radio_stories/ {internal; alias /radio_stories_data/;}
+    location /protected_music/ {
+        internal;
+        alias /music_data/;
+        types {
+            application/vnd.apple.mpegurl  m3u8;
+            video/mp2t                     ts;
+            video/iso.segment             m4s;
+            video/mp4                     mp4;
+            audio/mpeg                    mp3;
+            audio/mp4                     m4a;
+            audio/wav                     wav;
+        }
+        add_header 'Access-Control-Allow-Origin' '*' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+        add_header 'Access-Control-Allow-Headers' 'Range, Content-Type' always;
+        add_header 'Access-Control-Expose-Headers' 'Content-Length, Content-Range' always;
+        proxy_force_ranges on;
+        access_log off;
+    }
+    location /protected_radio_stories/ {
+        internal;
+        alias /radio_stories_data/;
+        types {
+            application/vnd.apple.mpegurl  m3u8;
+            video/mp2t                     ts;
+            video/iso.segment             m4s;
+            video/mp4                     mp4;
+            audio/mpeg                    mp3;
+            audio/mp4                     m4a;
+            audio/wav                     wav;
+        }
+        add_header 'Access-Control-Allow-Origin' '*' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+        add_header 'Access-Control-Allow-Headers' 'Range, Content-Type' always;
+        add_header 'Access-Control-Expose-Headers' 'Content-Length, Content-Range' always;
+        proxy_force_ranges on;
+        access_log off;
+    }
     location /protected_movies/ {
         internal;
         alias /movies_data/;

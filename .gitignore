@@ -40,8 +40,17 @@ data/memes/*.webp
 data/memes/*.WEBP
 data/memes/*.png
 data/radio-stories/**/*.mp3
+data/radio-stories/**/*.m4a
+data/radio-stories/**/*.m3u8
+data/radio-stories/**/*.m4s
+data/radio-stories/**/*.mp4
+data/radio-stories/**/*.json
 data/music/**/*.mp3
 data/music/**/*.m4a
+data/music/**/*.m3u8
+data/music/**/*.m4s
+data/music/**/*.mp4
+data/music/**/*.json
 data/movies/users_comments.json
 data/blog_images
 tmp_download

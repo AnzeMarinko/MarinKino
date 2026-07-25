@@ -107,18 +107,16 @@
 </div>
 
 {# Provide a single synthetic album named 'Vse' and metadata mapped for the player #}
+<div id="albums-root" data-albums='{{ [{"name": "Vse", "songs": radio_stories_files}] | tojson | safe }}'></div>
 <div id="metadata-root" data-music='{{ radio_stories_metadata | tojson | safe }}'></div>
 
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
 <script>
+    window.IS_RADIO_STORIES_PAGE = true;
     window.MEDIA_FILE_BASE = '/radio-stories/file/';
+    window.MEDIA_HLS_BASE = '/radio-stories/hls/';
     window.MEDIA_DELETE_BASE = '/radio-stories/delete/';
 </script>
 <script defer src="/static/script/music_player.js"></script>
-
-<script>
-    // Expose raw endpoint data for the player to consume directly
-    window.RADIO_STORIES_METADATA = {{ radio_stories_metadata | tojson | safe }};
-    window.RADIO_STORIES_FILES = {{ radio_stories_files | tojson | safe }};
-</script>
 
 {% endblock %}
