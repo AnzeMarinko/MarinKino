@@ -1,5 +1,6 @@
 import json
 import logging
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -7,7 +8,6 @@ import tqdm
 from mutagen.easyid3 import EasyID3
 from mutagen.mp3 import MP3, HeaderNotFoundError
 
-logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
 
@@ -62,24 +62,31 @@ def save_hls_metadata(mp3_path: Path, out_dir: Path):
 def convert_mp3_to_hls(input_path: str, output_dir: str):
     mp3_file = Path(input_path)
     out_dir = Path(output_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-
     playlist_path = out_dir / "index.m3u8"
+    segment_file = out_dir / "stream.m4s"
 
-    # Vedno zapišemo ali osvežimo metadata.json
+    # Če sta obe datoteki že prisotni, velja, da je konverzija končana
+    if playlist_path.exists() and segment_file.exists():
+        if mp3_file.exists():
+            mp3_file.unlink()
+        return
+
+    out_dir.mkdir(parents=True, exist_ok=True)
     save_hls_metadata(mp3_file, out_dir)
 
-    # Če HLS že obstaja, ne izvajamo ponovno FFmpeg-a, ampak le izbrišemo MP3
-    if playlist_path.exists():
-        log.info(f"⏭️ HLS že obstaja, brišem MP3: {input_path}")
-        mp3_file.unlink()
-        return
+    # Začasna mapa za gradnjo HLS-a
+    tmp_dir = out_dir / "_tmp"
+    if tmp_dir.exists():
+        shutil.rmtree(tmp_dir)
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+
+    tmp_playlist = tmp_dir / "index.m3u8"
 
     cmd = [
         "ffmpeg",
         "-y",
         "-i",
-        input_path,
+        str(mp3_file),
         "-map",
         "0:a:0",
         "-vn",
@@ -90,24 +97,31 @@ def convert_mp3_to_hls(input_path: str, output_dir: str):
         "-f",
         "hls",
         "-hls_time",
-        "6",  # dolžina posameznega segmenta v sekundah
+        "6",
         "-hls_playlist_type",
-        "vod",  # VOD (Video/Audio on Demand)
+        "vod",
         "-hls_segment_type",
         "fmp4",
-        "-hls_fmp4_init_filename",
-        "init.mp4",
+        "-hls_flags",
+        "single_file",
         "-hls_segment_filename",
-        str(out_dir / "segment_%03d.m4s"),
-        str(playlist_path),
+        str(tmp_dir / "stream.m4s"),
+        str(tmp_playlist),
     ]
 
-    if not run_ffmpeg(cmd):
-        log.error(f"❌ Napaka pri konverziji: {input_path}")
-    else:
+    if run_ffmpeg(cmd):
+        # Premaknemo uspele datoteke iz začasne mape v končno
+        for file in tmp_dir.iterdir():
+            shutil.move(str(file), str(out_dir / file.name))
+        shutil.rmtree(tmp_dir)
+
         log.info(f"✅ Konverzija uspešna: {input_path} -> {playlist_path}")
-        # Varno izbrišemo izvirno MP3 datoteko po uspešni konverziji
         mp3_file.unlink()
+    else:
+        # Če konverzija spodleti, pobrišemo začasne datoteke
+        if tmp_dir.exists():
+            shutil.rmtree(tmp_dir)
+        log.error(f"❌ Napaka pri konverziji (MP3 ohranjen): {input_path}")
 
 
 def process_audio_folders():

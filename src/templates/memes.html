@@ -2,9 +2,12 @@
 
 {% block content %}
 
+<link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+<script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
+
 <div class="meme-container" id="mediaContainer">
     {% if meme_file_name.endswith('.mp4') %}
-        <video id="videoPlayer" controls autoplay playsinline>
+        <video id="videoPlayer" class="plyr-video" controls autoplay playsinline>
             <source src="/memes/file/{{ meme_file_name }}" type="video/mp4">
             Tvoj brskalnik ne podpira videa.
         </video>
@@ -15,5 +18,31 @@
     <button class="next-meme-btn" id="nextButton" onclick="pojdiNaNaslednjega()">➤</button>
 
 <script defer src="/static/script/memes.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        if (document.getElementById('videoPlayer')) {
+            if (window.Plyr) {
+                new Plyr('#videoPlayer', {
+                    controls: [
+                        "play-large",
+                        "play",
+                        "progress",
+                        "current-time",
+                        "duration",
+                        "mute",
+                        "volume",
+                        "settings",
+                        "fullscreen",
+                    ],
+                    keyboard: {
+                        focused: true,
+                        global: true,
+                    },
+                    autoplay: false
+                });
+            }
+        }
+    });
+</script>
 
 {% endblock %}
