@@ -1,14 +1,21 @@
 import glob
+import json
 import os
+import re
+import secrets
 import shutil
+import unicodedata
+from pathlib import Path
+from urllib.parse import unquote
 
 import yt_dlp
 from ffmpeg_normalize import FFmpegNormalize
 from flask import Flask, jsonify, render_template, request, send_from_directory
 from flask_compress import Compress
 from mutagen.easyid3 import EasyID3
-from mutagen.mp3 import MP3
+from mutagen.mp3 import MP3, HeaderNotFoundError
 
+from content_preparation.audio_preparation import convert_mp3_to_hls
 from utils import safe_path
 
 app = Flask(__name__, static_url_path="/static", static_folder="static")
@@ -18,6 +25,173 @@ Compress(app)
 MUSIC_FOLDER = "data/music"
 INCOMING_MUSIC_FOLDER = f"{MUSIC_FOLDER}/Neurejena-glasba"
 INCOMING_VIDEO_FOLDER = "data/memes/Neurejeni-videi"
+REPO_ROOT = Path(__file__).resolve().parents[1]
+MUSIC_FOLDER_ABS = REPO_ROOT / "data" / "music"
+INCOMING_VIDEO_FOLDER_ABS = REPO_ROOT / "data" / "memes" / "Neurejeni-videi"
+
+
+def _format_duration(total_seconds):
+    total_seconds = int(total_seconds or 0)
+    return f"{total_seconds // 60}:{total_seconds % 60:02d}"
+
+
+def _normalize_track_id(track_ref):
+    track_id = str(track_ref or "").replace("\\", "/").strip("/")
+    if track_id.endswith("/index.m3u8"):
+        return track_id[: -len("/index.m3u8")]
+    if track_id.endswith(".mp3"):
+        return track_id[:-4]
+    return track_id
+
+
+def _resolve_track_paths(track_ref):
+    track_id = _normalize_track_id(track_ref)
+    base_path = Path(safe_path(MUSIC_FOLDER, track_id))
+    return {
+        "track_id": track_id,
+        "hls_dir": base_path,
+        "hls_playlist": base_path / "index.m3u8",
+        "hls_metadata": base_path / "metadata.json",
+        "mp3_path": Path(safe_path(MUSIC_FOLDER, f"{track_id}.mp3")),
+    }
+
+
+def normalize_mp3_file(input_path):
+    normalizer = FFmpegNormalize(
+        target_level=-16,
+        true_peak=-1.0,
+        loudness_range_target=20.0,
+        sample_rate=44100,
+        audio_codec="libmp3lame",
+        extra_output_options=[
+            "-map_metadata",
+            "0",
+            "-id3v2_version",
+            "3",
+            "-b:a",
+            "320k",
+        ],
+        print_stats=False,
+    )
+    output_path = f"{input_path}.normalized.mp3"
+    normalizer.add_media_file(input_path, output_path)
+    normalizer.run_normalization()
+    os.replace(output_path, input_path)
+
+
+def _slugify_part(value, fallback="track"):
+    text = str(value or "").strip()
+    if not text:
+        text = fallback
+
+    normalized = unicodedata.normalize("NFKD", text)
+    ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
+    cleaned = re.sub(r"[^a-zA-Z0-9]+", "-", ascii_text).strip("-")
+    return cleaned.lower() or fallback
+
+
+def _is_unique_hls_dir_name(folder_name):
+    pattern = r"^[a-z0-9-]+_[a-z0-9-]+_[0-9a-f]{6}$"
+    return bool(re.match(pattern, folder_name))
+
+
+def _read_hls_dir_metadata(hls_dir: Path):
+    metadata_path = hls_dir / "metadata.json"
+    if not metadata_path.exists():
+        return {}
+    try:
+        with open(metadata_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _build_unique_hls_output_dir(mp3_file: Path):
+    title = mp3_file.stem
+    artist = ""
+
+    try:
+        audio = MP3(str(mp3_file), ID3=EasyID3)
+        title = (audio.get("title") or [title])[0]
+        artist = (audio.get("artist") or [""])[0]
+    except (HeaderNotFoundError, Exception):
+        pass
+
+    base_name = "_".join(
+        [
+            _slugify_part(artist, fallback="artist"),
+            _slugify_part(title, fallback="track"),
+        ]
+    )
+
+    while True:
+        token = secrets.token_hex(3)
+        candidate = mp3_file.parent / f"{base_name}-{token}"
+        if not candidate.exists():
+            return candidate
+
+
+def _build_unique_hls_dir_from_values(parent_dir: Path, title, artist):
+    base_name = "_".join(
+        [
+            _slugify_part(artist, fallback="artist"),
+            _slugify_part(title, fallback="track"),
+        ]
+    )
+
+    while True:
+        token = secrets.token_hex(3)
+        candidate = parent_dir / f"{base_name}_{token}"
+        if not candidate.exists():
+            return candidate
+
+
+def rename_existing_incoming_hls_dirs():
+    """Ob zagonu enkratno preimenuje stare HLS mape v novo unikatno shemo."""
+    root = Path(INCOMING_MUSIC_FOLDER)
+    if not root.exists():
+        return
+
+    for index_file in sorted(root.rglob("index.m3u8")):
+        hls_dir = index_file.parent
+        if _is_unique_hls_dir_name(hls_dir.name):
+            continue
+
+        metadata = _read_hls_dir_metadata(hls_dir)
+        title = metadata.get("title") or hls_dir.name
+        artist = metadata.get("artist") or ""
+        target_dir = _build_unique_hls_dir_from_values(
+            hls_dir.parent,
+            title,
+            artist,
+        )
+
+        try:
+            hls_dir.rename(target_dir)
+            print(f"Preimenovana HLS mapa: {hls_dir} -> {target_dir}")
+        except Exception as e:
+            print(f"NAPAKA pri preimenovanju HLS mape {hls_dir}: {e}")
+
+
+def process_incoming_music_folder(folder_path=None):
+    """Normalizira MP3 in jih pretvori v HLS (index.m3u8 + metadata.json)."""
+    root = Path(folder_path or INCOMING_MUSIC_FOLDER)
+    if not root.exists():
+        return
+
+    for mp3_file in sorted(root.rglob("*.mp3")):
+        try:
+            print(f"Normaliziram: {mp3_file}")
+            normalize_mp3_file(str(mp3_file))
+        except Exception as e:
+            print(f"NAPAKA pri normalizaciji {mp3_file}: {e}")
+            continue
+
+        try:
+            output_directory = _build_unique_hls_output_dir(mp3_file)
+            convert_mp3_to_hls(str(mp3_file), str(output_directory))
+        except Exception as e:
+            print(f"NAPAKA pri HLS pretvorbi {mp3_file}: {e}")
 
 
 def download_playlist(playlist_url, get_video=False):
@@ -61,7 +235,7 @@ def download_playlist(playlist_url, get_video=False):
     print(f"Začenjam analizo playliste: {playlist_url}")
     print("To lahko traja nekaj trenutkov ...")
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:  # type: ignore[arg-type]
         try:
             # extract_info s download=True dejansko sproži prenos
             info = ydl.extract_info(playlist_url, download=True)
@@ -79,40 +253,9 @@ def download_playlist(playlist_url, get_video=False):
 
     if get_video:
         return True
-    for input_path in sorted(
-        glob.iglob(
-            f"{INCOMING_MUSIC_FOLDER}/{playlist_title}/**/*.mp3",
-            recursive=True,
-        )
-    ):
-        normalizer = FFmpegNormalize(
-            target_level=-16,
-            true_peak=-1.0,
-            loudness_range_target=20.0,
-            sample_rate=44100,
-            audio_codec="libmp3lame",
-            extra_output_options=[
-                "-map_metadata",
-                "0",
-                "-id3v2_version",
-                "3",
-                "-b:a",
-                "320k",
-            ],
-            print_stats=False,
-        )
-        output_path = input_path + ".normalized.mp3"
 
-        try:
-            print(f"Normaliziram: {input_path}")
-            normalizer.add_media_file(input_path, output_path)
-            normalizer.run_normalization()
-            os.replace(output_path, input_path)
-
-        except Exception as e:
-            print(f"NAPAKA pri datoteki {input_path}: {e}")
-
-    print("\nKončano! Glasnost je urejena.")
+    process_incoming_music_folder(f"{INCOMING_MUSIC_FOLDER}/{playlist_title}")
+    print("\nKončano! Glasnost je urejena in HLS pripravljen.")
     return True
 
 
@@ -120,59 +263,135 @@ for url in []:
     download_playlist(url)
 
 
-def get_current_metadata(music_file):
-    path = os.path.join("data/music", music_file)
-    audio = MP3(path, ID3=EasyID3)
-    total_seconds = int(audio.info.length)
-    return {
-        "title": ", ".join(
-            audio.get(
-                "title", [".".join(music_file.split("/")[-1].split(".")[:-1])]
-            )
-        ),
-        "artist": ", ".join(audio.get("artist", [])),
-        "album": ", ".join(audio.get("album", [])),
-        "filename": music_file,
-        "folder": "/".join(music_file.split("/")[:-1]),
-        "duration": f"{total_seconds // 60}:{total_seconds % 60:02d}",
+rename_existing_incoming_hls_dirs()
+
+
+def get_current_metadata(track_ref):
+    paths = _resolve_track_paths(track_ref)
+    track_id = paths["track_id"]
+    default_title = track_id.split("/")[-1] if track_id else ""
+
+    metadata = {
+        "title": default_title,
+        "artist": "",
+        "album": "",
+        "filename": track_id,
+        "folder": "/".join(track_id.split("/")[:-1]),
+        "duration": "0:00",
+        "play_path": f"{track_id}/index.m3u8",
+        "delete_path": track_id,
     }
+
+    if paths["hls_metadata"].exists():
+        try:
+            with open(paths["hls_metadata"], "r", encoding="utf-8") as f:
+                hls_data = json.load(f)
+            metadata["title"] = hls_data.get("title") or metadata["title"]
+            metadata["artist"] = hls_data.get("artist") or ""
+            metadata["album"] = hls_data.get("album") or ""
+            metadata["duration"] = _format_duration(hls_data.get("duration"))
+            return metadata
+        except Exception:
+            pass
+
+    if paths["mp3_path"].exists():
+        try:
+            audio = MP3(str(paths["mp3_path"]), ID3=EasyID3)
+            metadata["title"] = ", ".join(
+                audio.get("title") or [default_title]
+            )
+            metadata["artist"] = ", ".join(audio.get("artist") or [])
+            metadata["album"] = ", ".join(audio.get("album") or [])
+            metadata["duration"] = _format_duration(
+                int(getattr(getattr(audio, "info", None), "length", 0))
+            )
+            metadata["play_path"] = f"{track_id}.mp3"
+            return metadata
+        except (HeaderNotFoundError, Exception):
+            pass
+
+    return metadata
+
+
+def list_incoming_music_tracks():
+    incoming_root = Path(INCOMING_MUSIC_FOLDER)
+    music_root = Path(MUSIC_FOLDER)
+    tracks = {}
+
+    if incoming_root.exists():
+        for playlist in sorted(incoming_root.rglob("index.m3u8")):
+            track_id = playlist.parent.relative_to(music_root).as_posix()
+            tracks[track_id] = get_current_metadata(track_id)
+
+        for mp3_file in sorted(incoming_root.rglob("*.mp3")):
+            track_id = (
+                mp3_file.relative_to(music_root).with_suffix("").as_posix()
+            )
+            tracks.setdefault(track_id, get_current_metadata(track_id))
+
+    return sorted(
+        tracks.values(),
+        key=lambda x: (
+            x.get("folder", "").lower(),
+            x.get("artist", "").lower(),
+            x.get("album", "").lower(),
+            x.get("title", "").lower(),
+        ),
+    )
 
 
 def update_values(music_file, title, artist, album):
-    path = os.path.join("data/music", music_file)
-    audio = MP3(path, ID3=EasyID3)
-    audio["title"] = title.strip()
-    audio["artist"] = artist.strip()
-    audio["album"] = album.strip()
-    audio.save()
+    paths = _resolve_track_paths(music_file)
+    track_exists = paths["mp3_path"].exists() or paths["hls_dir"].exists()
+    if not track_exists:
+        raise FileNotFoundError("Datoteka ne obstaja")
+
+    if paths["mp3_path"].exists():
+        audio = MP3(str(paths["mp3_path"]), ID3=EasyID3)
+        audio["title"] = title.strip()
+        audio["artist"] = artist.strip()
+        audio["album"] = album.strip()
+        audio.save()
+
+    metadata_payload = {
+        "title": title.strip(),
+        "artist": artist.strip(),
+        "album": album.strip(),
+        "duration": 0,
+    }
+    current = get_current_metadata(paths["track_id"])
+    try:
+        mm, ss = (current.get("duration") or "0:00").split(":", 1)
+        metadata_payload["duration"] = int(mm) * 60 + int(ss)
+    except Exception:
+        metadata_payload["duration"] = 0
+
+    paths["hls_dir"].mkdir(parents=True, exist_ok=True)
+    with open(paths["hls_metadata"], "w", encoding="utf-8") as f:
+        json.dump(metadata_payload, f, ensure_ascii=False, indent=2)
+
     return {"status": "ok", "message": "Podatki uspešno shranjeni!"}
 
 
 @app.route("/")
 def index():
-    music_files = [
-        f[11:]
-        for f in glob.iglob(
-            f"{INCOMING_MUSIC_FOLDER}/**/*.mp3", recursive=True
-        )
-    ]
+    process_incoming_music_folder(INCOMING_MUSIC_FOLDER)
     return render_template(
         "music_editor.html",
-        music=sorted(
-            [get_current_metadata(file) for file in music_files],
-            key=lambda x: (
-                x.get("folder", "").lower(),
-                x.get("artist", "").lower(),
-                x.get("album", "").lower(),
-                x.get("title", "").lower(),
-            ),
-        ),
+        music=list_incoming_music_tracks(),
     )
 
 
 @app.route("/music/file/<path:filename>")
 def song(filename):
-    return send_from_directory("../data/music", filename, conditional=True)
+    decoded_filename = unquote(filename)
+    full_path = safe_path(str(MUSIC_FOLDER_ABS), decoded_filename)
+    relative_path = os.path.relpath(full_path, str(MUSIC_FOLDER_ABS))
+    return send_from_directory(
+        str(MUSIC_FOLDER_ABS),
+        relative_path,
+        conditional=True,
+    )
 
 
 @app.route("/api/videos/list")
@@ -188,8 +407,15 @@ def list_incoming_videos():
 
 @app.route("/video/file/<path:filename>")
 def incoming_video_file(filename):
+    decoded_filename = unquote(filename)
+    full_path = safe_path(str(INCOMING_VIDEO_FOLDER_ABS), decoded_filename)
+    relative_path = os.path.relpath(
+        full_path,
+        str(INCOMING_VIDEO_FOLDER_ABS),
+    )
+
     mimetype = None
-    lower_name = filename.lower()
+    lower_name = decoded_filename.lower()
     if lower_name.endswith(".mp4"):
         mimetype = "video/mp4"
     elif lower_name.endswith(".webm"):
@@ -200,8 +426,8 @@ def incoming_video_file(filename):
         mimetype = "video/x-matroska"
 
     response = send_from_directory(
-        f"../{INCOMING_VIDEO_FOLDER}",
-        filename,
+        str(INCOMING_VIDEO_FOLDER_ABS),
+        relative_path,
         mimetype=mimetype,
         conditional=True,
     )
@@ -317,13 +543,17 @@ def update_music_metadata():
                 400,
             )
 
-        # Posodabljamo metapodatke
-        update_values(
-            music_file=music_file,
-            title=data.get("title", ""),
-            artist=data.get("artist", ""),
-            album=data.get("album", ""),
-        )
+        try:
+            # Posodabljamo metapodatke
+            update_values(
+                music_file=music_file,
+                title=data.get("title", ""),
+                artist=data.get("artist", ""),
+                album=data.get("album", ""),
+            )
+        except FileNotFoundError as e:
+            return jsonify({"status": "error", "message": str(e)}), 404
+
         print(f"Updated: {music_file}")
 
         return jsonify(
@@ -351,16 +581,29 @@ def delete_music_file():
                 400,
             )
 
-        # Preveri varnost - preverimo, da datoteka res obstaja v data/music
-        file_path = os.path.join("data/music", music_file)
-        if not os.path.exists(file_path):
+        try:
+            paths = _resolve_track_paths(music_file)
+        except ValueError:
+            return (
+                jsonify({"status": "error", "message": "Neveljavna datoteka"}),
+                400,
+            )
+
+        removed_any = False
+        if paths["hls_dir"].exists() and paths["hls_dir"].is_dir():
+            shutil.rmtree(paths["hls_dir"])
+            removed_any = True
+        if paths["mp3_path"].exists() and paths["mp3_path"].is_file():
+            os.remove(paths["mp3_path"])
+            removed_any = True
+
+        if not removed_any:
             return (
                 jsonify({"status": "error", "message": "Datoteka ne obstaja"}),
                 404,
             )
 
-        os.remove(file_path)
-        print(f"Removed: {music_file}")
+        print(f"Removed: {paths['track_id']}")
 
         return jsonify(
             {

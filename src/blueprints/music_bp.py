@@ -253,7 +253,7 @@ def _build_music_albums_and_metadata(root_dir):
         music_albums.setdefault("Vse", []).append(track_id)
         for i in range(len(parts)):
             album_name = " - ".join(parts[: i + 1]).title()
-            if "Drugo" not in album_name:
+            if "-" in album_name or "Drugo" not in album_name:
                 music_albums.setdefault(album_name, []).append(track_id)
 
         if not item.get("album"):
@@ -381,6 +381,7 @@ def _safe_remove_media(base_folder, filename):
     """Pomožna funkcija, ki varno odstrani datoteko ali celotno HLS mapo."""
     try:
         path = Path(safe_path(base_folder, filename))
+        base_path = Path(base_folder).resolve()
     except ValueError:
         return False
 
@@ -390,6 +391,17 @@ def _safe_remove_media(base_folder, filename):
     if path.is_dir():
         shutil.rmtree(path)
     else:
+        # Če se briše HLS playlista, odstranimo celotno mapo tega streama.
+        if path.suffix.lower() == ".m3u8":
+            hls_dir = path.parent
+            if (
+                hls_dir.exists()
+                and hls_dir.is_dir()
+                and hls_dir.resolve() != base_path
+            ):
+                shutil.rmtree(hls_dir)
+                return True
+
         path.unlink()
         # Če ima skladba pripadajočo HLS mapo z enakim imenom,
         # pobrišemo tudi to

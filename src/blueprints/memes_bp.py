@@ -22,7 +22,7 @@ memes_bp = Blueprint("memes", __name__)
 # Global variables
 meme_id = 0
 user_meme_count = {}
-user_meme_limit = 33
+user_meme_limit = 12
 
 # Initialize memes
 memes = os.listdir("data/memes")
@@ -47,11 +47,14 @@ def meme():
         user_meme_count[current_user.id]["last_date"] = str(date.today())
         user_meme_count[current_user.id]["count"] = 0
     user_meme_count[current_user.id]["count"] += 1
-    if user_meme_count[current_user.id]["count"] > user_meme_limit:
+    if (
+        user_meme_count[current_user.id]["count"] > user_meme_limit
+        and not current_user.is_admin
+    ) or user_meme_count[current_user.id]["count"] > 50:
         return render_template(
             "limit_exceeded.html",
             section="šal",
-            pagetitle="Dovolj za danes v MarinKino",
+            pagetitle="Dovolj šal za danes v MarinKino",
         )
 
     izbrana = memes[meme_id]

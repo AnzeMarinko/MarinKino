@@ -160,7 +160,7 @@ def add_watch_info(movie, user_data):
             * 60,
         )
         watch_ratio = round(last_play_time / duration * 100)
-        if watch_ratio > 95 or abs(duration - last_play_time) < 30:
+        if watch_ratio > 90 or abs(duration - last_play_time) < 30:
             watch_ratio = 100
             last_play_time = 0
         total_play_time += watch_ratio * duration / 100
@@ -1029,7 +1029,10 @@ def video_progress_change():
         user_data = json.loads(user_data) if user_data else {}
 
         if "duration" not in user_data.keys():
-            duration = selected_movie["runtimes_by_files"][video_file] * 60
+            duration = (
+                selected_movie["runtimes_by_files"][filename.split("/")[-1]]
+                * 60
+            )
             user_data["duration"] = duration
         else:
             duration = user_data["duration"]

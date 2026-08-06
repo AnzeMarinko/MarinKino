@@ -421,11 +421,20 @@
         Skupno pesmi: <span id="totalCount">0</span> | Prikazano: <span id="visibleCount">0</span>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
     <script>
         // Globalni podatki
         let allMusic = {{ music|tojson }};
         let currentlyPlaying = null;
+        let currentHls = null;
         let changedRows = new Set();
+
+        function encodeMediaPath(path) {
+            return String(path || "")
+                .split('/')
+                .map(segment => encodeURIComponent(segment))
+                .join('/');
+        }
 
         // Inicializacija
         document.addEventListener('DOMContentLoaded', function() {
@@ -472,7 +481,10 @@
             const playBtn = document.createElement('button');
             playBtn.className = 'play-btn';
             playBtn.textContent = '▶ Predvajaj';
-            playBtn.onclick = () => togglePlayMusic(music.filename, playBtn);
+            playBtn.onclick = () => togglePlayMusic(
+                music.play_path || `${music.filename}.mp3`,
+                playBtn
+            );
             playCell.appendChild(playBtn);
             row.appendChild(playCell);
 
@@ -547,29 +559,52 @@
             return row;
         }
 
-        function togglePlayMusic(filename, button) {
+        function togglePlayMusic(playPath, button) {
             // Ustavi prejšnjo pesem
             if (currentlyPlaying && currentlyPlaying.audio) {
+                const isSameButton = currentlyPlaying.button === button;
                 currentlyPlaying.audio.pause();
+                if (currentHls) {
+                    currentHls.destroy();
+                    currentHls = null;
+                }
                 currentlyPlaying.button.classList.remove('playing');
                 currentlyPlaying.button.textContent = '▶ Predvajaj';
                 currentlyPlaying = null;
-            } else {
+
+                // Klik na isti gumb pomeni samo ustavitev.
+                if (isSameButton) {
+                    return;
+                }
+            }
 
             // Predvajaj novo pesem
-            const audio = new Audio(`/music/file/${filename}`);
+            const audio = new Audio();
+            const mediaUrl = `/music/file/${encodeMediaPath(playPath)}`;
+
+            if (playPath.endsWith('.m3u8') && window.Hls && window.Hls.isSupported()) {
+                currentHls = new window.Hls();
+                currentHls.loadSource(mediaUrl);
+                currentHls.attachMedia(audio);
+            } else {
+                audio.src = mediaUrl;
+            }
+
             audio.play();
             button.classList.add('playing');
             button.textContent = '⏸ Ustavite';
 
             audio.onended = () => {
+                if (currentHls) {
+                    currentHls.destroy();
+                    currentHls = null;
+                }
                 button.classList.remove('playing');
                 button.textContent = '▶ Predvajaj';
                 currentlyPlaying = null;
             };
 
             currentlyPlaying = { audio, button };
-            }
         }
 
         function markRowChanged(row) {

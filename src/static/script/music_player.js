@@ -42,6 +42,13 @@ const isRadioStoriesPage = Boolean(
 const fileBase = window.MEDIA_FILE_BASE || "/music/file/";
 const hlsBase = window.MEDIA_HLS_BASE || "/music/hls/";
 
+function encodeMediaPath(path) {
+    return String(path)
+        .split("/")
+        .map(segment => encodeURIComponent(segment))
+        .join("/");
+}
+
 let currentAlbum = localStorage.getItem("album") || "Vse";
 let currentTrack = localStorage.getItem("track") || null;
 let currentTime = parseFloat(localStorage.getItem("time") || 0);
@@ -55,6 +62,24 @@ function getTrackMetadata(trackId) {
     return music_metadata[trackId] || {};
 }
 
+function getAlbumDisplayInfo(albumName) {
+    const rawAlbum = String(albumName || "");
+    const separator = " - ";
+    const separatorIndex = rawAlbum.indexOf(separator);
+
+    if (separatorIndex === -1) {
+        return {
+            displayName: rawAlbum,
+            hasSeparator: false,
+        };
+    }
+
+    return {
+        displayName: rawAlbum.slice(separatorIndex + separator.length).trim(),
+        hasSeparator: true,
+    };
+}
+
 function destroyHlsInstance() {
     if (hlsInstance) {
         hlsInstance.destroy();
@@ -66,10 +91,12 @@ function resolveTrackSource(trackId) {
     const metadata = getTrackMetadata(trackId);
     const filePath = metadata.file_path || trackId;
     const hlsPath = metadata.hls_path || null;
+    const encodedFilePath = filePath ? encodeMediaPath(filePath) : null;
+    const encodedHlsPath = hlsPath ? encodeMediaPath(hlsPath) : null;
 
     return {
-        fileUrl: filePath ? fileBase + filePath : null,
-        hlsUrl: hlsPath ? hlsBase + hlsPath : null,
+        fileUrl: encodedFilePath ? fileBase + encodedFilePath : null,
+        hlsUrl: encodedHlsPath ? hlsBase + encodedHlsPath : null,
     };
 }
 
@@ -131,8 +158,12 @@ function renderAlbums() {
     albumListEl.innerHTML = "";
     albums.forEach(a => {
         const div = document.createElement("div");
-        div.textContent = a["name"];
+        const albumNameInfo = getAlbumDisplayInfo(a["name"]);
+        div.textContent = albumNameInfo.displayName || a["name"];
         div.className = "album-item" + (a["name"]===currentAlbum?" active":"");
+        if (albumNameInfo.hasSeparator) {
+            div.classList.add("album-item-after-separator");
+        }
         div.onclick = () => {
             div.style.transform = "scale(0.95)";
             setTimeout(() => div.style.transform = "scale(1)", 100);
@@ -169,6 +200,7 @@ function loadAlbum(album) {
         const title = trackMetadata["title"] || s.split('/').slice(-1)[0];
         const artist = trackMetadata["artist"] || "";
         const album = trackMetadata["album"] || "";
+        const albumInfo = getAlbumDisplayInfo(album);
         // If this page is radio-stories, don't show album/genre; show duration instead
         let innerHtml;
         if (isRadioStoriesPage) {
@@ -176,7 +208,10 @@ function loadAlbum(album) {
             const artistPrefix = artist ? `${artist} : ` : "";
             innerHtml = `<span class="track-main">${artistPrefix}<b>${title}</b></span><span class="track-duration">${formatTime(dur)}</span>`;
         } else {
-            innerHtml = `<i>${album}</i> : ${artist} : <b>${title}</b>`;
+            const albumClass = albumInfo.hasSeparator
+                ? "album-after-separator"
+                : "";
+            innerHtml = `<i class="${albumClass}">${albumInfo.displayName}</i> : ${artist} : <b>${title}</b>`;
         }
         div.innerHTML = innerHtml;
 
@@ -215,6 +250,7 @@ async function playTrack(i) {
     const title = trackMetadata["title"] || currentTrack;
     const artist = trackMetadata["artist"] || "";
     const album = trackMetadata["album"] || "";
+    const albumInfo = getAlbumDisplayInfo(album);
 
     // Animiraj spremembo teksta
     nowPlayingTitle.style.opacity = "0.7";
@@ -224,7 +260,11 @@ async function playTrack(i) {
     setTimeout(() => {
         nowPlayingTitle.textContent = title;
         nowPlayingArtist.textContent = artist;
-        nowPlayingAlbum.textContent = album;
+        nowPlayingAlbum.textContent = albumInfo.displayName;
+        nowPlayingAlbum.classList.toggle(
+            "has-separator",
+            albumInfo.hasSeparator
+        );
 
         nowPlayingTitle.style.transition = "opacity 0.3s ease";
         nowPlayingArtist.style.transition = "opacity 0.3s ease";
@@ -240,7 +280,7 @@ async function playTrack(i) {
     albumCover.style.transition = "transform 0.3s ease";
 
     // Posodobimo Media Session
-    updateMediaSession(title, artist, album);
+    updateMediaSession(title, artist, albumInfo.displayName);
 
     try {
         await attachTrackSource(currentTrack);
@@ -505,7 +545,7 @@ function izbrisiPesem() {
         const deleteBase = window.MEDIA_DELETE_BASE || '/music/delete/';
         const trackMetadata = getTrackMetadata(currentTrack);
         const deletePath = trackMetadata.delete_path || currentTrack;
-        fetch(deleteBase + deletePath, {
+        fetch(deleteBase + encodeMediaPath(deletePath), {
             method: 'DELETE',
             headers: {
                 'X-CSRFToken': token
@@ -584,12 +624,16 @@ function renderFilteredTracks() {
         const title = trackMetadata["title"] || s.split('/').slice(-1)[0];
         const artist = trackMetadata["artist"] || "";
         const album = trackMetadata["album"] || "";
+        const albumInfo = getAlbumDisplayInfo(album);
         if (isRadioStoriesPage) {
             const dur = trackMetadata["duration"] || 0;
             const artistPrefix = artist ? `${artist} : ` : "";
             div.innerHTML = `<span class="track-main">${artistPrefix}<b>${title}</b></span><span class="track-duration">${formatTime(dur)}</span>`;
         } else {
-            div.innerHTML = `<i>${album}</i> : ${artist} : <b>${title}</b>`;
+            const albumClass = albumInfo.hasSeparator
+                ? "album-after-separator"
+                : "";
+            div.innerHTML = `<i class="${albumClass}">${albumInfo.displayName}</i> : ${artist} : <b>${title}</b>`;
         }
 
         div.className = "track-item" + (s === currentTrack ? " active" : "");

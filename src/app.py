@@ -133,15 +133,15 @@ def log_response_info(response):
             or ".well-known" in request_parts[0]
             or "movies/file/" in request.path
             or "blog/track-reading/" in request.path
+            or request.path.endswith(".m4s")
         ):
             return response
     user_id = current_user.id if current_user.is_authenticated else "anonymus"
     today = date.today().isoformat()
     month = date.today().strftime("%Y-%m")
+    route = request.path.replace("/hls/", "/file/")
     route = (
-        request.path.split("/file/")[0] + "/file/..."
-        if "/file/" in request.path
-        else request.path
+        route.split("/file/")[0] + "/file/..." if "/file/" in route else route
     )
     route = (
         route.split("/password/reset/")[0] + "/password/reset/..."
