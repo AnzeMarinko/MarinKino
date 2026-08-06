@@ -1,32 +1,11 @@
 let albums = [];
-let music_metadata = {};
+let publicAlbums = [];
+let privateAlbums = [];
+let musicMetadata = {};
 
 const albumsRoot = document.getElementById("albums-root");
 const metadataRoot = document.getElementById("metadata-root");
-
-if (albumsRoot && albumsRoot.dataset && albumsRoot.dataset.albums) {
-    try {
-        albums = JSON.parse(albumsRoot.dataset.albums);
-    } catch (e) {
-        albums = [];
-    }
-}
-if (metadataRoot && metadataRoot.dataset && metadataRoot.dataset.music) {
-    try {
-        music_metadata = JSON.parse(metadataRoot.dataset.music);
-    } catch (e) {
-        music_metadata = {};
-    }
-}
-
-// Fallback: radio-stories endpoint may expose globals directly
-if ((!albums || albums.length === 0) && window.RADIO_STORIES_FILES) {
-    albums = [{ name: "Vse", songs: window.RADIO_STORIES_FILES }];
-}
-if ((!music_metadata || Object.keys(music_metadata).length === 0) && window.RADIO_STORIES_METADATA) {
-    music_metadata = window.RADIO_STORIES_METADATA;
-}
-
+const configRoot = document.getElementById("music-config-root");
 const albumListEl = document.getElementById("albumList");
 const trackListEl = document.getElementById("trackList");
 const audio = document.getElementById("audio");
@@ -36,11 +15,73 @@ const nowPlayingAlbum = document.getElementById("nowPlayingAlbum");
 const progress = document.getElementById("seekBar");
 const timeDisplay = document.getElementById("timeDisplay");
 const albumCover = document.querySelector(".album-cover");
+const searchInput = document.getElementById("searchInput");
+const privateAlbumAddControls = document.getElementById("privateAlbumAddControls");
+const privateAlbumRemoveControls = document.getElementById("privateAlbumRemoveControls");
+const privateAlbumSelect = document.getElementById("privateAlbumSelect");
+const addCurrentSongBtn = document.getElementById("addCurrentSongBtn");
+const removeCurrentSongBtn = document.getElementById("removeCurrentSongBtn");
+const privateAlbumsManagerList = document.getElementById("privateAlbumsManagerList");
+const newPrivateAlbumForm = document.getElementById("newPrivateAlbumForm");
+const newPrivateAlbumNameInput = document.getElementById("newPrivateAlbumName");
+const shuffleBtn = document.getElementById("shuffleBtn");
+const shuffleIcon = document.getElementById("shuffleIcon");
+const playBtn = document.getElementById("playBtn");
+const playIcon = document.getElementById("playIcon");
+
 const isRadioStoriesPage = Boolean(
     window.IS_RADIO_STORIES_PAGE || window.RADIO_STORIES_FILES
 );
 const fileBase = window.MEDIA_FILE_BASE || "/music/file/";
 const hlsBase = window.MEDIA_HLS_BASE || "/music/hls/";
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
+const privateAlbumsEndpoint = configRoot?.dataset?.privateAlbumsEndpoint || "/music/private-albums";
+const maxPrivateAlbums = parseInt(configRoot?.dataset?.privateAlbumsMax || "10", 10) || 10;
+
+let currentAlbumKey = localStorage.getItem("musicAlbumKey") || null;
+let currentTrack = localStorage.getItem("track") || null;
+let currentTime = parseFloat(localStorage.getItem("time") || 0);
+let currentSongs = [];
+let currentIndex = -1;
+let filteredSongs = [];
+let selectedPrivateAlbumId = localStorage.getItem("musicPrivateAlbumTarget") || null;
+let isLoadingTrack = false;
+let pendingRestoreTime = currentTime;
+let hlsInstance = null;
+let randomMode = JSON.parse(localStorage.getItem("random") || "false");
+
+function parseJsonDataset(element, key, fallback) {
+    if (!element?.dataset?.[key]) {
+        return fallback;
+    }
+
+    try {
+        return JSON.parse(element.dataset[key]);
+    } catch (_error) {
+        return fallback;
+    }
+}
+
+albums = parseJsonDataset(albumsRoot, "albums", []);
+musicMetadata = parseJsonDataset(metadataRoot, "music", {});
+
+if ((!albums || albums.length === 0) && window.RADIO_STORIES_FILES) {
+    albums = [{ name: "Vse", songs: window.RADIO_STORIES_FILES }];
+}
+if (
+    (!musicMetadata || Object.keys(musicMetadata).length === 0)
+    && window.RADIO_STORIES_METADATA
+) {
+    musicMetadata = window.RADIO_STORIES_METADATA;
+}
+
+privateAlbums = parseJsonDataset(
+    configRoot,
+    "privateAlbums",
+    albums.filter(album => album.is_private)
+);
+publicAlbums = albums.filter(album => !album.is_private);
+albums = [...privateAlbums, ...publicAlbums];
 
 function encodeMediaPath(path) {
     return String(path)
@@ -49,17 +90,8 @@ function encodeMediaPath(path) {
         .join("/");
 }
 
-let currentAlbum = localStorage.getItem("album") || "Vse";
-let currentTrack = localStorage.getItem("track") || null;
-let currentTime = parseFloat(localStorage.getItem("time") || 0);
-let currentSongs = [];
-let currentIndex = -1;
-let isLoadingTrack = false;
-let pendingRestoreTime = currentTime;
-let hlsInstance = null;
-
 function getTrackMetadata(trackId) {
-    return music_metadata[trackId] || {};
+    return musicMetadata[trackId] || {};
 }
 
 function getAlbumDisplayInfo(albumName) {
@@ -78,6 +110,48 @@ function getAlbumDisplayInfo(albumName) {
         displayName: rawAlbum.slice(separatorIndex + separator.length).trim(),
         hasSeparator: true,
     };
+}
+
+function getAlbumKey(album) {
+    if (!album) {
+        return null;
+    }
+    return album.is_private ? `private:${album.id}` : `public:${album.name}`;
+}
+
+function findAlbumByKey(albumKey) {
+    return albums.find(album => getAlbumKey(album) === albumKey) || null;
+}
+
+function getCurrentAlbum() {
+    return findAlbumByKey(currentAlbumKey);
+}
+
+function persistSelectedPrivateAlbum() {
+    if (selectedPrivateAlbumId) {
+        localStorage.setItem("musicPrivateAlbumTarget", selectedPrivateAlbumId);
+    } else {
+        localStorage.removeItem("musicPrivateAlbumTarget");
+    }
+}
+
+function ensureSelectedPrivateAlbum(options = {}) {
+    const preferCurrentAlbum = Boolean(options.preferCurrentAlbum);
+    const currentAlbum = getCurrentAlbum();
+
+    if (
+        preferCurrentAlbum
+        && currentAlbum?.is_private
+        && !privateAlbums.some(album => album.id === selectedPrivateAlbumId)
+    ) {
+        selectedPrivateAlbumId = currentAlbum.id;
+    }
+
+    if (!privateAlbums.some(album => album.id === selectedPrivateAlbumId)) {
+        selectedPrivateAlbumId = privateAlbums[0]?.id || null;
+    }
+
+    persistSelectedPrivateAlbum();
 }
 
 function destroyHlsInstance() {
@@ -153,90 +227,149 @@ function attachTrackSource(trackId) {
     return Promise.reject(new Error("No playable source found"));
 }
 
-// Render albumi
 function renderAlbums() {
+    if (!albumListEl) {
+        return;
+    }
+
     albumListEl.innerHTML = "";
-    albums.forEach(a => {
+    albums.forEach(album => {
         const div = document.createElement("div");
-        const albumNameInfo = getAlbumDisplayInfo(a["name"]);
-        div.textContent = albumNameInfo.displayName || a["name"];
-        div.className = "album-item" + (a["name"]===currentAlbum?" active":"");
+        const albumNameInfo = getAlbumDisplayInfo(album.name);
+        div.className = "album-item" + (getAlbumKey(album) === currentAlbumKey ? " active" : "");
+
         if (albumNameInfo.hasSeparator) {
             div.classList.add("album-item-after-separator");
         }
+
+        if (album.is_private) {
+            div.classList.add("album-item-private");
+            div.innerHTML = `${albumNameInfo.displayName || album.name}<span class="album-item-private-badge">Moj album</span>`;
+        } else {
+            div.textContent = albumNameInfo.displayName || album.name;
+        }
+
         div.onclick = () => {
             div.style.transform = "scale(0.95)";
-            setTimeout(() => div.style.transform = "scale(1)", 100);
-            loadAlbum(a);
+            setTimeout(() => {
+                div.style.transform = "scale(1)";
+            }, 100);
+            loadAlbum(album);
         };
         albumListEl.appendChild(div);
     });
 }
 
-// Load album
-function loadAlbum(album) {
-    currentAlbum = album["name"];
-    localStorage.setItem("album", currentAlbum);
-    currentSongs = album["songs"];
-    renderAlbums();
+function buildTrackHtml(songId) {
+    const trackMetadata = getTrackMetadata(songId);
+    const title = trackMetadata.title || songId.split("/").slice(-1)[0];
+    const artist = trackMetadata.artist || "";
+    const album = trackMetadata.album || "";
+    const albumInfo = getAlbumDisplayInfo(album);
 
-    if (currentSongs.length === 0) {
-        trackListEl.innerHTML = "<i style='color: #999; padding: 20px; text-align: center;'>Ni pesmi v tej zbirki.</i>";
-        nowPlayingTitle.textContent = "Ni izbrane pesmi";
-        nowPlayingArtist.textContent = "";
-        nowPlayingAlbum.textContent = "";
-        audio.src = "";
-        albumCover.style.opacity = "0.5";
-        return;
-    } else if (!currentSongs.includes(currentTrack)) {
-        currentTrack = currentSongs[Math.floor(Math.random() * currentSongs.length)];
+    if (isRadioStoriesPage) {
+        const duration = trackMetadata.duration || 0;
+        const artistPrefix = artist ? `${artist} : ` : "";
+        return `<span class="track-main">${artistPrefix}<b>${title}</b></span><span class="track-duration">${formatTime(duration)}</span>`;
     }
-    currentIndex = currentSongs.indexOf(currentTrack);
+
+    const albumClass = albumInfo.hasSeparator ? "album-after-separator" : "";
+    return `<i class="${albumClass}">${albumInfo.displayName}</i> : ${artist} : <b>${title}</b>`;
+}
+
+function renderTrackCollection(songIds, useOriginalIndex) {
+    if (!trackListEl) {
+        return;
+    }
 
     trackListEl.innerHTML = "";
-    currentSongs.forEach((s, i) => {
+    songIds.forEach((songId, idx) => {
         const div = document.createElement("div");
-        const trackMetadata = music_metadata[s] || {};
-        const title = trackMetadata["title"] || s.split('/').slice(-1)[0];
-        const artist = trackMetadata["artist"] || "";
-        const album = trackMetadata["album"] || "";
-        const albumInfo = getAlbumDisplayInfo(album);
-        // If this page is radio-stories, don't show album/genre; show duration instead
-        let innerHtml;
-        if (isRadioStoriesPage) {
-            const dur = trackMetadata["duration"] || 0;
-            const artistPrefix = artist ? `${artist} : ` : "";
-            innerHtml = `<span class="track-main">${artistPrefix}<b>${title}</b></span><span class="track-duration">${formatTime(dur)}</span>`;
-        } else {
-            const albumClass = albumInfo.hasSeparator
-                ? "album-after-separator"
-                : "";
-            innerHtml = `<i class="${albumClass}">${albumInfo.displayName}</i> : ${artist} : <b>${title}</b>`;
-        }
-        div.innerHTML = innerHtml;
+        div.innerHTML = buildTrackHtml(songId);
+        div.className = "track-item" + (songId === currentTrack ? " active" : "");
 
-        div.className = "track-item" + (s===currentTrack?" active":"");
         if (isRadioStoriesPage) {
             div.classList.add("radio-track-item");
         }
 
+        const playIndex = useOriginalIndex ? currentSongs.indexOf(songId) : idx;
         div.onclick = () => {
             div.style.transform = "scale(0.98)";
-            setTimeout(() => div.style.transform = "scale(1)", 100);
-            playTrack(i);
+            setTimeout(() => {
+                div.style.transform = "scale(1)";
+            }, 100);
+            playTrack(playIndex);
         };
         trackListEl.appendChild(div);
     });
     scrollToActiveTrack();
+}
+
+function renderCurrentAlbumTracks() {
+    if (!currentSongs.length) {
+        trackListEl.innerHTML = "<i style='color: #999; padding: 20px; text-align: center;'>Ni pesmi v tej zbirki.</i>";
+        return;
+    }
+    if (searchInput?.value) {
+        filterSongs();
+        return;
+    }
+    renderTrackCollection(currentSongs, false);
+}
+
+function resetNowPlayingState() {
+    nowPlayingTitle.textContent = isRadioStoriesPage ? "Ni izbrane zgodbe" : "Ni izbrane pesmi";
+    nowPlayingArtist.textContent = "";
+    nowPlayingAlbum.textContent = "";
+    audio.removeAttribute("src");
+    audio.load();
+    albumCover.style.opacity = "0.5";
+}
+
+function loadAlbum(album, options = {}) {
+    if (!album) {
+        return;
+    }
+
+    currentAlbumKey = getAlbumKey(album);
+    localStorage.setItem("musicAlbumKey", currentAlbumKey);
+    localStorage.setItem("album", album.name);
+    currentSongs = [...(album.songs || [])];
+
+    if (!currentSongs.length) {
+        currentIndex = -1;
+        renderAlbums();
+        renderCurrentAlbumTracks();
+        updatePrivateAlbumControls({ preferCurrentAlbum: true });
+        resetNowPlayingState();
+        return;
+    }
+
+    if (!currentSongs.includes(currentTrack)) {
+        if (options.preserveCurrentTrackIfMissing) {
+            currentIndex = -1;
+        } else {
+            currentTrack = currentSongs[0];
+            currentIndex = 0;
+        }
+    } else {
+        currentIndex = currentSongs.indexOf(currentTrack);
+    }
+
+    renderAlbums();
+    renderCurrentAlbumTracks();
+    updatePrivateAlbumControls({ preferCurrentAlbum: true });
     albumCover.style.opacity = "1";
 }
 
-async function playTrack(i) {
-    if (isLoadingTrack) return; // Prepreči hkratne klice
+async function playTrack(index) {
+    if (isLoadingTrack || index < 0 || index >= currentSongs.length) {
+        return;
+    }
     isLoadingTrack = true;
 
-    currentIndex = i;
-    currentTrack = currentSongs[i];
+    currentIndex = index;
+    currentTrack = currentSongs[index];
     const trackMetadata = getTrackMetadata(currentTrack);
     const storedTrack = localStorage.getItem("track");
     const storedTime = parseFloat(localStorage.getItem("time") || 0);
@@ -247,12 +380,11 @@ async function playTrack(i) {
         localStorage.setItem("time", 0);
     }
 
-    const title = trackMetadata["title"] || currentTrack;
-    const artist = trackMetadata["artist"] || "";
-    const album = trackMetadata["album"] || "";
+    const title = trackMetadata.title || currentTrack;
+    const artist = trackMetadata.artist || "";
+    const album = trackMetadata.album || "";
     const albumInfo = getAlbumDisplayInfo(album);
 
-    // Animiraj spremembo teksta
     nowPlayingTitle.style.opacity = "0.7";
     nowPlayingArtist.style.opacity = "0.7";
     nowPlayingAlbum.style.opacity = "0.7";
@@ -261,25 +393,17 @@ async function playTrack(i) {
         nowPlayingTitle.textContent = title;
         nowPlayingArtist.textContent = artist;
         nowPlayingAlbum.textContent = albumInfo.displayName;
-        nowPlayingAlbum.classList.toggle(
-            "has-separator",
-            albumInfo.hasSeparator
-        );
-
+        nowPlayingAlbum.classList.toggle("has-separator", albumInfo.hasSeparator);
         nowPlayingTitle.style.transition = "opacity 0.3s ease";
         nowPlayingArtist.style.transition = "opacity 0.3s ease";
         nowPlayingAlbum.style.transition = "opacity 0.3s ease";
-
         nowPlayingTitle.style.opacity = "1";
         nowPlayingArtist.style.opacity = "1";
         nowPlayingAlbum.style.opacity = "1";
     }, 150);
 
-    // Animiraj album cover
     albumCover.style.transform = "scale(1)";
     albumCover.style.transition = "transform 0.3s ease";
-
-    // Posodobimo Media Session
     updateMediaSession(title, artist, albumInfo.displayName);
 
     try {
@@ -292,42 +416,39 @@ async function playTrack(i) {
     }
 
     const playPromise = audio.play();
-
     if (playPromise !== undefined) {
         playPromise
-        .then(_ => {
-            updatePlayBtn("true");
-            isLoadingTrack = false;
-        })
-        .catch(error => {
-            // AbortError je normalen, če uporabnik hitro klika "Next"
-            if (error.name !== "AbortError") {
-                console.error("Napaka pri predvajanju:", error);
-                updatePlayBtn("false");
-            }
-            isLoadingTrack = false;
-        });
+            .then(() => {
+                updatePlayBtn("true");
+                isLoadingTrack = false;
+            })
+            .catch(error => {
+                if (error.name !== "AbortError") {
+                    console.error("Napaka pri predvajanju:", error);
+                    updatePlayBtn("false");
+                }
+                isLoadingTrack = false;
+            });
     }
 
     highlightTrack();
     scrollToActiveTrack();
+    updatePrivateAlbumControls();
 }
 
-// Ločena funkcija za Media Session (da je koda bolj čista)
 function updateMediaSession(title, artist, album) {
     if ("mediaSession" in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata({
-            title: title,
+            title,
             artist: artist || "Neznan izvajalec",
             album: album || "",
             artwork: [
                 { src: "/static/logo.png", sizes: "96x96", type: "image/png" },
                 { src: "/static/logo.png", sizes: "128x128", type: "image/png" },
                 { src: "/static/logo.png", sizes: "512x512", type: "image/png" },
-            ]
+            ],
         });
 
-        // Kontrole
         navigator.mediaSession.setActionHandler("play", () => {
             audio.play();
             updatePlayBtn("true");
@@ -338,11 +459,10 @@ function updateMediaSession(title, artist, album) {
         });
         navigator.mediaSession.setActionHandler("previoustrack", prev);
         navigator.mediaSession.setActionHandler("nexttrack", next);
-
-        navigator.mediaSession.setActionHandler("seekto", (details) => {
-            if (details.fastSeek && 'fastSeek' in audio) {
-              audio.fastSeek(details.seekTime);
-              return;
+        navigator.mediaSession.setActionHandler("seekto", details => {
+            if (details.fastSeek && "fastSeek" in audio) {
+                audio.fastSeek(details.seekTime);
+                return;
             }
             audio.currentTime = details.seekTime;
             updatePositionState();
@@ -350,98 +470,90 @@ function updateMediaSession(title, artist, album) {
     }
 }
 
-// Helper funkcija za posodobitev position state
 function updatePositionState() {
-    if ("mediaSession" in navigator && !isNaN(audio.duration)) {
+    if ("mediaSession" in navigator && !Number.isNaN(audio.duration)) {
         try {
             navigator.mediaSession.setPositionState({
                 duration: audio.duration,
                 playbackRate: audio.playbackRate,
-                position: audio.currentTime
+                position: audio.currentTime,
             });
-        } catch(e) {
-            // Ignoriraj napake, če metadata še ni naložen
+        } catch (_error) {
         }
     }
 }
 
-
 function highlightTrack() {
-    document.querySelectorAll(".track-item").forEach((t, idx) => {
-        const wasActive = t.classList.contains("active");
-        const isActive = idx === currentIndex;
+    const activeSongs = searchInput?.value ? filteredSongs : currentSongs;
+    document.querySelectorAll(".track-item").forEach((trackEl, index) => {
+        const songId = activeSongs[index];
+        const wasActive = trackEl.classList.contains("active");
+        const isActive = songId === currentTrack;
 
         if (isActive && !wasActive) {
-            // Prehod iz ne-aktivnega v aktivnega
-            t.style.transition = "all 0.3s ease";
+            trackEl.style.transition = "all 0.3s ease";
         }
-        t.classList.toggle("active", isActive);
+        trackEl.classList.toggle("active", isActive);
     });
 }
 
 function scrollToActiveTrack() {
     const active = document.querySelector(".track-item.active");
-    if(active) active.scrollIntoView({behavior:"smooth", block:"center"});
+    if (active) {
+        active.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
 }
 
-// Controls
 function togglePlay() {
+    if (!audio.getAttribute("src") && currentSongs.length) {
+        playTrack(currentIndex >= 0 ? currentIndex : 0);
+        return;
+    }
+
     if (audio.paused) {
         const playPromise = audio.play();
         if (playPromise !== undefined) {
             playPromise.then(() => {
                 updatePlayBtn("true");
                 playBtn.style.transform = "scale(0.95)";
-                setTimeout(() => playBtn.style.transform = "scale(1)", 150);
+                setTimeout(() => {
+                    playBtn.style.transform = "scale(1)";
+                }, 150);
             });
         }
     } else {
         audio.pause();
         updatePlayBtn("false");
         playBtn.style.transform = "scale(0.95)";
-        setTimeout(() => playBtn.style.transform = "scale(1)", 150);
+        setTimeout(() => {
+            playBtn.style.transform = "scale(1)";
+        }, 150);
     }
 }
 
 function next() {
-    if (randomMode) playTrack(Math.floor(Math.random() * currentSongs.length));
-    else if (currentIndex < currentSongs.length - 1) playTrack(currentIndex + 1);
+    if (!currentSongs.length) {
+        return;
+    }
+    if (randomMode) {
+        playTrack(Math.floor(Math.random() * currentSongs.length));
+        return;
+    }
+    if (currentIndex === -1) {
+        playTrack(0);
+        return;
+    }
+    if (currentIndex < currentSongs.length - 1) {
+        playTrack(currentIndex + 1);
+    }
 }
 
 function prev() {
-    // Če pesem igra že več kot 3 sekunde, jo samo resetiraj na začetek
     if (audio.currentTime > 3) {
         audio.currentTime = 0;
-    }
-    // Sicer pojdi na prejšnjo
-    else if (currentIndex > 0) {
+    } else if (currentIndex > 0) {
         playTrack(currentIndex - 1);
     }
-}
-
-const shuffleBtn = document.getElementById("shuffleBtn");
-let randomMode = JSON.parse(localStorage.getItem("random") || "false");
-const shuffleIcon = document.getElementById("shuffleIcon");
-
-const playBtn = document.getElementById("playBtn");
-const playIcon = document.getElementById("playIcon");
-
-// Posodobimo gumb ob zagonu
-updateShuffleBtn();
-updatePlayBtn("false");
-
-// Toggle random
-function toggleRandom() {
-    randomMode = !randomMode;
-    localStorage.setItem("random", randomMode);
-    updateShuffleBtn();
-
-    // Animiraj gumb
-    shuffleBtn.style.transform = "rotate(360deg) scale(1.15)";
-    setTimeout(() => {
-        shuffleBtn.style.transition = "transform 0.4s ease";
-        shuffleBtn.style.transform = "rotate(0deg) scale(1)";
-    }, 50);
 }
 
 function updateShuffleBtn() {
@@ -455,52 +567,47 @@ function updateShuffleBtn() {
 }
 
 function updatePlayBtn(playMode) {
-    if (playMode == "true") {
+    if (playMode === "true") {
         playBtn.classList.add("active");
         playIcon.className = "bi bi-pause-fill";
-        playBtn.style.transition = "all 0.3s ease";
     } else {
         playBtn.classList.remove("active");
         playIcon.className = "bi bi-play-fill";
-        playBtn.style.transition = "all 0.3s ease";
     }
+    playBtn.style.transition = "all 0.3s ease";
 }
 
-// Audio update
-audio.ontimeupdate = () => {
-    if (audio.duration) {
-        progress.value = audio.currentTime;
-        localStorage.setItem("time", audio.currentTime);
-        timeDisplay.textContent = formatTime(audio.currentTime) + " / " + formatTime(audio.duration);
-        updatePositionState();
-    }
-};
+function toggleRandom() {
+    randomMode = !randomMode;
+    localStorage.setItem("random", randomMode);
+    updateShuffleBtn();
 
-// Update visual background of the range to show played portion
+    shuffleBtn.style.transform = "rotate(360deg) scale(1.15)";
+    setTimeout(() => {
+        shuffleBtn.style.transition = "transform 0.4s ease";
+        shuffleBtn.style.transform = "rotate(0deg) scale(1)";
+    }, 50);
+}
+
 function updateSeekBarBackground() {
     try {
         const max = parseFloat(progress.max) || 1;
-        const val = parseFloat(progress.value) || 0;
-        const pct = Math.max(0, Math.min(100, (val / max) * 100));
-        // left colored, right grey
+        const value = parseFloat(progress.value) || 0;
+        const pct = Math.max(0, Math.min(100, (value / max) * 100));
         progress.style.background = `linear-gradient(90deg, var(--vijolicna) ${pct}%, lightgray ${pct}% )`;
-    } catch (e) {
-        // ignore
+    } catch (_error) {
     }
 }
 
-// ensure background updates during playback and when user drags
 audio.ontimeupdate = () => {
     if (audio.duration) {
         progress.value = audio.currentTime;
         localStorage.setItem("time", audio.currentTime);
-        timeDisplay.textContent = formatTime(audio.currentTime) + " / " + formatTime(audio.duration);
+        timeDisplay.textContent = `${formatTime(audio.currentTime)} / ${formatTime(audio.duration)}`;
         updatePositionState();
         updateSeekBarBackground();
     }
 };
-
-
 
 progress.addEventListener("input", () => {
     audio.currentTime = progress.value;
@@ -508,15 +615,13 @@ progress.addEventListener("input", () => {
     updateSeekBarBackground();
 });
 
-// update on metadata load (set max) and immediately refresh background
 audio.onloadedmetadata = () => {
     progress.max = Number.isFinite(audio.duration) ? audio.duration : 0;
     try {
         if (pendingRestoreTime > 0) {
             audio.currentTime = pendingRestoreTime;
         }
-    } catch (e) {
-        // ignore
+    } catch (_error) {
     }
     pendingRestoreTime = 0;
     updateSeekBarBackground();
@@ -532,26 +637,36 @@ audio.addEventListener("pause", () => {
     albumCover.style.animation = "none";
 });
 
-function formatTime(s) {
-    s = Math.floor(s);
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    return m + ":" + sec.toString().padStart(2, "0");
+audio.addEventListener("waiting", () => {
+    albumCover.style.opacity = "0.6";
+});
+
+audio.addEventListener("playing", () => {
+    albumCover.style.opacity = "1";
+});
+
+audio.addEventListener("emptied", () => {
+    updatePlayBtn("false");
+});
+
+function formatTime(seconds) {
+    const totalSeconds = Math.floor(seconds);
+    const minutes = Math.floor(totalSeconds / 60);
+    const remainingSeconds = totalSeconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 }
 
 function izbrisiPesem() {
-    const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     if (confirm("Res želiš izbrisati to pesem?")) {
-        const deleteBase = window.MEDIA_DELETE_BASE || '/music/delete/';
+        const deleteBase = window.MEDIA_DELETE_BASE || "/music/delete/";
         const trackMetadata = getTrackMetadata(currentTrack);
         const deletePath = trackMetadata.delete_path || currentTrack;
         fetch(deleteBase + encodeMediaPath(deletePath), {
-            method: 'DELETE',
+            method: "DELETE",
             headers: {
-                'X-CSRFToken': token
-            }
-        })
-        .then(response => {
+                "X-CSRFToken": csrfToken,
+            },
+        }).then(response => {
             if (response.ok) {
                 next();
             } else {
@@ -561,198 +676,405 @@ function izbrisiPesem() {
     }
 }
 
-audio.addEventListener('waiting', () => {
-    console.log("Audio se nalaga...");
-    albumCover.style.opacity = "0.6";
-});
+function syncPrivateAlbums(nextPrivateAlbums, options = {}) {
+    privateAlbums = (nextPrivateAlbums || []).map(album => ({ ...album, is_private: true }));
+    albums = [...privateAlbums, ...publicAlbums];
+    ensureSelectedPrivateAlbum({ preferCurrentAlbum: options.preferCurrentAlbum });
+    renderAlbums();
+    renderPrivateAlbumManager();
+    updatePrivateAlbumControls();
 
-audio.addEventListener('playing', () => {
-    console.log("Audio igra.");
-    albumCover.style.opacity = "1";
-});
-
-audio.addEventListener('emptied', () => {
-    updatePlayBtn("false");
-});
-
-let initialAlbum = albums[0];
-albums.forEach(a => {
-    if (a["name"] === currentAlbum) {
-        initialAlbum = a;
+    if (options.reloadCurrentAlbum === false) {
+        return;
     }
-});
 
-// Initialize
-loadAlbum(initialAlbum);
-if (currentSongs.length > 0) playTrack(currentIndex || 0);
-
-// ======== ISKANJE ========
-const searchInput = document.getElementById("searchInput");
-let filteredSongs = [];
-
-function filterSongs() {
-    const searchTerm = searchInput.value.toLowerCase();
-
-    if (!searchTerm) {
-        filteredSongs = currentSongs;
-    } else {
-        filteredSongs = currentSongs.filter(song => {
-            const metadata = music_metadata[song] || {};
-            const title = (metadata["title"] || "").toLowerCase();
-            const artist = (metadata["artist"] || "").toLowerCase();
-            const album = (metadata["album"] || "").toLowerCase();
-
-            return title.includes(searchTerm) ||
-                   artist.includes(searchTerm) ||
-                   album.includes(searchTerm);
+    const activeAlbum = findAlbumByKey(currentAlbumKey) || albums[0] || null;
+    if (activeAlbum) {
+        loadAlbum(activeAlbum, {
+            preserveCurrentTrackIfMissing: Boolean(options.preserveCurrentTrackIfMissing),
         });
+    } else {
+        resetNowPlayingState();
     }
-
-    renderFilteredTracks();
 }
 
-function renderFilteredTracks() {
-    trackListEl.innerHTML = "";
-    if (filteredSongs.length === 0) {
+async function requestPrivateAlbums(url, options = {}) {
+    const fetchOptions = {
+        method: options.method || "GET",
+        headers: {
+            Accept: "application/json",
+        },
+    };
+
+    if (fetchOptions.method !== "GET" && csrfToken) {
+        fetchOptions.headers["X-CSRFToken"] = csrfToken;
+    }
+    if (options.body !== undefined) {
+        fetchOptions.headers["Content-Type"] = "application/json";
+        fetchOptions.body = JSON.stringify(options.body);
+    }
+
+    const response = await fetch(url, fetchOptions);
+    let payload = {};
+    try {
+        payload = await response.json();
+    } catch (_error) {
+        payload = {};
+    }
+
+    if (!response.ok) {
+        throw new Error(payload.message || "Napaka pri posodobitvi privat albumov.");
+    }
+    return payload;
+}
+
+function renderPrivateAlbumManager() {
+    if (!privateAlbumsManagerList) {
+        return;
+    }
+
+    privateAlbumsManagerList.innerHTML = "";
+    if (!privateAlbums.length) {
+        privateAlbumsManagerList.innerHTML = "<div class='private-manager-empty'>Še nimaš privat albumov.</div>";
+        return;
+    }
+
+    privateAlbums.forEach(album => {
+        const row = document.createElement("div");
+        row.className = "private-manager-row";
+
+        const input = document.createElement("input");
+        input.type = "text";
+        input.className = "form-control";
+        input.maxLength = 80;
+        input.value = album.name;
+
+        const count = document.createElement("span");
+        count.className = "private-manager-count";
+        count.textContent = `${album.songs.length} pesmi`;
+
+        const saveBtn = document.createElement("button");
+        saveBtn.type = "button";
+        saveBtn.className = "btn btn-outline-secondary btn-sm";
+        saveBtn.textContent = "Preimenuj";
+        saveBtn.onclick = async () => {
+            const nextAlbumName = String(input.value || "").trim();
+
+            if (nextAlbumName === album.name) {
+                return;
+            }
+            if (
+                !confirm(
+                    `Res želiš preimenovati album \"${album.name}\" v \"${nextAlbumName}\"?`
+                )
+            ) {
+                return;
+            }
+
+            try {
+                const payload = await requestPrivateAlbums(`${privateAlbumsEndpoint}/${album.id}`, {
+                    method: "PATCH",
+                    body: { name: nextAlbumName },
+                });
+                syncPrivateAlbums(payload.albums, { reloadCurrentAlbum: false });
+            } catch (error) {
+                alert(error.message);
+            }
+        };
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "btn btn-outline-danger btn-sm";
+        deleteBtn.textContent = "Odstrani";
+        deleteBtn.onclick = async () => {
+            if (!confirm(`Res želiš odstraniti album \"${album.name}\"?`)) {
+                return;
+            }
+            try {
+                const payload = await requestPrivateAlbums(`${privateAlbumsEndpoint}/${album.id}`, {
+                    method: "DELETE",
+                });
+                syncPrivateAlbums(payload.albums, {
+                    preserveCurrentTrackIfMissing: true,
+                });
+            } catch (error) {
+                alert(error.message);
+            }
+        };
+
+        row.appendChild(input);
+        row.appendChild(count);
+        row.appendChild(saveBtn);
+        row.appendChild(deleteBtn);
+        privateAlbumsManagerList.appendChild(row);
+    });
+}
+
+function updatePrivateAlbumControls(options = {}) {
+    ensureSelectedPrivateAlbum(options);
+
+    if (
+        !privateAlbumAddControls
+        || !privateAlbumRemoveControls
+        || !privateAlbumSelect
+        || !addCurrentSongBtn
+        || !removeCurrentSongBtn
+    ) {
+        return;
+    }
+
+    privateAlbumSelect.innerHTML = "";
+    privateAlbums.forEach(album => {
+        const option = document.createElement("option");
+        option.value = album.id;
+        option.textContent = album.name;
+        privateAlbumSelect.appendChild(option);
+    });
+
+    privateAlbumSelect.disabled = privateAlbums.length === 0;
+    if (selectedPrivateAlbumId) {
+        privateAlbumSelect.value = selectedPrivateAlbumId;
+    }
+
+    const currentAlbum = getCurrentAlbum();
+    const isInsidePrivateAlbum = Boolean(currentAlbum?.is_private);
+    const canAddSong = Boolean(currentTrack && selectedPrivateAlbumId && !isInsidePrivateAlbum);
+    const canRemoveSong = Boolean(currentAlbum?.is_private && currentTrack);
+    const removeAlbumName = currentAlbum?.name || "tega albuma";
+
+    privateAlbumAddControls.hidden = isInsidePrivateAlbum;
+    privateAlbumRemoveControls.hidden = !currentAlbum?.is_private;
+    addCurrentSongBtn.disabled = !canAddSong;
+    removeCurrentSongBtn.disabled = !canRemoveSong;
+    removeCurrentSongBtn.textContent = `Odstrani pesem iz albuma: ${removeAlbumName}`;
+}
+
+async function addSongsToSelectedPrivateAlbum(songIds) {
+    if (!selectedPrivateAlbumId) {
+        alert("Najprej ustvari ali izberi privat album.");
+        return;
+    }
+
+    try {
+        const payload = await requestPrivateAlbums(`${privateAlbumsEndpoint}/${selectedPrivateAlbumId}/songs`, {
+            method: "POST",
+            body: { song_ids: songIds },
+        });
+        const currentAlbum = getCurrentAlbum();
+        const shouldReloadCurrentAlbum = currentAlbum?.is_private && currentAlbum.id === selectedPrivateAlbumId;
+        syncPrivateAlbums(payload.albums, {
+            reloadCurrentAlbum: shouldReloadCurrentAlbum,
+            preferCurrentAlbum: shouldReloadCurrentAlbum,
+        });
+    } catch (error) {
+        alert(error.message);
+    }
+}
+
+async function removeCurrentSongFromPrivateAlbum() {
+    const currentAlbum = getCurrentAlbum();
+    if (!currentAlbum?.is_private || !currentTrack) {
+        return;
+    }
+
+    const removedTrackIndex = currentIndex;
+
+    if (
+        !confirm(
+            `Res želiš odstraniti trenutno pesem iz albuma \"${currentAlbum.name}\"?`
+        )
+    ) {
+        return;
+    }
+
+    try {
+        const payload = await requestPrivateAlbums(`${privateAlbumsEndpoint}/${currentAlbum.id}/songs`, {
+            method: "DELETE",
+            body: { song_ids: [currentTrack] },
+        });
+        syncPrivateAlbums(payload.albums, {
+            preserveCurrentTrackIfMissing: true,
+            preferCurrentAlbum: true,
+        });
+
+        if (currentSongs.length > 0) {
+            const nextTrackIndex = Math.min(
+                Math.max(removedTrackIndex, 0),
+                currentSongs.length - 1
+            );
+            playTrack(nextTrackIndex);
+        }
+    } catch (error) {
+        alert(error.message);
+    }
+}
+
+function filterSongs() {
+    const searchTerm = (searchInput?.value || "").toLowerCase();
+
+    if (!searchTerm) {
+        filteredSongs = [...currentSongs];
+        renderTrackCollection(filteredSongs, true);
+        return;
+    }
+
+    filteredSongs = currentSongs.filter(songId => {
+        const metadata = musicMetadata[songId] || {};
+        const title = (metadata.title || "").toLowerCase();
+        const artist = (metadata.artist || "").toLowerCase();
+        const album = (metadata.album || "").toLowerCase();
+
+        return title.includes(searchTerm)
+            || artist.includes(searchTerm)
+            || album.includes(searchTerm);
+    });
+
+    if (!filteredSongs.length) {
         trackListEl.innerHTML = "<i style='color: #999; padding: 20px; text-align: center;'>Ni rezultatov iskanja.</i>";
         return;
     }
 
-    filteredSongs.forEach((s, idx) => {
-        const div = document.createElement("div");
-        const trackMetadata = music_metadata[s] || {};
-        const title = trackMetadata["title"] || s.split('/').slice(-1)[0];
-        const artist = trackMetadata["artist"] || "";
-        const album = trackMetadata["album"] || "";
-        const albumInfo = getAlbumDisplayInfo(album);
-        if (isRadioStoriesPage) {
-            const dur = trackMetadata["duration"] || 0;
-            const artistPrefix = artist ? `${artist} : ` : "";
-            div.innerHTML = `<span class="track-main">${artistPrefix}<b>${title}</b></span><span class="track-duration">${formatTime(dur)}</span>`;
-        } else {
-            const albumClass = albumInfo.hasSeparator
-                ? "album-after-separator"
-                : "";
-            div.innerHTML = `<i class="${albumClass}">${albumInfo.displayName}</i> : ${artist} : <b>${title}</b>`;
-        }
-
-        div.className = "track-item" + (s === currentTrack ? " active" : "");
-        if (isRadioStoriesPage) {
-            div.classList.add("radio-track-item");
-        }
-        div.style.opacity = "0";
-        div.style.animation = "fadeIn 0.3s ease forwards";
-        div.style.animationDelay = (idx * 0.03) + "s";
-
-        div.onclick = () => {
-            // Najdi indeks v originalnem currentSongs polju
-            const originalIndex = currentSongs.indexOf(s);
-            playTrack(originalIndex);
-        };
-        trackListEl.appendChild(div);
-    });
-    scrollToActiveTrack();
+    renderTrackCollection(filteredSongs, true);
 }
 
-searchInput.addEventListener("input", filterSongs);
+if (privateAlbumSelect) {
+    privateAlbumSelect.addEventListener("change", () => {
+        selectedPrivateAlbumId = privateAlbumSelect.value || null;
+        persistSelectedPrivateAlbum();
+        updatePrivateAlbumControls();
+    });
+}
 
-// ===== MOBILE TOGGLE FUNCTIONALITY =====
+if (addCurrentSongBtn) {
+    addCurrentSongBtn.addEventListener("click", () => {
+        if (currentTrack) {
+            addSongsToSelectedPrivateAlbum([currentTrack]);
+        }
+    });
+}
+
+if (removeCurrentSongBtn) {
+    removeCurrentSongBtn.addEventListener("click", removeCurrentSongFromPrivateAlbum);
+}
+
+if (newPrivateAlbumForm) {
+    newPrivateAlbumForm.addEventListener("submit", async event => {
+        event.preventDefault();
+        try {
+            const payload = await requestPrivateAlbums(privateAlbumsEndpoint, {
+                method: "POST",
+                body: { name: newPrivateAlbumNameInput?.value || "" },
+            });
+            selectedPrivateAlbumId = payload.album?.id || selectedPrivateAlbumId;
+            persistSelectedPrivateAlbum();
+            syncPrivateAlbums(payload.albums, { reloadCurrentAlbum: false });
+            if (newPrivateAlbumNameInput) {
+                newPrivateAlbumNameInput.value = "";
+            }
+            updatePrivateAlbumControls();
+        } catch (error) {
+            alert(error.message);
+        }
+    });
+}
+
 function initializeBrowserToggle() {
-    console.log("initializeBrowserToggle called");
-
     const albumsSection = document.getElementById("albums");
     const tracksSection = document.getElementById("tracks");
     const toggleButtons = document.querySelectorAll(".toggle-btn");
 
-    console.log("Elements found:", {
-        albumsSection: !!albumsSection,
-        tracksSection: !!tracksSection,
-        toggleButtonsCount: toggleButtons.length
-    });
-
-    // Preverka je browser v mobilnem modu
-    const isMobile = window.innerWidth <= 768;
-
     if (!albumsSection || !tracksSection) {
-        console.error("Album or tracks section not found");
         return;
     }
 
     function switchView(target) {
-        if (isRadioStoriesPage && target === "albums") {
-            target = "tracks";
-        }
-        console.log("switchView called with target:", target, "Mobile:", isMobile);
+        const nextTarget = isRadioStoriesPage && target === "albums" ? "tracks" : target;
 
         toggleButtons.forEach(btn => {
-            console.log("Processing button with data-target:", btn.dataset.target);
-            btn.classList.remove("active");
-            if (btn.dataset.target === target) {
-                btn.classList.add("active");
-            }
+            btn.classList.toggle("active", btn.dataset.target === nextTarget);
         });
 
-        if (target === "albums") {
+        if (nextTarget === "albums") {
             albumsSection.classList.add("active");
             tracksSection.classList.remove("active");
-            console.log("Showing albums");
         } else {
             tracksSection.classList.add("active");
             albumsSection.classList.remove("active");
-            console.log("Showing tracks");
         }
 
-        // Spremi preference v localStorage
-        localStorage.setItem("musicBrowserTab", target);
+        localStorage.setItem("musicBrowserTab", nextTarget);
     }
 
-    // Postavi event listenerjee na toggle gumbe
-    console.log("Setting up click handlers for", toggleButtons.length, "buttons");
-    toggleButtons.forEach((btn, index) => {
-        console.log("Setting click handler on button", index, "with data-target:", btn.dataset.target);
-        btn.addEventListener("click", (e) => {
-            console.log("Toggle button clicked:", btn.dataset.target);
-            e.preventDefault();
-            e.stopPropagation();
+    toggleButtons.forEach(btn => {
+        btn.addEventListener("click", event => {
+            event.preventDefault();
+            event.stopPropagation();
             switchView(btn.dataset.target);
         });
     });
 
-    // Napolni prejšnjo izbiro ali privzeto zavihek; radio stories vedno odpre "tracks"
     const defaultTab = isRadioStoriesPage ? "tracks" : "albums";
     const savedTabRaw = localStorage.getItem("musicBrowserTab");
-    const savedTab = (savedTabRaw === "albums" || savedTabRaw === "tracks") ? savedTabRaw : defaultTab;
-    const initialTab = isRadioStoriesPage ? "tracks" : savedTab;
-    console.log("Initializing with tab:", initialTab, "default:", defaultTab);
-    switchView(initialTab);
+    const savedTab =
+        savedTabRaw === "albums" || savedTabRaw === "tracks"
+            ? savedTabRaw
+            : defaultTab;
+    switchView(isRadioStoriesPage ? "tracks" : savedTab);
 
-    // Dodaj event listener za orientationchange
     window.addEventListener("orientationchange", () => {
-        console.log("Orientation changed");
-        setTimeout(() => {
-            const tab = localStorage.getItem("musicBrowserTab");
-            const nextTab = isRadioStoriesPage
+        const savedTab = localStorage.getItem("musicBrowserTab");
+        const nextTab =
+            isRadioStoriesPage
                 ? "tracks"
-                : ((tab === "albums" || tab === "tracks") ? tab : defaultTab);
+                : savedTab === "albums" || savedTab === "tracks"
+                    ? savedTab
+                    : defaultTab;
+        setTimeout(() => {
             switchView(nextTab);
         }, 200);
     });
 }
 
-// Kliči funkcijo ko je DOM pripravljen - z agresivnim timouttom
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => {
-        console.log("DOMContentLoaded fired");
-        initializeBrowserToggle();
-    });
+updateShuffleBtn();
+updatePlayBtn("false");
+ensureSelectedPrivateAlbum();
+renderPrivateAlbumManager();
+
+let initialAlbum = albums[0] || null;
+const legacyAlbumName = localStorage.getItem("album") || "Vse";
+if (!currentAlbumKey && legacyAlbumName) {
+    initialAlbum = albums.find(album => album.name === legacyAlbumName) || initialAlbum;
+    currentAlbumKey = getAlbumKey(initialAlbum);
+}
+if (currentAlbumKey) {
+    initialAlbum = findAlbumByKey(currentAlbumKey) || initialAlbum;
+}
+
+if (initialAlbum) {
+    loadAlbum(initialAlbum, { preserveCurrentTrackIfMissing: true });
+    if (currentSongs.length > 0) {
+        const initialIndex = currentSongs.includes(currentTrack)
+            ? currentSongs.indexOf(currentTrack)
+            : currentIndex >= 0
+                ? currentIndex
+                : 0;
+        playTrack(initialIndex);
+    }
 } else {
-    console.log("Document already loaded");
+    resetNowPlayingState();
+}
+
+if (searchInput) {
+    searchInput.addEventListener("input", filterSongs);
+}
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initializeBrowserToggle);
+} else {
     initializeBrowserToggle();
 }
 
-// Tudi pri load
 window.addEventListener("load", () => {
-    console.log("Window load fired");
     setTimeout(() => {
         initializeBrowserToggle();
     }, 100);

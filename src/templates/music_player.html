@@ -14,9 +14,15 @@
                 Pesmi</h3></button>
         </div>
         <div id="albums" class="albums-section">
-            <div class="section-header">
-                <i class="bi bi-disc"></i>
-                <h2>Albumi</h2>
+            <div class="section-header albums-header">
+                <div class="section-header-title">
+                    <i class="bi bi-disc"></i>
+                    <h2>Albumi</h2>
+                </div>
+                <button id="managePrivateAlbumsBtn" class="section-action-btn" type="button" title="Uredi privat albume" data-bs-toggle="modal" data-bs-target="#privateAlbumsModal">
+                    <i class="bi bi-pencil-square"></i>
+                    <span>Moji albumi</span>
+                </button>
             </div>
             <div id="albumList" class="album-list"></div>
         </div>
@@ -78,11 +84,44 @@
             </button>
             {% endif %}
         </div>
+
+        <div id="privateAlbumTools" class="private-tools">
+            <div class="private-tools-row">
+                <div id="privateAlbumAddControls" class="private-tools-row">
+                    <label for="privateAlbumSelect">Dodaj pesem v moj album:</label>
+                    <select id="privateAlbumSelect" class="private-tools-select"></select>
+                    <button id="addCurrentSongBtn" class="private-tools-btn" type="button">Dodaj pesem v album</button>
+                </div>
+                <div id="privateAlbumRemoveControls" class="private-tools-row" hidden>
+                    <button id="removeCurrentSongBtn" class="private-tools-btn private-tools-btn-danger" type="button">Odstrani pesem iz tega albuma</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="privateAlbumsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content private-modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Privat albumi</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Zapri"></button>
+            </div>
+            <div class="modal-body">
+                <p class="private-modal-note">Največ {{ max_private_albums }} albumov na uporabnika. Tu urejaš seznam in imena.</p>
+                <form id="newPrivateAlbumForm" class="private-album-new-form">
+                    <input id="newPrivateAlbumName" type="text" maxlength="80" placeholder="Novo ime albuma" class="form-control">
+                    <button class="btn btn-warning" type="submit">Dodaj album</button>
+                </form>
+                <div id="privateAlbumsManagerList" class="private-manager-list"></div>
+            </div>
+        </div>
     </div>
 </div>
 
 <div id="albums-root" data-albums='{{ albums | tojson | safe }}'></div>
 <div id="metadata-root" data-music='{{ music_metadata | tojson | safe }}'></div>
+<div id="music-config-root" data-private-albums='{{ private_albums | tojson | safe }}' data-private-albums-max="{{ max_private_albums }}" data-private-albums-endpoint="/music/private-albums"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
 <script>

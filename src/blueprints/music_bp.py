@@ -4,12 +4,15 @@ import os
 import shutil
 from pathlib import Path
 from urllib.parse import quote
+from uuid import uuid4
 
 from flask import (
     Blueprint,
     abort,
+    jsonify,
     make_response,
     render_template,
+    request,
     send_from_directory,
 )
 from flask_login import current_user, login_required
@@ -25,6 +28,8 @@ music_bp = Blueprint("music", __name__)
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MUSIC_ROOT = REPO_ROOT / "data" / "music"
 RADIO_STORIES_ROOT = REPO_ROOT / "data" / "radio-stories"
+PRIVATE_ALBUMS_ROOT = REPO_ROOT / "data" / "users-music-albums"
+MAX_PRIVATE_ALBUMS = 10
 
 PLAYABLE_AUDIO_EXTENSIONS = (".mp3", ".m4a", ".wav")
 HLS_PLAYLIST_NAMES = ("index.m3u8", "master.m3u8")
@@ -295,6 +300,134 @@ def _build_music_albums_and_metadata(root_dir):
     return album_entries, sorted_metadata
 
 
+def _normalize_music_view():
+    admin_view = is_current_admin_view(current_user)
+    visible_metadata = (
+        music_metadata
+        if admin_view
+        else {
+            key: value
+            for key, value in music_metadata.items()
+            if not value.get("only_admin")
+        }
+    )
+    visible_track_ids = set(visible_metadata.keys())
+    visible_albums = []
+
+    for album in music_albums:
+        if not admin_view and "Neurejen" in album["name"]:
+            continue
+
+        songs = [
+            track_id
+            for track_id in album["songs"]
+            if track_id in visible_track_ids
+        ]
+        if songs or album["name"] == "Vse":
+            visible_albums.append({"name": album["name"], "songs": songs})
+
+    return visible_albums, visible_metadata, visible_track_ids
+
+
+def _normalize_private_album_name(value):
+    return " ".join(str(value or "").split()).strip()
+
+
+def _private_albums_file(user_id):
+    safe_user_id = str(user_id).replace("/", "_").replace(os.sep, "_")
+    return PRIVATE_ALBUMS_ROOT / f"{safe_user_id}.json"
+
+
+def _load_private_album_store(user_id):
+    path = _private_albums_file(user_id)
+    if not path.exists():
+        return {"albums": []}
+
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except Exception as exc:
+        log.error("❌ Napaka pri branju privat albumov %s: %s", path, exc)
+        return {"albums": []}
+
+    if not isinstance(data, dict):
+        return {"albums": []}
+
+    albums = data.get("albums")
+    if not isinstance(albums, list):
+        albums = []
+    return {"albums": albums}
+
+
+def _save_private_album_store(user_id, store):
+    PRIVATE_ALBUMS_ROOT.mkdir(parents=True, exist_ok=True)
+    path = _private_albums_file(user_id)
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(store, handle, ensure_ascii=False, indent=2)
+
+
+def _filter_private_album_song_ids(song_ids, visible_track_ids):
+    filtered_song_ids = []
+    seen_track_ids = set()
+
+    for track_id in song_ids or []:
+        if not isinstance(track_id, str):
+            continue
+        if track_id not in visible_track_ids or track_id in seen_track_ids:
+            continue
+        filtered_song_ids.append(track_id)
+        seen_track_ids.add(track_id)
+
+    return filtered_song_ids
+
+
+def _serialize_private_albums(store, visible_track_ids):
+    serialized_albums = []
+    normalized_store = {"albums": []}
+    changed = False
+
+    for album in store.get("albums", []):
+        if not isinstance(album, dict):
+            changed = True
+            continue
+
+        album_id = str(album.get("id") or uuid4().hex[:12])
+        name = (
+            _normalize_private_album_name(album.get("name")) or "Privat album"
+        )
+        songs = _filter_private_album_song_ids(
+            album.get("songs", []), visible_track_ids
+        )
+
+        normalized_album = {"id": album_id, "name": name, "songs": songs}
+        if normalized_album != album:
+            changed = True
+
+        normalized_store["albums"].append(normalized_album)
+        serialized_albums.append({**normalized_album, "is_private": True})
+
+    return serialized_albums, normalized_store, changed
+
+
+def _find_private_album(store, album_id):
+    for album in store.get("albums", []):
+        if str(album.get("id")) == album_id:
+            return album
+    return None
+
+
+def _private_albums_payload(store, visible_track_ids, album_id=None):
+    albums, normalized_store, changed = _serialize_private_albums(
+        store, visible_track_ids
+    )
+    payload = {"albums": albums, "max_albums": MAX_PRIVATE_ALBUMS}
+    if album_id:
+        payload["album"] = next(
+            (album for album in albums if album["id"] == album_id), None
+        )
+    return payload, normalized_store, changed
+
+
 def _build_radio_stories_metadata(root_dir):
     tracks = _discover_media_library(
         root_dir,
@@ -329,23 +462,159 @@ STORIES_COUNT = len(radio_stories_files)
 @music_bp.route("/music")
 @login_required
 def music():
-    if not is_current_admin_view(current_user):
-        return render_template(
-            "music_player.html",
-            pagetitle="MarinKino - Glasba",
-            is_music=True,
-            albums=[a for a in music_albums if "Neurejen" not in a["name"]],
-            music_metadata={
-                k: v for k, v in music_metadata.items() if not v["only_admin"]
-            },
-        )
+    (
+        visible_albums,
+        visible_metadata,
+        visible_track_ids,
+    ) = _normalize_music_view()
+    private_album_store = _load_private_album_store(current_user.id)
+    private_albums, normalized_store, changed = _serialize_private_albums(
+        private_album_store, visible_track_ids
+    )
+
+    if changed:
+        _save_private_album_store(current_user.id, normalized_store)
+
     return render_template(
         "music_player.html",
         pagetitle="MarinKino - Glasba",
         is_music=True,
-        albums=music_albums,
-        music_metadata=music_metadata,
+        albums=private_albums + visible_albums,
+        private_albums=private_albums,
+        max_private_albums=MAX_PRIVATE_ALBUMS,
+        music_metadata=visible_metadata,
     )
+
+
+@music_bp.route("/music/private-albums", methods=["POST"])
+@login_required
+def create_private_album():
+    _, _, visible_track_ids = _normalize_music_view()
+    store = _load_private_album_store(current_user.id)
+    _, store, changed = _private_albums_payload(store, visible_track_ids)
+    if changed:
+        _save_private_album_store(current_user.id, store)
+
+    if len(store["albums"]) >= MAX_PRIVATE_ALBUMS:
+        return jsonify({"message": "Dosežena meja 10 privat albumov."}), 400
+
+    payload = request.get_json(silent=True) or {}
+    album_name = _normalize_private_album_name(payload.get("name"))
+    if not album_name:
+        return jsonify({"message": "Ime albuma je obvezno."}), 400
+
+    if any(
+        album["name"].lower() == album_name.lower()
+        for album in store["albums"]
+    ):
+        return jsonify({"message": "Album s tem imenom že obstaja."}), 400
+
+    album = {"id": uuid4().hex[:12], "name": album_name, "songs": []}
+    store["albums"].append(album)
+    _save_private_album_store(current_user.id, store)
+
+    response_payload, _, _ = _private_albums_payload(
+        store, visible_track_ids, album["id"]
+    )
+    response_payload["message"] = "Privat album ustvarjen."
+    return jsonify(response_payload), 201
+
+
+@music_bp.route(
+    "/music/private-albums/<album_id>", methods=["PATCH", "DELETE"]
+)
+@login_required
+def mutate_private_album(album_id):
+    _, _, visible_track_ids = _normalize_music_view()
+    store = _load_private_album_store(current_user.id)
+    _, store, changed = _private_albums_payload(store, visible_track_ids)
+    if changed:
+        _save_private_album_store(current_user.id, store)
+
+    album = _find_private_album(store, album_id)
+    if album is None:
+        return jsonify({"message": "Privat album ne obstaja."}), 404
+
+    if request.method == "DELETE":
+        store["albums"] = [
+            existing
+            for existing in store["albums"]
+            if existing["id"] != album_id
+        ]
+        _save_private_album_store(current_user.id, store)
+        response_payload, _, _ = _private_albums_payload(
+            store, visible_track_ids
+        )
+        response_payload["message"] = "Privat album odstranjen."
+        return jsonify(response_payload)
+
+    payload = request.get_json(silent=True) or {}
+    album_name = _normalize_private_album_name(payload.get("name"))
+    if not album_name:
+        return jsonify({"message": "Ime albuma je obvezno."}), 400
+
+    if any(
+        existing["id"] != album_id
+        and existing["name"].lower() == album_name.lower()
+        for existing in store["albums"]
+    ):
+        return jsonify({"message": "Album s tem imenom že obstaja."}), 400
+
+    album["name"] = album_name
+    _save_private_album_store(current_user.id, store)
+
+    response_payload, _, _ = _private_albums_payload(
+        store, visible_track_ids, album_id
+    )
+    response_payload["message"] = "Ime privat albuma posodobljeno."
+    return jsonify(response_payload)
+
+
+@music_bp.route(
+    "/music/private-albums/<album_id>/songs",
+    methods=["POST", "DELETE"],
+)
+@login_required
+def mutate_private_album_songs(album_id):
+    _, _, visible_track_ids = _normalize_music_view()
+    store = _load_private_album_store(current_user.id)
+    _, store, changed = _private_albums_payload(store, visible_track_ids)
+    if changed:
+        _save_private_album_store(current_user.id, store)
+
+    album = _find_private_album(store, album_id)
+    if album is None:
+        return jsonify({"message": "Privat album ne obstaja."}), 404
+
+    payload = request.get_json(silent=True) or {}
+    song_ids = _filter_private_album_song_ids(
+        payload.get("song_ids", []), visible_track_ids
+    )
+    if not song_ids:
+        return jsonify({"message": "Ni veljavnih pesmi za obdelavo."}), 400
+
+    if request.method == "POST":
+        existing_song_ids = set(album.get("songs", []))
+        for song_id in song_ids:
+            if song_id not in existing_song_ids:
+                album.setdefault("songs", []).append(song_id)
+                existing_song_ids.add(song_id)
+        message = "Pesmi dodane v privat album."
+    else:
+        song_ids_set = set(song_ids)
+        album["songs"] = [
+            song_id
+            for song_id in album.get("songs", [])
+            if song_id not in song_ids_set
+        ]
+        message = "Pesmi odstranjene iz privat albuma."
+
+    _save_private_album_store(current_user.id, store)
+    response_payload, _, _ = _private_albums_payload(
+        store, visible_track_ids, album_id
+    )
+    response_payload["message"] = message
+    return jsonify(response_payload)
 
 
 @music_bp.route("/radio-stories")

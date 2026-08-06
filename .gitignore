@@ -53,6 +53,7 @@ data/music/**/*.mp4
 data/music/**/*.json
 data/movies/users_comments.json
 data/blog_images
+data/users-music-albums/*.json
 tmp_download
 
 build/
