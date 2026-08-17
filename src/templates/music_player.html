@@ -28,11 +28,38 @@
         </div>
 
         <div id="tracks" class="tracks-section">
-            <div class="section-header">
-                <i class="bi bi-music-note-beamed"></i>
-                <h2>Pesmi</h2>
+            <div class="section-header tracks-header">
+                <div class="section-header-title">
+                    <i class="bi bi-music-note-beamed"></i>
+                    <h2>Pesmi</h2>
+                </div>
+                <button id="trackOptionsBtn" class="section-action-btn" type="button" title="Možnosti izbire pesmi" aria-expanded="false">
+                    <i class="bi bi-three-dots"></i>
+                    <span>Možnosti</span>
+                </button>
             </div>
             <input type="search" id="searchInput" placeholder="🔍 Iskanje po naslovu, izvajalcu..." class="search-input">
+            <div id="trackSelectionToolbar" class="track-selection-toolbar" hidden>
+                <button id="exitTrackSelectionBtn" class="track-selection-btn track-selection-btn-muted" type="button" title="Izhod iz izbire">
+                    <i class="bi bi-x-lg"></i>
+                    <span>Končaj</span>
+                </button>
+                <button id="selectAllTracksBtn" class="track-selection-btn" type="button">
+                    <i class="bi bi-check2-square"></i>
+                    <span>Izberi vse</span>
+                </button>
+                <label class="track-selection-target-label" for="selectionPrivateAlbumSelect">Album:</label>
+                <select id="selectionPrivateAlbumSelect" class="track-selection-target-select" aria-label="Album za dodajanje izbranih pesmi"></select>
+                <span id="selectedTracksCount" class="track-selection-count" aria-live="polite">0 izbranih</span>
+                <button id="addSelectedSongsBtn" class="track-selection-btn track-selection-btn-primary" type="button">
+                    <i class="bi bi-plus-circle"></i>
+                    <span>Dodaj izbrane</span>
+                </button>
+                <button id="removeSelectedSongsBtn" class="track-selection-btn track-selection-btn-danger" type="button" hidden>
+                    <i class="bi bi-trash"></i>
+                    <span>Odstrani izbrane</span>
+                </button>
+            </div>
             <div id="trackList" class="track-list"></div>
         </div>
     </div>

@@ -259,7 +259,14 @@ def download_playlist(playlist_url, get_video=False):
     return True
 
 
-for url in []:
+for url in [
+    "https://www.youtube.com/watch?list=PLBa4awb6kz5XYoBzXyc1qT4p5EsBxHe-i",
+    "https://www.youtube.com/watch?list=PLpTMQp9otNOVa2SCmKXsBeSgqYeXmYczU",
+    "https://www.youtube.com/watch?v=-dwKRmmlAvI",
+    "https://www.youtube.com/watch?v=IHwZ0Znet4Q",
+    "https://www.youtube.com/watch?list=RDEMmqjqF2WL3ksYMdM6wcIQng",
+    "https://www.youtube.com/watch?list=PL0GvsLQil0MmYC96KEs_7dTNsLm1PS6JX",
+]:
     download_playlist(url)
 
 

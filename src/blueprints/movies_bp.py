@@ -262,17 +262,26 @@ def index():
 
             for m in movies:
                 title = m["title"].lower()
-                original_title = m["original_title"].lower()
+                original_title = (
+                    m["original_title"].lower() if m["original_title"] else ""
+                )
+                description = (
+                    m["description"].lower() if m["description"] else ""
+                )
+                players = m["players"].lower() if m["players"] else ""
                 score = max(
                     fuzzy_match(search_query, title),
-                    (
-                        fuzzy_match(search_query, original_title)
-                        if original_title
-                        else 0
-                    ),
+                    fuzzy_match(search_query, original_title),
+                    fuzzy_match(search_query, players) * 0.8,
+                    fuzzy_match(search_query, description) * 0.5,
                 )
 
-                if search_query in title or search_query in original_title:
+                if (
+                    search_query in title
+                    or search_query in original_title
+                    or search_query in players
+                    or search_query in description
+                ):
                     score += 0.3
 
                 if score > 0.4:

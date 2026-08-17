@@ -215,7 +215,88 @@ html, body {
     padding: 10px 15px;
 }
 
+.tracks-header {
+    justify-content: space-between;
+}
+
+.track-selection-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 10px 15px;
+    background: #fff8ec;
+    border-bottom: 1px solid #ead9bb;
+}
+
+.track-selection-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 36px;
+    padding: 7px 11px;
+    border: 1px solid #d8c19a;
+    border-radius: 9px;
+    background: white;
+    color: #5d431d;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.track-selection-btn:hover:not(:disabled) {
+    background: #fff0d4;
+}
+
+.track-selection-btn-primary {
+    background: #5e8248;
+    border-color: #5e8248;
+    color: white;
+}
+
+.track-selection-btn-danger {
+    background: #b75242;
+    border-color: #b75242;
+    color: white;
+}
+
+.track-selection-btn-muted {
+    color: #6f6f6f;
+}
+
+.track-selection-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.track-selection-count {
+    margin-right: auto;
+    color: #74541f;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.track-selection-target-label {
+    color: #74541f;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.track-selection-target-select {
+    min-width: 160px;
+    max-width: 260px;
+    min-height: 36px;
+    padding: 7px 10px;
+    border: 1px solid #d8c19a;
+    border-radius: 9px;
+    background: white;
+    color: #5d431d;
+    font-size: 0.82rem;
+}
+
 .track-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     padding: 12px 15px;
     margin-bottom: 8px;
     cursor: pointer;
@@ -227,6 +308,49 @@ html, body {
     line-height: 1.4;
     opacity: 0;
     animation: fadeIn 0.3s ease forwards;
+}
+
+.track-item.selected {
+    background: #fff0d4;
+    border-color: #e5a93c;
+}
+
+.track-selection-checkbox {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: #5e8248;
+}
+
+.track-content {
+    min-width: 0;
+}
+
+@media (max-width: 640px) {
+    .track-selection-toolbar {
+        align-items: stretch;
+    }
+
+    .track-selection-btn {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+
+    .track-selection-count {
+        flex: 1 0 100%;
+        margin-right: 0;
+        text-align: center;
+    }
+
+    .track-selection-target-label {
+        align-self: center;
+    }
+
+    .track-selection-target-select {
+        flex: 1 1 180px;
+        max-width: none;
+    }
 }
 
 .track-item:hover {
@@ -667,6 +791,24 @@ html, body {
     }
     .section-header {
         display: none
+    }
+
+    .albums-section .section-header.albums-header {
+        display: flex !important;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 12px;
+        min-height: 52px;
+    }
+
+    .albums-section .section-header-title h2 {
+        font-size: 1rem;
+    }
+
+    .albums-section .section-action-btn {
+        padding: 6px 10px;
+        font-size: 0.8rem;
+        gap: 6px;
     }
 
     .toggle-btn {

@@ -16,6 +16,14 @@ const progress = document.getElementById("seekBar");
 const timeDisplay = document.getElementById("timeDisplay");
 const albumCover = document.querySelector(".album-cover");
 const searchInput = document.getElementById("searchInput");
+const trackOptionsBtn = document.getElementById("trackOptionsBtn");
+const trackSelectionToolbar = document.getElementById("trackSelectionToolbar");
+const exitTrackSelectionBtn = document.getElementById("exitTrackSelectionBtn");
+const selectAllTracksBtn = document.getElementById("selectAllTracksBtn");
+const selectionPrivateAlbumSelect = document.getElementById("selectionPrivateAlbumSelect");
+const selectedTracksCount = document.getElementById("selectedTracksCount");
+const addSelectedSongsBtn = document.getElementById("addSelectedSongsBtn");
+const removeSelectedSongsBtn = document.getElementById("removeSelectedSongsBtn");
 const privateAlbumAddControls = document.getElementById("privateAlbumAddControls");
 const privateAlbumRemoveControls = document.getElementById("privateAlbumRemoveControls");
 const privateAlbumSelect = document.getElementById("privateAlbumSelect");
@@ -44,10 +52,15 @@ let currentTime = parseFloat(localStorage.getItem("time") || 0);
 let currentSongs = [];
 let currentIndex = -1;
 let filteredSongs = [];
+let isTrackSelectionMode = false;
+const selectedSongIds = new Set();
 let selectedPrivateAlbumId = localStorage.getItem("musicPrivateAlbumTarget") || null;
 let isLoadingTrack = false;
 let pendingRestoreTime = currentTime;
 let hlsInstance = null;
+let nextPreloadAudio = null;
+let nextPreloadTrackId = null;
+let nextTransitionRetry = null;
 let randomMode = JSON.parse(localStorage.getItem("random") || "false");
 
 function parseJsonDataset(element, key, fallback) {
@@ -174,6 +187,57 @@ function resolveTrackSource(trackId) {
     };
 }
 
+function getNextTrackIndex() {
+    if (!currentSongs.length) {
+        return -1;
+    }
+    if (randomMode) {
+        if (currentSongs.length < 2) {
+            return currentIndex >= 0 ? currentIndex : 0;
+        }
+        let nextIndex = currentIndex;
+        while (nextIndex === currentIndex) {
+            nextIndex = Math.floor(Math.random() * currentSongs.length);
+        }
+        return nextIndex;
+    }
+    return currentIndex >= 0 && currentIndex < currentSongs.length - 1
+        ? currentIndex + 1
+        : -1;
+}
+
+function clearNextTrackPreload() {
+    if (nextPreloadAudio) {
+        nextPreloadAudio.pause();
+        nextPreloadAudio.removeAttribute("src");
+        nextPreloadAudio.load();
+    }
+    nextPreloadAudio = null;
+    nextPreloadTrackId = null;
+}
+
+function preloadNextTrack() {
+    clearNextTrackPreload();
+    const nextIndex = getNextTrackIndex();
+    if (nextIndex < 0) {
+        return;
+    }
+
+    const nextTrackId = currentSongs[nextIndex];
+    const source = resolveTrackSource(nextTrackId);
+    const preloadUrl = source.fileUrl
+        || (audio.canPlayType("application/vnd.apple.mpegurl") ? source.hlsUrl : null);
+    if (!preloadUrl) {
+        return;
+    }
+
+    nextPreloadAudio = new Audio();
+    nextPreloadAudio.preload = "auto";
+    nextPreloadAudio.src = preloadUrl;
+    nextPreloadTrackId = nextTrackId;
+    nextPreloadAudio.load();
+}
+
 function attachTrackSource(trackId) {
     const source = resolveTrackSource(trackId);
 
@@ -282,11 +346,32 @@ function renderTrackCollection(songIds, useOriginalIndex) {
         return;
     }
 
+    const displayedSongIds = getTrackIdsToDisplay(songIds);
     trackListEl.innerHTML = "";
-    songIds.forEach((songId, idx) => {
+    displayedSongIds.forEach((songId, idx) => {
         const div = document.createElement("div");
-        div.innerHTML = buildTrackHtml(songId);
         div.className = "track-item" + (songId === currentTrack ? " active" : "");
+
+        const isSelected = selectedSongIds.has(songId);
+        if (isTrackSelectionMode && isSelected) {
+            div.classList.add("selected");
+        }
+
+        if (isTrackSelectionMode) {
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.className = "track-selection-checkbox";
+            checkbox.checked = isSelected;
+            checkbox.setAttribute("aria-label", `Izberi pesem: ${songId}`);
+            checkbox.addEventListener("click", event => event.stopPropagation());
+            checkbox.addEventListener("change", () => toggleSongSelection(songId));
+            div.appendChild(checkbox);
+        }
+
+        const trackContent = document.createElement("span");
+        trackContent.className = "track-content";
+        trackContent.innerHTML = buildTrackHtml(songId);
+        div.appendChild(trackContent);
 
         if (isRadioStoriesPage) {
             div.classList.add("radio-track-item");
@@ -294,20 +379,164 @@ function renderTrackCollection(songIds, useOriginalIndex) {
 
         const playIndex = useOriginalIndex ? currentSongs.indexOf(songId) : idx;
         div.onclick = () => {
+            if (div.dataset.suppressClick === "true") {
+                delete div.dataset.suppressClick;
+                return;
+            }
+            if (isTrackSelectionMode) {
+                toggleSongSelection(songId);
+                return;
+            }
             div.style.transform = "scale(0.98)";
             setTimeout(() => {
                 div.style.transform = "scale(1)";
             }, 100);
             playTrack(playIndex);
         };
+        addTrackLongPressHandlers(div, songId);
         trackListEl.appendChild(div);
     });
+    updateTrackSelectionControls();
     scrollToActiveTrack();
+}
+
+function getVisibleTrackIds() {
+    return getTrackIdsToDisplay(searchInput?.value ? filteredSongs : currentSongs);
+}
+
+function getTrackIdsToDisplay(songIds) {
+    const currentAlbum = getCurrentAlbum();
+    const targetAlbum = privateAlbums.find(album => album.id === selectedPrivateAlbumId);
+    if (!targetAlbum || currentAlbum?.id === targetAlbum.id) {
+        return songIds;
+    }
+
+    const targetSongIds = new Set(targetAlbum.songs || []);
+    return songIds.filter(songId => !targetSongIds.has(songId));
+}
+
+function toggleSongSelection(songId) {
+    if (selectedSongIds.has(songId)) {
+        selectedSongIds.delete(songId);
+    } else {
+        selectedSongIds.add(songId);
+    }
+    const visibleSongs = getVisibleTrackIds();
+    renderTrackCollection(visibleSongs, Boolean(searchInput?.value));
+}
+
+function addTrackLongPressHandlers(element, songId) {
+    if (isRadioStoriesPage) {
+        return;
+    }
+
+    let longPressTimer = null;
+    let startX = 0;
+    let startY = 0;
+    let longPressTriggered = false;
+
+    const cancelLongPress = () => {
+        if (longPressTimer) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        }
+    };
+
+    element.addEventListener("pointerdown", event => {
+        if (event.button !== undefined && event.button !== 0) {
+            return;
+        }
+        startX = event.clientX;
+        startY = event.clientY;
+        longPressTriggered = false;
+        cancelLongPress();
+        longPressTimer = setTimeout(() => {
+            longPressTriggered = true;
+            if (!isTrackSelectionMode) {
+                enterTrackSelectionMode();
+            }
+            if (!selectedSongIds.has(songId)) {
+                selectedSongIds.add(songId);
+            }
+            const visibleSongs = getVisibleTrackIds();
+            renderTrackCollection(visibleSongs, Boolean(searchInput?.value));
+        }, 600);
+    });
+    element.addEventListener("pointermove", event => {
+        if (Math.hypot(event.clientX - startX, event.clientY - startY) > 10) {
+            cancelLongPress();
+        }
+    });
+    element.addEventListener("pointerup", event => {
+        cancelLongPress();
+        if (longPressTriggered) {
+            element.dataset.suppressClick = "true";
+            event.preventDefault();
+            event.stopPropagation();
+        }
+    });
+    element.addEventListener("pointercancel", cancelLongPress);
+    element.addEventListener("contextmenu", event => {
+        if (longPressTriggered) {
+            event.preventDefault();
+        }
+    });
+}
+
+function enterTrackSelectionMode() {
+    if (isRadioStoriesPage) {
+        return;
+    }
+    isTrackSelectionMode = true;
+    trackOptionsBtn?.setAttribute("aria-expanded", "true");
+    const visibleSongs = getVisibleTrackIds();
+    renderTrackCollection(visibleSongs, Boolean(searchInput?.value));
+    updateTrackSelectionControls();
+}
+
+function exitTrackSelectionMode() {
+    isTrackSelectionMode = false;
+    selectedSongIds.clear();
+    trackOptionsBtn?.setAttribute("aria-expanded", "false");
+    const visibleSongs = getVisibleTrackIds();
+    renderTrackCollection(visibleSongs, Boolean(searchInput?.value));
+    updateTrackSelectionControls();
+}
+
+function updateTrackSelectionControls() {
+    if (!trackSelectionToolbar) {
+        return;
+    }
+    trackSelectionToolbar.hidden = !isTrackSelectionMode;
+    const selectionCount = selectedSongIds.size;
+    const visibleSongs = getVisibleTrackIds();
+    const allVisibleSelected = visibleSongs.length > 0 && visibleSongs.every(songId => selectedSongIds.has(songId));
+    selectedTracksCount.textContent = `${selectionCount} izbran${selectionCount === 1 ? "a" : "ih"}`;
+    const selectAllLabel = selectAllTracksBtn.querySelector("span");
+    if (selectAllLabel) {
+        selectAllLabel.textContent = allVisibleSelected ? "Prekliči vse" : "Izberi vse";
+    }
+    addSelectedSongsBtn.hidden = privateAlbums.length === 0;
+    addSelectedSongsBtn.disabled = privateAlbums.length === 0 || selectionCount === 0;
+    const currentAlbum = getCurrentAlbum();
+    const canRemove = Boolean(currentAlbum?.is_private && selectionCount > 0);
+    const isInsidePrivateAlbum = Boolean(currentAlbum?.is_private);
+    const targetLabel = document.querySelector(".track-selection-target-label");
+    if (targetLabel) {
+        targetLabel.hidden = isInsidePrivateAlbum;
+    }
+    if (selectionPrivateAlbumSelect) {
+        selectionPrivateAlbumSelect.hidden = isInsidePrivateAlbum;
+    }
+    addSelectedSongsBtn.hidden = isInsidePrivateAlbum || privateAlbums.length === 0;
+    removeSelectedSongsBtn.hidden = !currentAlbum?.is_private;
+    removeSelectedSongsBtn.disabled = !canRemove;
 }
 
 function renderCurrentAlbumTracks() {
     if (!currentSongs.length) {
         trackListEl.innerHTML = "<i style='color: #999; padding: 20px; text-align: center;'>Ni pesmi v tej zbirki.</i>";
+        updateTrackSelectionControls();
         return;
     }
     if (searchInput?.value) {
@@ -335,6 +564,10 @@ function loadAlbum(album, options = {}) {
     localStorage.setItem("musicAlbumKey", currentAlbumKey);
     localStorage.setItem("album", album.name);
     currentSongs = [...(album.songs || [])];
+    filteredSongs = [];
+    if (isTrackSelectionMode) {
+        exitTrackSelectionMode();
+    }
 
     if (!currentSongs.length) {
         currentIndex = -1;
@@ -362,11 +595,12 @@ function loadAlbum(album, options = {}) {
     albumCover.style.opacity = "1";
 }
 
-async function playTrack(index) {
+async function playTrack(index, options = {}) {
     if (isLoadingTrack || index < 0 || index >= currentSongs.length) {
         return;
     }
     isLoadingTrack = true;
+    clearNextTrackPreload();
 
     currentIndex = index;
     currentTrack = currentSongs[index];
@@ -412,6 +646,7 @@ async function playTrack(index) {
         console.error("Napaka pri pripravi vira:", error);
         updatePlayBtn("false");
         isLoadingTrack = false;
+        retryAutomaticTransition(index, options);
         return;
     }
 
@@ -421,6 +656,7 @@ async function playTrack(index) {
             .then(() => {
                 updatePlayBtn("true");
                 isLoadingTrack = false;
+                preloadNextTrack();
             })
             .catch(error => {
                 if (error.name !== "AbortError") {
@@ -428,12 +664,34 @@ async function playTrack(index) {
                     updatePlayBtn("false");
                 }
                 isLoadingTrack = false;
+                retryAutomaticTransition(index, options);
             });
+    } else {
+        isLoadingTrack = false;
+        preloadNextTrack();
     }
 
     highlightTrack();
     scrollToActiveTrack();
     updatePrivateAlbumControls();
+}
+
+function retryAutomaticTransition(index, options) {
+    if (!options.automatic || (options.retryCount || 0) >= 1 || currentIndex !== index) {
+        return;
+    }
+    if (nextTransitionRetry) {
+        clearTimeout(nextTransitionRetry);
+    }
+    nextTransitionRetry = setTimeout(() => {
+        nextTransitionRetry = null;
+        if (currentIndex === index && audio.paused) {
+            playTrack(index, {
+                automatic: true,
+                retryCount: (options.retryCount || 0) + 1,
+            });
+        }
+    }, 350);
 }
 
 function updateMediaSession(title, artist, album) {
@@ -532,19 +790,9 @@ function togglePlay() {
 }
 
 function next() {
-    if (!currentSongs.length) {
-        return;
-    }
-    if (randomMode) {
-        playTrack(Math.floor(Math.random() * currentSongs.length));
-        return;
-    }
-    if (currentIndex === -1) {
-        playTrack(0);
-        return;
-    }
-    if (currentIndex < currentSongs.length - 1) {
-        playTrack(currentIndex + 1);
+    const nextIndex = getNextTrackIndex();
+    if (nextIndex >= 0) {
+        playTrack(nextIndex, { automatic: true });
     }
 }
 
@@ -824,35 +1072,58 @@ function updatePrivateAlbumControls(options = {}) {
     }
 
     privateAlbumSelect.innerHTML = "";
+    if (selectionPrivateAlbumSelect) {
+        selectionPrivateAlbumSelect.innerHTML = "";
+    }
     privateAlbums.forEach(album => {
         const option = document.createElement("option");
         option.value = album.id;
         option.textContent = album.name;
         privateAlbumSelect.appendChild(option);
+        if (selectionPrivateAlbumSelect) {
+            selectionPrivateAlbumSelect.appendChild(option.cloneNode(true));
+        }
     });
 
     privateAlbumSelect.disabled = privateAlbums.length === 0;
+    if (selectionPrivateAlbumSelect) {
+        selectionPrivateAlbumSelect.disabled = privateAlbums.length === 0;
+    }
     if (selectedPrivateAlbumId) {
         privateAlbumSelect.value = selectedPrivateAlbumId;
+        if (selectionPrivateAlbumSelect) {
+            selectionPrivateAlbumSelect.value = selectedPrivateAlbumId;
+        }
     }
 
     const currentAlbum = getCurrentAlbum();
     const isInsidePrivateAlbum = Boolean(currentAlbum?.is_private);
+    const hasPrivateAlbums = privateAlbums.length > 0;
     const canAddSong = Boolean(currentTrack && selectedPrivateAlbumId && !isInsidePrivateAlbum);
     const canRemoveSong = Boolean(currentAlbum?.is_private && currentTrack);
     const removeAlbumName = currentAlbum?.name || "tega albuma";
 
-    privateAlbumAddControls.hidden = isInsidePrivateAlbum;
+    privateAlbumAddControls.hidden = isInsidePrivateAlbum || !hasPrivateAlbums;
     privateAlbumRemoveControls.hidden = !currentAlbum?.is_private;
     addCurrentSongBtn.disabled = !canAddSong;
     removeCurrentSongBtn.disabled = !canRemoveSong;
     removeCurrentSongBtn.textContent = `Odstrani pesem iz albuma: ${removeAlbumName}`;
+    if (addSelectedSongsBtn) {
+        const targetAlbum = privateAlbums.find(album => album.id === selectedPrivateAlbumId);
+        const addSelectedLabel = addSelectedSongsBtn.querySelector("span");
+        if (addSelectedLabel) {
+            addSelectedLabel.textContent = targetAlbum
+                ? `Dodaj izbrane v: ${targetAlbum.name}`
+                : "Dodaj izbrane";
+        }
+    }
+    updateTrackSelectionControls();
 }
 
 async function addSongsToSelectedPrivateAlbum(songIds) {
     if (!selectedPrivateAlbumId) {
         alert("Najprej ustvari ali izberi privat album.");
-        return;
+        return false;
     }
 
     try {
@@ -865,6 +1136,34 @@ async function addSongsToSelectedPrivateAlbum(songIds) {
         syncPrivateAlbums(payload.albums, {
             reloadCurrentAlbum: shouldReloadCurrentAlbum,
             preferCurrentAlbum: shouldReloadCurrentAlbum,
+        });
+        return true;
+    } catch (error) {
+        alert(error.message);
+        return false;
+    }
+}
+
+async function removeSelectedSongsFromCurrentPrivateAlbum() {
+    const currentAlbum = getCurrentAlbum();
+    const songIds = [...selectedSongIds];
+    if (!currentAlbum?.is_private || !songIds.length) {
+        return;
+    }
+
+    if (!confirm(`Res želiš odstraniti ${songIds.length} izbranih pesmi iz albuma "${currentAlbum.name}"?`)) {
+        return;
+    }
+
+    try {
+        const payload = await requestPrivateAlbums(`${privateAlbumsEndpoint}/${currentAlbum.id}/songs`, {
+            method: "DELETE",
+            body: { song_ids: songIds },
+        });
+        exitTrackSelectionMode();
+        syncPrivateAlbums(payload.albums, {
+            preserveCurrentTrackIfMissing: true,
+            preferCurrentAlbum: true,
         });
     } catch (error) {
         alert(error.message);
@@ -942,6 +1241,35 @@ if (privateAlbumSelect) {
         selectedPrivateAlbumId = privateAlbumSelect.value || null;
         persistSelectedPrivateAlbum();
         updatePrivateAlbumControls();
+        if (isTrackSelectionMode) {
+            const visibleSongs = getVisibleTrackIds();
+            [...selectedSongIds].forEach(songId => {
+                if (!visibleSongs.includes(songId)) {
+                    selectedSongIds.delete(songId);
+                }
+            });
+            renderTrackCollection(visibleSongs, Boolean(searchInput?.value));
+        }
+    });
+}
+
+if (selectionPrivateAlbumSelect) {
+    selectionPrivateAlbumSelect.addEventListener("change", () => {
+        selectedPrivateAlbumId = selectionPrivateAlbumSelect.value || null;
+        persistSelectedPrivateAlbum();
+        if (privateAlbumSelect) {
+            privateAlbumSelect.value = selectedPrivateAlbumId;
+        }
+        updatePrivateAlbumControls();
+        if (isTrackSelectionMode) {
+            const visibleSongs = getVisibleTrackIds();
+            [...selectedSongIds].forEach(songId => {
+                if (!visibleSongs.includes(songId)) {
+                    selectedSongIds.delete(songId);
+                }
+            });
+            renderTrackCollection(visibleSongs, Boolean(searchInput?.value));
+        }
     });
 }
 
@@ -976,6 +1304,59 @@ if (newPrivateAlbumForm) {
             alert(error.message);
         }
     });
+}
+
+if (trackOptionsBtn) {
+    trackOptionsBtn.addEventListener("click", () => {
+        if (isTrackSelectionMode) {
+            exitTrackSelectionMode();
+        } else {
+            enterTrackSelectionMode();
+            selectionPrivateAlbumSelect?.focus();
+            if (selectionPrivateAlbumSelect?.showPicker) {
+                try {
+                    selectionPrivateAlbumSelect.showPicker();
+                } catch (_error) {
+                }
+            }
+        }
+    });
+}
+
+if (exitTrackSelectionBtn) {
+    exitTrackSelectionBtn.addEventListener("click", exitTrackSelectionMode);
+}
+
+if (selectAllTracksBtn) {
+    selectAllTracksBtn.addEventListener("click", () => {
+        const visibleSongs = getVisibleTrackIds();
+        const allVisibleSelected = visibleSongs.length > 0
+            && visibleSongs.every(songId => selectedSongIds.has(songId));
+        visibleSongs.forEach(songId => {
+            if (allVisibleSelected) {
+                selectedSongIds.delete(songId);
+            } else {
+                selectedSongIds.add(songId);
+            }
+        });
+        renderTrackCollection(visibleSongs, Boolean(searchInput?.value));
+    });
+}
+
+if (addSelectedSongsBtn) {
+    addSelectedSongsBtn.addEventListener("click", async () => {
+        const songIds = [...selectedSongIds];
+        if (!songIds.length) {
+            return;
+        }
+        if (await addSongsToSelectedPrivateAlbum(songIds)) {
+            exitTrackSelectionMode();
+        }
+    });
+}
+
+if (removeSelectedSongsBtn) {
+    removeSelectedSongsBtn.addEventListener("click", removeSelectedSongsFromCurrentPrivateAlbum);
 }
 
 function initializeBrowserToggle() {
