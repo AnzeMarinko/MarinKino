@@ -607,6 +607,12 @@ html, body {
     box-shadow: 0 6px 20px color-mix(in srgb, var(--marinkino-red), transparent 70%);
 }
 
+.playback-mode-btn.active {
+    background: var(--oranzno-rdeca-background);
+    color: white;
+    box-shadow: 0 6px 20px color-mix(in srgb, var(--marinkino-red), transparent 70%);
+}
+
 .btn-delete {
     background: color-mix(in srgb, var(--marinkino-red), transparent 70%);
     color: var(--marinkino-red);

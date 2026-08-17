@@ -18,7 +18,13 @@ from flask import (
 from flask_login import current_user, login_required
 from mutagen.easyid3 import EasyID3
 from mutagen.mp3 import MP3, HeaderNotFoundError
+from tqdm import tqdm
 
+from music.recommendations import (
+    calculate_transition_parameters,
+    load_cached_metadata,
+    select_next_song,
+)
 from utils import FLASK_ENV, is_current_admin_view, safe_path
 
 log = logging.getLogger(__name__)
@@ -57,14 +63,8 @@ def _find_hls_playlist(root_dir, track_id):
 
 def _read_hls_json_metadata(hls_dir_path: Path):
     """Prebere metadata.json datoteko znotraj HLS mape, če obstaja."""
-    json_path = hls_dir_path / "metadata.json"
-    if json_path.exists():
-        try:
-            with open(json_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception as e:
-            log.error(f"❌ Napaka pri branju {json_path}: {e}")
-    return None
+    metadata = load_cached_metadata(hls_dir_path, enrich=True)
+    return metadata if metadata else None
 
 
 def _guess_media_mimetype(filename):
@@ -197,7 +197,10 @@ def _discover_media_library(root_dir, default_album, include_genre=False):
     # 2. Poiščemo vse HLS predvajalne sezname
     # (tudi tiste, ki nimajo več .mp3 datoteke)
     for playlist_name in HLS_PLAYLIST_NAMES:
-        for playlist_path in root_path.glob(f"**/{playlist_name}"):
+        for playlist_path in tqdm(
+            sorted(root_path.glob(f"**/{playlist_name}")),
+            desc=f"Scanning HLS playlists ({playlist_name})",
+        ):
             relative_path = playlist_path.relative_to(root_path).as_posix()
             track_id = _track_id_from_hls_path(relative_path)
             parent_dir = playlist_path.parent
@@ -237,6 +240,16 @@ def _discover_media_library(root_dir, default_album, include_genre=False):
                 item["album"] = json_meta["album"]
             if json_meta.get("duration"):
                 item["duration"] = json_meta["duration"]
+            for key in (
+                "audio_features",
+                "start_chord",
+                "end_chord",
+                "folder_path",
+                "silence_start_ms",
+                "silence_end_ms",
+            ):
+                if key in json_meta:
+                    item[key] = json_meta[key]
 
             if include_genre:
                 item["genre"] = genre
@@ -484,6 +497,75 @@ def music():
         max_private_albums=MAX_PRIVATE_ALBUMS,
         music_metadata=visible_metadata,
     )
+
+
+@music_bp.route("/music/recommendation/next", methods=["POST"])
+@login_required
+def recommend_next_song():
+    _, visible_metadata, visible_track_ids = _normalize_music_view()
+    payload = request.get_json(silent=True) or {}
+    current_id = str(payload.get("current_song_id") or "")
+    if current_id not in visible_track_ids:
+        return jsonify({"message": "Trenutna pesem ni veljavna."}), 400
+
+    mode = str(payload.get("mode") or "similar")
+    allowed_modes = {
+        "sequential",
+        "similar",
+        "random",
+        "uniform_random",
+        "repeat",
+    }
+    if mode not in allowed_modes:
+        return jsonify({"message": "Neveljaven način predvajanja."}), 400
+
+    requested_ids = payload.get("playlist")
+    if requested_ids is None:
+        playlist_ids = list(visible_track_ids)
+    elif isinstance(requested_ids, list):
+        playlist_ids = [
+            str(track_id)
+            for track_id in requested_ids
+            if str(track_id) in visible_track_ids
+        ]
+    else:
+        return jsonify({"message": "Playlist mora biti seznam."}), 400
+
+    if current_id not in playlist_ids:
+        playlist_ids.insert(0, current_id)
+    playlist = [
+        {"id": track_id, **visible_metadata[track_id]}
+        for track_id in dict.fromkeys(playlist_ids)
+    ]
+    current_song = next(song for song in playlist if song["id"] == current_id)
+    try:
+        randomness_weight = float(payload.get("randomness_weight", 0.1))
+        crossfade_duration_ms = int(payload.get("crossfade_duration_ms", 3000))
+    except (TypeError, ValueError):
+        return jsonify({"message": "Časovni parametri niso veljavni."}), 400
+
+    selected = select_next_song(
+        current_song,
+        playlist,
+        randomness_weight=randomness_weight,
+        mode=mode,
+    )
+    if selected is None:
+        return jsonify({"message": "Ni mogoče izbrati naslednje pesmi."}), 400
+
+    next_id = str(selected["id"])
+    transition = calculate_transition_parameters(
+        current_song,
+        selected,
+        crossfade_duration_ms,
+    )
+    response_song = dict(visible_metadata[next_id])
+    response_song["id"] = next_id
+    if response_song.get("hls_path"):
+        response_song["hls_url"] = "/music/hls/" + quote(
+            str(response_song["hls_path"]), safe="/"
+        )
+    return jsonify({"song": response_song, "transition": transition})
 
 
 @music_bp.route("/music/private-albums", methods=["POST"])

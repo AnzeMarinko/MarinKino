@@ -97,12 +97,24 @@
                 <i id="playIcon" class="bi bi-play-fill"></i>
             </button>
 
-            <button class="control-btn" onclick="next()" title="Naslednja pesem">
+            <button id="sequentialNextBtn" class="control-btn" onclick="setPlaybackMode('sequential'); next()" title="Naslednja pesem po vrstnem redu">
                 <i class="bi bi-skip-forward-fill"></i>
             </button>
 
-            <button id="shuffleBtn" class="control-btn btn-shuffle" onclick="toggleRandom()" title="Naključni vrstni red">
-                <i id="shuffleIcon" class="bi bi-shuffle"></i>
+            <button id="similarNextBtn" class="control-btn playback-mode-btn" onclick="setPlaybackMode('similar'); next()" title="Naslednja podobna pesem">
+                <i class="bi bi-music-note-list"></i>
+            </button>
+
+            <button id="randomNextBtn" class="control-btn playback-mode-btn" onclick="setPlaybackMode('random'); next()" title="Naključna pesem">
+                <i class="bi bi-shuffle"></i>
+            </button>
+
+            <button id="uniformRandomNextBtn" class="control-btn playback-mode-btn" onclick="setPlaybackMode('uniform_random'); next()" title="Zelo naključna pesem">
+                <i class="bi bi-dice-5"></i>
+            </button>
+
+            <button id="repeatTrackBtn" class="control-btn playback-mode-btn" onclick="setPlaybackMode('repeat'); next()" title="Ponovi trenutno pesem">
+                <i class="bi bi-arrow-repeat"></i>
             </button>
 
             {% if view_as != "anonymous" and view_as != "user" and current_user.is_authenticated and current_user.is_admin %}

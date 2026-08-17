@@ -8,6 +8,12 @@ import tqdm
 from mutagen.easyid3 import EasyID3
 from mutagen.mp3 import MP3, HeaderNotFoundError
 
+from music.recommendations import (
+    analyze_audio_file,
+    analyze_song_semantics,
+    ensure_metadata_schema,
+)
+
 log = logging.getLogger(__name__)
 
 
@@ -52,6 +58,20 @@ def save_hls_metadata(mp3_path: Path, out_dir: Path):
         )
     except (HeaderNotFoundError, Exception) as e:
         log.warning(f"⚠️ Ni mogoče prebrati ID3 za {mp3_path}: {e}")
+
+    metadata, _ = ensure_metadata_schema(metadata, out_dir)
+    try:
+        metadata.update(
+            analyze_audio_file(mp3_path, out_dir.parent.as_posix())
+        )
+    except (OSError, RuntimeError, ValueError) as error:
+        log.warning("⚠️ Analiza zvoka ni uspela za %s: %s", mp3_path, error)
+    semantic = analyze_song_semantics(
+        metadata["title"], metadata["artist"], metadata["album"]
+    )
+    if semantic is not None:
+        metadata["semantic_analysis"] = semantic
+        metadata["semantic_analysis_version"] = 1
 
     # Shrani v JSON datoteko znotraj ustvarjene HLS mape
     json_path = out_dir / "metadata.json"

@@ -91,7 +91,7 @@ def _slugify_part(value, fallback="track"):
 
 
 def _is_unique_hls_dir_name(folder_name):
-    pattern = r"^[a-z0-9-]+_[a-z0-9-]+_[0-9a-f]{6}$"
+    pattern = r"^[a-z0-9-]+_[a-z0-9-]+[-_][0-9a-f]{6}$"
     return bool(re.match(pattern, folder_name))
 
 
@@ -123,6 +123,17 @@ def _build_unique_hls_output_dir(mp3_file: Path):
             _slugify_part(title, fallback="track"),
         ]
     )
+
+    # Reuse existing conversion for the same source metadata. A new random
+    # directory here creates duplicate HLS copies on every editor run.
+    existing_hls = mp3_file.parent.glob(f"{base_name}*/*index.m3u8")
+    for index_file in sorted(existing_hls):
+        metadata = _read_hls_dir_metadata(index_file.parent)
+        if (
+            metadata.get("title") == title
+            and metadata.get("artist", "") == artist
+        ):
+            return index_file.parent
 
     while True:
         token = secrets.token_hex(3)
@@ -259,16 +270,8 @@ def download_playlist(playlist_url, get_video=False):
     return True
 
 
-for url in [
-    "https://www.youtube.com/watch?list=PLBa4awb6kz5XYoBzXyc1qT4p5EsBxHe-i",
-    "https://www.youtube.com/watch?list=PLpTMQp9otNOVa2SCmKXsBeSgqYeXmYczU",
-    "https://www.youtube.com/watch?v=-dwKRmmlAvI",
-    "https://www.youtube.com/watch?v=IHwZ0Znet4Q",
-    "https://www.youtube.com/watch?list=RDEMmqjqF2WL3ksYMdM6wcIQng",
-    "https://www.youtube.com/watch?list=PL0GvsLQil0MmYC96KEs_7dTNsLm1PS6JX",
-]:
+for url in []:
     download_playlist(url)
-
 
 rename_existing_incoming_hls_dirs()
 

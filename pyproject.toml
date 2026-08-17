@@ -50,6 +50,11 @@ dependencies = [
   "basedpyright",
 ]
 
+[project.optional-dependencies]
+smart-playlists = [
+  "librosa",
+]
+
 [tool.ruff]
 line-length = 79
 target-version = "py312"

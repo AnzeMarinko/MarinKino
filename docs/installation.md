@@ -38,6 +38,42 @@ pre-commit install
 pre-commit run --all-files
 ```
 
+### 3.1. Napredna analiza glasbe z librosa (opcijsko)
+
+Za tempo, tonaliteto, akorde in naprednejše značilnosti namesti opcijsko
+odvisnost:
+
+```
+uv pip install -e ".[smart-playlists]"
+```
+
+Nato nastavi analizni backend v okolju:
+
+```
+AUDIO_ANALYZER=auto
+```
+
+Možne vrednosti so `numpy`, `librosa` (zahteva namestitev) in
+`auto` (privzeto; uporabi librosa, če je na voljo, sicer NumPy/FFmpeg
+fallback).
+Analiza se izvede pri predpripravi oziroma prvem osveževanju metadata in se
+shrani v HLS `metadata.json`.
+
+### 3.2. Semantična analiza naslovov z Gemini (opcijsko)
+
+Pri predpripravi lahko Gemini glede na naslov, izvajalca in album doda
+semantične ocene za smart playlist:
+
+```
+GEMINI_TOKEN=...
+GEMINI_MODEL=gemini-2.0-flash
+```
+
+Klic se izvede samo pri ustvarjanju oziroma ponovni predpripravi
+`metadata.json`, ne med predvajanjem. Če ključ ni nastavljen ali API ni
+dosegljiv, audio analiza in predvajanje delujeta naprej brez semantične ocene.
+Semantična komponenta ima pri izbiri naslednje pesmi privzeto težo `0.2`.
+
 ### 4. Namesti Redis
 ```
 sudo apt update && sudo apt install -y redis-server
