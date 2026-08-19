@@ -695,7 +695,50 @@ document.addEventListener('DOMContentLoaded', function(){
 <p>Ni podatkov o lokacijah obiskovalcev.</p>
 {% endif %}
 
+<div class="card mt-4 mb-4">
+    <div class="card-header">Cena zlata</div>
+    <div class="card-body p-2">
+        <div id="gold-price-chart" style="height: 640px; width: 100%; max-height: 75vh;"></div>
+    </div>
+</div>
+
+<script type="text/javascript" src="https://www.bullionvault.com/chart/bullionvaultchart.js"></script>
 <script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (!window.BullionVaultChart) {
+        return;
+    }
+
+    const goldChartContainer = document.getElementById('gold-price-chart');
+    if (!goldChartContainer) {
+        return;
+    }
+
+    const options = {
+        bullion: 'gold',
+        currency: 'EUR',
+        timeframe: '1y',
+        chartType: 'line',
+        miniChartModeAxis: 'kg',
+        referrerID: null,
+        containerDefinedSize: true,
+        miniChartMode: false,
+        displayLatestPriceLine: true,
+        switchBullion: false,
+        switchCurrency: false,
+        switchTimeframe: true,
+        switchChartType: false,
+        exportButton: false
+    };
+
+    try {
+        new window.BullionVaultChart(options, 'gold-price-chart');
+    } catch (error) {
+        console.error('Gold chart failed to initialize:', error);
+        goldChartContainer.innerHTML = '<div class="text-muted p-3">Graf cene zlata ni na voljo.</div>';
+    }
+});
+
 document.addEventListener('DOMContentLoaded', function() {
     const geoStats = {{ geo_stats_cities | tojson | safe }};
 
