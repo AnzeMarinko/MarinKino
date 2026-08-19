@@ -89,39 +89,35 @@
 
         <!-- Controls -->
         <div class="controls-section">
-            <button class="control-btn" onclick="prev()" title="Prejšnja pesem">
-                <i class="bi bi-skip-backward-fill"></i>
-            </button>
+            <div class="controls-row primary-controls">
+                <button id="prevBtn" class="control-btn control-btn-muted" onclick="prev()" title="Prejšnja pesem">
+                    <i class="bi bi-skip-backward-fill"></i>
+                </button>
 
-            <button id="playBtn" class="control-btn btn-play" onclick="togglePlay()" title="Predvajaj / Pauziraj">
-                <i id="playIcon" class="bi bi-play-fill"></i>
-            </button>
+                <button id="playBtn" class="control-btn btn-play" onclick="togglePlay()" title="Predvajaj / Pauziraj">
+                    <i id="playIcon" class="bi bi-play-fill"></i>
+                </button>
 
-            <button id="sequentialNextBtn" class="control-btn" onclick="setPlaybackMode('sequential'); next()" title="Naslednja pesem po vrstnem redu">
-                <i class="bi bi-skip-forward-fill"></i>
-            </button>
+                <button id="nextBtn" class="control-btn control-btn-primary" onclick="next()" title="Naslednja pesem">
+                    <i class="bi bi-skip-forward-fill"></i>
+                </button>
 
-            <button id="similarNextBtn" class="control-btn playback-mode-btn" onclick="setPlaybackMode('similar'); next()" title="Naslednja podobna pesem">
-                <i class="bi bi-music-note-list"></i>
-            </button>
+                <button id="randomNextBtn" class="control-btn control-btn-accent" onclick="nextRandom()" title="Naslednja naključna pesem">
+                    <i class="bi bi-dice-5"></i>
+                </button>
+            </div>
 
-            <button id="randomNextBtn" class="control-btn playback-mode-btn" onclick="setPlaybackMode('random'); next()" title="Naključna pesem">
-                <i class="bi bi-shuffle"></i>
-            </button>
+            <div class="controls-row secondary-controls">
+                <button id="playbackModeBtn" class="control-btn playback-mode-btn" onclick="cyclePlaybackMode()" title="Nastavitev nadaljevanja">
+                    <i id="playbackModeIcon" class="bi bi-arrow-repeat"></i>
+                </button>
 
-            <button id="uniformRandomNextBtn" class="control-btn playback-mode-btn" onclick="setPlaybackMode('uniform_random'); next()" title="Zelo naključna pesem">
-                <i class="bi bi-dice-5"></i>
-            </button>
-
-            <button id="repeatTrackBtn" class="control-btn playback-mode-btn" onclick="setPlaybackMode('repeat'); next()" title="Ponovi trenutno pesem">
-                <i class="bi bi-arrow-repeat"></i>
-            </button>
-
-            {% if view_as != "anonymous" and view_as != "user" and current_user.is_authenticated and current_user.is_admin %}
-            <button id="delete-btn" class="control-btn btn-delete" onclick="izbrisiPesem()" title="Izbriši pesem">
-                <i class="bi bi-trash"></i>
-            </button>
-            {% endif %}
+                {% if view_as != "anonymous" and view_as != "user" and current_user.is_authenticated and current_user.is_admin %}
+                <button id="delete-btn" class="control-btn btn-delete" onclick="izbrisiPesem()" title="Izbriši pesem">
+                    <i class="bi bi-trash"></i>
+                </button>
+                {% endif %}
+            </div>
         </div>
 
         <div id="privateAlbumTools" class="private-tools">

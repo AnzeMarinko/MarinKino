@@ -1601,6 +1601,7 @@ dependencies = [
     { name = "huggingface-hub" },
     { name = "isort" },
     { name = "langdetect" },
+    { name = "librosa" },
     { name = "m3u8" },
     { name = "markdown" },
     { name = "matplotlib" },
@@ -1623,11 +1624,6 @@ dependencies = [
     { name = "tqdm" },
     { name = "waitress" },
     { name = "yt-dlp" },
-]
-
-[package.optional-dependencies]
-smart-playlists = [
-    { name = "librosa" },
 ]
 
 [package.metadata]
@@ -1648,7 +1644,7 @@ requires-dist = [
     { name = "huggingface-hub" },
     { name = "isort" },
     { name = "langdetect" },
-    { name = "librosa", marker = "extra == 'smart-playlists'" },
+    { name = "librosa" },
     { name = "m3u8" },
     { name = "markdown" },
     { name = "matplotlib" },
@@ -1672,7 +1668,6 @@ requires-dist = [
     { name = "waitress" },
     { name = "yt-dlp" },
 ]
-provides-extras = ["smart-playlists"]
 
 [[package]]
 name = "markdown"

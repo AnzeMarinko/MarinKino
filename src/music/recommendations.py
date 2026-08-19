@@ -16,11 +16,12 @@ from pathlib import Path
 from typing import Any, Mapping, Protocol, Sequence
 
 import requests
+from sqlalchemy import MetaData
 
 _CACHE: dict[str, tuple[int, dict[str, Any]]] = {}
 _AUDIO_ANALYSIS_VERSION = 1
 _LIBROSA_ANALYSIS_VERSION = 1
-_GEMINI_SEMANTIC_ANALYSIS_VERSION = "1.0"
+_GEMINI_SEMANTIC_ANALYSIS_VERSION = "1.1"
 _SAMPLE_RATE = 22050
 
 _DEFAULT_FEATURES = {
@@ -37,6 +38,7 @@ _DEFAULT_SEMANTIC = {
     "lyrical_depth": 0.5,
     "tags": [],
     "suitable_for": [],
+    "dances": [],
 }
 _CHROMATIC_NOTES = {
     "C": 0,
@@ -80,13 +82,12 @@ def _metadata_path(hls_dir: str | os.PathLike[str]) -> Path:
     return Path(hls_dir).expanduser().resolve() / "metadata.json"
 
 
-def _default_metadata(hls_dir: str | os.PathLike[str]) -> dict[str, Any]:
-    path = Path(hls_dir).expanduser().resolve()
+def _default_metadata() -> dict[str, Any]:
     return {
         "audio_features": dict(_DEFAULT_FEATURES),
         "start_chord": "",
         "end_chord": "",
-        "folder_path": path.parent.as_posix(),
+        "folder_path": "",
         "silence_start_ms": 0,
         "silence_end_ms": 0,
     }
@@ -144,7 +145,7 @@ def _runtime_metadata(
 ) -> dict[str, Any]:
     """Add neutral values only to the in-memory metadata copy."""
     result = dict(metadata)
-    defaults = _default_metadata(hls_dir)
+    defaults = _default_metadata()
     features = result.get("audio_features")
     if not isinstance(features, Mapping):
         result["audio_features"] = dict(defaults["audio_features"])
@@ -158,7 +159,8 @@ def _runtime_metadata(
         **_DEFAULT_SEMANTIC,
         **(dict(semantic) if isinstance(semantic, Mapping) else {}),
     }
-    for key in ("start_chord", "end_chord", "folder_path"):
+    result.setdefault("folder_path", str(hls_dir))
+    for key in ("start_chord", "end_chord"):
         result.setdefault(key, defaults[key])
     for key in ("silence_start_ms", "silence_end_ms"):
         result.setdefault(key, defaults[key])
@@ -184,7 +186,7 @@ def _parse_gemini_json(text: str) -> dict[str, Any]:
     for key in ("mood", "spirituality", "calmness", "energy", "lyrical_depth"):
         if key in parsed:
             result[key] = _clamp_score(parsed[key])
-    for key in ("tags", "suitable_for"):
+    for key in ("tags", "suitable_for", "dances"):
         value = parsed.get(key, [])
         result[key] = (
             [str(item)[:80] for item in value[:20]]
@@ -208,8 +210,8 @@ def analyze_song_semantics(
         "Analyze this song for smart playlist matching. Use only the title, "
         "artist, and album; do not invent factual claims. Return JSON only "
         "with numeric fields from 0.0 to 1.0: mood, spirituality, "
-        "calmness, energy, lyrical_depth, plus string arrays tags and "
-        "suitable_for.\n"
+        "calmness, energy, lyrical_depth, plus string arrays "
+        "(tags, dances and suitable_for) with up to 5 items.\n"
         f"Title: {title}\nArtist: {artist}\nAlbum: {album}"
     )
     try:
@@ -576,7 +578,9 @@ def _write_metadata_atomically(
 
 
 def load_cached_metadata(
-    hls_dir: str | os.PathLike[str], enrich: bool = True
+    hls_dir: str | os.PathLike[str],
+    relative_path: Path,
+    enrich: bool = True,
 ) -> dict[str, Any]:
     """Load HLS metadata and cache it until metadata.json changes."""
     path = _metadata_path(hls_dir)
@@ -584,7 +588,7 @@ def load_cached_metadata(
         mtime_ns = path.stat().st_mtime_ns
     except FileNotFoundError:
         metadata, _ = ensure_metadata_schema({}, path.parent)
-        return _runtime_metadata(metadata, path.parent)
+        return _runtime_metadata(metadata, relative_path)
 
     cache_key = str(path)
     requested_backend = _configured_backend()
@@ -594,24 +598,29 @@ def load_cached_metadata(
         and cached[0] == mtime_ns
         and cached[1].get("analysis_backend") == requested_backend
     ):
-        return _runtime_metadata(cached[1], path.parent)
+        return _runtime_metadata(cached[1], relative_path)
 
-    try:
-        with path.open("r", encoding="utf-8") as source:
-            raw = json.load(source)
-        if not isinstance(raw, Mapping):
-            raise ValueError("metadata.json mora vsebovati JSON objekt")
-    except (OSError, json.JSONDecodeError, ValueError):
-        raw = {}
+    with path.open("r", encoding="utf-8") as source:
+        raw = json.load(source)
+    if not isinstance(raw, Mapping):
+        raise ValueError("metadata.json mora vsebovati JSON objekt")
 
     metadata, changed = ensure_metadata_schema(raw, path.parent)
     source = _audio_source(path.parent)
     needs_analysis = metadata.get("analysis_backend") != requested_backend
     if enrich and source and needs_analysis:
+        print(
+            f"Analyzing audio for {path.parent} from {metadata.get('analysis_backend')} to {requested_backend}"
+        )
         try:
             metadata.update(
-                analyze_audio_file(source, metadata.get("folder_path"))
-            )
+                    analyze_audio_file(
+                        source,
+                        str(relative_path)
+                        if relative_path
+                        else metadata.get("folder_path"),
+                    )
+                )
             changed = True
         except (OSError, RuntimeError, ValueError) as error:
             metadata["audio_analysis_error"] = str(error)
@@ -639,7 +648,7 @@ def load_cached_metadata(
         _write_metadata_atomically(path, metadata)
         mtime_ns = path.stat().st_mtime_ns
     _CACHE[cache_key] = (mtime_ns, dict(metadata))
-    return _runtime_metadata(metadata, path.parent)
+    return _runtime_metadata(metadata, relative_path)
 
 
 def _numeric_features(song: Mapping[str, Any]) -> list[float]:

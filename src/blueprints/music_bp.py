@@ -18,7 +18,6 @@ from flask import (
 from flask_login import current_user, login_required
 from mutagen.easyid3 import EasyID3
 from mutagen.mp3 import MP3, HeaderNotFoundError
-from tqdm import tqdm
 
 from music.recommendations import (
     calculate_transition_parameters,
@@ -61,9 +60,11 @@ def _find_hls_playlist(root_dir, track_id):
     return None
 
 
-def _read_hls_json_metadata(hls_dir_path: Path):
+def _read_hls_json_metadata(hls_dir_path: Path, relative_path: Path):
     """Prebere metadata.json datoteko znotraj HLS mape, če obstaja."""
-    metadata = load_cached_metadata(hls_dir_path, enrich=True)
+    metadata = load_cached_metadata(
+        hls_dir_path, enrich=True, relative_path=relative_path
+    )
     return metadata if metadata else None
 
 
@@ -197,16 +198,18 @@ def _discover_media_library(root_dir, default_album, include_genre=False):
     # 2. Poiščemo vse HLS predvajalne sezname
     # (tudi tiste, ki nimajo več .mp3 datoteke)
     for playlist_name in HLS_PLAYLIST_NAMES:
-        for playlist_path in tqdm(
-            sorted(root_path.glob(f"**/{playlist_name}")),
-            desc=f"Scanning HLS playlists ({playlist_name})",
-        ):
+        for playlist_path in sorted(root_path.glob(f"**/{playlist_name}")):
             relative_path = playlist_path.relative_to(root_path).as_posix()
             track_id = _track_id_from_hls_path(relative_path)
             parent_dir = playlist_path.parent
 
             # Poskusimo prebrati json z metapodatki
-            json_meta = _read_hls_json_metadata(parent_dir) or {}
+            json_meta = (
+                _read_hls_json_metadata(
+                    parent_dir, playlist_path.relative_to(root_path).parent
+                )
+                or {}
+            )
 
             fallback_title = (
                 json_meta.get("title") or parent_dir.name or playlist_path.stem
@@ -723,6 +726,16 @@ def song(filename):
 @music_bp.route("/music/hls/<path:filename>")
 @login_required
 def song_hls(filename):
+    # Some cached clients may retain a legacy HLS directory URL.
+    try:
+        hls_path = Path(safe_path(MUSIC_ROOT, filename))
+    except ValueError:
+        abort(404)
+    if hls_path.is_dir():
+        for playlist_name in HLS_PLAYLIST_NAMES:
+            if (hls_path / playlist_name).is_file():
+                filename = f"{filename.rstrip('/')}/{playlist_name}"
+                break
     return _build_internal_media_response(
         str(MUSIC_ROOT), "protected_music", filename
     )

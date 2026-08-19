@@ -31,4 +31,4 @@ COPY credentials ./credentials
 COPY src ./src
 
 # Run the application with waitress
-CMD ["waitress-serve", "--host=0.0.0.0", "--port=5000", "--trusted-proxy=*", "src.app:app"]
+CMD ["sh", "-c", "umask 0002 && waitress-serve --host=0.0.0.0 --port=5000 --trusted-proxy=* src.app:app"]

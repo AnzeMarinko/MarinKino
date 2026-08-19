@@ -48,10 +48,6 @@ dependencies = [
   "ruff",
   "isort",
   "basedpyright",
-]
-
-[project.optional-dependencies]
-smart-playlists = [
   "librosa",
 ]
 

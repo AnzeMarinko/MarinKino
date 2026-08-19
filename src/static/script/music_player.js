@@ -32,13 +32,8 @@ const removeCurrentSongBtn = document.getElementById("removeCurrentSongBtn");
 const privateAlbumsManagerList = document.getElementById("privateAlbumsManagerList");
 const newPrivateAlbumForm = document.getElementById("newPrivateAlbumForm");
 const newPrivateAlbumNameInput = document.getElementById("newPrivateAlbumName");
-const playbackModeButtons = {
-    sequential: document.getElementById("sequentialNextBtn"),
-    similar: document.getElementById("similarNextBtn"),
-    random: document.getElementById("randomNextBtn"),
-    uniform_random: document.getElementById("uniformRandomNextBtn"),
-    repeat: document.getElementById("repeatTrackBtn"),
-};
+const playbackModeBtn = document.getElementById("playbackModeBtn");
+const playbackModeIcon = document.getElementById("playbackModeIcon");
 const playBtn = document.getElementById("playBtn");
 const playIcon = document.getElementById("playIcon");
 
@@ -68,8 +63,10 @@ let nextPreloadTrackId = null;
 let preloadedRecommendation = null;
 let nextTransitionRetry = null;
 const storedPlaybackMode = localStorage.getItem("musicPlaybackMode");
-let playbackMode = storedPlaybackMode
-    || (JSON.parse(localStorage.getItem("random") || "false") ? "random" : "sequential");
+const playbackModes = ["sequential", "similar", "repeat"];
+let playbackMode = playbackModes.includes(storedPlaybackMode)
+    ? storedPlaybackMode
+    : "sequential";
 
 function parseJsonDataset(element, key, fallback) {
     if (!element?.dataset?.[key]) {
@@ -202,16 +199,6 @@ function getNextTrackIndex() {
     if (playbackMode === "repeat") {
         return currentIndex >= 0 ? currentIndex : 0;
     }
-    if (playbackMode === "random" || playbackMode === "uniform_random") {
-        if (currentSongs.length < 2) {
-            return currentIndex >= 0 ? currentIndex : 0;
-        }
-        let nextIndex = currentIndex;
-        while (nextIndex === currentIndex) {
-            nextIndex = Math.floor(Math.random() * currentSongs.length);
-        }
-        return nextIndex;
-    }
     return currentIndex >= 0 && currentIndex < currentSongs.length - 1
         ? currentIndex + 1
         : -1;
@@ -230,7 +217,7 @@ function clearNextTrackPreload() {
 
 function preloadNextTrack() {
     clearNextTrackPreload();
-    if (playbackMode === "similar" || playbackMode === "random") {
+    if (playbackMode === "similar") {
         requestRecommendedTrack(playbackMode)
             .then(payload => {
                 if (currentTrack === payload.song?.id) {
@@ -254,8 +241,9 @@ function preloadNextTrack() {
 
     const nextTrackId = currentSongs[nextIndex];
     const source = resolveTrackSource(nextTrackId);
-    const preloadUrl = source.fileUrl
-        || (audio.canPlayType("application/vnd.apple.mpegurl") ? source.hlsUrl : null);
+    const preloadUrl = source.hlsUrl
+        ? (audio.canPlayType("application/vnd.apple.mpegurl") ? source.hlsUrl : null)
+        : source.fileUrl;
     if (!preloadUrl) {
         return;
     }
@@ -268,22 +256,80 @@ function preloadNextTrack() {
 }
 
 function setPlaybackMode(mode) {
-    const allowedModes = [
-        "sequential",
-        "similar",
-        "random",
-        "uniform_random",
-        "repeat",
-    ];
-    playbackMode = allowedModes.includes(mode) ? mode : "sequential";
+    playbackMode = playbackModes.includes(mode) ? mode : "sequential";
     localStorage.setItem("musicPlaybackMode", playbackMode);
     updatePlaybackModeButtons();
 }
 
+function getPlaybackModeInfo(mode) {
+    const config = {
+        sequential: {
+            icon: "bi-arrow-repeat",
+            title: "Zaporedno",
+        },
+        similar: {
+            icon: "bi-shuffle",
+            title: "Podobno",
+        },
+        repeat: {
+            icon: "bi-repeat-1",
+            title: "Ponavljanje",
+        },
+    };
+
+    return config[mode] || config.sequential;
+}
+
+function cyclePlaybackMode() {
+    const order = ["sequential", "similar", "repeat"];
+    const currentIndex = order.indexOf(playbackMode);
+    const nextMode = order[(currentIndex + 1) % order.length];
+    setPlaybackMode(nextMode);
+}
+
+function getRandomTrackIndex() {
+    if (!currentSongs.length) {
+        return -1;
+    }
+    if (currentSongs.length === 1) {
+        return 0;
+    }
+
+    let nextIndex = currentIndex;
+    while (nextIndex === currentIndex) {
+        nextIndex = Math.floor(Math.random() * currentSongs.length);
+    }
+    return nextIndex;
+}
+
 function updatePlaybackModeButtons() {
-    Object.entries(playbackModeButtons).forEach(([mode, button]) => {
-        button?.classList.toggle("active", mode === playbackMode);
-    });
+    const modeInfo = getPlaybackModeInfo(playbackMode);
+
+    if (playbackModeBtn) {
+        playbackModeBtn.classList.toggle("active", true);
+        playbackModeBtn.title = `Način nadaljevanja: ${modeInfo.title}`;
+    }
+
+    if (playbackModeIcon) {
+        playbackModeIcon.className = `bi ${modeInfo.icon}`;
+    }
+}
+
+async function nextRandom() {
+    try {
+        const payload = await requestRecommendedTrack("random");
+        const nextIndex = currentSongs.indexOf(payload.song.id);
+        if (nextIndex >= 0) {
+            playTrack(nextIndex, { automatic: true });
+            return;
+        }
+    } catch (_error) {
+    }
+
+    const nextIndex = getRandomTrackIndex();
+    if (nextIndex >= 0) {
+        playTrack(nextIndex, { automatic: true });
+    }
 }
 
 async function requestRecommendedTrack(mode) {
@@ -298,7 +344,7 @@ async function requestRecommendedTrack(mode) {
             current_song_id: currentTrack,
             playlist: currentSongs,
             mode,
-            randomness_weight: mode === "similar" ? 0.1 : 1.0,
+            randomness_weight: mode === "similar" ? 0.2 : 1.0,
             crossfade_duration_ms: 3000,
         }),
     });
@@ -401,6 +447,12 @@ function buildTrackHtml(songId) {
     const artist = trackMetadata.artist || "";
     const album = trackMetadata.album || "";
     const albumInfo = getAlbumDisplayInfo(album);
+    const semantic = trackMetadata.semantic_analysis || {};
+    const tagText = [
+        ...(Array.isArray(semantic.tags) ? semantic.tags : []),
+        ...(Array.isArray(semantic.dances) ? semantic.dances : []),
+        ...(Array.isArray(semantic.suitable_for) ? semantic.suitable_for : []),
+    ].slice(0, 4).join(" • ");
 
     if (isRadioStoriesPage) {
         const duration = trackMetadata.duration || 0;
@@ -409,7 +461,24 @@ function buildTrackHtml(songId) {
     }
 
     const albumClass = albumInfo.hasSeparator ? "album-after-separator" : "";
-    return `<i class="${albumClass}">${albumInfo.displayName}</i> : ${artist} : <b>${title}</b>`;
+    const tagMarkup = tagText ? `<small class="track-tags">${tagText}</small>` : "";
+    return `<i class="${albumClass}">${albumInfo.displayName}</i> : ${artist} : <b>${title}</b>${tagMarkup}`;
+}
+
+function getSongSearchTerms(metadata = {}) {
+    const semantic = metadata.semantic_analysis || {};
+    const tagWords = [
+        ...(Array.isArray(semantic.tags) ? semantic.tags : []),
+        ...(Array.isArray(semantic.dances) ? semantic.dances : []),
+        ...(Array.isArray(semantic.suitable_for) ? semantic.suitable_for : []),
+    ].join(" ");
+
+    return [
+        metadata.title || "",
+        metadata.artist || "",
+        metadata.album || "",
+        tagWords,
+    ].join(" ").toLowerCase();
 }
 
 function renderTrackCollection(songIds, useOriginalIndex) {
@@ -422,6 +491,7 @@ function renderTrackCollection(songIds, useOriginalIndex) {
     displayedSongIds.forEach((songId, idx) => {
         const div = document.createElement("div");
         div.className = "track-item" + (songId === currentTrack ? " active" : "");
+        div.dataset.trackId = songId;
 
         const isSelected = selectedSongIds.has(songId);
         if (isTrackSelectionMode && isSelected) {
@@ -673,6 +743,14 @@ async function playTrack(index, options = {}) {
     isLoadingTrack = true;
     clearNextTrackPreload();
 
+    const wasPlaying = !audio.paused && audio.currentSrc;
+    const previousVolume = Number.isFinite(audio.volume) ? audio.volume : 1;
+    if (wasPlaying) {
+        await fadeAudioVolume(0, 220);
+        audio.pause();
+        audio.currentTime = 0;
+    }
+
     currentIndex = index;
     currentTrack = currentSongs[index];
     const trackMetadata = getTrackMetadata(currentTrack);
@@ -716,8 +794,10 @@ async function playTrack(index, options = {}) {
     updateMediaSession(title, artist, albumInfo.displayName);
 
     try {
+        audio.volume = 0;
         await attachTrackSource(currentTrack);
     } catch (error) {
+        audio.volume = previousVolume;
         console.error("Napaka pri pripravi vira:", error);
         updatePlayBtn("false");
         isLoadingTrack = false;
@@ -728,12 +808,14 @@ async function playTrack(index, options = {}) {
     const playPromise = audio.play();
     if (playPromise !== undefined) {
         playPromise
-            .then(() => {
+            .then(async () => {
+                await fadeAudioVolume(previousVolume || 1, 260);
                 updatePlayBtn("true");
                 isLoadingTrack = false;
                 preloadNextTrack();
             })
             .catch(error => {
+                audio.volume = previousVolume;
                 if (error.name !== "AbortError") {
                     console.error("Napaka pri predvajanju:", error);
                     updatePlayBtn("false");
@@ -742,6 +824,7 @@ async function playTrack(index, options = {}) {
                 retryAutomaticTransition(index, options);
             });
     } else {
+        audio.volume = previousVolume;
         isLoadingTrack = false;
         preloadNextTrack();
     }
@@ -817,9 +900,8 @@ function updatePositionState() {
 }
 
 function highlightTrack() {
-    const activeSongs = searchInput?.value ? filteredSongs : currentSongs;
-    document.querySelectorAll(".track-item").forEach((trackEl, index) => {
-        const songId = activeSongs[index];
+    document.querySelectorAll(".track-item").forEach(trackEl => {
+        const songId = trackEl.dataset.trackId;
         const wasActive = trackEl.classList.contains("active");
         const isActive = songId === currentTrack;
 
@@ -869,7 +951,7 @@ async function next() {
         playTrack(currentIndex >= 0 ? currentIndex : 0);
         return;
     }
-    if (playbackMode === "similar" || playbackMode === "random") {
+    if (playbackMode === "similar") {
         try {
             const cachedRecommendation = preloadedRecommendation;
             preloadedRecommendation = null;
@@ -902,6 +984,30 @@ function prev() {
     } else if (currentIndex > 0) {
         playTrack(currentIndex - 1);
     }
+}
+
+function fadeAudioVolume(targetVolume, durationMs = 300) {
+    const startVolume = Number.isFinite(audio.volume) ? audio.volume : 1;
+    const startTime = performance.now();
+
+    return new Promise(resolve => {
+        const tick = () => {
+            const elapsed = performance.now() - startTime;
+            const progress = Math.min(elapsed / durationMs, 1);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            audio.volume = startVolume + (targetVolume - startVolume) * eased;
+
+            if (progress < 1) {
+                requestAnimationFrame(tick);
+                return;
+            }
+
+            audio.volume = targetVolume;
+            resolve();
+        };
+
+        requestAnimationFrame(tick);
+    });
 }
 
 function updatePlayBtn(playMode) {
@@ -1297,13 +1403,8 @@ function filterSongs() {
 
     filteredSongs = currentSongs.filter(songId => {
         const metadata = musicMetadata[songId] || {};
-        const title = (metadata.title || "").toLowerCase();
-        const artist = (metadata.artist || "").toLowerCase();
-        const album = (metadata.album || "").toLowerCase();
-
-        return title.includes(searchTerm)
-            || artist.includes(searchTerm)
-            || album.includes(searchTerm);
+        const searchableText = getSongSearchTerms(metadata);
+        return searchableText.includes(searchTerm);
     });
 
     if (!filteredSongs.length) {
@@ -1494,12 +1595,8 @@ function initializeBrowserToggle() {
     });
 }
 
-if (isRadioStoriesPage) {
-    Object.values(playbackModeButtons).forEach(button => {
-        if (button) {
-            button.hidden = true;
-        }
-    });
+if (isRadioStoriesPage && playbackModeBtn) {
+    playbackModeBtn.hidden = true;
 }
 updatePlaybackModeButtons();
 updatePlayBtn("false");
@@ -1524,7 +1621,20 @@ if (initialAlbum) {
             : currentIndex >= 0
                 ? currentIndex
                 : 0;
-        playTrack(initialIndex);
+        
+        // Zamenjano playTrack(...) z obravnavo brez samodejnega predvajanja:
+        currentIndex = initialIndex;
+        currentTrack = currentSongs[initialIndex];
+        const trackMetadata = getTrackMetadata(currentTrack);
+        
+        nowPlayingTitle.textContent = trackMetadata.title || currentTrack;
+        nowPlayingArtist.textContent = trackMetadata.artist || "";
+        nowPlayingAlbum.textContent = getAlbumDisplayInfo(trackMetadata.album || "").displayName;
+        
+        // Samo pripnemo vir za audio (brez audio.play()):
+        attachTrackSource(currentTrack).catch(err => console.warn("Priprava vira neuspešna:", err));
+        highlightTrack();
+        updatePrivateAlbumControls();
     }
 } else {
     resetNowPlayingState();

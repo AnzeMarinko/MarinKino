@@ -7,6 +7,7 @@ from datetime import date, datetime
 import pandas as pd
 from flask import (
     Blueprint,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -16,6 +17,11 @@ from flask import (
 from flask_login import current_user, login_required
 
 from utils import is_current_admin_view, redis_client, safe_path
+from weather_service import (
+    fetch_ip_location,
+    fetch_weather_for_location,
+    geocode_location,
+)
 
 log = logging.getLogger(__name__)
 
@@ -204,3 +210,54 @@ def suggestions():
         "suggestions.html",
         pagetitle="Predlogi in komentarji",
     )
+
+
+@misc_bp.route("/weather")
+def weather():
+    query = (
+        request.args.get("location") or "Ljubljana"
+    ).strip() or "Ljubljana"
+    latitude = request.args.get("lat", type=float)
+    longitude = request.args.get("lon", type=float)
+    search_results = []
+
+    if latitude is not None and longitude is not None:
+        weather_data = fetch_weather_for_location(latitude, longitude, query)
+    else:
+        try:
+            search_results = geocode_location(query)[:5]
+        except Exception:
+            search_results = []
+
+        if search_results:
+            chosen = search_results[0]
+            weather_data = fetch_weather_for_location(
+                float(chosen["latitude"]),
+                float(chosen["longitude"]),
+                chosen.get("name") or query,
+            )
+        else:
+            weather_data = fetch_weather_for_location(
+                46.0569,
+                14.5058,
+                "Ljubljana",
+            )
+
+    return render_template(
+        "weather.html",
+        pagetitle="Vreme",
+        query=query,
+        weather=weather_data,
+        search_results=search_results,
+    )
+
+
+@misc_bp.route("/weather/current-location")
+def weather_current_location():
+    client_ip = request.headers.get("X-Real-IP", request.remote_addr)
+    location = fetch_ip_location(client_ip)
+    if location is None:
+        return jsonify(
+            {"message": "Lokacije po IP-naslovu ni mogoče določiti."}
+        ), 503
+    return jsonify(location)

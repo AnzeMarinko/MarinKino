@@ -446,30 +446,33 @@ html, body {
 }
 
 .track-title {
-    font-size: 1.4rem;
+    font-size: clamp(1.05rem, 1.7vw, 1.4rem);
     font-weight: 700;
     color: #333;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.3;
 }
 
 .track-artist {
-    font-size: 1rem;
+    font-size: clamp(0.9rem, 1.5vw, 1rem);
     color: var(--vijolicna);
     font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.3;
 }
 
 .track-album {
     font-size: 0.85rem;
     color: #999;
     font-style: italic;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.35;
 }
 
 .track-album.has-separator {
@@ -544,87 +547,102 @@ html, body {
 /* ===== CONTROLS SECTION ===== */
 .controls-section {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 15px;
+    gap: 12px;
+    width: 100%;
+}
+
+.controls-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
     flex-wrap: wrap;
 }
 
 .control-btn {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
+    width: 62px;
+    height: 62px;
+    border-radius: 18px;
     border: none;
-    background: #f0f0f0;
-    color: #333;
-    font-size: 2rem;
+    background: linear-gradient(180deg, #f7f7f9 0%, #ebedf2 100%);
+    color: #2f2f35;
+    font-size: 1.6rem;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease, color 0.25s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 12px #0000001a;
+    box-shadow: 0 8px 18px rgba(17, 24, 39, 0.08);
 }
 
 .control-btn:hover {
-    transform: scale(1.1);
-    box-shadow: 0 6px 16px #00000026;
+    transform: translateY(-1px) scale(1.03);
+    box-shadow: 0 10px 20px rgba(17, 24, 39, 0.12);
 }
 
 .control-btn:active {
-    transform: scale(0.95);
+    transform: translateY(1px) scale(0.98);
+}
+
+.control-btn-muted {
+    background: #f4f3f6;
+    color: #3a3a42;
+}
+
+.control-btn-primary {
+    background: linear-gradient(180deg, #dfe7ff 0%, #cdd9ff 100%);
+    color: #2947c6;
+}
+
+.control-btn-accent {
+    background: linear-gradient(180deg, #f6e7d7 0%, #eed4b0 100%);
+    color: #9a5b14;
 }
 
 .btn-play {
-    width: 100px;
-    height: 100px;
-    font-size: 3rem;
-    background: var(--music-background);
+    width: 86px;
+    height: 86px;
+    font-size: 2.3rem;
+    border-radius: 24px;
+    background: linear-gradient(180deg, var(--vijolicna) 0%, #6a4cc7 100%);
     color: white;
-    box-shadow: 0 6px 20px color-mix(in srgb, var(--vijolicna), transparent 70%);
+    box-shadow: 0 12px 24px color-mix(in srgb, var(--vijolicna), transparent 55%);
 }
 
 .btn-play:hover {
-    box-shadow: 0 8px 28px color-mix(in srgb, var(--vijolicna), transparent 60%);
+    box-shadow: 0 14px 26px color-mix(in srgb, var(--vijolicna), transparent 45%);
 }
 
 .btn-play.active {
-    background: var(--music-neg-background);
+    background: linear-gradient(180deg, #f76d6d 0%, #d93434 100%);
+    box-shadow: 0 12px 24px color-mix(in srgb, var(--marinkino-red), transparent 55%);
 }
 
-.btn-shuffle {
-    background: color-mix(in srgb, var(--marinkino-orange), transparent 70%);
-    color: var(--marinkino-orange);
-}
-
-.btn-shuffle:hover {
-    box-shadow: 0 6px 16px color-mix(in srgb, var(--marinkino-orange), transparent 50%);
-}
-
-.btn-shuffle.active {
-    background: var(--oranzno-rdeca-background);
-    color: white;
-    box-shadow: 0 6px 20px color-mix(in srgb, var(--marinkino-red), transparent 70%);
+.playback-mode-btn {
+    background: linear-gradient(180deg, #f8ebd9 0%, #f0d7ad 100%);
+    color: #8b5d1f;
 }
 
 .playback-mode-btn.active {
-    background: var(--oranzno-rdeca-background);
+    background: linear-gradient(180deg, #ffb07c 0%, #eb7b38 100%);
     color: white;
-    box-shadow: 0 6px 20px color-mix(in srgb, var(--marinkino-red), transparent 70%);
+    box-shadow: 0 10px 20px rgba(235, 123, 56, 0.28);
 }
 
 .btn-delete {
-    background: color-mix(in srgb, var(--marinkino-red), transparent 70%);
-    color: var(--marinkino-red);
+    background: linear-gradient(180deg, #f7d9d9 0%, #f0b7b7 100%);
+    color: #a22525;
 }
 
 .btn-delete:hover {
-    box-shadow: 0 6px 16px rgba(220, 53, 69, 0.2);
-    background: color-mix(in srgb, var(--marinkino-red), transparent 60%);
+    box-shadow: 0 10px 20px rgba(162, 37, 37, 0.2);
 }
 
 .btn-delete:active {
-    background: color-mix(in srgb, var(--marinkino-red), transparent 70%);
+    background: linear-gradient(180deg, #e68080 0%, #c23a3a 100%);
     color: white;
 }
 
@@ -904,16 +922,30 @@ html, body {
         font-size: 0.75rem;
     }
 
+    .controls-section {
+        gap: 10px;
+    }
+
+    .controls-row {
+        gap: 8px;
+        width: 100%;
+    }
+
     .control-btn {
-        width: 12vw;
-        height: 12vw;
-        font-size: 1.5rem;
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
+        font-size: 1.3rem;
+        flex: 1 1 auto;
+        min-width: 52px;
     }
 
     .btn-play {
-        width: 18vw;
-        height: 18vw;
-        font-size: 2rem;
+        width: 70px;
+        height: 70px;
+        border-radius: 18px;
+        font-size: 1.9rem;
+        flex: 0 0 auto;
     }
 
     .private-tools {
