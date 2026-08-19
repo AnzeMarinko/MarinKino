@@ -246,6 +246,7 @@ def weather():
     return render_template(
         "weather.html",
         pagetitle="Vreme",
+        weather_view=True,
         query=query,
         weather=weather_data,
         search_results=search_results,
