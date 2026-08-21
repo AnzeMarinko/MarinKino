@@ -3,9 +3,15 @@
 from __future__ import annotations
 
 from datetime import date
+from functools import lru_cache
 from typing import Any
+from urllib.parse import urlparse
 
+import holidays
 import requests
+from bs4 import BeautifulSoup
+
+_SAINTS_URL = "https://svetniki.info/"
 
 _WEATHER_CODE_MAP = {
     0: "Sončno",
@@ -111,6 +117,45 @@ _SLOVENE_WEEKDAYS = (
     "sobota",
     "nedelja",
 )
+
+
+def slovene_holidays(day: date) -> list[str]:
+    slovene_calendar = holidays.SI(years=day.year, language="sl")
+    print(slovene_calendar)
+    return [str(slovene_calendar[day])] if day in slovene_calendar else []
+
+
+@lru_cache(maxsize=32)
+def saint_of_day(day: date) -> dict[str, str] | None:
+    """Read current saint link from svetniki.info, once per calendar day."""
+    try:
+        response = requests.get(_SAINTS_URL, timeout=5)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        for link in soup.select("h2 a, h3 a, article a"):
+            name = link.get_text(" ", strip=True)
+            href = str(link.get("href") or "")
+            parsed = urlparse(href)
+            if (
+                name
+                and name.lower().startswith(
+                    ("sveti ", "sveta ", "blaženi ", "marijino ")
+                )
+                and parsed.netloc == "svetniki.info"
+                and parsed.path != "/"
+            ):
+                return {"name": name, "url": href}
+    except (requests.RequestException, ValueError):
+        pass
+    return None
+
+
+def daily_calendar(day: date | None = None) -> dict[str, Any]:
+    day = day or date.today()
+    return {
+        "saint": saint_of_day(day),
+        "holidays": slovene_holidays(day),
+    }
 
 
 def summarize_weather_code(code: Any) -> str:
@@ -301,13 +346,26 @@ def fetch_weather_for_location(
     params = {
         "latitude": latitude,
         "longitude": longitude,
-        "current": "temperature_2m,is_day,precipitation,weather_code,cloud_cover,wind_speed_10m",
-        "daily": "weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,moon_phase,precipitation_sum",
-        "hourly": "temperature_2m,precipitation,wind_speed_10m,direct_normal_irradiance",
+        "current": (
+            "temperature_2m,is_day,precipitation,weather_code,cloud_cover,"
+            "wind_speed_10m"
+        ),
+        "daily": (
+            "weather_code,temperature_2m_max,temperature_2m_min,sunrise,"
+            "sunset,"
+            "moon_phase,precipitation_sum"
+        ),
+        "hourly": (
+            "temperature_2m,precipitation,wind_speed_10m,"
+            "direct_normal_irradiance"
+        ),
         "timezone": "auto",
         "past_days": 3,
         "forecast_days": 14,
-        "minutely_15": "temperature_2m,precipitation,wind_speed_10m,global_tilted_irradiance,weather_code,is_day,snowfall",
+        "minutely_15": (
+            "temperature_2m,precipitation,wind_speed_10m,"
+            "global_tilted_irradiance,weather_code,is_day,snowfall"
+        ),
     }
     response = requests.get(url, params=params, timeout=15)
     response.raise_for_status()

@@ -1,23 +1,584 @@
 .weather-page {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
     --weather-ink: #172235;
     --weather-muted: #65738a;
     --weather-sky: #dcecff;
     --weather-card: rgba(255, 255, 255, 0.84);
     color: var(--weather-ink);
     background:
-        radial-gradient(circle at 12% 8%, rgba(255, 212, 116, 0.55), transparent 26rem),
-        linear-gradient(135deg, #eef6ff 0%, #f8fbff 48%, #e4f0ea 100%);
+        radial-gradient(circle at 12% 8%, rgba(255, 218, 91, 0.82), transparent 26rem),
+        linear-gradient(135deg, #b7dcff 0%, #edf7ff 48%, #d7f0e6 100%);
     border-radius: 1.5rem;
     padding: clamp(1rem, 3vw, 2.5rem);
+}
+
+.weather-page > *:not(.weather-scene) {
+    position: relative;
+    z-index: 1;
+}
+
+.weather-scene {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.weather-scene--night::before {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    background-image: radial-gradient(circle at 4% 8%, #fff 0 1.5px, transparent 2.4px), radial-gradient(circle at 12% 19%, #d9edff 0 1px, transparent 2px), radial-gradient(circle at 21% 6%, #fff 0 0.8px, transparent 1.8px), radial-gradient(circle at 29% 31%, #c9e5ff 0 1.4px, transparent 2.3px), radial-gradient(circle at 38% 14%, #fff 0 1px, transparent 1.9px), radial-gradient(circle at 47% 5%, #d9edff 0 0.8px, transparent 1.8px), radial-gradient(circle at 56% 24%, #fff 0 1.5px, transparent 2.4px), radial-gradient(circle at 67% 10%, #c9e5ff 0 1px, transparent 1.9px), radial-gradient(circle at 78% 20%, #fff 0 0.8px, transparent 1.8px), radial-gradient(circle at 89% 7%, #d9edff 0 1.4px, transparent 2.3px), radial-gradient(circle at 97% 27%, #fff 0 1px, transparent 1.9px), radial-gradient(circle at 8% 42%, #d9edff 0 0.9px, transparent 1.8px), radial-gradient(circle at 18% 58%, #fff 0 1px, transparent 1.9px), radial-gradient(circle at 33% 47%, #d9edff 0 1.3px, transparent 2.2px), radial-gradient(circle at 44% 63%, #fff 0 0.8px, transparent 1.7px), radial-gradient(circle at 59% 43%, #d9edff 0 1px, transparent 1.9px), radial-gradient(circle at 72% 56%, #fff 0 1.4px, transparent 2.3px), radial-gradient(circle at 84% 45%, #d9edff 0 0.8px, transparent 1.7px), radial-gradient(circle at 93% 67%, #fff 0 1px, transparent 1.9px), radial-gradient(circle at 26% 82%, #d9edff 0 1px, transparent 1.9px), radial-gradient(circle at 49% 91%, #fff 0 1.4px, transparent 2.2px), radial-gradient(circle at 68% 78%, #d9edff 0 0.8px, transparent 1.7px), radial-gradient(circle at 88% 88%, #fff 0 1px, transparent 1.9px);
+    background-size: 100% 100%;
+    -webkit-mask-image: linear-gradient(to bottom, #000 0 300px, rgba(0, 0, 0, 0.72) 38%, rgba(0, 0, 0, 0.18) 68%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 0 300px, rgba(0, 0, 0, 0.72) 38%, rgba(0, 0, 0, 0.18) 68%, transparent 100%);
+    content: "";
+    opacity: 1;
+    animation: weather-stars-twinkle 5s ease-in-out infinite alternate;
+}
+
+.weather-scene--night::after {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    background-image: radial-gradient(circle at 3% 4%, #fff 0 2.2px, transparent 3.6px), radial-gradient(circle at 10% 10%, #d9edff 0 1.5px, transparent 2.8px), radial-gradient(circle at 17% 3%, #fff 0 1.8px, transparent 3px), radial-gradient(circle at 24% 16%, #c9e5ff 0 2px, transparent 3.4px), radial-gradient(circle at 34% 6%, #fff 0 1.4px, transparent 2.7px), radial-gradient(circle at 42% 12%, #d9edff 0 2.2px, transparent 3.6px), radial-gradient(circle at 51% 3%, #fff 0 1.6px, transparent 2.9px), radial-gradient(circle at 60% 17%, #c9e5ff 0 1.9px, transparent 3.2px), radial-gradient(circle at 70% 6%, #fff 0 2.3px, transparent 3.8px), radial-gradient(circle at 79% 14%, #d9edff 0 1.5px, transparent 2.8px), radial-gradient(circle at 88% 3%, #fff 0 1.9px, transparent 3.2px), radial-gradient(circle at 96% 16%, #c9e5ff 0 2.1px, transparent 3.5px), radial-gradient(circle at 7% 25%, #fff 0 1.4px, transparent 2.7px), radial-gradient(circle at 28% 24%, #d9edff 0 1.8px, transparent 3px), radial-gradient(circle at 48% 27%, #fff 0 1.5px, transparent 2.8px), radial-gradient(circle at 68% 23%, #c9e5ff 0 2px, transparent 3.4px), radial-gradient(circle at 91% 28%, #fff 0 1.6px, transparent 2.9px);
+    -webkit-mask-image: linear-gradient(to bottom, #000 0 300px, rgba(0, 0, 0, 0.5) 48%, transparent 78%);
+    mask-image: linear-gradient(to bottom, #000 0 300px, rgba(0, 0, 0, 0.5) 48%, transparent 78%);
+    content: "";
+    opacity: 0.92;
+    animation: weather-stars-twinkle 6.5s ease-in-out infinite alternate-reverse;
+}
+
+.weather-scene__stars-top {
+    display: none;
+}
+
+.weather-scene--night .weather-scene__stars-top {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    display: block;
+    background-image: radial-gradient(circle at 2% 2%, #fff 0 2px, transparent 3.3px), radial-gradient(circle at 8% 7%, #d9edff 0 1.4px, transparent 2.7px), radial-gradient(circle at 14% 1%, #fff 0 1.7px, transparent 3px), radial-gradient(circle at 20% 8%, #c9e5ff 0 2.1px, transparent 3.5px), radial-gradient(circle at 27% 3%, #fff 0 1.3px, transparent 2.5px), radial-gradient(circle at 33% 9%, #d9edff 0 1.9px, transparent 3.2px), radial-gradient(circle at 40% 1%, #fff 0 2.2px, transparent 3.7px), radial-gradient(circle at 47% 6%, #c9e5ff 0 1.5px, transparent 2.8px), radial-gradient(circle at 54% 2%, #fff 0 1.8px, transparent 3.1px), radial-gradient(circle at 61% 9%, #d9edff 0 2px, transparent 3.4px), radial-gradient(circle at 68% 4%, #fff 0 1.4px, transparent 2.7px), radial-gradient(circle at 75% 1%, #c9e5ff 0 2.2px, transparent 3.7px), radial-gradient(circle at 82% 8%, #fff 0 1.6px, transparent 2.9px), radial-gradient(circle at 89% 3%, #d9edff 0 1.9px, transparent 3.2px), radial-gradient(circle at 96% 9%, #fff 0 2.1px, transparent 3.5px);
+    opacity: 0.95;
+    animation: weather-stars-twinkle 4.2s ease-in-out infinite alternate;
+}
+
+.weather-scene__celestial {
+    position: absolute;
+    z-index: 3;
+    top: 1.5%;
+    right: 8%;
+    width: clamp(4rem, 9vw, 7rem);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    overflow: hidden;
+    background: radial-gradient(circle at 34% 30%, #fff5b5 0 8%, #ffd96f 44%, #efa72f 100%);
+    box-shadow: 0 0 1.5rem rgba(255, 214, 110, 0.8), 0 0 5rem rgba(255, 190, 65, 0.32);
+    animation: weather-celestial-drift 8s ease-in-out infinite;
+}
+
+.weather-scene__celestial::before {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at 68% 68%, rgba(197, 111, 23, 0.25) 0 4%, transparent 4.5%), radial-gradient(circle at 26% 67%, rgba(255, 245, 173, 0.35) 0 5%, transparent 5.5%);
+    content: "";
+}
+
+.weather-scene--night .weather-scene__celestial {
+    background: #2b2d42;
+    box-shadow: 0 0 1.4rem rgba(218, 235, 255, 0.58), 0 0 4rem rgba(123, 177, 226, 0.2);
+}
+
+.weather-scene--night .weather-scene__celestial::before {
+    position: absolute;
+    top: 0;
+    left: auto;
+    right: 0;
+    width: 50%;
+    height: 100%;
+    border-radius: 0;
+    background: #e8f1ff;
+    content: "";
+    z-index: 0;
+}
+
+.weather-scene--night .weather-scene__celestial::after {
+    position: absolute;
+    top: 0;
+    left: 25%;
+    width: 50%;
+    height: 100%;
+    border-radius: 50%;
+    background: #e8f1ff;
+    content: "";
+    z-index: 1;
+    transform: scaleX(var(--moon-scale-factor, 0));
+    transform-origin: center;
+    transition: transform 700ms ease;
+}
+
+.weather-scene--night.moon-phase--waning .weather-scene__celestial::before {
+    right: auto;
+    left: 0;
+    border-radius: 0;
+}
+
+.weather-scene--night.moon-phase--waning .weather-scene__celestial::after {
+    transform: scaleX(calc(var(--moon-scale-factor, 0) * -1));
+}
+
+.weather-scene--night.moon-is-full .weather-scene__celestial::before,
+.moon-disc.moon-is-full::before {
+    left: 0;
+    right: auto;
+    width: 100%;
+    border-radius: 0;
+}
+
+.weather-scene--night.moon-is-full .weather-scene__celestial::after,
+.moon-disc.moon-is-full::after {
+    display: none;
+}
+
+.weather-scene--night.moon-illumination--dim .weather-scene__celestial::after,
+.moon-disc.moon-illumination--dim::after {
+    background: #2b2d42;
+}
+
+.weather-scene__cloud {
+    position: absolute;
+    z-index: 4;
+    top: 3%;
+    left: -8rem;
+    width: 13rem;
+    height: 3.6rem;
+    border-radius: 4rem;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(211, 224, 232, 0.94));
+    box-shadow: 0 1rem 1.5rem rgba(78, 111, 132, 0.1);
+    filter: blur(0.45px);
+    opacity: min(1, calc(0.3 + var(--cloud-opacity) * 0.9));
+    animation: weather-cloud-drift 34s linear infinite;
+    animation-delay: 0s;
+}
+
+.weather-scene__cloud::before,
+.weather-scene__cloud::after {
+    position: absolute;
+    bottom: 0;
+    border-radius: 50%;
+    background: inherit;
+    box-shadow: 0 -0.4rem 1rem rgba(255, 255, 255, 0.22);
+    content: "";
+}
+
+.weather-scene__cloud::before {
+    left: 2rem;
+    width: 5rem;
+    height: 5rem;
+}
+
+.weather-scene__cloud::after {
+    right: 2rem;
+    width: 4rem;
+    height: 4rem;
+}
+
+.weather-scene__cloud--two {
+    top: 12%;
+    left: auto;
+    right: -10rem;
+    transform: scale(0.72);
+    animation-duration: 43s;
+    animation-delay: 7s;
+}
+
+.weather-scene__cloud--three {
+    top: 39%;
+    left: 9%;
+    animation-delay: 12s;
+}
+
+.weather-scene__cloud--six,
+.weather-scene__cloud--eight,
+.weather-scene__cloud--eleven,
+.weather-scene__cloud--thirteen {
+    animation-name: weather-cloud-drift-left;
+}
+
+.weather-scene__cloud--six {
+    top: 18%;
+    right: -12rem;
+    left: auto;
+    animation-delay: 18s;
+}
+
+.weather-scene__cloud--eight {
+    top: 26%;
+    right: -8rem;
+    left: auto;
+    animation-delay: 5s;
+}
+
+.weather-scene__cloud--eleven {
+    top: 8%;
+    right: 18%;
+    left: auto;
+    animation-delay: 15s;
+}
+
+.weather-scene__cloud--thirteen {
+    top: 34%;
+    right: 34%;
+    left: auto;
+    animation-delay: 10s;
+}
+
+.weather-scene__cloud--three,
+.weather-scene__cloud--four,
+.weather-scene__cloud--five,
+.weather-scene__cloud--six,
+.weather-scene__cloud--seven,
+.weather-scene__cloud--eight,
+.weather-scene__cloud--nine,
+.weather-scene__cloud--ten {
+    top: 55%;
+    transform: scale(0.58);
+    animation-duration: 51s;
+    animation-delay: -29s;
+}
+
+.weather-scene__cloud--four {
+    top: 68%;
+    left: auto;
+    right: -9rem;
+    transform: scale(0.88);
+    animation-duration: 39s;
+    animation-delay: 9s;
+}
+
+.weather-scene__cloud--five {
+    top: 82%;
+    transform: scale(0.76);
+    animation-duration: 46s;
+    animation-delay: 16s;
+}
+
+.weather-scene__cloud--six {
+    top: 28%;
+    left: auto;
+    right: -12rem;
+    transform: scale(1.08);
+    animation-duration: 58s;
+    animation-delay: -41s;
+}
+
+.weather-scene__cloud--seven {
+    top: 46%;
+    left: 18%;
+    transform: scale(0.66);
+    animation-duration: 36s;
+    animation-delay: 6s;
+}
+
+.weather-scene__cloud--eight {
+    top: 24%;
+    left: 42%;
+    transform: scale(0.82);
+    animation-duration: 47s;
+    animation-delay: -33s;
+}
+
+.weather-scene__cloud--nine {
+    top: 74%;
+    left: 32%;
+    transform: scale(0.5);
+    animation-duration: 42s;
+    animation-delay: 13s;
+}
+
+.weather-scene__cloud--ten {
+    top: 16%;
+    left: 64%;
+    transform: scale(0.62);
+    animation-duration: 55s;
+    animation-delay: 20s;
+}
+
+.weather-scene__cloud--eleven,
+.weather-scene__cloud--twelve,
+.weather-scene__cloud--thirteen,
+.weather-scene__cloud--fourteen {
+    top: 7%;
+    left: 12%;
+    transform: scale(0.44);
+    animation-duration: 31s;
+    animation-delay: -14s;
+}
+
+.weather-scene__cloud--twelve {
+    top: 18%;
+    left: 29%;
+    transform: scale(0.55);
+    animation-duration: 38s;
+    animation-delay: -27s;
+}
+
+.weather-scene__cloud--thirteen {
+    top: 31%;
+    left: 53%;
+    transform: scale(0.48);
+    animation-duration: 34s;
+    animation-delay: -7s;
+}
+
+.weather-scene__cloud--fourteen {
+    top: 43%;
+    left: 72%;
+    transform: scale(0.62);
+    animation-duration: 44s;
+    animation-delay: -36s;
+}
+
+.weather-scene__cloud {
+    right: auto;
+    left: -13rem;
+}
+
+.weather-scene__cloud--two,
+.weather-scene__cloud--four,
+.weather-scene__cloud--five,
+.weather-scene__cloud--seven,
+.weather-scene__cloud--nine,
+.weather-scene__cloud--ten,
+.weather-scene__cloud--twelve,
+.weather-scene__cloud--fourteen {
+    left: -13rem;
+    right: auto;
+}
+
+.weather-scene__cloud--six,
+.weather-scene__cloud--eight,
+.weather-scene__cloud--eleven,
+.weather-scene__cloud--thirteen {
+    right: -13rem;
+    left: auto;
+}
+
+.weather-scene__cloud--one { animation-delay: 0s; }
+.weather-scene__cloud--two { animation-delay: 7s; }
+.weather-scene__cloud--three { animation-delay: 12s; }
+.weather-scene__cloud--four { animation-delay: 9s; }
+.weather-scene__cloud--five { animation-delay: 16s; }
+.weather-scene__cloud--six { animation-delay: 18s; }
+.weather-scene__cloud--seven { animation-delay: 6s; }
+.weather-scene__cloud--eight { animation-delay: 5s; }
+.weather-scene__cloud--nine { animation-delay: 13s; }
+.weather-scene__cloud--ten { animation-delay: 20s; }
+.weather-scene__cloud--eleven { animation-delay: 15s; }
+.weather-scene__cloud--twelve { animation-delay: 11s; }
+.weather-scene__cloud--thirteen { animation-delay: 10s; }
+.weather-scene__cloud--fourteen { animation-delay: 14s; }
+
+.weather-scene--night .weather-scene__cloud {
+    background: linear-gradient(180deg, rgba(130, 160, 187, 0.78), rgba(56, 79, 103, 0.86));
+    box-shadow: 0 1rem 1.5rem rgba(4, 12, 24, 0.18);
+}
+
+.weather-scene--unknown .weather-scene__cloud {
+    opacity: 0.08;
+}
+
+.weather-scene--fog .weather-scene__fog {
+    position: absolute;
+    inset: 22% -10% 0;
+    background: repeating-linear-gradient(175deg, transparent 0 2.5rem, rgba(220, 235, 237, 0.3) 2.5rem 3.7rem, transparent 3.7rem 6rem);
+    filter: blur(0.4rem);
+    animation: weather-fog-drift 12s ease-in-out infinite alternate;
+}
+
+.weather-scene__precipitation {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    contain: paint;
+    transform: translateZ(0);
+}
+
+.weather-scene--rain .weather-scene__precipitation,
+.weather-scene--drizzle .weather-scene__precipitation,
+.weather-scene--storm .weather-scene__precipitation {
+    opacity: 0.42;
+    background: linear-gradient(105deg, transparent 0 42%, rgba(152, 210, 241, 0.78) 42% 47%, transparent 47% 100%);
+    background-size: 5rem 7rem;
+    animation: weather-rain-fall 3.2s linear infinite, weather-rain-fade 3.2s ease-in-out infinite;
+    mask-image: linear-gradient(to bottom, transparent 0, #000 18%, #000 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 18%, #000 100%);
+    will-change: background-position, opacity;
+}
+
+.weather-scene--rain .weather-scene__precipitation::before,
+.weather-scene--rain .weather-scene__precipitation::after,
+.weather-scene--drizzle .weather-scene__precipitation::before,
+.weather-scene--drizzle .weather-scene__precipitation::after,
+.weather-scene--storm .weather-scene__precipitation::before,
+.weather-scene--storm .weather-scene__precipitation::after {
+    position: absolute;
+    inset: 0;
+    background-repeat: repeat;
+    content: "";
+    pointer-events: none;
+}
+
+.weather-scene--rain .weather-scene__precipitation::before,
+.weather-scene--drizzle .weather-scene__precipitation::before,
+.weather-scene--storm .weather-scene__precipitation::before {
+    background-image: linear-gradient(105deg, transparent 0 45%, rgba(76, 145, 197, 0.48) 45% 49%, transparent 49% 100%);
+    background-size: 7rem 9rem;
+    animation: weather-rain-fall-alt 4.1s linear infinite, weather-rain-fade 4.1s ease-in-out infinite -1.35s;
+}
+
+.weather-scene--rain .weather-scene__precipitation::after,
+.weather-scene--drizzle .weather-scene__precipitation::after,
+.weather-scene--storm .weather-scene__precipitation::after {
+    background-image: linear-gradient(105deg, transparent 0 43%, rgba(191, 229, 247, 0.62) 43% 46%, transparent 46% 100%);
+    background-size: 10rem 12rem;
+    animation: weather-rain-fall-soft 5s linear infinite, weather-rain-fade 5s ease-in-out infinite -2.8s;
+}
+
+.weather-scene--drizzle .weather-scene__precipitation {
+    opacity: 0.24;
+    animation-duration: 1.9s, 1.9s;
+}
+
+.weather-scene--snow .weather-scene__precipitation {
+    opacity: 0.76;
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0 0.18rem, transparent 0.23rem), radial-gradient(circle, rgba(255, 255, 255, 0.8) 0 0.12rem, transparent 0.18rem);
+    background-position: 0 0, 2rem 2rem;
+    background-size: 4rem 4rem, 3rem 3rem;
+    animation: weather-snow-fall 7s linear infinite;
+}
+
+.weather-scene--storm .weather-scene__celestial {
+    opacity: 0.25;
+}
+
+@keyframes weather-celestial-drift {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(0.45rem); }
+}
+
+@keyframes weather-cloud-drift {
+    from { transform: translateX(0); }
+    to { transform: translateX(calc(100vw + 18rem)); }
+}
+
+@keyframes weather-cloud-drift-left {
+    from { transform: translateX(0); }
+    to { transform: translateX(calc(-100vw - 18rem)); }
+}
+
+@keyframes weather-rain-fall {
+    from { background-position: 0 -5.5rem; }
+    to { background-position: -1rem 0; }
+}
+
+@keyframes weather-rain-fall-alt {
+    from { background-position: 2rem -7.5rem; }
+    to { background-position: 1rem 0; }
+}
+
+@keyframes weather-rain-fall-soft {
+    from { background-position: -3rem -9.4rem; }
+    to { background-position: 1rem 0; }
+}
+
+@keyframes weather-rain-fade {
+    0%, 100% { opacity: 0.38; }
+    22% { opacity: 0.62; }
+    45%, 78% { opacity: 0.72; }
+}
+
+@keyframes weather-snow-fall {
+    from { background-position: 0 -4rem, 2rem -2rem; }
+    to { background-position: 2rem 4rem, 0 6rem; }
+}
+
+@keyframes weather-fog-drift {
+    from { transform: translateX(-2%); }
+    to { transform: translateX(2%); }
+}
+
+@keyframes weather-stars-twinkle {
+    from { opacity: 0.52; transform: scale(1); }
+    to { opacity: 0.9; transform: scale(1.015); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .weather-scene * {
+        animation: none !important;
+    }
+}
+
+.weather-page--night {
+    --weather-ink: #edf4ff;
+    --weather-muted: #a8b8cc;
+    --weather-card: rgba(24, 38, 58, 0.88);
+    color: var(--weather-ink);
+    background:
+        radial-gradient(circle at 85% 10%, rgba(51, 116, 153, 0.3), transparent 24rem),
+        linear-gradient(135deg, #111b2b 0%, #1b2a40 52%, #203c46 100%);
+}
+
+.weather-page .text-muted {
+    color: var(--weather-muted) !important;
+}
+
+.weather-page--night .weather-hero {
+    background: linear-gradient(135deg, rgba(35, 54, 80, 0.96), rgba(28, 68, 79, 0.84));
+    border-color: rgba(158, 205, 225, 0.16);
+}
+
+.weather-page--night .weather-stat,
+.weather-page--night .weather-day {
+    background: rgba(35, 53, 77, 0.78);
+    border-color: rgba(158, 205, 225, 0.16);
+}
+
+.weather-page--night .weather-weekend {
+    background: linear-gradient(145deg, rgba(67, 60, 71, 0.88), rgba(46, 60, 79, 0.84));
+    border-color: rgba(198, 171, 158, 0.25);
+}
+
+.weather-page--night .saved-location {
+    color: #e4f2ff;
+    background: rgba(41, 75, 101, 0.8);
+    border-color: rgba(130, 198, 224, 0.28);
+}
+
+.weather-page--night .saved-location:hover {
+    color: #fff;
+    background: rgba(52, 98, 128, 0.92);
+}
+
+.weather-page--night .current-location-button {
+    color: #d8f1ff;
+    background: rgba(39, 83, 108, 0.85);
+    border-color: rgba(130, 198, 224, 0.4);
 }
 
 .weather-hero,
 .weather-panel {
     background: var(--weather-card);
+    /* lower alpga of background */
+    background: rgba(24, 38, 58, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.8);
     border-radius: 1rem;
     box-shadow: 0 1rem 2.5rem rgba(50, 80, 120, 0.12);
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(5px);
 }
 
 .weather-hero {
@@ -190,7 +751,7 @@
     height: 3.25rem;
     border: 3px solid rgba(39, 52, 81, 0.18);
     border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, #fff4b6, #f2ce69 72%);
+    background: #2b2d42;
     box-shadow: inset -0.35rem -0.25rem 0.5rem rgba(112, 81, 20, 0.2),
         0 0.25rem 0.7rem rgba(38, 54, 87, 0.18);
 }
@@ -198,15 +759,39 @@
 .moon-disc::after {
     position: absolute;
     top: 0;
-    left: 0;
-    width: 100%;
+    left: 25%;
+    width: 50%;
     height: 100%;
     border-radius: 50%;
-    background: rgba(35, 47, 70, 0.78);
+    background: #f4f1de;
     box-shadow: inset 0.25rem 0.1rem 0.4rem rgba(8, 16, 31, 0.2);
     content: "";
-    transform: translateX(var(--moon-shadow-x, 0%));
+    z-index: 1;
+    transform: scaleX(var(--moon-scale-factor, 0));
+    transform-origin: center;
     transition: transform 300ms ease;
+}
+
+.moon-disc::before {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 50%;
+    height: 100%;
+    border-radius: 0;
+    background: #f4f1de;
+    content: "";
+    z-index: 0;
+}
+
+.moon-disc.moon-phase--waning::before {
+    right: auto;
+    left: 0;
+    border-radius: 0;
+}
+
+.moon-disc.moon-phase--waning::after {
+    transform: scaleX(calc(var(--moon-scale-factor, 0) * -1));
 }
 
 .saved-locations {

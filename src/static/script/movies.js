@@ -242,7 +242,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 document.addEventListener("DOMContentLoaded", function () {
-    const video = document.getElementById("videoPlayer") || document.getElementById("hlsVideoPlayer");
+    const video = document.getElementById("videoPlayer") || document.getElementById("hlsVideoPlayer") || document.querySelector(".plyr-container video, .plyr video");
     if (!video) return;
 
     video.addEventListener("dblclick", () => {
@@ -271,13 +271,22 @@ document.addEventListener("DOMContentLoaded", function () {
     const intervalMillis = 20 * 1000;
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     setInterval(() => {
-        if (video && !video.paused && !video.ended) {
-            let currentFilename = video.currentSrc;
-            const isHlsPlayer = video.id === "hlsVideoPlayer" || currentFilename.endsWith('.ts') || currentFilename.includes('stream_');
+        const currentVideo = document.getElementById("videoPlayer") || document.getElementById("hlsVideoPlayer") || document.querySelector(".plyr-container video, .plyr video");
+        if (currentVideo && !currentVideo.paused && !currentVideo.ended) {
+            let currentFilename = currentVideo.currentSrc;
+            const isHlsPlayer = currentVideo.id === "hlsVideoPlayer" || currentFilename.endsWith('.ts') || currentFilename.includes('stream_');
 
             if (isHlsPlayer) {
                 currentFilename = window.hlsVideoSrc || currentFilename;
             }
+
+            if (!currentFilename) return;
+
+            const progressData = {
+                filename: currentFilename,
+                currentTime: currentVideo.currentTime,
+                duration: currentVideo.duration
+            };
 
             fetch("/movies/video-progress", {
                 method: "POST",
@@ -285,15 +294,13 @@ document.addEventListener("DOMContentLoaded", function () {
                     "Content-Type": "application/json",
                     "X-CSRFToken": csrfToken
                 },
-                body: JSON.stringify({
-                    filename: currentFilename,
-                    currentTime: video.currentTime,
-                    duration: video.duration
-                })
-            }).catch(() => {});
+                body: JSON.stringify(progressData)
+            }).catch(error => {
+                console.error("[movie-progress] request failed", error);
+            });
             const selectedButton = document.querySelector('.video-btn.selected');
             if (selectedButton) {
-                selectedButton.style.setProperty('--watch', Math.round(video.currentTime / video.duration * 100) + '%');
+                selectedButton.style.setProperty('--watch', Math.round(currentVideo.currentTime / currentVideo.duration * 100) + '%');
             }
         }
     }, intervalMillis);

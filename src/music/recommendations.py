@@ -16,7 +16,6 @@ from pathlib import Path
 from typing import Any, Mapping, Protocol, Sequence
 
 import requests
-from sqlalchemy import MetaData
 
 _CACHE: dict[str, tuple[int, dict[str, Any]]] = {}
 _AUDIO_ANALYSIS_VERSION = 1
@@ -614,13 +613,13 @@ def load_cached_metadata(
         )
         try:
             metadata.update(
-                    analyze_audio_file(
-                        source,
-                        str(relative_path)
-                        if relative_path
-                        else metadata.get("folder_path"),
-                    )
+                analyze_audio_file(
+                    source,
+                    str(relative_path)
+                    if relative_path
+                    else metadata.get("folder_path"),
                 )
+            )
             changed = True
         except (OSError, RuntimeError, ValueError) as error:
             metadata["audio_analysis_error"] = str(error)
@@ -651,36 +650,20 @@ def load_cached_metadata(
     return _runtime_metadata(metadata, relative_path)
 
 
-def _numeric_features(song: Mapping[str, Any]) -> list[float]:
-    features = song.get("audio_features", {})
-    if isinstance(features, Mapping):
-        values = features.values()
-    elif isinstance(features, Sequence) and not isinstance(
-        features, (str, bytes)
-    ):
-        values = features
-    else:
-        return []
-    return [
-        float(value) for value in values if isinstance(value, (int, float))
-    ]
-
-
 def _feature_distance(
     song_a: Mapping[str, Any], song_b: Mapping[str, Any]
 ) -> float:
-    values_a = _numeric_features(song_a)
-    values_b = _numeric_features(song_b)
-    if not values_a and not values_b:
-        return 0.0
-    if not values_a or not values_b or len(values_a) != len(values_b):
-        return 1.0
-    norm_a = math.sqrt(sum(value * value for value in values_a))
-    norm_b = math.sqrt(sum(value * value for value in values_b))
-    if norm_a == 0 or norm_b == 0:
-        return 0.0 if values_a == values_b else 1.0
-    cosine = sum(a * b for a, b in zip(values_a, values_b)) / (norm_a * norm_b)
-    return min(1.0, max(0.0, 1.0 - cosine))
+    values_a = song_a.get("audio_features", {})
+    values_b = song_b.get("audio_features", {})
+    for key in _DEFAULT_FEATURES:
+        values_a.setdefault(key, _DEFAULT_FEATURES[key])
+        values_b.setdefault(key, _DEFAULT_FEATURES[key])
+    values_a = [float(values_a[key]) for key in sorted(_DEFAULT_FEATURES)]
+    values_b = [float(values_b[key]) for key in sorted(_DEFAULT_FEATURES)]
+    distance = math.sqrt(
+        sum((a - b) ** 2 for a, b in zip(values_a, values_b)) / len(values_a)
+    )
+    return distance
 
 
 def _note_number(chord: Any) -> int | None:
@@ -701,8 +684,8 @@ def _chord_distance(chord_a: Any, chord_b: Any) -> float:
 
 
 def _folder_distance(folder_a: Any, folder_b: Any) -> float:
-    parts_a = Path(str(folder_a or "")).parts
-    parts_b = Path(str(folder_b or "")).parts
+    parts_a = Path(str(folder_a or "").split("/data/")[-1]).parts[:-1]
+    parts_b = Path(str(folder_b or "").split("/data/")[-1]).parts[:-1]
     if parts_a == parts_b:
         return 0.0
     common = 0
@@ -710,8 +693,8 @@ def _folder_distance(folder_a: Any, folder_b: Any) -> float:
         if left != right:
             break
         common += 1
-    maximum = max(len(parts_a), len(parts_b), 1)
-    return min(1.0, (maximum - common) / maximum)
+    minimum = min(len(parts_a), len(parts_b), 1)
+    return min(1.0, 1 - common / minimum)
 
 
 def _semantic_distance(
@@ -719,15 +702,11 @@ def _semantic_distance(
 ) -> float:
     semantic_a = song_a.get("semantic_analysis", {})
     semantic_b = song_b.get("semantic_analysis", {})
-    if not isinstance(semantic_a, Mapping) or not isinstance(
-        semantic_b, Mapping
-    ):
-        return 0.0
     keys = ("mood", "spirituality", "calmness", "energy", "lyrical_depth")
     return sum(
         abs(
-            _clamp_score(semantic_a.get(key))
-            - _clamp_score(semantic_b.get(key))
+            _clamp_score(semantic_a.get(key, 0.5))
+            - _clamp_score(semantic_b.get(key, 0.5))
         )
         for key in keys
     ) / len(keys)
@@ -741,8 +720,8 @@ def calculate_distance(
     """Calculate weighted audio, harmonic, and folder distance."""
     weights = weights or {}
     audio_weight = float(weights.get("audio", weights.get("features", 1.0)))
-    chord_weight = float(weights.get("chord", weights.get("harmony", 1.0)))
-    folder_weight = float(weights.get("folder", 1.0))
+    chord_weight = float(weights.get("chord", weights.get("harmony", 0.7)))
+    folder_weight = float(weights.get("folder", 0.4))
     semantic_weight = float(weights.get("semantic", 0.0))
     return (
         audio_weight * _feature_distance(song_a, song_b)
@@ -762,6 +741,7 @@ def select_next_song(
     randomness_weight: float = 0.1,
     mode: str = "similar",
     rng: _RandomSource | None = None,
+    excluded_ids: Sequence[str] | None = None,
 ) -> Mapping[str, Any] | None:
     """Select a song according to mode, excluding current except in repeat."""
     if not playlist:
@@ -771,6 +751,13 @@ def select_next_song(
     if mode == "repeat":
         return current_song
     candidates = [song for song in playlist if song.get("id") != current_id]
+    if mode in {"random", "uniform_random"} and excluded_ids:
+        excluded = {str(song_id) for song_id in excluded_ids}
+        eligible_candidates = [
+            song for song in candidates if str(song.get("id")) not in excluded
+        ]
+        if eligible_candidates:
+            candidates = eligible_candidates
     if not candidates:
         return current_song if current_song else playlist[0]
     if mode == "sequential":

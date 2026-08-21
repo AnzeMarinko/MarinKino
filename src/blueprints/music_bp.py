@@ -547,11 +547,16 @@ def recommend_next_song():
     except (TypeError, ValueError):
         return jsonify({"message": "Časovni parametri niso veljavni."}), 400
 
+    excluded_ids = payload.get("excluded_ids", [])
+    if not isinstance(excluded_ids, list):
+        excluded_ids = []
+
     selected = select_next_song(
         current_song,
         playlist,
         randomness_weight=randomness_weight,
         mode=mode,
+        excluded_ids=excluded_ids,
     )
     if selected is None:
         return jsonify({"message": "Ni mogoče izbrati naslednje pesmi."}), 400

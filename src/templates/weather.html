@@ -5,7 +5,36 @@
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 
 <main class="container py-4 py-lg-5">
-  <div class="weather-page">
+  <div class="weather-page {{ 'weather-page--day' if weather.current.is_day else 'weather-page--night' }}">
+    {% set cloud_cover = weather.current.cloud_cover|default(0, true) %}
+    {% set future_days = weather.daily | selectattr('is_past', 'equalto', false) | list %}
+    {% set today = future_days[0] if future_days else {} %}
+    {% set moon_phase = today.moon_phase|default(0, true) %}
+    {% set moon_illumination = today.moon_illumination|default(0, true) %}
+    {% set moon_scale_factor = (((moon_illumination - 50) / 50)|abs)|round(3) %}
+    {% set moon_illumination_side = 'bright' if moon_illumination >= 50 else 'dim' %}
+    {% set moon_direction = 'waxing' if moon_phase <= 0.5 else 'waning' %}
+    {% set moon_is_full = moon_illumination >= 99 %}
+    <div class="weather-scene weather-scene--{{ weather.current.weather_icon_class }} {{ 'weather-scene--day' if weather.current.is_day else 'weather-scene--night' }} moon-phase--{{ moon_direction }} moon-illumination--{{ moon_illumination_side }} {{ 'moon-is-full' if moon_is_full else '' }}" style="--cloud-opacity: {{ (0.5 + (cloud_cover / 200))|round(2) }}; --moon-scale-factor: {{ moon_scale_factor }};" aria-hidden="true">
+      <span class="weather-scene__celestial"></span>
+      <span class="weather-scene__stars-top"></span>
+      {% if cloud_cover >= 10 %}<span class="weather-scene__cloud weather-scene__cloud--one"></span>{% endif %}
+      {% if cloud_cover >= 10 %}<span class="weather-scene__cloud weather-scene__cloud--two"></span>{% endif %}
+      {% if cloud_cover >= 20 %}<span class="weather-scene__cloud weather-scene__cloud--three"></span>{% endif %}
+      {% if cloud_cover >= 40 %}<span class="weather-scene__cloud weather-scene__cloud--four"></span>{% endif %}
+      {% if cloud_cover >= 60 %}<span class="weather-scene__cloud weather-scene__cloud--five"></span>{% endif %}
+      {% if cloud_cover >= 80 %}<span class="weather-scene__cloud weather-scene__cloud--six"></span>{% endif %}
+      {% if cloud_cover >= 30 %}<span class="weather-scene__cloud weather-scene__cloud--seven"></span>{% endif %}
+      {% if cloud_cover >= 50 %}<span class="weather-scene__cloud weather-scene__cloud--eight"></span>{% endif %}
+      {% if cloud_cover >= 70 %}<span class="weather-scene__cloud weather-scene__cloud--nine"></span>{% endif %}
+      {% if cloud_cover >= 90 %}<span class="weather-scene__cloud weather-scene__cloud--ten"></span>{% endif %}
+      {% if cloud_cover >= 20 %}<span class="weather-scene__cloud weather-scene__cloud--eleven"></span>{% endif %}
+      {% if cloud_cover >= 40 %}<span class="weather-scene__cloud weather-scene__cloud--twelve"></span>{% endif %}
+      {% if cloud_cover >= 60 %}<span class="weather-scene__cloud weather-scene__cloud--thirteen"></span>{% endif %}
+      {% if cloud_cover >= 80 %}<span class="weather-scene__cloud weather-scene__cloud--fourteen"></span>{% endif %}
+      <span class="weather-scene__precipitation"></span>
+      <span class="weather-scene__fog"></span>
+    </div>
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
       <div>
         <div class="text-uppercase small fw-semibold text-primary">Lokalna napoved</div>
@@ -56,7 +85,12 @@
             <div class="col-6"><div class="weather-stat"><i class="bi bi-droplet"></i><div class="small text-muted mt-2">Padavine</div><strong>{{ weather.current.precipitation if weather.current.precipitation is not none else '—' }} mm</strong></div></div>
             <div class="col-6"><div class="weather-stat"><i class="bi bi-wind"></i><div class="small text-muted mt-2">Veter</div><strong>{{ weather.current.wind_speed if weather.current.wind_speed is not none else '—' }} km/h</strong></div></div>
             <div class="col-6"><div class="weather-stat"><i class="bi bi-cloud"></i><div class="small text-muted mt-2">Oblačnost</div><strong>{{ weather.current.cloud_cover if weather.current.cloud_cover is not none else '—' }}%</strong></div></div>
-            <div class="col-6"><div class="weather-stat"><i class="bi bi-brightness-high"></i><div class="small text-muted mt-2">Trenutno</div><strong>{{ 'Dan' if weather.current.is_day else 'Noč' }}</strong></div></div>
+            {% if weather.calendar.saint %}
+            <div class="col-6"><div class="weather-stat weather-calendar-stat"><i class="bi bi-person-heart"></i><div class="small text-muted mt-2">Svetnik dneva</div><a href="{{ weather.calendar.saint.url }}" target="_blank" rel="noopener noreferrer">{{ weather.calendar.saint.name }} <i class="bi bi-box-arrow-up-right small"></i></a></div></div>
+            {% endif %}
+            {% if weather.calendar.holidays %}
+            <div class="col-6"><div class="weather-stat weather-calendar-stat"><i class="bi bi-calendar-heart"></i><div class="small text-muted mt-2">Današnji praznik</div><strong>{{ weather.calendar.holidays | join(', ') | capitalize }}</strong></div></div>
+            {% endif %}
           </div>
         </div>
       </div>
@@ -104,7 +138,7 @@
     <section class="weather-panel weather-wide-panel p-3 p-lg-4 mb-4" aria-labelledby="chart-title"><h2 id="chart-title" class="h4 mb-0">Podrobna napoved</h2><div id="weatherChart" class="weather-chart" aria-label="15-minutni graf vremenske napovedi"></div></section>
 
     <div class="row g-4">
-      <div class="col-lg-5"><section class="weather-panel p-3 p-lg-4 h-100" aria-labelledby="sun-title"><h2 id="sun-title" class="h4">Sonce in luna</h2>{% set future_days = weather.daily | selectattr('is_past', 'equalto', false) | list %}{% set today = future_days[0] if future_days else {} %}<div class="d-flex justify-content-between align-items-center mt-3"><div><i class="bi bi-sunrise text-warning fs-2"></i><div class="small text-muted">Vzhod</div><strong>{{ today.sunrise.split('T')[1] if today.sunrise else '—' }}</strong></div><div class="text-end"><i class="bi bi-sunset text-danger fs-2"></i><div class="small text-muted">Zahod</div><strong>{{ today.sunset.split('T')[1] if today.sunset else '—' }}</strong></div></div><div class="moon-summary mt-4"><span class="moon-disc" style="--moon-shadow-x: {{ today.moon_shadow_offset|default(0) }}%;" role="img" aria-label="Luna je osvetljena {{ today.moon_illumination|default(0) }} odstotkov"></span><div><div class="small text-muted">Luna</div><strong>{{ today.moon_label if today.moon_label else '—' }}</strong><div class="small text-muted">{{ today.moon_illumination|default(0) }} % osvetljena</div></div></div></section></div>
+      <div class="col-lg-5"><section class="weather-panel p-3 p-lg-4 h-100" aria-labelledby="sun-title"><h2 id="sun-title" class="h4">Sonce in luna</h2><div class="d-flex justify-content-between align-items-center mt-3"><div><i class="bi bi-sunrise text-warning fs-2"></i><div class="small text-muted">Vzhod</div><strong>{{ today.sunrise.split('T')[1] if today.sunrise else '—' }}</strong></div><div class="text-end"><i class="bi bi-sunset text-danger fs-2"></i><div class="small text-muted">Zahod</div><strong>{{ today.sunset.split('T')[1] if today.sunset else '—' }}</strong></div></div><div class="moon-summary mt-4"><span class="moon-disc moon-phase--{{ moon_direction }} moon-illumination--{{ moon_illumination_side }} {{ 'moon-is-full' if moon_is_full else '' }}" style="--moon-scale-factor: {{ moon_scale_factor }};" role="img" aria-label="Luna je osvetljena {{ moon_illumination }} odstotkov"></span><div><div class="small text-muted">Luna</div><strong>{{ today.moon_label if today.moon_label else '—' }}</strong><div class="small text-muted">{{ moon_illumination }} % osvetljena</div></div></div></section></div>
       <div class="col-lg-7"><section class="weather-panel p-3 p-lg-4 h-100" aria-labelledby="radar-title"><h2 id="radar-title" class="h4">Radar padavin</h2><p class="weather-source">ARSO animacija za Slovenijo</p><img class="weather-radar" src="https://meteo.arso.gov.si/uploads/probase/www/observ/radar/si0-rm-anim.gif" alt="Animirana radarska slika padavin za Slovenijo" loading="lazy"></section></div>
     </div>
 

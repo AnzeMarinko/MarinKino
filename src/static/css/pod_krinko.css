@@ -14,12 +14,229 @@ html {
 
 body {
     font-family: Monospace;
-    background: var(--pod-krinko-temno);
+    background: #111a20;
 }
 
 .game {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
     color: white;
     min-height: 90vh;
+    background:
+        radial-gradient(ellipse at 18% 12%, rgba(68, 133, 197, 0.2), transparent 34%),
+        radial-gradient(ellipse at 84% 72%, rgba(62, 185, 227, 0.12), transparent 30%),
+        linear-gradient(135deg, #111a20 0%, #1b2930 52%, #10191f 100%);
+}
+
+.game::before,
+.game::after {
+    position: absolute;
+    z-index: -1;
+    inset: -30%;
+    pointer-events: none;
+    content: "";
+}
+
+.game::before {
+    background:
+        radial-gradient(ellipse at 30% 35%, rgba(111, 209, 83, 0.15), transparent 27%),
+        radial-gradient(ellipse at 72% 24%, rgba(251, 211, 3, 0.1), transparent 20%),
+        radial-gradient(ellipse at 52% 78%, rgba(68, 133, 197, 0.16), transparent 31%);
+    filter: blur(3rem);
+    animation: pod-krinko-dim 18s ease-in-out infinite alternate;
+}
+
+.game::after {
+    background-image:
+        radial-gradient(circle at 8% 18%, rgba(255, 255, 255, 0.7) 0 1px, transparent 2px),
+        radial-gradient(circle at 21% 66%, rgba(111, 209, 83, 0.7) 0 1px, transparent 2px),
+        radial-gradient(circle at 38% 28%, rgba(251, 211, 3, 0.55) 0 1px, transparent 2px),
+        radial-gradient(circle at 64% 17%, rgba(255, 255, 255, 0.5) 0 1px, transparent 2px),
+        radial-gradient(circle at 82% 52%, rgba(62, 185, 227, 0.65) 0 1px, transparent 2px),
+        radial-gradient(circle at 91% 82%, rgba(255, 255, 255, 0.45) 0 1px, transparent 2px);
+    opacity: 0.55;
+    animation: pod-krinko-watch 9s ease-in-out infinite alternate;
+}
+
+.game > section,
+.game > .modal {
+    position: relative;
+    z-index: 1;
+}
+
+.pod-krinko-silhouettes,
+.pod-krinko-watchlight {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.pod-krinko-silhouette {
+    position: absolute;
+    bottom: -2.75rem;
+    width: 3.2rem;
+    height: 7rem;
+    border-radius: 48% 48% 12% 12%;
+    background: #080d11;
+    filter: drop-shadow(0 0 0.8rem rgba(0, 0, 0, 0.55));
+    animation: pod-krinko-walk-left 17s linear infinite;
+}
+
+.pod-krinko-silhouette::before {
+    position: absolute;
+    top: -1.6rem;
+    left: 0.55rem;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background: #080d11;
+    content: "";
+}
+
+.pod-krinko-silhouette b {
+    position: absolute;
+    z-index: 1;
+    top: -1rem;
+    left: 0.15rem;
+    width: 2.9rem;
+    height: 0.32rem;
+    border-radius: 50%;
+    background: #080d11;
+    box-shadow: 0 -0.15rem 0 0.12rem #080d11;
+    transform: rotate(-7deg);
+}
+
+.pod-krinko-silhouette::after {
+    position: absolute;
+    right: -2.3rem;
+    top: 1.6rem;
+    width: 2.7rem;
+    height: 0.65rem;
+    border-radius: 1rem;
+    background: #080d11;
+    content: "";
+    transform: rotate(-58deg);
+    transform-origin: left center;
+}
+
+.pod-krinko-silhouette i {
+    position: absolute;
+    right: 0.35rem;
+    bottom: -1.15rem;
+    width: 0.62rem;
+    height: 2.1rem;
+    border-radius: 0 0 0.5rem 0.5rem;
+    background: #080d11;
+    box-shadow: -1.45rem 0.15rem 0 #080d11;
+    content: "";
+    transform: rotate(5deg);
+}
+
+.pod-krinko-silhouette--left {
+    left: -5rem;
+    transform: scale(0.9);
+}
+
+.pod-krinko-silhouette--right {
+    right: -6rem;
+    transform: scale(1.15) scaleX(-1);
+    animation-name: pod-krinko-walk-right;
+    animation-delay: -8s;
+}
+
+.pod-krinko-silhouette--right b {
+    transform: rotate(8deg);
+}
+
+.pod-krinko-watchlight__beam {
+    position: absolute;
+    top: 0;
+    width: 11rem;
+    height: 82%;
+    background: linear-gradient(180deg, rgba(247, 215, 107, 0.3), rgba(247, 215, 107, 0.02) 70%, transparent);
+    clip-path: polygon(45% 0, 58% 0, 100% 100%, 0 100%);
+    filter: blur(0.25rem);
+    opacity: 0.5;
+    transform-origin: top center;
+    animation: pod-krinko-searchlight 11s ease-in-out infinite alternate;
+}
+
+.pod-krinko-watchlight__beam--left {
+    left: -1rem;
+    transform: rotate(26deg);
+    transform-origin: top left;
+    animation-name: pod-krinko-searchlight-left;
+    animation-duration: 6s;
+}
+
+.pod-krinko-watchlight__beam--right-one {
+    right: -1rem;
+    transform: rotate(-25deg);
+    transform-origin: top right;
+    animation-name: pod-krinko-searchlight-right;
+    animation-delay: -3s;
+    animation-duration: 7.2s;
+}
+
+.pod-krinko-watchlight__beam--right-two {
+    right: 16%;
+    width: 8rem;
+    opacity: 0.34;
+    transform: rotate(-45deg);
+    transform-origin: top right;
+    animation-name: pod-krinko-searchlight-right-narrow;
+    animation-delay: -6s;
+    animation-duration: 8.4s;
+}
+
+@keyframes pod-krinko-walk-left {
+    from { transform: translateX(0) scale(0.9); }
+    to { transform: translateX(calc(100vw + 10rem)) scale(0.9); }
+}
+
+@keyframes pod-krinko-walk-right {
+    from { transform: translateX(0) scale(1.15) scaleX(-1); }
+    to { transform: translateX(calc(-100vw - 12rem)) scale(1.15) scaleX(-1); }
+}
+
+@keyframes pod-krinko-searchlight {
+    from { filter: blur(0.25rem); opacity: 0.25; }
+    to { filter: blur(0.45rem); opacity: 0.58; }
+}
+
+@keyframes pod-krinko-searchlight-left {
+    from { filter: blur(0.25rem); opacity: 0.24; transform: rotate(-28deg); }
+    to { filter: blur(0.45rem); opacity: 0.58; transform: rotate(-52deg); }
+}
+
+@keyframes pod-krinko-searchlight-right {
+    from { filter: blur(0.25rem); opacity: 0.24; transform: rotate(52deg); }
+    to { filter: blur(0.45rem); opacity: 0.58; transform: rotate(28deg); }
+}
+
+@keyframes pod-krinko-searchlight-right-narrow {
+    from { filter: blur(0.25rem); opacity: 0.18; transform: rotate(72deg); }
+    to { filter: blur(0.45rem); opacity: 0.44; transform: rotate(48deg); }
+}
+
+@keyframes pod-krinko-dim {
+    from { transform: translate3d(-4%, -2%, 0) scale(0.92) rotate(-3deg); }
+    to { transform: translate3d(5%, 4%, 0) scale(1.08) rotate(4deg); }
+}
+
+@keyframes pod-krinko-watch {
+    from { opacity: 0.28; transform: translate3d(-1%, 0, 0); }
+    to { opacity: 0.72; transform: translate3d(2%, 2%, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .game::before,
+    .game::after {
+        animation: none;
+    }
 }
 
 li b {

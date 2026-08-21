@@ -36,6 +36,15 @@
 <body>
     {% include "partials/navbar.html" %}
     <div class="game" data-bs-theme="dark">
+    <div class="pod-krinko-watchlight" aria-hidden="true">
+        <span class="pod-krinko-watchlight__beam pod-krinko-watchlight__beam--left"></span>
+        <span class="pod-krinko-watchlight__beam pod-krinko-watchlight__beam--right-one"></span>
+        <span class="pod-krinko-watchlight__beam pod-krinko-watchlight__beam--right-two"></span>
+    </div>
+    <div class="pod-krinko-silhouettes" aria-hidden="true">
+        <span class="pod-krinko-silhouette pod-krinko-silhouette--left"><b></b><i></i></span>
+        <span class="pod-krinko-silhouette pod-krinko-silhouette--right"><b></b><i></i></span>
+    </div>
     <section id="navodila" onclick="pravila_igre('none')" class="navodila-section">
         <div id="besedilo_navodil" class="navodila-content">
             <div class="navodila-header">

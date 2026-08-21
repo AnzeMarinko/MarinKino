@@ -2,6 +2,7 @@ let albums = [];
 let publicAlbums = [];
 let privateAlbums = [];
 let musicMetadata = {};
+const normalizedSearchFields = new Map();
 
 const albumsRoot = document.getElementById("albums-root");
 const metadataRoot = document.getElementById("metadata-root");
@@ -36,6 +37,7 @@ const playbackModeBtn = document.getElementById("playbackModeBtn");
 const playbackModeIcon = document.getElementById("playbackModeIcon");
 const playBtn = document.getElementById("playBtn");
 const playIcon = document.getElementById("playIcon");
+const musicAppContainer = document.querySelector(".music-app-container");
 
 const isRadioStoriesPage = Boolean(
     window.IS_RADIO_STORIES_PAGE || window.RADIO_STORIES_FILES
@@ -62,6 +64,8 @@ let nextPreloadAudio = null;
 let nextPreloadTrackId = null;
 let preloadedRecommendation = null;
 let nextTransitionRetry = null;
+const randomCooldownMs = 60 * 60 * 1000;
+const randomCooldownStorageKey = "musicRandomCooldown";
 const storedPlaybackMode = localStorage.getItem("musicPlaybackMode");
 const playbackModes = ["sequential", "similar", "repeat"];
 let playbackMode = playbackModes.includes(storedPlaybackMode)
@@ -110,6 +114,34 @@ function encodeMediaPath(path) {
 
 function getTrackMetadata(trackId) {
     return musicMetadata[trackId] || {};
+}
+
+function applyMusicAmbience(trackMetadata = {}) {
+    if (!musicAppContainer) {
+        return;
+    }
+    const features = trackMetadata.audio_features || {};
+    const clampFeature = value => Math.min(1, Math.max(0, Number(value) || 0.5));
+    const tempo = clampFeature(features.tempo);
+    const energy = clampFeature(features.energy);
+    const mood = clampFeature(features.mood);
+    const moodHue = Math.round(220 - mood * 80);
+    const moodSaturation = Math.round(42 + mood * 24);
+    const moodLight = Math.round(22 + mood * 14);
+    const moodColor = `hsl(${moodHue} ${moodSaturation}% ${moodLight}%)`;
+    const motionIntensity = Math.min(1, energy * 0.72 + tempo * 0.28);
+    const motionDuration = (15 - motionIntensity * 12).toFixed(2);
+    musicAppContainer.style.setProperty("--music-mood-hue", `${moodHue}`);
+    musicAppContainer.style.setProperty("--music-mood-saturation", `${moodSaturation}%`);
+    musicAppContainer.style.setProperty("--music-mood-light", `${moodLight}%`);
+    musicAppContainer.style.setProperty("--music-mood-color", moodColor);
+    musicAppContainer.style.setProperty("--music-energy", energy.toFixed(2));
+    musicAppContainer.style.setProperty("--music-tempo", tempo.toFixed(2));
+    musicAppContainer.style.setProperty("--music-motion-intensity", motionIntensity.toFixed(2));
+    musicAppContainer.style.setProperty("--music-motion-duration", `${motionDuration}s`);
+    musicAppContainer.classList.remove("music-ambience-changing");
+    void musicAppContainer.offsetWidth;
+    musicAppContainer.classList.add("music-ambience-changing");
 }
 
 function getAlbumDisplayInfo(albumName) {
@@ -287,6 +319,27 @@ function cyclePlaybackMode() {
     setPlaybackMode(nextMode);
 }
 
+function getRandomCooldownTracks() {
+    const now = Date.now();
+    let entries = {};
+    try {
+        entries = JSON.parse(localStorage.getItem(randomCooldownStorageKey) || "{}");
+    } catch (_error) {
+        entries = {};
+    }
+    entries = Object.fromEntries(
+        Object.entries(entries).filter(([_trackId, timestamp]) => now - Number(timestamp) < randomCooldownMs)
+    );
+    localStorage.setItem(randomCooldownStorageKey, JSON.stringify(entries));
+    return entries;
+}
+
+function markRandomCooldown(trackId) {
+    const entries = getRandomCooldownTracks();
+    entries[trackId] = Date.now();
+    localStorage.setItem(randomCooldownStorageKey, JSON.stringify(entries));
+}
+
 function getRandomTrackIndex() {
     if (!currentSongs.length) {
         return -1;
@@ -295,10 +348,14 @@ function getRandomTrackIndex() {
         return 0;
     }
 
-    let nextIndex = currentIndex;
-    while (nextIndex === currentIndex) {
-        nextIndex = Math.floor(Math.random() * currentSongs.length);
-    }
+    const cooldownTracks = getRandomCooldownTracks();
+    const availableIndexes = currentSongs
+        .map((_trackId, index) => index)
+        .filter(index => index !== currentIndex && !cooldownTracks[currentSongs[index]]);
+    const candidateIndexes = availableIndexes.length
+        ? availableIndexes
+        : currentSongs.map((_trackId, index) => index).filter(index => index !== currentIndex);
+    const nextIndex = candidateIndexes[Math.floor(Math.random() * candidateIndexes.length)];
     return nextIndex;
 }
 
@@ -320,6 +377,7 @@ async function nextRandom() {
         const payload = await requestRecommendedTrack("random");
         const nextIndex = currentSongs.indexOf(payload.song.id);
         if (nextIndex >= 0) {
+            markRandomCooldown(payload.song.id);
             playTrack(nextIndex, { automatic: true });
             return;
         }
@@ -328,6 +386,7 @@ async function nextRandom() {
 
     const nextIndex = getRandomTrackIndex();
     if (nextIndex >= 0) {
+        markRandomCooldown(currentSongs[nextIndex]);
         playTrack(nextIndex, { automatic: true });
     }
 }
@@ -344,6 +403,9 @@ async function requestRecommendedTrack(mode) {
             current_song_id: currentTrack,
             playlist: currentSongs,
             mode,
+            excluded_ids: mode === "random" || mode === "uniform_random"
+                ? Object.keys(getRandomCooldownTracks())
+                : [],
             randomness_weight: mode === "similar" ? 0.2 : 1.0,
             crossfade_duration_ms: 3000,
         }),
@@ -444,8 +506,9 @@ function renderAlbums() {
 function buildTrackHtml(songId) {
     const trackMetadata = getTrackMetadata(songId);
     const title = trackMetadata.title || songId.split("/").slice(-1)[0];
-    const artist = trackMetadata.artist || "";
-    const album = trackMetadata.album || "";
+    const artist = trackMetadata.artist
+        || (isRadioStoriesPage ? "Radijska zgodba" : "Izvajalec ni naveden");
+    const album = trackMetadata.album || "Album ni naveden";
     const albumInfo = getAlbumDisplayInfo(album);
     const semantic = trackMetadata.semantic_analysis || {};
     const tagText = [
@@ -465,20 +528,97 @@ function buildTrackHtml(songId) {
     return `<i class="${albumClass}">${albumInfo.displayName}</i> : ${artist} : <b>${title}</b>${tagMarkup}`;
 }
 
-function getSongSearchTerms(metadata = {}) {
+function normalizeSearchText(value) {
+    return String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
+}
+
+function getSongSearchFields(metadata = {}) {
+    if (normalizedSearchFields.has(metadata)) {
+        return normalizedSearchFields.get(metadata);
+    }
     const semantic = metadata.semantic_analysis || {};
-    const tagWords = [
+    const semanticText = [
         ...(Array.isArray(semantic.tags) ? semantic.tags : []),
         ...(Array.isArray(semantic.dances) ? semantic.dances : []),
         ...(Array.isArray(semantic.suitable_for) ? semantic.suitable_for : []),
     ].join(" ");
 
-    return [
-        metadata.title || "",
-        metadata.artist || "",
-        metadata.album || "",
-        tagWords,
-    ].join(" ").toLowerCase();
+    const fields = {
+        title: normalizeSearchText(metadata.title),
+        artist: normalizeSearchText(metadata.artist),
+        album: normalizeSearchText(metadata.album),
+        semantic: normalizeSearchText(semanticText),
+    };
+    normalizedSearchFields.set(metadata, fields);
+    return fields;
+}
+
+function levenshteinDistance(firstValue, secondValue) {
+    const previousRow = Array.from(
+        { length: secondValue.length + 1 },
+        (_value, index) => index,
+    );
+
+    for (let firstIndex = 0; firstIndex < firstValue.length; firstIndex += 1) {
+        let diagonal = previousRow[0];
+        previousRow[0] = firstIndex + 1;
+        for (let secondIndex = 0; secondIndex < secondValue.length; secondIndex += 1) {
+            const savedValue = previousRow[secondIndex + 1];
+            const substitutionCost = firstValue[firstIndex] === secondValue[secondIndex] ? 0 : 1;
+            previousRow[secondIndex + 1] = Math.min(
+                previousRow[secondIndex + 1] + 1,
+                previousRow[secondIndex] + 1,
+                diagonal + substitutionCost,
+            );
+            diagonal = savedValue;
+        }
+    }
+    return previousRow[secondValue.length];
+}
+
+function fuzzyFieldScore(searchTerm, fieldValue) {
+    if (!fieldValue) {
+        return 0;
+    }
+    if (fieldValue.includes(searchTerm)) {
+        return 1;
+    }
+
+    const searchWords = searchTerm.split(" ");
+    const fieldWords = fieldValue.split(" ");
+    const wordScores = searchWords.map(searchWord => Math.max(
+        ...fieldWords.filter(fieldWord => Math.abs(fieldWord.length - searchWord.length) <= 2).map(fieldWord => {
+            const distance = levenshteinDistance(searchWord, fieldWord);
+            return 1 - distance / Math.max(searchWord.length, fieldWord.length);
+        }),
+        0,
+    ));
+    const fuzzyWordScore = wordScores.reduce((sum, score) => sum + score, 0) / wordScores.length;
+    return fuzzyWordScore;
+}
+
+function getSongSearchScore(metadata, searchTerm) {
+    const fields = getSongSearchFields(metadata);
+    const weightedFields = [
+        [fields.title, 5],
+        [fields.artist, 4],
+        [fields.album, 3],
+        [fields.semantic, 0.75],
+    ];
+    const availableWeight = weightedFields.reduce(
+        (sum, [fieldValue, weight]) => sum + (fieldValue ? weight : 0),
+        0,
+    );
+    const score = weightedFields.reduce(
+        (sum, [fieldValue, weight]) => sum + fuzzyFieldScore(searchTerm, fieldValue) * weight,
+        0,
+    );
+    return availableWeight ? score / availableWeight : 0;
 }
 
 function renderTrackCollection(songIds, useOriginalIndex) {
@@ -754,6 +894,7 @@ async function playTrack(index, options = {}) {
     currentIndex = index;
     currentTrack = currentSongs[index];
     const trackMetadata = getTrackMetadata(currentTrack);
+    applyMusicAmbience(trackMetadata);
     const storedTrack = localStorage.getItem("track");
     const storedTime = parseFloat(localStorage.getItem("time") || 0);
     pendingRestoreTime = options.startTimeMs !== undefined
@@ -1026,7 +1167,7 @@ function updateSeekBarBackground() {
         const max = parseFloat(progress.max) || 1;
         const value = parseFloat(progress.value) || 0;
         const pct = Math.max(0, Math.min(100, (value / max) * 100));
-        progress.style.background = `linear-gradient(90deg, var(--vijolicna) ${pct}%, lightgray ${pct}% )`;
+        progress.style.background = `linear-gradient(90deg, hsl(var(--music-mood-hue) 52% 16%) ${pct}%, hsl(var(--music-mood-hue) 24% 72% / 0.5) ${pct}%)`;
     } catch (_error) {
     }
 }
@@ -1059,7 +1200,12 @@ audio.onloadedmetadata = () => {
     updateSeekBarBackground();
 };
 
-audio.onended = () => next();
+audio.onended = () => {
+    if (!isRadioStoriesPage) {
+        next();
+    }
+    updatePlayBtn("false");
+};
 
 audio.addEventListener("play", () => {
     albumCover.style.animation = "spin 3s linear infinite";
@@ -1393,26 +1539,63 @@ async function removeCurrentSongFromPrivateAlbum() {
 }
 
 function filterSongs() {
-    const searchTerm = (searchInput?.value || "").toLowerCase();
+    const searchTerm = normalizeSearchText(searchInput?.value);
+    const scrollToSearchResults = (hasResults = false) => {
+        const tracksSection = document.getElementById("tracks");
+        if (!tracksSection) {
+            return;
+        }
+        const positionResults = () => {
+            const firstTrack = hasResults
+                ? tracksSection.querySelector(".track-item")
+                : null;
+            if (firstTrack) {
+                firstTrack.scrollIntoView({ behavior: "smooth", block: "center" });
+                return;
+            }
+            tracksSection.scrollTop = 0;
+            tracksSection.scrollTo(0, 0);
+        };
+        positionResults();
+        requestAnimationFrame(positionResults);
+        setTimeout(positionResults, 0);
+    };
 
     if (!searchTerm) {
         filteredSongs = [...currentSongs];
         renderTrackCollection(filteredSongs, true);
+        scrollToSearchResults(Boolean(filteredSongs.length));
         return;
     }
 
-    filteredSongs = currentSongs.filter(songId => {
-        const metadata = musicMetadata[songId] || {};
-        const searchableText = getSongSearchTerms(metadata);
-        return searchableText.includes(searchTerm);
-    });
+    const rankedSongs = currentSongs
+        .map((songId, originalIndex) => ({
+            songId,
+            originalIndex,
+            score: getSongSearchScore(musicMetadata[songId] || {}, searchTerm),
+        }))
+        .filter(result => result.score >= 0.35)
+        .sort((firstResult, secondResult) =>
+            secondResult.score - firstResult.score
+            || firstResult.originalIndex - secondResult.originalIndex
+        );
+    filteredSongs = rankedSongs.map(result => result.songId);
 
     if (!filteredSongs.length) {
         trackListEl.innerHTML = "<i style='color: #999; padding: 20px; text-align: center;'>Ni rezultatov iskanja.</i>";
+        scrollToSearchResults();
         return;
     }
 
     renderTrackCollection(filteredSongs, true);
+    scrollToSearchResults(true);
+}
+
+let searchDebounceTimer = null;
+
+function scheduleSongFilter() {
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(filterSongs, 500);
 }
 
 if (privateAlbumSelect) {
@@ -1626,10 +1809,14 @@ if (initialAlbum) {
         currentIndex = initialIndex;
         currentTrack = currentSongs[initialIndex];
         const trackMetadata = getTrackMetadata(currentTrack);
+        applyMusicAmbience(trackMetadata);
         
         nowPlayingTitle.textContent = trackMetadata.title || currentTrack;
-        nowPlayingArtist.textContent = trackMetadata.artist || "";
-        nowPlayingAlbum.textContent = getAlbumDisplayInfo(trackMetadata.album || "").displayName;
+        nowPlayingArtist.textContent = trackMetadata.artist
+            || (isRadioStoriesPage ? "Radijska zgodba" : "Izvajalec ni naveden");
+        nowPlayingAlbum.textContent = getAlbumDisplayInfo(
+            trackMetadata.album || "Album ni naveden"
+        ).displayName;
         
         // Samo pripnemo vir za audio (brez audio.play()):
         attachTrackSource(currentTrack).catch(err => console.warn("Priprava vira neuspešna:", err));
@@ -1641,7 +1828,7 @@ if (initialAlbum) {
 }
 
 if (searchInput) {
-    searchInput.addEventListener("input", filterSongs);
+    searchInput.addEventListener("input", scheduleSongFilter);
 }
 
 if (document.readyState === "loading") {

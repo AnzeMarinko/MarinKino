@@ -240,12 +240,10 @@ if (weatherRoot) {
     const compactPhoneXAxis = window.matchMedia("(max-width: 575.98px)").matches;
     times.forEach(time => {
         const date = new Date(time);
-        const isPhoneHiddenHour = [0, 6, 18].includes(date.getHours());
         const onNoon = date.getHours() === 12 && date.getMinutes() === 0;
         const onSixHourMark = date.getHours() % 6 === 0 && date.getMinutes() === 0;
-        const onThreeHourMark = date.getHours() % 3 === 0 && date.getMinutes() === 0;
         const shouldShowTick = compactPhoneXAxis
-            ? (onNoon || (onThreeHourMark && !isPhoneHiddenHour))
+            ? onNoon
             : (onNoon || onSixHourMark);
         if (shouldShowTick) {
             const hourLabel = `${String(date.getHours()).padStart(2, "0")}:00`;
@@ -342,6 +340,7 @@ if (weatherRoot) {
                 tickmode: "array",
                 tickvals: timeTicks,
                 ticktext: timeTickLabels,
+                tickangle: compactPhoneXAxis ? 0 : "auto",
             },
             yaxis: { title: "°C", side: "left", position: 0.0, tickfont: { color: "#d9485f" }, showspikes: true, showline: true, showgrid: false, fixedrange: true },
             yaxis2: { title: "mm", overlaying: "y", side: "right", position: 1.0, tickfont: { color: "#4285bd" }, showspikes: true, showline: true, showgrid: false, fixedrange: true },

@@ -3,6 +3,7 @@ import logging
 import os
 from copy import copy
 from datetime import date, datetime
+from urllib.parse import unquote
 
 import pandas as pd
 from flask import (
@@ -18,6 +19,7 @@ from flask_login import current_user, login_required
 
 from utils import is_current_admin_view, redis_client, safe_path
 from weather_service import (
+    daily_calendar,
     fetch_ip_location,
     fetch_weather_for_location,
     geocode_location,
@@ -214,11 +216,33 @@ def suggestions():
 
 @misc_bp.route("/weather")
 def weather():
-    query = (
-        request.args.get("location") or "Ljubljana"
-    ).strip() or "Ljubljana"
+    requested_location = request.args.get("location")
     latitude = request.args.get("lat", type=float)
     longitude = request.args.get("lon", type=float)
+    query = (requested_location or "").strip()
+
+    if not query and latitude is None and longitude is None:
+        try:
+            saved_locations = json.loads(
+                unquote(
+                    request.cookies.get("marinkino_weather_locations", "[]")
+                )
+            )
+            last_location = saved_locations[0]
+            if isinstance(last_location, dict):
+                query = str(last_location.get("name") or "").strip()
+                latitude = float(last_location["lat"])
+                longitude = float(last_location["lon"])
+        except (
+            TypeError,
+            ValueError,
+            KeyError,
+            IndexError,
+            json.JSONDecodeError,
+        ):
+            pass
+
+    query = query or "Ljubljana"
     search_results = []
 
     if latitude is not None and longitude is not None:
@@ -242,6 +266,8 @@ def weather():
                 14.5058,
                 "Ljubljana",
             )
+
+    weather_data["calendar"] = daily_calendar()
 
     return render_template(
         "weather.html",

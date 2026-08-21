@@ -29,7 +29,11 @@
 }
 </style>
 
-<div class="music-app-container">
+<div class="music-app-container radio-stories-page">
+    <div class="radio-bubbles" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+    </div>
     <!-- Browser Section -->
     <div id="browser">
         <div class="browser-toggle" id="browserToggle">
@@ -91,10 +95,6 @@
 
             <button class="control-btn" onclick="next()" title="Naslednja zgodba">
                 <i class="bi bi-skip-forward-fill"></i>
-            </button>
-
-            <button id="shuffleBtn" class="control-btn btn-shuffle" onclick="toggleRandom()" title="Naključni vrstni red">
-                <i id="shuffleIcon" class="bi bi-shuffle"></i>
             </button>
 
             {% if view_as != "anonymous" and view_as != "user" and current_user.is_authenticated and current_user.is_admin %}

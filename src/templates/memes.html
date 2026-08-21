@@ -5,7 +5,10 @@
 <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
 <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
 
-<div class="meme-container" id="mediaContainer">
+<div class="memes-ambient" aria-hidden="true">
+    <span></span><span></span><span></span><span></span><span></span><span></span>
+</div>
+<div class="meme-container meme-container-animated" id="mediaContainer">
     {% if meme_file_name.endswith('.mp4') %}
         <video id="videoPlayer" class="plyr-video" controls autoplay playsinline>
             <source src="/memes/file/{{ meme_file_name }}" type="video/mp4">
