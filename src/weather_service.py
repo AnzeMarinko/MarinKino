@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from functools import lru_cache
 from typing import Any
 from urllib.parse import urlparse
@@ -117,6 +117,7 @@ _SLOVENE_WEEKDAYS = (
     "sobota",
     "nedelja",
 )
+_LUNAR_MONTH_DAYS = 29.530588
 
 
 def slovene_holidays(day: date) -> list[str]:
@@ -230,6 +231,20 @@ def moon_shadow_offset_percent(value: Any) -> int:
     return round((phase - 1) * 200)
 
 
+def hours_until_next_full_moon(
+    value: Any, elapsed_hours: float = 0
+) -> int | None:
+    try:
+        phase = float(value) % 1
+    except (TypeError, ValueError):
+        return None
+    days = ((0.5 - phase) % 1) * _LUNAR_MONTH_DAYS
+    if days > _LUNAR_MONTH_DAYS - 3:
+        days = days - _LUNAR_MONTH_DAYS
+    remaining_hours = days * 24 - max(0, elapsed_hours)
+    return round(remaining_hours)
+
+
 def _read_daily_value(daily: dict[str, Any], key: str, index: int):
     values = daily.get(key, [])
     if not isinstance(values, list) or index >= len(values):
@@ -242,6 +257,15 @@ def build_weather_data(
 ) -> dict[str, Any]:
     daily = payload.get("daily") or {}
     current = payload.get("current") or {}
+    current_time = str(current.get("time") or "")
+    current_date = current_time.split("T", 1)[0] or date.today().isoformat()
+    try:
+        elapsed_hours = (
+            datetime.fromisoformat(current_time).hour
+            + datetime.fromisoformat(current_time).minute / 60
+        )
+    except ValueError:
+        elapsed_hours = 0
     forecast = []
     daily_times = daily.get("time") or []
     for index, day in enumerate(daily_times):
@@ -276,6 +300,10 @@ def build_weather_data(
                 ),
                 "moon_shadow_offset": moon_shadow_offset_percent(
                     _read_daily_value(daily, "moon_phase", index)
+                ),
+                "hours_until_next_full_moon": hours_until_next_full_moon(
+                    _read_daily_value(daily, "moon_phase", index),
+                    elapsed_hours if str(day) == current_date else 0,
                 ),
             }
         )
@@ -361,7 +389,7 @@ def fetch_weather_for_location(
         ),
         "timezone": "auto",
         "past_days": 3,
-        "forecast_days": 14,
+        "forecast_days": 16,
         "minutely_15": (
             "temperature_2m,precipitation,wind_speed_10m,"
             "global_tilted_irradiance,weather_code,is_day,snowfall"

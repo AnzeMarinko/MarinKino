@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .welcome-shell {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 42px 18px 64px;
+    }
+    .welcome-hero {
+        background: linear-gradient(135deg, #173f40, #28635d);
+        border-radius: 18px;
+        padding: clamp(28px, 6vw, 64px);
+        color: #f8f3e6;
+        position: relative;
+        overflow: hidden;
+    }
+    .welcome-hero::after {
+        content: "";
+        position: absolute;
+        width: 230px;
+        height: 230px;
+        right: -70px;
+        bottom: -90px;
+        border: 30px solid #d8744b55;
+        border-radius: 50%;
+    }
+    .welcome-kicker {
+        color: #f2b18e;
+        font-size: .78rem;
+        font-weight: 700;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+    }
+    .welcome-hero h1 {
+        max-width: 700px;
+        margin: 10px 0 12px;
+        font-size: clamp(2.1rem, 5vw, 4.2rem);
+        line-height: 1.04;
+    }
+    .welcome-hero p { max-width: 640px; color: #d2e5db; font-size: 1.08rem; }
+    .welcome-section-title { margin: 42px 0 18px; color: #173f40; }
+    .welcome-stats {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+    }
+    .welcome-stat, .welcome-tab {
+        border: 1px solid #dce7e1;
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: 0 10px 28px #173f4012;
+    }
+    .welcome-stat { padding: 20px; min-height: 125px; }
+    .welcome-stat strong { display: block; color: #d35d39; font-size: 2rem; line-height: 1; }
+    .welcome-stat span { display: block; margin-top: 10px; color: #607775; }
+    .welcome-tabs { align-items: stretch; }
+    .welcome-tab {
+        padding: 20px;
+        min-height: 170px;
+        display: flex;
+        flex-direction: column;
+    }
+    .welcome-tab-featured {
+        min-height: 215px;
+    }
+    .welcome-tab-icon { color: #d35d39; font-size: 1.6rem; }
+    .welcome-tab h3 { margin: 10px 0 5px; font-size: 1.12rem; color: #173f40; }
+    .welcome-tab p { margin: 0; color: #607775; font-size: .94rem; }
+    .welcome-tab p + p { margin-top: 10px; }
+    .welcome-soft-emphasis {
+        color: #d35d39;
+        font-weight: 600;
+    }
+    .welcome-actions { display: flex; justify-content: center; margin-top: 42px; }
+    .welcome-actions button { border: 0; border-radius: 8px; padding: 13px 28px; background: #d35d39; color: #fff; font-weight: 700; }
+    .welcome-actions button:hover { background: #a94327; }
+    @media (max-width: 850px) {
+        .welcome-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 520px) {
+        .welcome-shell { padding: 24px 12px 44px; }
+        .welcome-stats { grid-template-columns: 1fr; }
+        .welcome-tab-featured { min-height: 170px; }
+    }
+</style>
+
+<div class="welcome-shell">
+    <section class="welcome-hero">
+        <div class="welcome-kicker">Prvi obisk</div>
+        <h1>Dobrodošli v MarinKino, {{ current_user.id }}.</h1>
+        <p>Na enem mestu najdeš filme, šale, glasbo, zgodbe, nekaj prostora za igro in še kaj. Me veseli, da si tukaj. Upam, da ti bo stran v razvedrilo, sprostitev in navdih.</p> <p></p>Spodaj je kratek zemljevid strani.</p>
+    </section>
+
+    <h2 class="welcome-section-title">Kaj je v zbirki?</h2>
+    <div class="welcome-stats">
+        <div class="welcome-stat"><strong>{{ stats.movies_count }}</strong><span>filmov</span></div>
+        <div class="welcome-stat"><strong>{{ stats.movies_duration|round(0, 'common')|int }}</strong><span>ur filmov</span></div>
+        <div class="welcome-stat"><strong>{{ stats.music_count }}</strong><span>skladb</span></div>
+        <div class="welcome-stat"><strong>{{ stats.memes_count }}</strong><span>šal</span></div>
+        <div class="welcome-stat"><strong>{{ stats.cartoons_count }}</strong><span>zbirk risank</span></div>
+        <div class="welcome-stat"><strong>{{ stats.cartoons_duration|round(0, 'common')|int }}</strong><span>ur risank</span></div>
+        <div class="welcome-stat"><strong>{{ stats.blog_count }}</strong><span>objav na blogu</span></div>
+        <div class="welcome-stat"><span>Pa tudi <div class="welcome-soft-emphasis">radijske zgodbe, vreme</div> in družabna igra <div class="welcome-soft-emphasis">Pod krinko</div></span></div>
+    </div>
+
+    <h2 class="welcome-section-title">Zavihki</h2>
+    <div class="welcome-tabs row g-3">
+        <div class="col-12 col-lg-8">
+            <article class="welcome-tab welcome-tab-featured"><div class="welcome-tab-icon"><i class="bi bi-film"></i></div><h3>Filmi</h3><p>Celovečerni filmi, risanke in zbirke kratkih risank. Pri vsakem filmu najdeš opis, ocene in slovenske podnapise. Zaradi avtomatskega urejanja lahko pride do napak v podatkih filma in podnapisih (še posebej ob avtomatskem prevodu z umetno inteligenco).</p><p>Ob končanem ogledu filma bom vesel njegove ocene ali komentarja.</p></article>
+        </div>
+        <div class="col-12 col-md-6 col-lg-4">
+            <article class="welcome-tab"><div class="welcome-tab-icon"><i class="bi bi-emoji-smile"></i></div><h3>Šale</h3><p>Kratki videi in slike (meme) za minimalno dnevno dozo smeha.</p></article>
+        </div>
+        <div class="col-12 col-md-6 col-lg-4">
+            <article class="welcome-tab"><div class="welcome-tab-icon"><i class="bi bi-music-note-beamed"></i></div><h3>Glasba</h3><p>Glasba urejena za poslušanje na telefonu ali računalniku (brez oglasov, tudi ob izklopljenem zaslonu).</p></article>
+        </div>
+        <div class="col-12 col-md-6 col-lg-4">
+            <article class="welcome-tab"><div class="welcome-tab-icon"><i class="bi bi-broadcast"></i></div><h3>Radijske zgodbe</h3><p>Zbirka radijskih zgodb za otroke.</p></article>
+        </div>
+        <div class="col-12 col-md-6 col-lg-4">
+            <article class="welcome-tab"><div class="welcome-tab-icon"><i class="bi bi-cloud-sun"></i></div><h3>Vreme</h3><p>Hiter pregled trenutnega vremena in napovedi.</p></article>
+        </div>
+        <div class="col-12 col-md-6 col-lg-4">
+            <article class="welcome-tab"><div class="welcome-tab-icon"><i class="bi bi-people"></i></div><h3>Pod krinko</h3><p>Besedna družabna igra za več igralcev (podprto do 20).</p></article>
+        </div>
+        <div class="col-12 col-md-6 col-lg-4">
+            <article class="welcome-tab"><div class="welcome-tab-icon"><i class="bi bi-journal-text"></i></div><h3>Blog</h3><p>Moja razmišljanja (trenutno edina vsebina odprta za neprijavljene uporabnike).</p></article>
+        </div>
+        <div class="col-12 col-md-6 col-lg-4">
+            <article class="welcome-tab"><div class="welcome-tab-icon"><i class="bi bi-lightbulb"></i></div><h3>Predlogi</h3><p>Pošlji komentar, predlog za film, glasbo ali izboljšavo strani.</p></article>
+        </div>
+    </div>
+
+    <div class="welcome-actions">
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit">Nadaljuj na MarinKino</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

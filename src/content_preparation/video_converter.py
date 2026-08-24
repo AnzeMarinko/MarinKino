@@ -32,9 +32,7 @@ def vtt_to_srt(vtt_path: Path, srt_path: Path):
     """Pretvori zunanjo VTT datoteko v SRT format."""
     try:
         content = vtt_path.read_text(encoding="utf-8")
-        # Odstranimo WEBVTT glavo
         content = re.sub(r"^WEBVTT\s*\n*", "", content)
-        # Zamenjamo pike v časovnih oznakah z vejicami
         content = re.sub(r"(\d{2}:\d{2}:\d{2})\.(\d{3})", r"\1,\2", content)
         srt_path.write_text(content.strip() + "\n", encoding="utf-8")
         log.info(f"📝 Pretvori podnapise: {vtt_path.name} -> {srt_path.name}")
@@ -45,14 +43,10 @@ def vtt_to_srt(vtt_path: Path, srt_path: Path):
 
 
 def extract_subtitles_to_srt(video_path: Path, base_srt_path: Path):
-    """
-    Poišče vse sledi podnapisov v MKV/videu in vsako posebej
-    ekstrahira v svojo .srt datoteko z oznako jezika in indeksa.
-    """
+    """Ekstrahira vse vgrajene podnapise v ločene SRT datoteke."""
     if base_srt_path.parent.exists():
         return True
 
-    # 1. Pridobimo podatke o vseh podnapisih z ffprobe (v JSON formatu)
     probe_cmd = [
         "ffprobe",
         "-v",
@@ -487,70 +481,62 @@ def get_videos_list(folder):
     ]
 
 
-def convert_videos(folder):
+def convert_videos(folder, merge=False, collection=False):
     folder_path = Path(folder)
     videos = sorted(get_videos_list(folder_path))
 
     if not videos:
         return []
 
-    # 1. faza: Poskrbi, da so vsi obstoječi MP4 v AAC formatu
     for video in videos:
         if video.suffix.lower() == ".mp4":
             ensure_aac_audio(video)
 
     final_output = folder_path / f"{folder_path.name}.mp4"
 
-    # 2. faza: Logika združevanja ali pretvorbe
-    if ".Collection" in folder_path.name:
-        # Za zbirke samo pretvori posamezne datoteke v MP4, ne združuj
+    if collection or ".collection" in folder_path.name.lower():
         for video in videos:
             if video.suffix.lower() != ".mp4":
                 convert_to_mp4(video, video.with_suffix(".mp4"))
 
-    elif len(videos) > 1 and "series" not in str(folder_path).lower():
-        # Združevanje več datotek
+    elif (
+        merge and len(videos) > 1 and "series" not in str(folder_path).lower()
+    ):
         log.info(f"🔄 Združujem {len(videos)} videov v {final_output.name}...")
-        # zdruzi le izrecno izbrane mape, da ne bo združeval vseh po defaultu
-        if folder in []:
-            temp_mp4s = []
+        temp_mp4s = []
+        for video in videos:
+            target = video.with_suffix(".temp_conv.mp4")
+            if convert_to_mp4(video, target):
+                temp_mp4s.append(target)
 
-            for v in videos:
-                target = v.with_suffix(".temp_conv.mp4")
-                if convert_to_mp4(v, target):
-                    temp_mp4s.append(target)
+        list_file = folder_path / "temp_list.txt"
+        with list_file.open("w", encoding="utf-8") as file:
+            for temporary_file in temp_mp4s:
+                file.write(f"file '{temporary_file.name}'\n")
 
-            # Ustvari temp_list za concat
-            list_file = folder_path / "temp_list.txt"
-            with list_file.open("w", encoding="utf-8") as f:
-                for tmp in temp_mp4s:
-                    f.write(f"file '{tmp.name}'\n")
-
-            concat_cmd = [
-                "ffmpeg",
-                "-y",
-                "-f",
-                "concat",
-                "-safe",
-                "0",
-                "-i",
-                str(list_file),
-                "-c",
-                "copy",
-                str(final_output),
-            ]
-
-            if run_ffmpeg(concat_cmd):
-                for tmp in temp_mp4s:
-                    remove(str(tmp))
-                remove(str(list_file))
+        concat_cmd = [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+            str(list_file),
+            "-c",
+            "copy",
+            str(final_output),
+        ]
+        if run_ffmpeg(concat_cmd):
+            for temporary_file in temp_mp4s:
+                remove(str(temporary_file))
+            remove(str(list_file))
 
     elif len(videos) == 1:
-        # Samo ena datoteka
         video = videos[0]
         if video.suffix.lower() != ".mp4":
             convert_to_mp4(video, final_output)
-        else:
+        elif video != final_output:
             video.rename(final_output)
 
     return get_videos_list(folder)

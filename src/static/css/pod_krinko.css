@@ -151,6 +151,78 @@ body {
     transform: rotate(8deg);
 }
 
+.pod-krinko-silhouette--white {
+    left: -6rem;
+    z-index: 1;
+    background: #aebbb5;
+    filter: drop-shadow(0 0 0.9rem rgba(202, 219, 211, 0.38));
+    transform: scale(1.05);
+    animation-name: pod-krinko-walk-white;
+    animation-duration: 31s;
+    animation-delay: 0s;
+}
+
+.pod-krinko-silhouette--white::before,
+.pod-krinko-silhouette--white::after,
+.pod-krinko-silhouette--white i {
+    background: #aebbb5;
+}
+
+.pod-krinko-silhouette--white::after {
+    top: -2.7rem;
+    left: 0.4rem;
+    width: 2.15rem;
+    height: 1.38rem;
+    transform: rotate(-11deg);
+    transform-origin: right center;
+}
+
+.pod-krinko-silhouette--white em {
+    position: absolute;
+    z-index: 2;
+    top: 0.5rem;
+    right: -0.15rem;
+    width: 0.62rem;
+    height: 0.85rem;
+    border: 1px solid rgba(255, 238, 154, 0.9);
+    border-radius: 0.18rem;
+    background: #f7d76b;
+    box-shadow: 0 0 0.9rem rgba(247, 215, 107, 1);
+    isolation: isolate;
+    transform: rotate(-18deg);
+}
+
+.pod-krinko-silhouette--white em::after {
+    position: absolute;
+    top: 0.12rem;
+    left: 0.2rem;
+    width: 10rem;
+    height: 11rem;
+    background: linear-gradient(112deg, rgba(247, 215, 107, 0.42), rgba(247, 215, 107, 0.1) 58%, transparent 78%);
+    clip-path: polygon(0 2%, 4% 0, 100% 100%, 38% 100%);
+    filter: blur(0.22rem);
+    content: "";
+    z-index: -1;
+    opacity: 0.86;
+    transform: rotate(58deg);
+    transform-origin: top left;
+    animation: pod-krinko-hand-lamp 4.5s ease-in-out infinite alternate;
+}
+
+.pod-krinko-silhouette--white i {
+    box-shadow: -1.45rem 0.15rem 0 #aebbb5;
+}
+
+.pod-krinko-silhouette--white b {
+    top: -1.3rem;
+    left: 1.8rem;
+    width: 1.15rem;
+    height: 0.38rem;
+    background: #aebbb5;
+    box-shadow: 0 -0.15rem 0 0.12rem #aebbb5;
+    transform: rotate(-11deg);
+}
+
 .pod-krinko-watchlight__beam {
     position: absolute;
     top: 0;
@@ -200,6 +272,16 @@ body {
 @keyframes pod-krinko-walk-right {
     from { transform: translateX(0) scale(1.15) scaleX(-1); }
     to { transform: translateX(calc(-100vw - 12rem)) scale(1.15) scaleX(-1); }
+}
+
+@keyframes pod-krinko-walk-white {
+    from { transform: translateX(0) scale(1.05); }
+    to { transform: translateX(calc(100vw + 12rem)) scale(1.05); }
+}
+
+@keyframes pod-krinko-hand-lamp {
+    from { opacity: 0.42; transform: rotate(-12deg); }
+    to { opacity: 0.74; transform: rotate(12deg); }
 }
 
 @keyframes pod-krinko-searchlight {

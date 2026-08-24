@@ -639,10 +639,6 @@
     row-gap: 0.5rem;
 }
 
-.weather-daily-list--extra {
-    margin-top: 1rem;
-}
-
 .weather-day:hover {
     transform: translateY(-3px);
     box-shadow: 0 0.6rem 1.2rem rgba(50, 80, 120, 0.12);
@@ -727,6 +723,19 @@
 .weather-source {
     color: var(--weather-muted);
     font-size: 0.78rem;
+}
+
+.weather-current-time {
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.45;
+}
+
+.weather-current-meta {
+    display: flex;
+    gap: 0.35rem;
+    font-size: 0.72rem;
+    line-height: 1.3;
 }
 
 .moon-summary {

@@ -158,12 +158,14 @@ if (weatherRoot) {
 
     const forecastToggle = document.querySelector(".weather-more-toggle");
     const extraForecastRow = document.querySelector(".weather-daily-list--extra");
-    const hiddenForecastDays = extraForecastRow ? extraForecastRow.querySelectorAll(".weather-day-extra") : [];
+    const hiddenForecastDays = document.querySelectorAll(".weather-day-extra");
     if (forecastToggle && extraForecastRow && hiddenForecastDays.length) {
         forecastToggle.hidden = false;
         forecastToggle.addEventListener("click", () => {
             const isExpanded = forecastToggle.dataset.expanded === "true";
-            extraForecastRow.hidden = isExpanded;
+            hiddenForecastDays.forEach(day => {
+                day.hidden = isExpanded;
+            });
             forecastToggle.dataset.expanded = String(!isExpanded);
             forecastToggle.textContent = isExpanded ? "Več" : "Manj";
             forecastToggle.setAttribute("aria-expanded", String(!isExpanded));

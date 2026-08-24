@@ -254,12 +254,8 @@ def home():
         stats = get_movies_statistics()
         stats["music_count"] = MUSIC_COUNT
         stats["memes_count"] = MEMES_COUNT
-        stats["blog_count"] = len(
-            [
-                v
-                for v in load_blog_posts().values()
-                if v.get("published", False)
-            ]
+        stats["blog_count"] = sum(
+            v.get("published", False) for v in load_blog_posts().values()
         )
 
         return render_template("index.html", pagetitle="MarinKino", **stats)

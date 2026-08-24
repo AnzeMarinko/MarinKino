@@ -1,9 +1,18 @@
 import unittest
 
-from weather_service import build_weather_data, summarize_weather_code
+from weather_service import (
+    build_weather_data,
+    hours_until_next_full_moon,
+    summarize_weather_code,
+)
 
 
 class WeatherServiceTests(unittest.TestCase):
+    def test_next_full_moon_countdown_returns_positive_hours(self):
+        self.assertEqual(hours_until_next_full_moon(0.29), 149)
+        self.assertEqual(hours_until_next_full_moon(0.5), 709)
+        self.assertEqual(hours_until_next_full_moon(0.29, 18), 131)
+
     def test_build_weather_data_uses_current_and_daily_values(self):
         payload = {
             "timezone": "Europe/Ljubljana",

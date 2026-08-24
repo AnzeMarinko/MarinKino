@@ -61,7 +61,7 @@ def meme():
     meme_id = (meme_id + 1) % len(memes)
     return render_template(
         "memes.html",
-        pagetitle="MarinKino - Šale in navdihi",
+        pagetitle="MarinKino - Šale",
         fullscreenbutton=True,
         meme_file_name=izbrana,
     )

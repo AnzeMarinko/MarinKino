@@ -15,15 +15,21 @@ def check_film(film_folder, only_collect_metadata=True):
         not only_collect_metadata
         and "0x-neurejeni-filmi" in str(film_folder).lower()
     ):
-        videos = convert_videos(str(film_folder))
+        videos = convert_videos(
+            str(film_folder),
+            collection=".collection" in str(film_folder).lower(),
+            merge=(
+                ".collection" not in str(film_folder).lower()
+                and "series" not in str(film_folder).lower()
+            ),
+        )
 
         if videos:
             metadata = MovieMetadata(str(film_folder))
             if len(videos) == 1:
                 prepare_subtitles(str(film_folder), videos[0], metadata)
-        if ".collection" not in str(film_folder).lower() and len(videos) == 1:
-            for video in videos:
-                convert_to_m3u8(video)
+        for video in videos:
+            convert_to_m3u8(video)
 
     movie_data = MovieMetadata(str(film_folder))
 

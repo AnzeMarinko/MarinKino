@@ -16,6 +16,10 @@ from mutagen.easyid3 import EasyID3
 from mutagen.mp3 import MP3, HeaderNotFoundError
 
 from content_preparation.audio_preparation import convert_mp3_to_hls
+from content_preparation.get_movie_metadata import MovieMetadata
+from content_preparation.subtitles.download_subtitles import get_subtitles
+from content_preparation.subtitles.translate_subtitles import translate
+from content_preparation.video_converter import convert_to_m3u8, convert_videos
 from utils import safe_path
 
 app = Flask(__name__, static_url_path="/static", static_folder="static")
@@ -28,6 +32,11 @@ INCOMING_VIDEO_FOLDER = "data/memes/Neurejeni-videi"
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MUSIC_FOLDER_ABS = REPO_ROOT / "data" / "music"
 INCOMING_VIDEO_FOLDER_ABS = REPO_ROOT / "data" / "memes" / "Neurejeni-videi"
+INCOMING_MOVIE_FOLDER = "data/movies/0x-neurejeni-filmi"
+INCOMING_MOVIE_FOLDER_ABS = (
+    REPO_ROOT / "data" / "movies" / "0x-neurejeni-filmi"
+)
+MOVIE_EXTENSIONS = (".mp4", ".mkv", ".avi", ".mov", ".vob")
 
 
 def _format_duration(total_seconds):
@@ -443,6 +452,168 @@ def incoming_video_file(filename):
     )
     response.headers["Accept-Ranges"] = "bytes"
     return response
+
+
+def _movie_folder(folder_name):
+    folder = safe_path(str(INCOMING_MOVIE_FOLDER_ABS), folder_name)
+    if not os.path.isdir(folder):
+        raise ValueError("Movie folder does not exist")
+    return Path(folder)
+
+
+def _movie_payload(folder):
+    videos = sorted(
+        path.name
+        for path in folder.iterdir()
+        if path.is_file() and path.suffix.lower() in MOVIE_EXTENSIONS
+    )
+    subtitles = sorted(
+        path.name
+        for path in folder.iterdir()
+        if path.is_file() and path.suffix.lower() in (".srt", ".vtt")
+    )
+    return {
+        "folder": str(folder.relative_to(INCOMING_MOVIE_FOLDER_ABS)),
+        "name": folder.name,
+        "videos": videos,
+        "subtitles": subtitles,
+        "is_collection": ".collection" in folder.name.lower(),
+    }
+
+
+@app.route("/api/movies/incoming")
+def list_incoming_movies():
+    INCOMING_MOVIE_FOLDER_ABS.mkdir(parents=True, exist_ok=True)
+    movies = []
+    for folder in sorted(INCOMING_MOVIE_FOLDER_ABS.rglob("*")):
+        if not folder.is_dir() or not any(
+            path.suffix.lower() in MOVIE_EXTENSIONS
+            for path in folder.iterdir()
+        ):
+            continue
+        if any(folder.glob("*/master.m3u8")) or any(
+            folder.glob("master.m3u8")
+        ):
+            continue
+        movies.append(_movie_payload(folder))
+    return jsonify({"status": "ok", "movies": movies})
+
+
+@app.route("/api/movies/metadata", methods=["POST"])
+def movie_metadata():
+    try:
+        folder = _movie_folder(request.json.get("folder"))
+        metadata = MovieMetadata(str(folder))
+        return jsonify(
+            {
+                "status": "ok",
+                "metadata": {
+                    "title": metadata.title,
+                    "original_title": metadata.original_title,
+                    "year": metadata.year,
+                    "plot": metadata.plot,
+                    "genres": metadata.genres,
+                    "players": metadata.players,
+                    "imdb_id": metadata.imdb_id,
+                },
+            }
+        )
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+
+
+@app.route("/api/movies/subtitles/download", methods=["POST"])
+def download_movie_subtitles():
+    try:
+        data = request.json
+        folder = _movie_folder(data.get("folder"))
+        metadata = MovieMetadata(str(folder))
+        languages = data.get("languages") or ["sl", "en"]
+        downloaded = get_subtitles(
+            metadata.title,
+            metadata.year,
+            metadata.imdb_id,
+            str(folder),
+            languages=languages,
+        )
+        return jsonify({"status": "ok", "downloaded": bool(downloaded)})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+
+
+@app.route("/api/movies/subtitles/translate", methods=["POST"])
+def translate_movie_subtitles():
+    try:
+        data = request.json
+        folder = _movie_folder(data.get("folder"))
+        translated = []
+        for filename in data.get("files", []):
+            subtitle = Path(safe_path(str(folder), filename))
+            if subtitle.suffix.lower() != ".srt" or subtitle.parent != folder:
+                raise ValueError("Invalid subtitle file")
+            result = translate(str(subtitle))
+            if result:
+                translated.append(Path(result["output_file"]).name)
+        return jsonify({"status": "ok", "translated": translated})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+
+
+@app.route("/api/movies/process", methods=["POST"])
+def process_incoming_movie():
+    try:
+        data = request.json
+        folder = _movie_folder(data.get("folder"))
+        metadata = data.get("metadata") or {}
+        if metadata:
+            readme = folder / "readme.json"
+            current = (
+                json.loads(readme.read_text(encoding="utf-8"))
+                if readme.exists()
+                else {}
+            )
+            current.update(
+                {
+                    "Title": metadata.get("title", "").strip(),
+                    "OriginalTitle": metadata.get(
+                        "original_title", ""
+                    ).strip(),
+                    "Year": str(metadata.get("year", "")).strip(),
+                    "Plot": metadata.get("plot", "").strip(),
+                    "Genres": metadata.get("genres", []),
+                    "Players": metadata.get("players", ""),
+                    "imdb_id": metadata.get("imdb_id", "").strip(),
+                }
+            )
+            readme.write_text(
+                json.dumps(current, ensure_ascii=False, indent=4),
+                encoding="utf-8",
+            )
+
+        selected_subtitles = set(data.get("subtitles") or [])
+        for subtitle in folder.iterdir():
+            if (
+                subtitle.is_file()
+                and subtitle.suffix.lower() in (".srt", ".vtt")
+                and subtitle.name not in selected_subtitles
+            ):
+                subtitle.unlink()
+
+        mode = data.get("mode")
+        if mode == "collection" and ".collection" not in folder.name.lower():
+            target_folder = folder.with_name(f"{folder.name}.Collection")
+            folder.rename(target_folder)
+            folder = target_folder
+        videos = convert_videos(
+            str(folder), merge=mode == "merge", collection=mode == "collection"
+        )
+        hls_files = []
+        for video in videos:
+            if convert_to_m3u8(str(video)):
+                hls_files.append(Path(video).stem)
+        return jsonify({"status": "ok", "hls": hls_files})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @app.route("/videos/editor")

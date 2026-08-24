@@ -50,6 +50,22 @@ def save_users():
         f.write(json.dumps(users, indent=4))
 
 
+def get_welcome_stats():
+    """Vrne enake osnovne statistike kot domača stran."""
+    from blueprints.blog_bp import load_blog_posts
+    from blueprints.memes_bp import MEMES_COUNT
+    from blueprints.movies_bp import get_movies_statistics
+    from blueprints.music_bp import MUSIC_COUNT
+
+    stats = get_movies_statistics()
+    stats["music_count"] = MUSIC_COUNT
+    stats["memes_count"] = MEMES_COUNT
+    stats["blog_count"] = sum(
+        post.get("published", False) for post in load_blog_posts().values()
+    )
+    return stats
+
+
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     error = None
@@ -65,6 +81,8 @@ def login():
             redis_client.incr(
                 f"auth:login:{date.today().isoformat()[:7]}:{username}"
             )
+            if users[username].get("first_login", True):
+                return redirect(url_for("auth.welcome"))
             return redirect(url_for("home"))
         else:
             client_ip = request.headers.get("X-Real-IP", request.remote_addr)
@@ -77,6 +95,21 @@ def login():
             error = "Napačno uporabniško ime ali geslo."
             flash(error, "error")
     return render_template("login.html", pagetitle="Prijava")
+
+
+@auth_bp.route("/welcome", methods=["GET", "POST"])
+@login_required
+def welcome():
+    if request.method == "POST":
+        users[current_user.id]["first_login"] = False
+        save_users()
+        return redirect(url_for("home"))
+
+    return render_template(
+        "welcome.html",
+        pagetitle="Dobrodošli v MarinKino",
+        stats=get_welcome_stats(),
+    )
 
 
 @auth_bp.route("/admin/register", methods=["GET", "POST"])
@@ -120,6 +153,7 @@ def register():
                 "password_hash": generate_password_hash(password),
                 "emails": emails,
                 "incoming_date": date.today().isoformat(),
+                "first_login": True,
             }
             content = (
                 "Nov uporabnik je bil registriran v MarinKino:\n\n"
