@@ -111,63 +111,12 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 </script>
 
-<h2>Top 20 filmov po skupnem deležu ogledov</h2>
-<div class="table-responsive">
-<table class="table table-striped table-hover table-bordered">
-        <thead class="thead-light">
-                <tr>
-                        <th>Rang</th>
-                        <th>Mapa filma</th>
-                        <th>Skupen delež (%)</th>
-                        <th>Povprečen delež (%)</th>
-                        <th>Število ogledov</th>
-                        <th>Edinstveni uporabniki</th>
-                        <th>Skupen čas (ur)</th>
-                </tr>
-        </thead>
-        <tbody>
-                {% for movie in top_movies %}
-                <tr>
-                        <td>{{ loop.index }}</td>
-                        <td>{{ movie.folder }}</td>
-                        <td>{{ movie.total_ratio }}</td>
-                        <td>{{ movie.avg_ratio }}</td>
-                        <td>{{ movie.watch_count }}</td>
-                        <td>{{ movie.unique_users }}</td>
-                        <td>{{ movie.total_watch_hours }}</td>
-                </tr>
-                {% endfor %}
-        </tbody>
-</table>
-</div>
-
 <h2>Ogled statistike dostopa</h2>
 
 <div class="card">
     <div class="card-header">Mesečna statistika dostopa</div>
-    <div class="card-body p-2">
-        <div class="table-responsive">
-        <table class="table table-striped table-hover table-bordered mb-0">
-            <thead class="thead-light">
-                <tr>
-                    <th>Mesec</th>
-                    {% for column in monthly_columns %}
-                    <th>{{ column }}</th>
-                    {% endfor %}
-                </tr>
-            </thead>
-            <tbody>
-                {% for month, data in access_stats_monthly.items() %}
-                <tr>
-                    <td>{{ month }}</td>
-                    {% for column in monthly_columns %}
-                    <td>{{ data[column] }}</td>
-                    {% endfor %}
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        </div>
+    <div class="card-body">
+        <div id="access-monthly-graph" style="min-height:320px; width:100%;"></div>
     </div>
 </div>
 
@@ -192,17 +141,10 @@ document.addEventListener('DOMContentLoaded', function(){
     </div>
 
     <div class="col-md-8">
-        <div class="card mb-3">
-            <div class="card-header">Dostop uporabnikov</div>
+        <div class="card">
+            <div class="card-header">Dostop uporabnikov (zadnji mesec)</div>
             <div class="card-body">
                 <div id="access-user-graph" style="min-height:320px; width:100%;"></div>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-header">Dostop do poti skozi čas</div>
-            <div class="card-body">
-                <div id="access-graph" style="min-height:320px; width:100%;"></div>
             </div>
         </div>
     </div>
@@ -258,17 +200,17 @@ document.addEventListener('DOMContentLoaded', function(){
     // Prikaži začetni graf za prvi status
     plotStatus(statuses[0]);
 
-    var accessData = {{ access_stats_routes | tojson | safe }};
-    var dates = Object.keys(accessData);
-    var routeNames = Object.keys(accessData[dates[0]]);
-    function renderRoutes(){
-        var data_routes = [];
-        routeNames.forEach(function(route) {
-            var yValues = dates.map(function(date) {
-                return accessData[date][route] || 0;
+    var accessDataMonthly = {{ access_stats_monthly | tojson | safe }};
+    var months = Object.keys(accessDataMonthly);
+    var monthlyRouteNames = months.length ? Object.keys(accessDataMonthly[months[0]]) : [];
+    function renderMonthly(){
+        var data_monthly = [];
+        monthlyRouteNames.forEach(function(route) {
+            var yValues = months.map(function(month) {
+                return accessDataMonthly[month][route] || 0;
             });
-            data_routes.push({
-                x: dates,
+            data_monthly.push({
+                x: months,
                 y: yValues,
                 mode: 'lines+markers',
                 name: route,
@@ -276,23 +218,23 @@ document.addEventListener('DOMContentLoaded', function(){
             });
         });
         var layout = {
-            title: 'Dostop do poti skozi čas',
-            xaxis: { title: 'Datum' },
+            title: 'Dostop do poti po mesecih',
+            xaxis: { title: 'Mesec' },
             yaxis: { title: 'Število dostopov' }
         };
-        var legendLayout = getLegendLayout('access-graph');
+        var legendLayout = getLegendLayout('access-monthly-graph');
         layout.legend = Object.assign({}, legendLayout, { traceorder: 'normal' });
         layout.margin = legendLayout.orientation === 'h' ? {t:90, b:40, l:40, r:20} : {t:60, b:40, l:40, r:120};
-        Plotly.newPlot('access-graph', data_routes, layout, {responsive: true});
+        Plotly.newPlot('access-monthly-graph', data_monthly, layout, {responsive: true});
     }
-    renderRoutes();
+    renderMonthly();
 
     var resizeTimeout;
     window.addEventListener('resize', function(){
         clearTimeout(resizeTimeout);
         resizeTimeout = setTimeout(function(){
             if(currentStatus) plotStatus(currentStatus);
-            renderRoutes();
+            renderMonthly();
         }, 200);
     });
 

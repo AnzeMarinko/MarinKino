@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pandas as pd
 from flask import (
@@ -111,7 +111,6 @@ def admin_panel():
         return redirect(url_for("home"))
 
     access_stats_users = {}
-    access_stats_routes = {}
 
     user_counter = {}
 
@@ -126,7 +125,6 @@ def admin_panel():
 
         routes_data = redis_client.hgetall(key)
 
-        access_stats_routes.setdefault(log_date, {})
         access_stats_users.setdefault(status, {})
         access_stats_users[status].setdefault(log_date, {})
         access_stats_users[status][log_date].setdefault(user_id, {})
@@ -150,9 +148,15 @@ def admin_panel():
             if status.startswith("2") or status.startswith("3"):
                 user_counter.setdefault(user_id, 0)
                 user_counter[user_id] += int(count)
-                route = "/" + "/".join(route_method.split("/")[1:2])
-                access_stats_routes[log_date].setdefault(route, 0)
-                access_stats_routes[log_date][route] += int(count)
+
+    # Daily user graph only needs to cover the last month
+    daily_graph_cutoff = (date.today() - timedelta(days=30)).isoformat()
+    for status in list(access_stats_users.keys()):
+        access_stats_users[status] = {
+            log_date: users_for_date
+            for log_date, users_for_date in access_stats_users[status].items()
+            if log_date >= daily_graph_cutoff
+        }
 
     if access_stats_users:
         for k1, v1 in access_stats_users.items():
@@ -189,26 +193,12 @@ def admin_panel():
             k: v for k, v in sorted(list(access_stats_users.items())) if v
         }
 
-    if access_stats_routes:
-        df_routes = pd.DataFrame(access_stats_routes).T
-        access_stats_routes = df_routes.fillna(0).astype(int)
-        access_stats_routes = access_stats_routes[
-            sorted(access_stats_routes.columns, reverse=True)
-        ].T
-        access_stats_routes["total"] = access_stats_routes.sum(axis=1)
-        access_stats_routes = (
-            access_stats_routes.sort_values(by="total", ascending=False)
-            .drop(columns=["total"])
-            .head(10)
-        )
-        access_stats_routes = access_stats_routes.to_dict()
-
     access_stats_monthly = {}
 
     for key in redis_client.scan_iter("stats:monthly:*"):
         month_label = key.split(":")[-1]
         monthly_data = redis_client.hgetall(key)
-        access_stats_monthly[month_label] = {}
+        access_stats_monthly.setdefault(month_label, {})
         for route_method, count in monthly_data.items():
             route = "/" + "/".join(route_method.split("/")[1:3])
             access_stats_monthly[month_label][route] = access_stats_monthly[
@@ -217,19 +207,14 @@ def admin_panel():
 
     if access_stats_monthly:
         df_monthly = pd.DataFrame(access_stats_monthly).T.fillna(0).astype(int)
-        df_monthly = df_monthly[sorted(df_monthly.columns, reverse=True)].T
-        df_monthly["total"] = df_monthly.sum(axis=1)
-        df_monthly = (
-            df_monthly.sort_values(by="total", ascending=False)
-            .drop(columns=["total"])
-            .head(20)
-            .T
+        top_routes = (
+            df_monthly.sum(axis=0).sort_values(ascending=False).head(20).index
         )
-        access_stats_monthly_dict = df_monthly.to_dict(orient="index")
-        monthly_columns = df_monthly.columns
+        access_stats_monthly_dict = (
+            df_monthly[top_routes].sort_index().to_dict(orient="index")
+        )
     else:
         access_stats_monthly_dict = {}
-        monthly_columns = []
 
     users_stats = {}
     user_prog_keys = redis_client.keys("prog:*")
@@ -341,82 +326,6 @@ def admin_panel():
     else:
         system_log = "Missing log file!"
 
-    # Calculate top 20 movies by total watch ratio
-    movies_watch_stats = {}
-
-    for key in user_prog_keys:
-        # Decode key if it's bytes
-        if isinstance(key, bytes):
-            key = key.decode("utf-8")
-
-        user_id = key.split(":")[1]
-        user_data_raw = redis_client.hgetall(key)
-
-        for video_file, progress_json in user_data_raw.items():
-            # Decode if bytes
-            if isinstance(video_file, bytes):
-                video_file = video_file.decode("utf-8")
-            if isinstance(progress_json, bytes):
-                progress_json = progress_json.decode("utf-8")
-
-            progress = json.loads(progress_json)
-            watch_time = progress.get("total_play_time", 0)
-            duration = progress.get("duration", 0)
-
-            if watch_time and duration:
-                ratio = (watch_time / duration) * 100
-                if ratio < 5:
-                    continue
-
-                # Extract movie folder path from video file path
-                # video_file is like: "path/to/movie/video.mp4"
-                # We need to extract the folder part
-                # (everything except the filename)
-                parts = video_file.split(os.sep)
-                if len(parts) >= 2:
-                    # Remove the last part (video filename) to get
-                    # the movie folder
-                    movie_folder = os.sep.join(parts[:-1])
-
-                    if movie_folder not in movies_watch_stats:
-                        movies_watch_stats[movie_folder] = {
-                            "total_ratio": 0,
-                            "count": 0,
-                            "users": set(),
-                            "total_duration": 0,
-                        }
-
-                    movies_watch_stats[movie_folder]["total_ratio"] += ratio
-                    movies_watch_stats[movie_folder]["count"] += 1
-                    movies_watch_stats[movie_folder]["users"].add(user_id)
-                    movies_watch_stats[movie_folder]["total_duration"] += (
-                        duration
-                    )
-
-    # Calculate averages and sort
-    top_movies = []
-    for movie_folder, stats in movies_watch_stats.items():
-        avg_ratio = (
-            stats["total_ratio"] / stats["count"] if stats["count"] > 0 else 0
-        )
-        total_watch_hours = stats["total_duration"] / 3600
-
-        top_movies.append(
-            {
-                "folder": movie_folder,
-                "total_ratio": round(stats["total_ratio"], 1),
-                "avg_ratio": round(avg_ratio, 1),
-                "watch_count": stats["count"],
-                "unique_users": len(stats["users"]),
-                "total_watch_hours": round(total_watch_hours, 1),
-            }
-        )
-
-    # Sort by total_ratio (highest first) and get top 20
-    top_movies_sorted = sorted(
-        top_movies, key=lambda x: x["total_ratio"], reverse=True
-    )[:20]
-
     # Referrer statistics
     referrer_stats = {}
     for key in redis_client.scan_iter("stats:referrer:*"):
@@ -457,6 +366,8 @@ def admin_panel():
             except Exception:
                 continue
     geo_stats = dict(sorted(geo_stats.items(), key=lambda x: -x[1]))
+    # City list capped at 20; map below still shows every location
+    geo_stats_top = dict(list(geo_stats.items())[:20])
 
     # Blog statistics
     blog_views_daily = {}
@@ -508,19 +419,16 @@ def admin_panel():
             [e for u in users for e in users[u].get("emails", [])]
         ),
         users_count=len(users),
-        access_stats_routes=access_stats_routes,
         users_stats=users_stats_dict,
         users_stats_columns=users_stats_columns,
         access_stats_monthly=access_stats_monthly_dict,
-        monthly_columns=monthly_columns,
-        top_movies=top_movies_sorted,
         blog_views_daily=blog_views_daily,
         blog_si_views_daily=blog_si_views_daily,
         blog_stats=blog_stats,
         total_blog_views=total_views,
         total_si_views=total_si_views,
         referrer_stats=referrer_stats,
-        geo_stats=geo_stats,
+        geo_stats=geo_stats_top,
         geo_stats_cities=geo_stats_cities,
     )
 

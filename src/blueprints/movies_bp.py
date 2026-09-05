@@ -44,7 +44,9 @@ movies_bp = Blueprint("movies", __name__)
 # Genre mapping
 GENRES_MAPPING = {
     "Drama": "Drama",
+    "Drама": "Drama",
     "Comedy": "Komedija",
+    "Комеdija": "Komedija",
     "Romance": "Romantika",
     "Romanca": "Romantika",
     "Family": "Druzinski",

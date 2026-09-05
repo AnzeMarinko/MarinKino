@@ -10,7 +10,7 @@ from .helpers import remove
 
 log = logging.getLogger(__name__)
 
-SUPPORTED_EXTENSIONS = {".avi", ".mp4", ".mkv", ".vob", ".mov"}
+SUPPORTED_EXTENSIONS = {".avi", ".mp4", ".mkv", ".vob", ".mov", ".webm"}
 
 
 def run_ffmpeg(command):
@@ -251,7 +251,7 @@ def convert_to_mp4(input_path: Path, output_path: Path):
 
         if run_ffmpeg(fast_command):
             log.info("✅ Hitro kopiranje uspešno končano!")
-            # remove(str(input_path))  # Odkomentiraj po testiranju
+            remove(str(input_path))
             return True
         else:
             log.warning(
@@ -287,7 +287,7 @@ def convert_to_mp4(input_path: Path, output_path: Path):
 
     if run_ffmpeg(full_command):
         log.info("✅ Uspešna polna pretvorba v varen MP4.")
-        # remove(str(input_path))  # Odkomentiraj po testiranju
+        remove(str(input_path))
         return True
 
     return False

@@ -54,21 +54,6 @@ def extract_subtitles(srt_file):
     return out_subs
 
 
-def convert_srt_to_vtt(srt_path):
-    with (
-        open(srt_path, "r", encoding="utf-8") as srt_file,
-        open(
-            srt_path[:-5] + srt_path[-5:].replace(".srt", ".vtt"),
-            "w",
-            encoding="utf-8",
-        ) as vtt_file,
-    ):
-        vtt_file.write("WEBVTT\n\n")
-        for line in srt_file:
-            # Zamenjaj vejico z decimalno piko
-            vtt_file.write(line.replace(",", "."))
-
-
 def extract_audio(folder, video_path):
     voice_file = os.path.join(folder, ".detected-voice-activity.pkl")
     if not os.path.exists(voice_file):
@@ -222,9 +207,55 @@ def aux_rescale_captions(subtitles, speech):
     )
 
     if best_score < current_score:
-        return 5, 1000, aux_get_subtitle_audio
+        return 5, 1000, aux_get_subtitle_audio, compute_score
 
-    return best_a, best_b, aux_get_subtitle_audio
+    return best_a, best_b, aux_get_subtitle_audio, compute_score
+
+
+def propose_alignment(folder, subtitle_path, video_path):
+    """Compute the best-fit scale/shift for a subtitle file without writing
+    anything, so a caller can preview/confirm before applying it."""
+    audio, speech = extract_audio(folder, video_path)
+    subtitles = extract_subtitles(subtitle_path)
+    if not subtitles or len(subtitles) < 5:
+        return None
+    scale, shift, aux_get_subtitle_audio, compute_score = aux_rescale_captions(
+        subtitles, speech
+    )
+    return {
+        "scale": scale,
+        "shift": shift,
+        "subtitles": subtitles,
+        "audio": audio,
+        "speech": speech,
+        "get_subtitle_audio": aux_get_subtitle_audio,
+        "compute_score": compute_score,
+        "current_score": compute_score(1, 0),
+    }
+
+
+def apply_alignment(proposal, subtitle_path, backup_original=True):
+    """Write out the rescaled subtitle file (with a note appended) and,
+    optionally, keep an unmodified copy alongside it."""
+    subtitles = proposal["subtitles"]
+    scale, shift = proposal["scale"], proposal["shift"]
+    file_name = os.path.basename(subtitle_path)
+    original_file = subtitle_path.replace(
+        file_name, "." + file_name + ".original"
+    )
+    if backup_original:
+        generate_srt(0, 1, subtitles, original_file)
+    last_sub_end = subtitles[-1][1]
+    subtitles_with_note = subtitles + [
+        (
+            last_sub_end + 1,
+            last_sub_end + 20,
+            f"Podnapisi avtomatsko raztegnjeni za "
+            f"{(scale - 1) * 100:.1f} %\nin zamaknjeni "
+            f"za {shift:.1f} sekund.",
+        )
+    ]
+    generate_srt(shift, scale, subtitles_with_note, subtitle_path)
 
 
 def rescale_subtitles(folder, subtitle_path, video_path, plot=False):
@@ -233,38 +264,24 @@ def rescale_subtitles(folder, subtitle_path, video_path, plot=False):
         file_name, "." + file_name + ".original"
     )
     if not os.path.exists(original_file):
-        audio, speech = extract_audio(folder, video_path)
-        subtitles = extract_subtitles(subtitle_path)
-        if subtitles and len(subtitles) >= 5:
+        proposal = propose_alignment(folder, subtitle_path, video_path)
+        if proposal:
             log.info(f"⚙ Poravnavam podnapise: {video_path}")
-            scale, shift, aux_get_subtitle_audio = aux_rescale_captions(
-                subtitles, speech
-            )
+            scale, shift = proposal["scale"], proposal["shift"]
             if abs(scale - 1) < 0.1 and abs(shift) < 60:
-                generate_srt(0, 1, subtitles, original_file)
-                last_sub_end = subtitles[-1][1]
-                subtitles.append(
-                    (
-                        last_sub_end + 1,
-                        last_sub_end + 20,
-                        f"Podnapisi avtomatsko raztegnjeni za "
-                        f"{(scale - 1) * 100:.1f} %\nin zamaknjeni "
-                        f"za {shift:.1f} sekund.",
-                    )
-                )
-                generate_srt(shift, scale, subtitles, subtitle_path)
+                apply_alignment(proposal, subtitle_path)
                 if plot:
                     plt.figure()
-                    plt.plot(audio, label="audio")
+                    plt.plot(proposal["audio"], label="audio")
                     plt.plot(
-                        aux_get_subtitle_audio(1, 0) * 0.8,
+                        proposal["get_subtitle_audio"](1, 0) * 0.8,
                         label="subtitles",
                     )
                     plt.plot(
-                        aux_get_subtitle_audio(scale, shift) * 0.7,
+                        proposal["get_subtitle_audio"](scale, shift) * 0.7,
                         label="best subtitles",
                     )
-                    plt.plot(speech * 0.6, label="speech")
+                    plt.plot(proposal["speech"] * 0.6, label="speech")
                     plt.legend()
                     plt.title(os.path.basename(folder).replace(".", " "))
                     plt.show()
@@ -273,6 +290,3 @@ def rescale_subtitles(folder, subtitle_path, video_path, plot=False):
             if "enSubs" in subtitle_path:
                 os.remove(subtitle_path)
                 return
-        convert_srt_to_vtt(subtitle_path)
-    elif not os.path.exists(subtitle_path.replace(".srt", ".vtt")):
-        convert_srt_to_vtt(subtitle_path)

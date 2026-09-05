@@ -507,8 +507,8 @@ function buildTrackHtml(songId) {
     const trackMetadata = getTrackMetadata(songId);
     const title = trackMetadata.title || songId.split("/").slice(-1)[0];
     const artist = trackMetadata.artist
-        || (isRadioStoriesPage ? "Radijska zgodba" : "Izvajalec ni naveden");
-    const album = trackMetadata.album || "Album ni naveden";
+        || (isRadioStoriesPage ? "Radijska zgodba" : "");
+    const album = trackMetadata.album || "";
     const albumInfo = getAlbumDisplayInfo(album);
     const semantic = trackMetadata.semantic_analysis || {};
     const tagText = [
@@ -1128,26 +1128,24 @@ function prev() {
 }
 
 function fadeAudioVolume(targetVolume, durationMs = 300) {
+    // requestAnimationFrame is suspended by iOS Safari when screen is locked/tab
+    // backgrounded, which would hang this promise forever; setInterval keeps running.
     const startVolume = Number.isFinite(audio.volume) ? audio.volume : 1;
-    const startTime = performance.now();
+    const startTime = Date.now();
 
     return new Promise(resolve => {
-        const tick = () => {
-            const elapsed = performance.now() - startTime;
+        const intervalId = setInterval(() => {
+            const elapsed = Date.now() - startTime;
             const progress = Math.min(elapsed / durationMs, 1);
             const eased = 1 - Math.pow(1 - progress, 3);
             audio.volume = startVolume + (targetVolume - startVolume) * eased;
 
-            if (progress < 1) {
-                requestAnimationFrame(tick);
-                return;
+            if (progress >= 1) {
+                clearInterval(intervalId);
+                audio.volume = targetVolume;
+                resolve();
             }
-
-            audio.volume = targetVolume;
-            resolve();
-        };
-
-        requestAnimationFrame(tick);
+        }, 30);
     });
 }
 
@@ -1813,9 +1811,9 @@ if (initialAlbum) {
         
         nowPlayingTitle.textContent = trackMetadata.title || currentTrack;
         nowPlayingArtist.textContent = trackMetadata.artist
-            || (isRadioStoriesPage ? "Radijska zgodba" : "Izvajalec ni naveden");
+            || (isRadioStoriesPage ? "Radijska zgodba" : "");
         nowPlayingAlbum.textContent = getAlbumDisplayInfo(
-            trackMetadata.album || "Album ni naveden"
+            trackMetadata.album || ""
         ).displayName;
         
         // Samo pripnemo vir za audio (brez audio.play()):

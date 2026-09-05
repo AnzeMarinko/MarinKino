@@ -54,7 +54,7 @@ def translate(
         else:
             log.info(
                 f"🌍 Prevajam {input_srt_file} iz {detected_lang}"
-                f" v {target_language} ...\n"
+                f" v {target_language} ...\n\n\n\n\n\n\n"
             )
             gst.gemini_api_key = GEMINI_API_KEY
             gst.target_language = target_language_long_name

@@ -15,8 +15,13 @@ OPENSUBTITLESCOM_TOKEN = os.getenv("OPENSUBTITLESCOM_TOKEN")
 OPENSUBTITLESCOM_PASSWORD = os.getenv("OPENSUBTITLESCOM_PASSWORD")
 osub = OpenSubtitles("MarinKino", OPENSUBTITLESCOM_TOKEN)
 
+# Marker appended to filenames of subtitles fetched by us, so alignment
+# (rescale) only ever touches subtitles we downloaded, never ones already
+# present in the video container or placed manually.
+DOWNLOADED_MARKER = "-Downloaded"
 
-def search_opensubtitles(imdb_id, languages=("sl", "en"), num=3):
+
+def search_opensubtitles(imdb_id, languages=("sl", "en"), num=1):
     osub.login("anzem", OPENSUBTITLESCOM_PASSWORD)
     results = []
     for lang in languages:
@@ -47,7 +52,8 @@ def search_opensubtitles(imdb_id, languages=("sl", "en"), num=3):
 
 def download_opensubtitles(sub, i, path):
     data = osub.download(sub["url"])
-    filename = f"{path}/subtitle{i}.{sub['lang']}.srt"
+    lang_short = "Slo" if sub["lang"] == "sl" else sub["lang"]
+    filename = f"{path}/subtitles{i}-{lang_short}Subs{DOWNLOADED_MARKER}.srt"
     with open(filename, "wb") as f:
         f.write(data)
     return filename
@@ -104,29 +110,44 @@ def search_podnapisi_safe(title, year, languages):
                     and href.endswith("/download")
                     and year in href
                 ):
-                    if len(
-                        results.get(lang, [])
-                    ) < 5 and base + href not in results.get(lang, []):
-                        results[lang] = results.get(lang, []) + [base + href]
-                        final_list.append(base + href)
+                    urls_for_lang = [r["url"] for r in results.get(lang, [])]
+                    is_new = base + href not in urls_for_lang
+                    if len(urls_for_lang) < 5 and is_new:
+                        entry = {"lang": lang, "url": base + href}
+                        results.setdefault(lang, []).append(entry)
+                        final_list.append(entry)
 
     return final_list
 
 
-def download_podnapisi_safe(url, extract_path):
-    r = session.get(url + "/download", timeout=10)
+def download_podnapisi_safe(sub, index, extract_path):
+    r = session.get(sub["url"] + "/download", timeout=10)
     with zipfile.ZipFile(io.BytesIO(r.content)) as z:
+        srt_names = [n for n in z.namelist() if n.lower().endswith(".srt")]
         z.extractall(extract_path)
+
+    lang_short = "Slo" if sub["lang"] == "sl" else sub["lang"]
+    downloaded = []
+    for i, name in enumerate(srt_names):
+        src = os.path.join(extract_path, name)
+        suffix = f"-{i}" if i else ""
+        dst = os.path.join(
+            extract_path,
+            f"subtitles{index}{suffix}-{lang_short}Subs{DOWNLOADED_MARKER}.srt",  # noqa: E501
+        )
+        os.replace(src, dst)
+        downloaded.append(dst)
     log.info("Podnapisi so shranjeni")
+    return downloaded
 
 
-def get_subtitles(title, year, imdb_id, path, languages=["sl", "en"], num=3):
+def get_subtitles(title, year, imdb_id, path, languages=["sl", "en"]):
     # 1. OpenSubtitles
-    subs, err = search_opensubtitles(imdb_id, languages, num)
+    subs, err = search_opensubtitles(imdb_id, languages)
     time.sleep(1)
     if subs:
         for i, sub in enumerate(subs):
-            download_opensubtitles(sub, i, path)
+            download_opensubtitles(sub, "" if i == 0 else i, path)
             time.sleep(10)
         return True
     elif err == "RateLimitError":
@@ -134,10 +155,10 @@ def get_subtitles(title, year, imdb_id, path, languages=["sl", "en"], num=3):
         return False
 
     # 2. podnapisi.net fallback
-    subs = search_podnapisi_safe(title, year, languages)
+    subs = search_podnapisi_safe(title, str(year), languages)
     if subs:
-        for sub in subs:
-            download_podnapisi_safe(sub["link"], path)
+        for i, sub in enumerate(subs):
+            download_podnapisi_safe(sub, i, path)
         return True
 
     log.error(f"❌ No subtitles found: {title}")

@@ -67,6 +67,17 @@ def best_tmdb_match(query, results):
     return best, score
 
 
+def rank_tmdb_matches(query, results, limit=5):
+    """Vrne do `limit` najboljših zadetkov, urejenih po ujemanju naslova."""
+    scored = []
+    for r in results:
+        title = r.get("title", r.get("name", ""))
+        score = SequenceMatcher(None, query.lower(), title.lower()).ratio()
+        scored.append((score, r))
+    scored.sort(key=lambda pair: pair[0], reverse=True)
+    return scored[:limit]
+
+
 def tmdb_get_by_imdb_id(imdb_id, lang="sl-SI"):
     """
     Poišče podatke o filmu ali seriji na TMDB s pomočjo IMDb ID-ja.
@@ -111,6 +122,46 @@ def tmdb_poster_url(poster_path, size="w500"):
     if not poster_path:
         return None
     return f"https://image.tmdb.org/t/p/{size}{poster_path}"
+
+
+def show_candidates_gallery(candidates):
+    """Odpre v brskalniku galerijo kandidatov (naslov, leto, opis, plakat),
+    da jih uporabnik lahko primerja pred izbiro."""
+    import tempfile
+    import webbrowser
+
+    cards = []
+    for i, (score, candidate) in enumerate(candidates, start=1):
+        title = candidate.get("title", candidate.get("name", "?"))
+        date = candidate.get(
+            "release_date", candidate.get("first_air_date", "")
+        )
+        year = date[:4] if date else "?"
+        overview = html.escape(candidate.get("overview", ""))
+        poster = tmdb_poster_url(candidate.get("poster_path"))
+        img_tag = (
+            f'<img src="{poster}" style="width:150px;">'
+            if poster
+            else '<div style="width:150px;height:225px;background:#ccc;">?</div>'  # noqa: E501
+        )
+        cards.append(
+            f"""
+            <div style="display:inline-block;vertical-align:top;width:170px;
+            margin:8px;font-family:sans-serif;">
+                <h3>{i}. {html.escape(title)} ({year})</h3>
+                {img_tag}
+                <p style="font-size:12px;">{overview}</p>
+            </div>
+            """
+        )
+
+    page = f"<html><body>{''.join(cards)}</body></html>"
+    with tempfile.NamedTemporaryFile(
+        "w", suffix=".html", delete=False, encoding="utf-8"
+    ) as f:
+        f.write(page)
+        path = f.name
+    webbrowser.open(f"file://{path}")
 
 
 def tmdb_movie_details(tmdb_id, media_type="movie"):
@@ -220,7 +271,7 @@ def translate_text(text, target_language="sl"):
 
 
 def create_thumbnail(src, height=250, quality=85):
-    if "popcorn.png" in src:
+    if "static/logo.png" in src:
         return src
     dst = src.replace("cover_image.jpg", "cover_thumb.jpg")
     if os.path.exists(dst):
@@ -265,7 +316,39 @@ def get_movie_runtimes(folder, video_files):
     return runtimes
 
 
-def get_movie_metadata(folder, film, video_files):
+def _build_runtimes_by_files(folder, video_files, hls_dirs):
+    """Združi surove video datoteke in že pretvorjene HLS mape v en
+    seznam doložin. HLS vnosi so ključeni po imenu HLS mape
+    (surova mp4 datoteka takrat že ne obstaja več)."""
+    entries = [(f, f) for f in video_files] + [
+        (os.path.join(d, "master.m3u8"), d) for d in (hls_dirs or [])
+    ]
+    if not entries:
+        return {}, []
+
+    probe_paths = [path for path, _key in entries]
+    runtimes = get_movie_runtimes(folder, probe_paths)
+    runtimes_by_files = {
+        key.replace(".mp4", "")
+        .replace("_Slo", "")
+        .replace("_Eng", ""): runtime  # noqa: E501
+        for (_path, key), runtime in zip(entries, runtimes)
+    }
+    return runtimes_by_files, runtimes
+
+
+def _summarize_runtime(runtimes):
+    if len(runtimes) > 1:
+        valid_r = [r for r in runtimes if r]
+        if valid_r:
+            return f"{len(runtimes)} delov po {min(valid_r)}-{max(valid_r)}"
+        return None
+    if len(runtimes) == 1:
+        return runtimes[0]
+    return None
+
+
+def get_movie_metadata(folder, film, video_files, hls_dirs=None):
     film_readme_file = os.path.join(folder, "readme.json")
     film_cover_file = os.path.join(folder, "cover_image.jpg")
 
@@ -273,6 +356,20 @@ def get_movie_metadata(folder, film, video_files):
     if os.path.exists(film_readme_file):
         with open(film_readme_file, "r", encoding="utf-8") as f:
             movie_metadata = json.loads(f.read())
+        if not movie_metadata.get("RuntimesByFiles") and (
+            video_files or hls_dirs
+        ):
+            runtimes_by_files, runtimes = _build_runtimes_by_files(
+                folder, video_files, hls_dirs
+            )
+            if runtimes_by_files:
+                movie_metadata["RuntimesByFiles"] = runtimes_by_files
+                if not movie_metadata.get("Runtimes"):
+                    runtime = _summarize_runtime(runtimes)
+                    if runtime:
+                        movie_metadata["Runtimes"] = runtime
+                with open(film_readme_file, "w", encoding="utf-8") as f:
+                    json.dump(movie_metadata, f, ensure_ascii=False, indent=4)
         return movie_metadata, film_cover_file
 
     result = {"Film": film}
@@ -288,16 +385,56 @@ def get_movie_metadata(folder, film, video_files):
 
     # 1. Poiščemo film ali serijo preko Multi Search
     search = tmdb_search_movie(film_aux, year=year)
-    if len(search) == 0:
+    movie_match, score = None, 0
+    if search:
+        candidates = rank_tmdb_matches(film_aux, search, limit=5)
+        show_candidates_gallery(candidates)
+        print(f"\nNajdenih {len(candidates)} kandidatov za: {film}")
+        for i, (s, r) in enumerate(candidates, start=1):
+            title = r.get("title", r.get("name", "?"))
+            date = r.get("release_date", r.get("first_air_date", ""))
+            print(
+                f"  {i}. {title} ({date[:4] if date else '?'}) - ujemanje {s:.0%}"
+            )  # noqa: E501
+        while movie_match is None:
+            choice = (
+                input(
+                    "Izberi kandidat (1-N), 'i' za vnos IMDb ID "
+                    "ali 's' za preskok filma: "
+                )
+                .strip()
+                .lower()
+            )
+            if choice == "s":
+                return {}, "static/logo.png"
+            if choice == "i":
+                imdb_id = input("Vnesi IMDb ID: ").strip()
+                if not imdb_id:
+                    continue
+                movie_match = tmdb_get_by_imdb_id(imdb_id)
+                if movie_match is None:
+                    log.error(f"Ni podatkov za IMDb ID: {imdb_id}")
+                    continue
+                score = 1.0
+            elif choice.isdigit() and 1 <= int(choice) <= len(candidates):
+                score, movie_match = candidates[int(choice) - 1]
+            else:
+                print("Neveljavna izbira.")
+    else:
         log.error(f"Ni podatkov za: {film} ({film_aux}, {year})")
-        return {}, "static/logo.png"
-
-    movie_match, score = best_tmdb_match(film_aux, search)
-    if movie_match is None:
-        return {}, "static/logo.png"
+        imdb_id = input(
+            "Vnesi IMDb ID (ali pritisni Enter za preskočitev filma): "
+        ).strip()
+        if not imdb_id:
+            return {}, "static/logo.png"
+        movie_match = tmdb_get_by_imdb_id(imdb_id)
+        if movie_match is None:
+            log.error(f"Ni podatkov za IMDb ID: {imdb_id}")
+            return {}, "static/logo.png"
+        score = 1.0
 
     log.info(
-        f"Najboljši zadetek: {movie_match.get('title', movie_match.get('name'))} (Ujemanje: {score})"  # noqa E501
+        f"Izbran zadetek: {movie_match.get('title', movie_match.get('name'))} (Ujemanje: {score})"  # noqa E501
     )
 
     # Pridobimo TMDB ID in tip medija ('movie' ali 'tv')
@@ -357,33 +494,67 @@ def get_movie_metadata(folder, film, video_files):
         film_cover_file = "static/logo.png"
 
     # Dodajanje dolžin datotek
-    runtimes = get_movie_runtimes(folder, video_files)
-    result["RuntimesByFiles"] = {
-        file.replace(".mp4", "")
-        .replace("_Slo", "")
-        .replace("_Eng", ""): runtime
-        for file, runtime in zip(video_files, runtimes)
-    }
+    runtimes_by_files, runtimes = _build_runtimes_by_files(
+        folder, video_files, hls_dirs
+    )
+    result["RuntimesByFiles"] = runtimes_by_files
 
-    runtime = None
-    if len(runtimes) > 1:
-        valid_r = [r for r in runtimes if r]
-        if valid_r:
-            runtime = f"{len(runtimes)} delov po {min(valid_r)}-{max(valid_r)}"
-    elif len(runtimes) == 1:
-        if runtimes[0]:
-            runtime = runtimes[0]
-    else:
+    runtime = _summarize_runtime(runtimes)
+    if not runtimes:
         log.error(f"{folder} nima video datotek.")
 
     if runtime:
         result["Runtimes"] = runtime
+
+    # Omogočimo ročno urejanje izbranih podatkov pred shranjevanjem
+    if (
+        input(
+            "Želiš ročno urediti izbrane podatke "
+            "(naslov/originalni naslov/leto/opis/imdb_id)? (y/N): "
+        )
+        .strip()
+        .lower()
+        == "y"
+    ):
+        for field, label in (
+            ("Title", "Naslov"),
+            ("OriginalTitle", "Originalni naslov"),
+            ("Year", "Leto"),
+            ("Plot", "Opis"),
+            ("imdb_id", "IMDb ID"),
+        ):
+            current = result.get(field, "")
+            new_value = input(f"{label} [{current}]: ").strip()
+            if new_value:
+                result[field] = new_value
+
+    # Označimo, da so bili ti podatki že potrjeni s strani uporabnika,
+    # da jih ni treba znova potrjevati ob ponovnem zagonu
+    result["confirmed"] = {"metadata": True}
 
     # Shranimo nov readme.json
     with open(film_readme_file, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=4)
 
     return result, film_cover_file
+
+
+def convert_srt_to_vtt(srt_path):
+    vtt_path = str(Path(srt_path).with_suffix(".vtt"))
+    with (
+        open(srt_path, "r", encoding="utf-8") as srt_file,
+        open(
+            vtt_path,
+            "w",
+            encoding="utf-8",
+        ) as vtt_file,
+    ):
+        vtt_file.write("WEBVTT\n\n")
+        for line in srt_file:
+            if "-->" in line:
+                line = line.replace(",", ".")
+            vtt_file.write(line)
+    return vtt_path
 
 
 class MovieMetadata:
@@ -423,6 +594,18 @@ class MovieMetadata:
             ]
         )
 
+        srt_files = sorted(
+            [
+                f.name
+                for f in folder_contents
+                if f.is_file() and f.suffix.lower() == ".srt"
+            ]
+        )
+        for srt_file in srt_files:
+            if not (self.path / srt_file).with_suffix(".vtt").exists():
+                vtt_file = convert_srt_to_vtt(str(self.path / srt_file))
+                folder_contents.append(Path(vtt_file))
+
         self.subtitles = [
             f.name
             for f in folder_contents
@@ -430,7 +613,7 @@ class MovieMetadata:
         ]
 
         metadata, cover = get_movie_metadata(
-            folder, self.title, self.video_files
+            folder, self.title, self.video_files, self.video_files_m3u8
         )
 
         self.cover = cover

@@ -15,6 +15,8 @@ from flask_compress import Compress
 from mutagen.easyid3 import EasyID3
 from mutagen.mp3 import MP3, HeaderNotFoundError
 
+os.umask(0)
+
 from content_preparation.audio_preparation import convert_mp3_to_hls
 from content_preparation.get_movie_metadata import MovieMetadata
 from content_preparation.subtitles.download_subtitles import get_subtitles
@@ -36,7 +38,7 @@ INCOMING_MOVIE_FOLDER = "data/movies/0x-neurejeni-filmi"
 INCOMING_MOVIE_FOLDER_ABS = (
     REPO_ROOT / "data" / "movies" / "0x-neurejeni-filmi"
 )
-MOVIE_EXTENSIONS = (".mp4", ".mkv", ".avi", ".mov", ".vob")
+MOVIE_EXTENSIONS = (".mp4", ".mkv", ".avi", ".mov", ".vob", ".webm")
 
 
 def _format_duration(total_seconds):

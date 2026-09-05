@@ -13,6 +13,8 @@ from flask_login import LoginManager, current_user
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+os.umask(0)
+
 from blueprints import (
     MEMES_COUNT,
     MUSIC_COUNT,
