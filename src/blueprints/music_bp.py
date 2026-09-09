@@ -1,7 +1,9 @@
 import json
 import logging
 import os
+import re
 import shutil
+import time
 from pathlib import Path
 from urllib.parse import quote
 from uuid import uuid4
@@ -38,6 +40,8 @@ MAX_PRIVATE_ALBUMS = 10
 
 PLAYABLE_AUDIO_EXTENSIONS = (".mp3", ".m4a", ".wav")
 HLS_PLAYLIST_NAMES = ("index.m3u8", "master.m3u8")
+HLS_SESSION_TTL_SECONDS = 60 * 60 * 8
+hls_sessions = {}
 
 
 def _track_id_from_audio_path(relative_path):
@@ -58,6 +62,52 @@ def _find_hls_playlist(root_dir, track_id):
         if os.path.exists(os.path.join(root_dir, candidate)):
             return candidate
     return None
+
+
+def _make_hls_session_playlist(hls_paths):
+    lines = ["#EXTM3U", "#EXT-X-VERSION:7", "#EXT-X-PLAYLIST-TYPE:VOD"]
+    target_duration = 0
+
+    for playlist_index, hls_path in enumerate(hls_paths):
+        playlist_path = MUSIC_ROOT / hls_path
+        playlist_lines = playlist_path.read_text(encoding="utf-8").splitlines()
+        hls_dir = Path(hls_path).parent.as_posix()
+
+        if playlist_index:
+            lines.append("#EXT-X-DISCONTINUITY")
+
+        for line in playlist_lines:
+            if line.startswith("#EXT-X-TARGETDURATION:"):
+                target_duration = max(
+                    target_duration,
+                    int(line.split(":", 1)[1]),
+                )
+                continue
+            if line in {"#EXTM3U", "#EXT-X-ENDLIST"} or line.startswith(
+                (
+                    "#EXT-X-VERSION:",
+                    "#EXT-X-PLAYLIST-TYPE:",
+                    "#EXT-X-MEDIA-SEQUENCE:",
+                )
+            ):
+                continue
+            if line.startswith("#EXT-X-MAP:"):
+                line = re.sub(
+                    r'URI="([^"]+)"',
+                    lambda match: (
+                        'URI="/music/hls/'
+                        + quote(f"{hls_dir}/{match.group(1)}", safe="/")
+                        + '"'
+                    ),
+                    line,
+                )
+            elif line and not line.startswith("#"):
+                line = "/music/hls/" + quote(f"{hls_dir}/{line}", safe="/")
+            lines.append(line)
+
+    lines.insert(2, f"#EXT-X-TARGETDURATION:{target_duration or 6}")
+    lines.append("#EXT-X-ENDLIST")
+    return "\n".join(lines) + "\n"
 
 
 def _read_hls_json_metadata(hls_dir_path: Path, relative_path: Path):
@@ -574,6 +624,99 @@ def recommend_next_song():
             str(response_song["hls_path"]), safe="/"
         )
     return jsonify({"song": response_song, "transition": transition})
+
+
+@music_bp.route("/music/session-playlist", methods=["POST"])
+@login_required
+def create_hls_session_playlist():
+    _, visible_metadata, visible_track_ids = _normalize_music_view()
+    payload = request.get_json(silent=True) or {}
+    track_ids = payload.get("track_ids")
+    mode = str(payload.get("mode") or "sequential")
+
+    if not isinstance(track_ids, list) or not track_ids:
+        return jsonify({"message": "Manjka seznam skladb."}), 400
+
+    track_ids = [str(track_id) for track_id in track_ids]
+    if len(track_ids) > 200 or any(
+        track_id not in visible_track_ids for track_id in track_ids
+    ):
+        return jsonify({"message": "Neveljaven seznam skladb."}), 400
+
+    if mode not in {"sequential", "similar"}:
+        return jsonify({"message": "Neveljaven način predvajanja."}), 400
+
+    if mode == "similar":
+        session_track_ids = [track_ids[0]]
+        candidates = [
+            {"id": track_id, **visible_metadata[track_id]}
+            for track_id in track_ids
+        ]
+        current_song = candidates.pop(0)
+
+        while candidates and len(session_track_ids) < 10:
+            next_song = select_next_song(
+                current_song,
+                candidates,
+                randomness_weight=0.2,
+                mode="similar",
+            )
+            if next_song is None:
+                break
+            session_track_ids.append(str(next_song["id"]))
+            candidates = [
+                song for song in candidates if song["id"] != next_song["id"]
+            ]
+            current_song = next_song
+    else:
+        session_track_ids = track_ids
+
+    hls_paths = [
+        visible_metadata[track_id].get("hls_path")
+        for track_id in session_track_ids
+    ]
+    if any(not hls_path for hls_path in hls_paths):
+        return jsonify({"message": "Skladba nima HLS vira."}), 400
+
+    try:
+        playlist = _make_hls_session_playlist(hls_paths)
+    except (OSError, ValueError) as error:
+        log.warning("HLS session playlist ni mogoče ustvariti: %s", error)
+        return jsonify({"message": "HLS playlist ni na voljo."}), 404
+
+    now = time.monotonic()
+    expired_tokens = [
+        token
+        for token, session_data in hls_sessions.items()
+        if session_data["expires_at"] <= now
+    ]
+    for token in expired_tokens:
+        del hls_sessions[token]
+
+    session_token = uuid4().hex
+    hls_sessions[session_token] = {
+        "user_id": current_user.id,
+        "expires_at": now + HLS_SESSION_TTL_SECONDS,
+        "playlist": playlist,
+    }
+    return jsonify({"url": f"/music/session-hls/{session_token}.m3u8"})
+
+
+@music_bp.route("/music/session-hls/<session_token>.m3u8")
+@login_required
+def hls_session_playlist(session_token):
+    session_data = hls_sessions.get(session_token)
+    if (
+        session_data is None
+        or session_data["user_id"] != current_user.id
+        or session_data["expires_at"] <= time.monotonic()
+    ):
+        abort(404)
+
+    response = make_response(session_data["playlist"])
+    response.headers["Content-Type"] = "application/vnd.apple.mpegurl"
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @music_bp.route("/music/private-albums", methods=["POST"])

@@ -256,6 +256,7 @@
             const savedTime = {{ movie.last_play_time|default(0) }};
             const audioContainer = document.getElementById('hlsAudioContainer');
             const audioSelect = document.getElementById('hlsAudioSelect');
+            let restoredSavedTime = false;
 
 
             // Inicializacija Plyr-a
@@ -264,6 +265,21 @@
                 urls: { download: '/movies/download/{{ group_folder }}/{{ folder }}' },
                 keyboard: { focused: true, global: true }
             });
+
+            function restoreSavedTime() {
+                if (
+                    restoredSavedTime ||
+                    !Number.isFinite(video.duration) ||
+                    video.duration <= 0
+                ) return;
+
+                restoredSavedTime = true;
+                if (savedTime > 0 && savedTime < video.duration) {
+                    player.currentTime = savedTime;
+                }
+            }
+
+            video.addEventListener('loadedmetadata', restoreSavedTime);
 
             // Pomožna funkcija za lepši izpis jezikov
             function getLanguageLabel(langCode, name, index) {
@@ -320,6 +336,8 @@
 
                 hls.loadSource(src);
                 hls.attachMedia(video);
+
+                hls.on(Hls.Events.MANIFEST_PARSED, restoreSavedTime);
 
                 // Poslušamo AUDIO_TRACKS_UPDATED za zanesljivo zaznavanje vseh sledi
                 hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, (event, data) => {
@@ -380,11 +398,7 @@
                 audioSelect.innerHTML = '<option>HLS ni podprt v brskalniku</option>';
             }
 
-            player.on('ready', () => {
-                if (savedTime < player.duration) {
-                    player.currentTime = savedTime;
-                }
-            });
+            player.on('ready', restoreSavedTime);
         });
     </script>
 {% elif not is_collection %}
@@ -477,13 +491,26 @@
                 sources: [{ src: src, type: 'video/mp4' }]
             };
 
-            player.on('ready', function setStartTime() {
-                if (startTime < player.duration) {
+            const video = player.media;
+            let restoredStartTime = false;
+            const setStartTime = () => {
+                if (restoredStartTime) return;
+                if (!Number.isFinite(video.duration) || video.duration <= 0) return;
+
+                restoredStartTime = true;
+                if (
+                    startTime > 0 &&
+                    startTime < video.duration
+                ) {
                     player.currentTime = startTime;
                 }
                 player.play();
-                player.off('ready', setStartTime);
-            });
+            };
+
+            video.addEventListener('loadedmetadata', setStartTime, { once: true });
+            if (video.readyState >= HTMLMediaElement.HAVE_METADATA) {
+                setStartTime();
+            }
         }
     }
     </script>
