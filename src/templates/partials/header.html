@@ -198,3 +198,14 @@
 }
 </script>
 {% endif %}
+
+{% if current_user.is_authenticated and current_user.is_admin %}
+<style>
+  .eruda-container {
+    right: 0 !important;
+    bottom: 0 !important;
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+<script>eruda.init();</script>
+{% endif %}

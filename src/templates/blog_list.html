@@ -10,8 +10,12 @@
     <div class="row mb-4">
         <div class="col-md-8 offset-md-2">
             <div class="card p-3">
-                <form method="post" action="/blog/subscribe" class="row g-2 align-items-center">
+                <form id="blog-subscribe-form" method="post" action="/blog/subscribe" class="row g-2 align-items-center">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div aria-hidden="true" style="position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden;">
+                        <label for="subscribe-website">Website</label>
+                        <input type="text" name="website" id="subscribe-website" tabindex="-1" autocomplete="off">
+                    </div>
                     <div class="col-auto">
                         <label for="subscribe-email" class="col-form-label">Naroči se na nove objave:</label>
                     </div>
@@ -21,7 +25,19 @@
                     <div class="col-auto">
                         <button class="btn btn-primary" type="submit">Naroči</button>
                     </div>
+                    {% if turnstile_site_key %}
+                    <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" data-action="blog_subscribe"></div>
+                    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+                    {% endif %}
                 </form>
+                <script>
+                    document.getElementById('blog-subscribe-form').addEventListener('submit', function () {
+                        console.debug('[blog-subscribe] submit', {
+                            emailPresent: Boolean(this.querySelector('[name="email"]').value),
+                            turnstilePresent: Boolean(this.querySelector('[name="cf-turnstile-response"]')?.value)
+                        });
+                    });
+                </script>
             </div>
         </div>
     </div>

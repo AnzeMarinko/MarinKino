@@ -3,7 +3,7 @@ services:
     image: redis:7-alpine
     container_name: marinkino-redis
     ports:
-      - "6380:6379"
+      - "127.0.0.1:6380:6379"
     volumes:
       - ./data/redis_data:/data
     command: redis-server --dir /data --dbfilename dump.rdb --appendonly no
@@ -27,9 +27,11 @@ services:
       - FLASK_ENV=production
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/marinkino/gen-lang-client.json
     volumes:
       - ./data:/app/data
       - ./cache:/app/cache
+      - ./credentials:/run/secrets/marinkino:ro
     depends_on:
       redis:
         condition: service_healthy

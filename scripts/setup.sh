@@ -146,6 +146,8 @@ server {
         add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
         add_header 'Access-Control-Allow-Headers' 'Range, Content-Type' always;
         add_header 'Access-Control-Expose-Headers' 'Content-Length, Content-Range' always;
+        add_header 'Cache-Control' 'no-cache' always;
+        add_header 'Access-Control-Allow-Origin' '*' always;
         proxy_force_ranges on;
         access_log off;
     }

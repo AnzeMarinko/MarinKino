@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import os
 import re
@@ -29,6 +30,8 @@ log = logging.getLogger(__name__)
 
 auth_bp = Blueprint("auth", __name__)
 WWW_DOMAIN = os.getenv("WWW_DOMAIN")
+AUTH_RATE_LIMIT = 5
+AUTH_RATE_LIMIT_TTL = 15 * 60
 
 # Shared utilities (imported from main app)
 users = {}
@@ -48,6 +51,29 @@ def save_users():
         import json
 
         f.write(json.dumps(users, indent=4))
+
+
+def auth_rate_limited(identifier, action):
+    client_ip = request.remote_addr or "unknown"
+    values = [client_ip, identifier.lower()]
+    counts = []
+    for value in values:
+        digest = hashlib.sha256(value.encode()).hexdigest()
+        key = f"auth:limit:{action}:{digest}"
+        count = redis_client.incr(key)
+        if count == 1:
+            redis_client.expire(key, AUTH_RATE_LIMIT_TTL)
+        counts.append(count)
+    return any(count > AUTH_RATE_LIMIT for count in counts)
+
+
+def public_base_url():
+    configured_url = os.getenv("PUBLIC_BASE_URL")
+    if configured_url:
+        return configured_url.rstrip("/")
+    if WWW_DOMAIN:
+        return f"https://{WWW_DOMAIN}"
+    return None
 
 
 def get_welcome_stats():
@@ -70,8 +96,11 @@ def get_welcome_stats():
 def login():
     error = None
     if request.method == "POST":
-        username = request.form["username"]
+        username = request.form.get("username", "").strip()
         password = request.form["password"]
+        if auth_rate_limited(username, "login"):
+            flash("Preveč poskusov. Poskusite znova čez nekaj minut.", "error")
+            return render_template("login.html", pagetitle="Prijava"), 429
         if username in users and check_password_hash(
             users[username]["password_hash"], password
         ):
@@ -140,13 +169,11 @@ def register():
                 " podčrtaje in vezaje ter mora biti dolgo od 3 do 30 znakov!"
             )
         else:
-            import random
-
             password = "".join(
-                random.choices(
+                secrets.choice(
                     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-+_!=?<>",
-                    k=12,
                 )
+                for _ in range(12)
             )
             emails = [email] + ([email2] if email2 else [])
             users[username] = {
@@ -200,18 +227,25 @@ def forgot_password():
     if request.method == "POST":
         email = request.form.get("email", "").strip()
         username = find_user_by_email(email, users)
-        client_ip = request.headers.get("X-Real-IP", request.remote_addr)
-        log.warning(f"ZAHTEVA_ZA_GESLO IP: {client_ip} Email: {email}")
+        if auth_rate_limited(email, "forgot"):
+            flash("Preveč zahtev. Poskusite znova čez nekaj minut.", "info")
+            return redirect(url_for("auth.login"))
         if username:
             token = secrets.token_urlsafe(32)
             expiry = (
                 datetime.now(timezone.utc) + timedelta(minutes=30)
             ).isoformat()
-            users[username]["reset_token"] = token
+            users[username]["reset_token_hash"] = hashlib.sha256(
+                token.encode()
+            ).hexdigest()
             users[username]["reset_expiry"] = expiry
             save_users()
-            reset_link = url_for(
-                "auth.reset_password", token=token, _external=True
+            base_url = public_base_url()
+            if not base_url:
+                log.error("PUBLIC_BASE_URL or WWW_DOMAIN must be configured")
+                return redirect(url_for("auth.login"))
+            reset_link = (
+                f"{base_url}{url_for('auth.reset_password', token=token)}"
             )
             redis_client.incr(
                 f"auth:forgot:{date.today().isoformat()[:7]}:{username}"
@@ -253,8 +287,9 @@ def forgot_password():
 def reset_password(token):
     username = None
     user_data = None
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
     for u, data in users.items():
-        if data.get("reset_token") == token:
+        if data.get("reset_token_hash") == token_hash:
             username = u
             user_data = data
             break
@@ -274,7 +309,7 @@ def reset_password(token):
         expiry_dt = datetime.now(timezone.utc) - timedelta(seconds=1)
 
     if expiry_dt < datetime.now(timezone.utc):
-        users[username].pop("reset_token", None)
+        users[username].pop("reset_token_hash", None)
         users[username].pop("reset_expiry", None)
         save_users()
         flash("Povezava za ponastavitev gesla je potekla.", "error")
@@ -299,11 +334,11 @@ def reset_password(token):
                 f"auth:reset_username_invalid:{date.today().isoformat()[:7]}:{username}"
             )
             return render_template("reset_password.html", token=token)
-        if not new_password or len(new_password) < 6:
-            flash("Geslo mora vsebovati vsaj 6 znakov.", "error")
+        if not new_password or len(new_password) < 12:
+            flash("Geslo mora vsebovati vsaj 12 znakov.", "error")
             return render_template("reset_password.html", token=token)
         users[username]["password_hash"] = generate_password_hash(new_password)
-        users[username].pop("reset_token", None)
+        users[username].pop("reset_token_hash", None)
         users[username].pop("reset_expiry", None)
         save_users()
         redis_client.incr(

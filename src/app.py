@@ -5,12 +5,12 @@ import time
 from datetime import date, timedelta
 
 import requests
-from flask import Flask, redirect, render_template, request, session
+from flask import Flask, jsonify, redirect, render_template, request, session
 from flask_compress import Compress
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_login import LoginManager, current_user
-from flask_wtf.csrf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect, generate_csrf
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 os.umask(0)
@@ -37,12 +37,22 @@ from utils import FLASK_ENV, User, redis_client, users
 # Flask app setup
 app = Flask(__name__, static_url_path="/static", static_folder="static")
 app.secret_key = os.getenv("FLASK_KEY")
-app.permanent_session_lifetime = timedelta(days=365)
-app.config["REMEMBER_COOKIE_DURATION"] = timedelta(days=365)
+if FLASK_ENV == "production" and not app.secret_key:
+    raise RuntimeError("FLASK_KEY must be configured in production")
+app.permanent_session_lifetime = timedelta(days=30)
+app.config["REMEMBER_COOKIE_DURATION"] = timedelta(days=30)
+app.config.update(
+    SESSION_COOKIE_SECURE=FLASK_ENV == "production",
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    REMEMBER_COOKIE_SECURE=FLASK_ENV == "production",
+    REMEMBER_COOKIE_HTTPONLY=True,
+    REMEMBER_COOKIE_SAMESITE="Lax",
+)
 Compress(app)
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=2, x_host=1, x_proto=2)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=0, x_proto=1)
 csrf = CSRFProtect(app)
-app.config["WTF_CSRF_TIME_LIMIT"] = None
+app.config["WTF_CSRF_TIME_LIMIT"] = 3600
 
 log = logging.getLogger(__name__)
 
@@ -56,6 +66,11 @@ limiter = Limiter(
 limiter.init_app(app)
 
 last_timeout_time = 0
+
+
+@app.get("/csrf-token")
+def csrf_token():
+    return jsonify({"csrf_token": generate_csrf()})
 
 
 def get_location_from_ip(ip):

@@ -269,7 +269,20 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Nastavi interval (v milisekundah)
     const intervalMillis = 20 * 1000;
-    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    let csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const refreshCsrfToken = async () => {
+        try {
+            const response = await fetch('/csrf-token');
+            if (response.ok) {
+                csrfToken = (await response.json()).csrf_token;
+                document.querySelector('meta[name="csrf-token"]')
+                    .setAttribute('content', csrfToken);
+            }
+        } catch (error) {
+            console.error('[csrf] token refresh failed', error);
+        }
+    };
+    setInterval(refreshCsrfToken, 25 * 60 * 1000);
     setInterval(() => {
         const currentVideo = document.getElementById("videoPlayer") || document.getElementById("hlsVideoPlayer") || document.querySelector(".plyr-container video, .plyr video");
         if (currentVideo && !currentVideo.paused && !currentVideo.ended) {
@@ -288,13 +301,19 @@ document.addEventListener("DOMContentLoaded", function () {
                 duration: currentVideo.duration
             };
 
-            fetch("/movies/video-progress", {
+            const sendProgress = () => fetch("/movies/video-progress", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     "X-CSRFToken": csrfToken
                 },
                 body: JSON.stringify(progressData)
+            });
+            sendProgress().then(async response => {
+                if (response.status === 400) {
+                    await refreshCsrfToken();
+                    await sendProgress();
+                }
             }).catch(error => {
                 console.error("[movie-progress] request failed", error);
             });

@@ -26,6 +26,19 @@ chmod +x ./scripts/setup.sh
    ```
 2. Uredi `.env` in nastavi svoje vrednosti.
 3. Če uporabljaš Google AI prevajanje, dodaj `credentials/gen-lang-client.json`.
+   Credential datotek ne kopiraj v Docker image; Compose jih priklopi kot
+   read-only runtime mount. Če je credential že bil vgrajen v prejšnji image,
+   ga po namestitvi rotiraj pri ponudniku.
+4. Za naročanje na blog ustvari Cloudflare Turnstile widget in v `.env` dodaj:
+   ```
+   TURNSTILE_SITE_KEY=...
+   TURNSTILE_SECRET_KEY=...
+   TURNSTILE_HOSTNAME=www.example.si
+   PUBLIC_BASE_URL=https://www.example.si
+   ```
+   V produkciji sta ključa in javni URL obvezni; `TURNSTILE_HOSTNAME` mora
+   ustrezati domeni, registrirani pri Turnstile. Prijave se v seznam naročnikov
+   dodajo šele po kliku na potrditveno povezavo v e-pošti; povezava velja 24 ur.
 
 ### 3. Ustvari virtualno okolje in namesti odvisnosti
 ```

@@ -898,10 +898,45 @@ html, body {
     color: #8b5d1f;
 }
 
+.playback-mode-btn.playback-mode-sequential {
+    background: linear-gradient(180deg, #dff0e9 0%, #b9ddcf 100%);
+    color: #216b56;
+}
+
+.playback-mode-btn.playback-mode-similar {
+    background: linear-gradient(180deg, #dceaf5 0%, #b6d2e7 100%);
+    color: #286184;
+}
+
+.playback-mode-btn.playback-mode-random {
+    background: linear-gradient(180deg, #f8e7b9 0%, #e9c873 100%);
+    color: #7c5a12;
+}
+
+.playback-mode-btn.playback-mode-repeat {
+    background: linear-gradient(180deg, #f8ded8 0%, #edb8ab 100%);
+    color: #9b4234;
+}
+
 .playback-mode-btn.active {
-    background: linear-gradient(180deg, #ffb07c 0%, #eb7b38 100%);
     color: white;
-    box-shadow: 0 10px 20px rgba(235, 123, 56, 0.28);
+    box-shadow: 0 10px 20px rgba(71, 86, 95, 0.24);
+}
+
+.playback-mode-btn.playback-mode-sequential.active {
+    background: linear-gradient(180deg, #4fae8f 0%, #2d8268 100%);
+}
+
+.playback-mode-btn.playback-mode-similar.active {
+    background: linear-gradient(180deg, #5799c3 0%, #34759f 100%);
+}
+
+.playback-mode-btn.playback-mode-random.active {
+    background: linear-gradient(180deg, #e5ae3c 0%, #ba8417 100%);
+}
+
+.playback-mode-btn.playback-mode-repeat.active {
+    background: linear-gradient(180deg, #d86d5c 0%, #b04a3b 100%);
 }
 
 .btn-delete {

@@ -1,4 +1,13 @@
-# --- Velike mape (bodo "mountane" preko volumes) ---
+.git
+.env
+.env.*
+credentials/
+data/
+cache/
+build/
+.venv/
+__pycache__/
+*.pyc# --- Velike mape (bodo "mountane" preko volumes) ---
 data/
 cache/
 

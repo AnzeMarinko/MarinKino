@@ -14,8 +14,8 @@ from PIL import Image
 
 log = logging.getLogger(__name__)
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = (
-    "credentials/gen-lang-client.json"
+os.environ.setdefault(
+    "GOOGLE_APPLICATION_CREDENTIALS", "credentials/gen-lang-client.json"
 )
 TMDB_KEY = os.getenv("TMDB_KEY")
 TMDB_URL = "https://api.themoviedb.org/3"

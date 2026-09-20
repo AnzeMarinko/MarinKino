@@ -27,8 +27,7 @@ COPY pyproject.toml .
 RUN pip install --default-timeout=1000 --no-cache-dir -e .
 
 # copy source code and other files
-COPY credentials ./credentials
 COPY src ./src
 
 # Run the application with waitress
-CMD ["sh", "-c", "umask 0002 && waitress-serve --host=0.0.0.0 --port=5000 --trusted-proxy=* src.app:app"]
+CMD ["sh", "-c", "umask 0002 && waitress-serve --host=0.0.0.0 --port=5000 src.app:app"]

@@ -110,6 +110,15 @@ def _make_hls_session_playlist(hls_paths):
     return "\n".join(lines) + "\n"
 
 
+def _get_hls_playlist_duration(hls_path):
+    playlist_path = MUSIC_ROOT / hls_path
+    duration = 0.0
+    for line in playlist_path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("#EXTINF:"):
+            duration += float(line.split(":", 1)[1].split(",", 1)[0])
+    return duration
+
+
 def _read_hls_json_metadata(hls_dir_path: Path, relative_path: Path):
     """Prebere metadata.json datoteko znotraj HLS mape, če obstaja."""
     metadata = load_cached_metadata(
@@ -638,19 +647,30 @@ def create_hls_session_playlist():
         return jsonify({"message": "Manjka seznam skladb."}), 400
 
     track_ids = [str(track_id) for track_id in track_ids]
-    if len(track_ids) > 200 or any(
+    if len(track_ids) > 201 or any(
         track_id not in visible_track_ids for track_id in track_ids
     ):
-        return jsonify({"message": "Neveljaven seznam skladb."}), 400
+        for track_id in track_ids:
+            if track_id not in visible_track_ids:
+                log.warning(f"Neveljaven seznam skladb {len(track_ids)}.")
+                return jsonify({"message": "Neveljaven seznam skladb."}), 400
 
-    if mode not in {"sequential", "similar"}:
+    if mode not in {"sequential", "similar", "random"}:
         return jsonify({"message": "Neveljaven način predvajanja."}), 400
 
-    if mode == "similar":
-        session_track_ids = [track_ids[0]]
+    hls_track_ids = [
+        track_id
+        for track_id in track_ids
+        if visible_metadata[track_id].get("hls_path")
+    ]
+    if not hls_track_ids or hls_track_ids[0] != track_ids[0]:
+        return jsonify({"message": "Trenutna skladba nima HLS vira."}), 400
+
+    if mode in {"similar", "random"}:
+        session_track_ids = [hls_track_ids[0]]
         candidates = [
             {"id": track_id, **visible_metadata[track_id]}
-            for track_id in track_ids
+            for track_id in hls_track_ids
         ]
         current_song = candidates.pop(0)
 
@@ -658,8 +678,8 @@ def create_hls_session_playlist():
             next_song = select_next_song(
                 current_song,
                 candidates,
-                randomness_weight=0.2,
-                mode="similar",
+                randomness_weight=0.2 if mode == "similar" else 0.55,
+                mode=mode,
             )
             if next_song is None:
                 break
@@ -669,17 +689,22 @@ def create_hls_session_playlist():
             ]
             current_song = next_song
     else:
-        session_track_ids = track_ids
+        session_track_ids = hls_track_ids
 
     hls_paths = [
         visible_metadata[track_id].get("hls_path")
         for track_id in session_track_ids
     ]
-    if any(not hls_path for hls_path in hls_paths):
-        return jsonify({"message": "Skladba nima HLS vira."}), 400
 
     try:
         playlist = _make_hls_session_playlist(hls_paths)
+        session_tracks = [
+            {
+                "id": track_id,
+                "duration": _get_hls_playlist_duration(hls_path),
+            }
+            for track_id, hls_path in zip(session_track_ids, hls_paths)
+        ]
     except (OSError, ValueError) as error:
         log.warning("HLS session playlist ni mogoče ustvariti: %s", error)
         return jsonify({"message": "HLS playlist ni na voljo."}), 404
@@ -699,7 +724,12 @@ def create_hls_session_playlist():
         "expires_at": now + HLS_SESSION_TTL_SECONDS,
         "playlist": playlist,
     }
-    return jsonify({"url": f"/music/session-hls/{session_token}.m3u8"})
+    return jsonify(
+        {
+            "url": f"/music/session-hls/{session_token}.m3u8",
+            "tracks": session_tracks,
+        }
+    )
 
 
 @music_bp.route("/music/session-hls/<session_token>.m3u8")
