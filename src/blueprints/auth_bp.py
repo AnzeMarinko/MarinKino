@@ -32,6 +32,7 @@ auth_bp = Blueprint("auth", __name__)
 WWW_DOMAIN = os.getenv("WWW_DOMAIN")
 AUTH_RATE_LIMIT = 5
 AUTH_RATE_LIMIT_TTL = 15 * 60
+PASSWORD_MIN_LENGTH = 12
 
 # Shared utilities (imported from main app)
 users = {}
@@ -73,6 +74,25 @@ def public_base_url():
         return configured_url.rstrip("/")
     if WWW_DOMAIN:
         return f"https://{WWW_DOMAIN}"
+    return None
+
+
+def password_strength_error(password, username=""):
+    if len(password) < PASSWORD_MIN_LENGTH:
+        return "Geslo mora vsebovati vsaj 12 znakov."
+    if username and username.lower() in password.lower():
+        return "Geslo ne sme vsebovati uporabniškega imena."
+    requirements = (
+        any(char.islower() for char in password),
+        any(char.isupper() for char in password),
+        any(char.isdigit() for char in password),
+        any(not char.isalnum() for char in password),
+    )
+    if not all(requirements):
+        return (
+            "Geslo mora vsebovati malo in veliko črko, številko "
+            "ter poseben znak."
+        )
     return None
 
 
@@ -169,28 +189,36 @@ def register():
                 " podčrtaje in vezaje ter mora biti dolgo od 3 do 30 znakov!"
             )
         else:
-            password = "".join(
-                secrets.choice(
-                    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-+_!=?<>",
-                )
-                for _ in range(12)
-            )
+            base_url = public_base_url()
+            if not base_url:
+                flash("PUBLIC_BASE_URL ali WWW_DOMAIN ni nastavljen.", "error")
+                return redirect(request.url)
+            setup_token = secrets.token_urlsafe(32)
+            setup_expiry = (
+                datetime.now(timezone.utc) + timedelta(hours=24)
+            ).isoformat()
             emails = [email] + ([email2] if email2 else [])
             users[username] = {
-                "password_hash": generate_password_hash(password),
+                "password_hash": generate_password_hash(
+                    secrets.token_urlsafe(32)
+                ),
+                "setup_token_hash": hashlib.sha256(
+                    setup_token.encode()
+                ).hexdigest(),
+                "setup_expiry": setup_expiry,
+                "must_set_password": True,
                 "emails": emails,
                 "incoming_date": date.today().isoformat(),
                 "first_login": True,
             }
+            setup_link = (
+                f"{base_url}"
+                f"{url_for('auth.reset_password', token=setup_token)}"
+            )
             content = (
-                "Nov uporabnik je bil registriran v MarinKino:\n\n"
-                f"Vstopna stran: {WWW_DOMAIN}\n"
-                f"Uporabniško ime: {username}\nE-naslov: {' + '.join(emails)}"
-                f"\nGeslo: {password}\n\n"
-                "Dobrodošel v MarinKino!\n\n"
-                "MarinKino ponuja filme, meme, glasbo in igro Pod Krinko. "
-                "Vsi filmi imajo slovenske podnapise ali zvok.\n\n"
-                "Uporabi prijavno povezavo in si oglej vašo novo zbirko.\n\n"
+                "Ustvarjen je bil vaš uporabniški račun za MarinKino.\n\n"
+                f"Uporabniško ime: {username}\n\n"
+                "Povezavo za nastavitev gesla smo poslali po e-pošti.\n\n"
                 "Lep pozdrav,\nMarinKino sistem"
             )
             requests.post(
@@ -209,10 +237,11 @@ def register():
                 html=render_template(
                     "mail_newuser.html",
                     username=username,
-                    password=password,
+                    reset_link=setup_link,
+                    expiry_minutes=24 * 60,
                     is_for_mail=True,
                 ),
-                batch_id="new_user_credentials",
+                batch_id="new_user_setup",
             )
             return redirect(url_for("home"))
     if error:
@@ -289,7 +318,10 @@ def reset_password(token):
     user_data = None
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     for u, data in users.items():
-        if data.get("reset_token_hash") == token_hash:
+        if token_hash in {
+            data.get("reset_token_hash"),
+            data.get("setup_token_hash"),
+        }:
             username = u
             user_data = data
             break
@@ -302,7 +334,7 @@ def reset_password(token):
         )
         return redirect(url_for("auth.login"), code=400)
 
-    expiry_iso = user_data.get("reset_expiry")
+    expiry_iso = user_data.get("reset_expiry") or user_data.get("setup_expiry")
     try:
         expiry_dt = datetime.fromisoformat(expiry_iso)
     except Exception:
@@ -311,6 +343,8 @@ def reset_password(token):
     if expiry_dt < datetime.now(timezone.utc):
         users[username].pop("reset_token_hash", None)
         users[username].pop("reset_expiry", None)
+        users[username].pop("setup_token_hash", None)
+        users[username].pop("setup_expiry", None)
         save_users()
         flash("Povezava za ponastavitev gesla je potekla.", "error")
         redis_client.incr(
@@ -327,19 +361,46 @@ def reset_password(token):
             redis_client.incr(
                 f"auth:reset_token_invalid:{date.today().isoformat()[:7]}:{username}"
             )
-            return render_template("reset_password.html", token=token)
+            return render_template(
+                "reset_password.html",
+                token=token,
+                username=username,
+                is_initial_setup=bool(user_data.get("must_set_password")),
+            )
         if username != input_username:
             flash("Uporabniško ime se ne ujema.", "error")
             redis_client.incr(
                 f"auth:reset_username_invalid:{date.today().isoformat()[:7]}:{username}"
             )
-            return render_template("reset_password.html", token=token)
-        if not new_password or len(new_password) < 12:
-            flash("Geslo mora vsebovati vsaj 12 znakov.", "error")
-            return render_template("reset_password.html", token=token)
+            return render_template(
+                "reset_password.html",
+                token=token,
+                username=username,
+                is_initial_setup=bool(user_data.get("must_set_password")),
+            )
+        strength_error = password_strength_error(new_password, username)
+        if strength_error:
+            flash(strength_error, "error")
+            return render_template(
+                "reset_password.html",
+                token=token,
+                username=username,
+                is_initial_setup=bool(user_data.get("must_set_password")),
+            )
+        if new_password != request.form.get("password_confirm", ""):
+            flash("Gesli se ne ujemata.", "error")
+            return render_template(
+                "reset_password.html",
+                token=token,
+                username=username,
+                is_initial_setup=bool(user_data.get("must_set_password")),
+            )
         users[username]["password_hash"] = generate_password_hash(new_password)
         users[username].pop("reset_token_hash", None)
         users[username].pop("reset_expiry", None)
+        users[username].pop("setup_token_hash", None)
+        users[username].pop("setup_expiry", None)
+        users[username].pop("must_set_password", None)
         save_users()
         redis_client.incr(
             f"auth:reset_successful:{date.today().isoformat()[:7]}:{username}"
@@ -349,8 +410,13 @@ def reset_password(token):
             "success",
         )
         return redirect(url_for("auth.login"))
+    is_initial_setup = bool(user_data.get("must_set_password"))
     return render_template(
-        "reset_password.html", token=token, pagetitle="Ponastavi geslo"
+        "reset_password.html",
+        token=token,
+        username=username,
+        is_initial_setup=is_initial_setup,
+        pagetitle=("Nastavi geslo" if is_initial_setup else "Ponastavi geslo"),
     )
 
 
@@ -359,3 +425,34 @@ def reset_password(token):
 def logout():
     logout_user()
     return redirect(url_for("auth.login"))
+
+
+@auth_bp.route("/password/change", methods=["GET", "POST"])
+@login_required
+def change_password():
+    if request.method == "POST":
+        current_password = request.form.get("current_password", "")
+        new_password = request.form.get("password", "")
+        if not check_password_hash(
+            users[current_user.id]["password_hash"], current_password
+        ):
+            flash("Trenutno geslo ni pravilno.", "error")
+            return render_template("change_password.html"), 400
+
+        strength_error = password_strength_error(new_password, current_user.id)
+        if strength_error:
+            flash(strength_error, "error")
+            return render_template("change_password.html"), 400
+        if new_password != request.form.get("password_confirm", ""):
+            flash("Gesli se ne ujemata.", "error")
+            return render_template("change_password.html"), 400
+
+        users[current_user.id]["password_hash"] = generate_password_hash(
+            new_password
+        )
+        save_users()
+        logout_user()
+        flash("Geslo je bilo spremenjeno. Ponovno se prijavite.", "success")
+        return redirect(url_for("auth.login"))
+
+    return render_template("change_password.html")

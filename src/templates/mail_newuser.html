@@ -19,10 +19,15 @@
     <div style="margin:0;color:#666;font-size:15px;font-weight:500;">
           <p>Vaš uporabniški račun je bil uspešno ustvarjen.</p>
 
-          <p>
-          <b>Uporabniško ime:</b> {{ username }}<br>
-          <b>Geslo:</b> {{ password }}
-          </p>
+            <p><b>Uporabniško ime:</b> {{ username }}</p>
+            <p>Novo geslo nastavite prek enkratne povezave:</p>
+            <a href="{{ reset_link }}"
+             style="display:block;width:80%;padding:16px;
+                background:linear-gradient(135deg, #f59e0b 0%, #ff6a88 100%);color:#fff;font-size:16px;
+                font-weight:bold;text-decoration:none;border-radius:10px;text-align:center;margin:24px auto 16px;">
+              Nastavi geslo
+            </a>
+            <p style="font-size:14px;color:#666;">Povezava velja {{ (expiry_minutes / 60) | round }} ur in jo lahko uporabite samo enkrat.</p>
     </div>
 
     <div style="margin:24px 0;padding:16px;background:#f5f5f5;border-radius:12px;">
