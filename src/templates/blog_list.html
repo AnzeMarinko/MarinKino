@@ -1,45 +1,67 @@
 {% extends "base.html" %}
 
 {% block content %}
+{% macro subscription_card() %}
+<div class="col-md-6 col-lg-4 mb-4">
+    <section class="blog-subscribe-section h-100" aria-labelledby="subscribe-heading">
+        <div class="blog-subscribe-inner">
+            <div class="blog-subscribe-copy">
+                <span class="blog-subscribe-kicker">Nova objava v tvoj e-poštni predal</span>
+                <h2 id="subscribe-heading">Ostani blizu</h2>
+                <p>Naroči se na obvestilo, ko na blogu nastane kaj novega.</p>
+            </div>
+            <form id="blog-subscribe-form" method="post" action="/blog/subscribe" class="blog-subscribe-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div aria-hidden="true" style="position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden;">
+                    <label for="subscribe-website">Website</label>
+                    <input type="text" name="website" id="subscribe-website" tabindex="-1" autocomplete="off">
+                </div>
+                <div class="blog-subscribe-email-row">
+                    <label class="visually-hidden" for="subscribe-email">E-poštni naslov</label>
+                    <input type="email" name="email" id="subscribe-email" class="form-control" placeholder="Vaš e-poštni naslov" required>
+                    <button class="btn btn-primary" type="submit">Naroči se</button>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="terms_accepted" value="yes" id="subscribe-terms" required>
+                    <label class="form-check-label small" for="subscribe-terms">
+                        Strinjam se s <a href="{{ url_for('blog.blog_terms') }}" target="_blank" rel="noopener">pogoji uporabe</a>
+                        in <a href="{{ url_for('blog.blog_privacy') }}" target="_blank" rel="noopener">politiko zasebnosti</a>.
+                    </label>
+                </div>
+                {% if turnstile_site_key %}
+                <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" data-action="blog_subscribe"></div>
+                <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+                {% endif %}
+            </form>
+            <script>
+                document.getElementById('blog-subscribe-form').addEventListener('submit', function (event) {
+                    const terms = this.querySelector('[name="terms_accepted"]');
+                    if (!terms.checked) {
+                        event.preventDefault();
+                        terms.setCustomValidity('Za naročnino morate sprejeti pogoje uporabe in politiko zasebnosti.');
+                        terms.reportValidity();
+                        terms.focus();
+                        return;
+                    }
+                    terms.setCustomValidity('');
+                    console.debug('[blog-subscribe] submit', {
+                        emailPresent: Boolean(this.querySelector('[name="email"]').value),
+                        turnstilePresent: Boolean(this.querySelector('[name="cf-turnstile-response"]')?.value)
+                    });
+                });
+                document.getElementById('subscribe-terms').addEventListener('change', function () {
+                    this.setCustomValidity('');
+                });
+            </script>
+        </div>
+    </section>
+</div>
+{% endmacro %}
+
 <div class="container py-5">
     <div class="text-center mb-5">
         <h3 class="display-6 fw-bold mb-3">Rože dobrega</h3>
         <p class="lead text-muted">Blog</p>
-    </div>
-
-    <div class="row mb-4">
-        <div class="col-md-8 offset-md-2">
-            <div class="card p-3">
-                <form id="blog-subscribe-form" method="post" action="/blog/subscribe" class="row g-2 align-items-center">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div aria-hidden="true" style="position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden;">
-                        <label for="subscribe-website">Website</label>
-                        <input type="text" name="website" id="subscribe-website" tabindex="-1" autocomplete="off">
-                    </div>
-                    <div class="col-auto">
-                        <label for="subscribe-email" class="col-form-label">Naroči se na nove objave:</label>
-                    </div>
-                    <div class="col-md-8">
-                        <input type="email" name="email" id="subscribe-email" class="form-control" placeholder="Vaš e-poštni naslov">
-                    </div>
-                    {% if turnstile_site_key %}
-                    <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" data-action="blog_subscribe"></div>
-                    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-                    {% endif %}
-                    <div class="col-auto">
-                        <button class="btn btn-primary" type="submit">Naroči</button>
-                    </div>
-                </form>
-                <script>
-                    document.getElementById('blog-subscribe-form').addEventListener('submit', function () {
-                        console.debug('[blog-subscribe] submit', {
-                            emailPresent: Boolean(this.querySelector('[name="email"]').value),
-                            turnstilePresent: Boolean(this.querySelector('[name="cf-turnstile-response"]')?.value)
-                        });
-                    });
-                </script>
-            </div>
-        </div>
     </div>
 
     <div class="row">
@@ -47,7 +69,12 @@
         <div class="col-md-6 col-lg-4 mb-4">
             <div class="card h-100 shadow-sm">
                 {% if post.image %}
-                <a href="/blog/{{ post.id }}"><img src="/blog/image/{{ post.image }}" class="card-img-top" alt="{{ post.title }}"></a>
+                <a href="/blog/{{ post.id }}"><img src="/blog/image/{{ post.image }}" class="card-img-top blog-card-image" alt="{{ post.title }}" loading="lazy"></a>
+                {% elif current_user.is_authenticated and current_user.is_admin %}
+                <div class="blog-image-placeholder" aria-label="Objava nima naslovne slike">
+                    <i class="bi bi-image"></i>
+                    <span>Brez naslovne slike</span>
+                </div>
                 {% endif %}
                 <div class="card-body">
                     <h5 class="card-title">{{ post.title }}</h5>
@@ -57,7 +84,101 @@
                 </div>
             </div>
         </div>
+        {% if loop.index == 1 %}
+        {{ subscription_card() }}
+        {% endif %}
         {% endfor %}
+        {% if posts|length == 0 %}
+        {{ subscription_card() }}
+        {% endif %}
     </div>
 </div>
+<style>
+    .blog-subscribe-section {
+        padding: 1.5rem clamp(1.25rem, 4vw, 2.25rem);
+        border: 1px solid rgba(239, 153, 24, 0.28);
+        border-radius: 1rem;
+        background: linear-gradient(120deg, #fffaf0, #fff 62%, #fff3e0);
+        box-shadow: 0 0.75rem 2rem rgba(75, 54, 26, 0.08);
+    }
+
+    .blog-subscribe-inner {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+        align-items: center;
+    }
+
+    .blog-subscribe-kicker {
+        color: #c26d00;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .blog-subscribe-copy h2 {
+        margin: 0.25rem 0 0.4rem;
+        color: #443629;
+        font-size: 1.35rem;
+    }
+
+    .blog-subscribe-copy p {
+        margin: 0;
+        color: #75685b;
+        font-size: 0.95rem;
+    }
+
+    .blog-subscribe-form {
+        display: grid;
+        gap: 0.7rem;
+    }
+
+    .blog-subscribe-email-row {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .blog-subscribe-email-row .form-control {
+        min-width: 0;
+    }
+
+    .blog-subscribe-form .form-check-label {
+        color: #75685b;
+    }
+
+    .blog-image-placeholder {
+        display: flex;
+        width: 100%;
+        aspect-ratio: 6 / 5;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        color: #8b8177;
+        background: #f1eee9;
+        font-size: 0.9rem;
+    }
+
+    .blog-card-image {
+        width: 100%;
+        aspect-ratio: 6 / 5;
+        object-fit: cover;
+    }
+
+    .blog-image-placeholder i {
+        font-size: 1.4rem;
+    }
+
+    @media (max-width: 767.98px) {
+        .blog-subscribe-inner {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 420px) {
+        .blog-subscribe-email-row {
+            flex-direction: column;
+        }
+    }
+</style>
 {% endblock %}

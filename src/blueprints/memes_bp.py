@@ -13,7 +13,12 @@ from flask import (
 )
 from flask_login import current_user, login_required
 
-from utils import FLASK_ENV, is_current_admin_view, safe_path
+from utils import (
+    FLASK_ENV,
+    get_guest_identity,
+    is_current_admin_view,
+    safe_path,
+)
 
 log = logging.getLogger(__name__)
 
@@ -38,19 +43,23 @@ MEMES_COUNT = len(memes)
 
 
 @memes_bp.route("/memes")
-@login_required
 def meme():
     global meme_id
     global user_meme_count
-    user_meme_count[current_user.id] = user_meme_count.get(current_user.id, {})
-    if user_meme_count[current_user.id].get("last_date") != str(date.today()):
-        user_meme_count[current_user.id]["last_date"] = str(date.today())
-        user_meme_count[current_user.id]["count"] = 0
-    user_meme_count[current_user.id]["count"] += 1
+    is_admin = current_user.is_authenticated and current_user.is_admin
+    identity = (
+        current_user.id
+        if current_user.is_authenticated
+        else get_guest_identity()
+    )
+    user_meme_count[identity] = user_meme_count.get(identity, {})
+    if user_meme_count[identity].get("last_date") != str(date.today()):
+        user_meme_count[identity]["last_date"] = str(date.today())
+        user_meme_count[identity]["count"] = 0
+    user_meme_count[identity]["count"] += 1
     if (
-        user_meme_count[current_user.id]["count"] > user_meme_limit
-        and not current_user.is_admin
-    ) or user_meme_count[current_user.id]["count"] > 50:
+        user_meme_count[identity]["count"] > user_meme_limit and not is_admin
+    ) or user_meme_count[identity]["count"] > 50:
         return render_template(
             "limit_exceeded.html",
             section="šal",
@@ -68,7 +77,6 @@ def meme():
 
 
 @memes_bp.route("/memes/file/<meme_file_name>")
-@login_required
 def meme_file(meme_file_name):
     try:
         _ = safe_path("../data/memes", meme_file_name)

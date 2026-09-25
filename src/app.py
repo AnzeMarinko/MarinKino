@@ -248,7 +248,7 @@ def log_response_info(response):
                 redis_client.hset(
                     f"stats:geo:{today}", client_ip, json.dumps(location)
                 )
-                redis_client.expire(f"stats:geo:{today}", 2592000 * 3)
+                redis_client.expire(f"stats:geo:{today}", 3600 * 24 * 14)
 
     return response
 

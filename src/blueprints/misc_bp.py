@@ -17,7 +17,12 @@ from flask import (
 )
 from flask_login import current_user, login_required
 
-from utils import is_current_admin_view, redis_client, safe_path
+from utils import (
+    get_guest_identity,
+    is_current_admin_view,
+    redis_client,
+    safe_path,
+)
 from weather_service import (
     daily_calendar,
     fetch_ip_location,
@@ -29,6 +34,8 @@ log = logging.getLogger(__name__)
 
 misc_bp = Blueprint("misc", __name__)
 WWW_DOMAIN = os.getenv("WWW_DOMAIN")
+
+GUEST_NEW_WORDS_HOURLY_LIMIT = 20
 
 BLOG_DATA_FILE = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "blog_posts.json"
@@ -78,12 +85,30 @@ pod_krinko_words = pd.read_csv("data/pod_krinko_besede.csv", sep=";").to_dict(
 def pod_krinko_new_words():
     import random
 
+    if not current_user.is_authenticated:
+        identity = get_guest_identity()
+        key = f"pod_krinko:new_words:{identity}:{datetime.now().strftime('%Y%m%d%H')}"
+        count = redis_client.incr(key)
+        if count == 1:
+            redis_client.expire(key, 3600)
+        if count > GUEST_NEW_WORDS_HOURLY_LIMIT:
+            return jsonify({"error": "limit_exceeded"}), 429
+
     new_words = copy(
         pod_krinko_words[random.randint(0, len(pod_krinko_words) - 1)]
     )
     random.shuffle(new_words)
     word_1, word_2 = new_words[0], new_words[1]
     return [word_1.strip().lower(), word_2.strip().lower()]
+
+
+@misc_bp.route("/pod_krinko/limit")
+def pod_krinko_limit():
+    return render_template(
+        "limit_exceeded.html",
+        section="te igre",
+        pagetitle="Dovolj te igre za danes",
+    )
 
 
 @misc_bp.route("/newsletter_image/file/<path:filename>")

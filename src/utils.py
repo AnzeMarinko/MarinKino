@@ -10,7 +10,7 @@ from email.message import EmailMessage
 from typing import List
 
 import redis
-from flask import session
+from flask import request, session
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash
 
@@ -20,6 +20,20 @@ redis_client = redis.Redis(
     port=int(os.getenv("REDIS_PORT", "6379")),
     decode_responses=True,
 )
+
+
+def get_guest_identity() -> str:
+    """Stable id for unauthenticated visitors: fingerprint cookie, else IP."""
+    fp = request.cookies.get("fp_id")
+    if fp:
+        return f"fp:{fp}"
+    ip = (
+        request.headers.get("X-Real-IP", request.remote_addr or "unknown")
+        .split(",")[0]
+        .strip()
+    )
+    return f"ip:{ip}"
+
 
 SUBSCRIBERS_FILE = os.path.join(
     os.path.dirname(__file__), "..", "data", "blog_subscribers.json"

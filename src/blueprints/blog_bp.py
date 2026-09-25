@@ -100,6 +100,26 @@ def blog_list():
     )
 
 
+@blog_bp.route("/blog/pogoji-uporabe")
+def blog_terms():
+    return render_template(
+        "blog_legal.html",
+        legal_page="terms",
+        pagetitle="Pogoji uporabe",
+        blog_view="blog",
+    )
+
+
+@blog_bp.route("/blog/politika-zasebnosti")
+def blog_privacy():
+    return render_template(
+        "blog_legal.html",
+        legal_page="privacy",
+        pagetitle="Politika zasebnosti",
+        blog_view="blog",
+    )
+
+
 def verify_turnstile(token):
     secret = os.getenv("TURNSTILE_SECRET_KEY")
     if not secret:
@@ -204,6 +224,14 @@ def public_base_url():
 def blog_subscribe():
     if request.form.get("website"):
         log.debug("Subscription rejected: honeypot_filled")
+        return redirect(url_for("blog.blog_list"))
+
+    if request.form.get("terms_accepted") != "yes":
+        log.debug("Subscription rejected: terms_not_accepted")
+        flash(
+            "Za naročnino morate sprejeti pogoje uporabe in politiko zasebnosti.",
+            "error",
+        )
         return redirect(url_for("blog.blog_list"))
 
     turnstile_token = request.form.get("cf-turnstile-response")

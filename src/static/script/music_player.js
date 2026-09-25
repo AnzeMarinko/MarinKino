@@ -74,6 +74,8 @@ let endTransitionTrack = null;
 let isHlsSessionPlayback = false;
 let hlsSessionTracks = [];
 let hlsSessionTrackStart = 0;
+let playbackIntent = false;
+let resumePlaybackRequest = null;
 const randomCooldownMs = 60 * 60 * 1000;
 const randomCooldownStorageKey = "musicRandomCooldown";
 const playbackRandomnessWeights = {
@@ -1009,6 +1011,7 @@ async function playTrack(index, options = {}) {
         }
     }
     const loadToken = ++trackLoadToken;
+    playbackIntent = options.resume ?? true;
     isLoadingTrack = true;
     clearNextTrackPreload();
     clearEndTransitionTimer();
@@ -1194,6 +1197,7 @@ function updateMediaSession(title, artist, album) {
         });
 
         navigator.mediaSession.setActionHandler("play", () => {
+            playbackIntent = true;
             if (shouldStartHlsSession()) {
                 playTrack(currentIndex >= 0 ? currentIndex : 0);
                 return;
@@ -1202,6 +1206,7 @@ function updateMediaSession(title, artist, album) {
             updatePlayBtn("true");
         });
         navigator.mediaSession.setActionHandler("pause", () => {
+            playbackIntent = false;
             audio.pause();
             updatePlayBtn("false");
         });
@@ -1217,6 +1222,36 @@ function updateMediaSession(title, artist, album) {
         });
     }
 }
+
+async function resumePlaybackIfNeeded() {
+    if (!playbackIntent || !currentTrack || !audio.paused || isLoadingTrack) {
+        return;
+    }
+    if (resumePlaybackRequest) {
+        return resumePlaybackRequest;
+    }
+
+    resumePlaybackRequest = (async () => {
+        try {
+            if (shouldStartHlsSession()) {
+                await playTrack(currentIndex >= 0 ? currentIndex : 0, {
+                    resume: true,
+                });
+            } else {
+                await audio.play();
+                updatePlayBtn("true");
+            }
+        } catch (error) {
+            if (error.name !== "AbortError") {
+                console.warn("Nadaljevanje predvajanja ni uspelo:", error);
+            }
+        } finally {
+            resumePlaybackRequest = null;
+        }
+    })();
+    return resumePlaybackRequest;
+}
+
 audio.addEventListener("play", () => {
     if ("mediaSession" in navigator) {
         navigator.mediaSession.playbackState = "playing";
@@ -1254,6 +1289,26 @@ function highlightTrack() {
     });
 }
 
+function refreshPlaybackUi() {
+    if (!currentTrack) {
+        return;
+    }
+    const trackMetadata = getTrackMetadata(currentTrack);
+    const albumInfo = getAlbumDisplayInfo(trackMetadata.album || "");
+    applyMusicAmbience(trackMetadata);
+    nowPlayingTitle.textContent = trackMetadata.title || currentTrack;
+    nowPlayingArtist.textContent = trackMetadata.artist || "";
+    nowPlayingAlbum.textContent = albumInfo.displayName;
+    nowPlayingAlbum.classList.toggle("has-separator", albumInfo.hasSeparator);
+    updateMediaSession(
+        trackMetadata.title || currentTrack,
+        trackMetadata.artist || "",
+        albumInfo.displayName
+    );
+    highlightTrack();
+    updatePrivateAlbumControls();
+}
+
 function scrollToActiveTrack() {
     const active = document.querySelector(".track-item.active");
     if (active) {
@@ -1278,6 +1333,7 @@ function togglePlay() {
     }
 
     if (audio.paused) {
+        playbackIntent = true;
         if (shouldStartHlsSession()) {
             playTrack(currentIndex >= 0 ? currentIndex : 0);
             return;
@@ -1293,6 +1349,7 @@ function togglePlay() {
             });
         }
     } else {
+        playbackIntent = false;
         audio.pause();
         updatePlayBtn("false");
         playBtn.style.transform = "scale(0.95)";
@@ -1531,26 +1588,26 @@ audio.addEventListener("emptied", () => {
     updatePlayBtn("false");
 });
 
-document.addEventListener("visibilitychange", () => {
+async function restorePlaybackState() {
     if (document.hidden || !currentTrack) {
         return;
     }
 
-    if (syncHlsSessionTrack()) {
-        updatePrivateAlbumControls();
+    syncHlsSessionTrack();
+    refreshPlaybackUi();
+    await resumePlaybackIfNeeded();
+    syncHlsSessionTrack();
+    refreshPlaybackUi();
+}
+
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden || !currentTrack) {
         return;
     }
-
-    const trackMetadata = getTrackMetadata(currentTrack);
-    const albumInfo = getAlbumDisplayInfo(trackMetadata.album || "");
-    applyMusicAmbience(trackMetadata);
-    nowPlayingTitle.textContent = trackMetadata.title || currentTrack;
-    nowPlayingArtist.textContent = trackMetadata.artist || "";
-    nowPlayingAlbum.textContent = albumInfo.displayName;
-    nowPlayingAlbum.classList.toggle("has-separator", albumInfo.hasSeparator);
-    highlightTrack();
-    updatePrivateAlbumControls();
+    restorePlaybackState();
 });
+
+window.addEventListener("pageshow", restorePlaybackState);
 
 function formatTime(seconds) {
     const totalSeconds = Math.floor(seconds);

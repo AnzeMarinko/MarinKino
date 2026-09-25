@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            {% if legal_page == "terms" %}
+            <h1 class="mb-4">Pogoji uporabe naročnine</h1>
+            <p>Prijava na obvestila bloga Rože dobrega je prostovoljna in brezplačna.</p>
+            <h2 class="h4 mt-4">Naročnina</h2>
+            <p>Po vnosu e-poštnega naslova prejmete potrditveno sporočilo. Naročnina začne veljati šele po kliku na potrditveno povezavo. Povezava velja 24 ur in jo lahko uporabite samo enkrat.</p>
+            <h2 class="h4 mt-4">Preklic</h2>
+            <p>Od naročnine se lahko kadar koli odjavite tako, da pošljete zahtevo na <a href="mailto:anze@anzemarinko.si">anze@anzemarinko.si</a>. Zahtevo bom obravnaval v razumnem roku.</p>
+            <h2 class="h4 mt-4">Uporaba storitve</h2>
+            <p>Obvestila so namenjena osebni uporabi. Pridržujem si pravico zavrniti očitno zlorabljene ali avtomatizirane prijave.</p>
+            {% else %}
+            <h1 class="mb-4">Politika zasebnosti</h1>
+            <p>Upravljavec podatkov je Anže Marinko, dosegljiv na <a href="mailto:anze@anzemarinko.si">anze@anzemarinko.si</a>.</p>
+            <h2 class="h4 mt-4">Katere podatke obdelujemo</h2>
+            <p>Za naročnino obdelujemo vaš e-poštni naslov. Za zaščito obrazca lahko začasno obdelamo IP naslov oziroma njegov izpeljani zapis za omejevanje zlorab. Strežniški dnevniki lahko vsebujejo tehnične podatke o zahtevah.</p>
+            <h2 class="h4 mt-4">Namen in pravna podlaga</h2>
+            <p>E-poštni naslov uporabljamo za pošiljanje obvestil o novih blog objavah na podlagi vašega soglasja. Potrditveni token je začasno shranjen za izvedbo Double Opt-In in poteče po 24 urah.</p>
+            <h2 class="h4 mt-4">Hramba in posredovanje</h2>
+            <p>Potrjeni e-poštni naslovi so shranjeni v seznamu naročnikov, dokler naročnine ne prekličete. Podatkov ne prodajamo in jih ne posredujemo drugim, razen ponudnikom, ki so nujni za delovanje storitve, na primer ponudniku e-pošte in Cloudflare Turnstile za preverjanje obrazca.</p>
+            <h2 class="h4 mt-4">Vaše pravice</h2>
+            <p>Za dostop, popravek ali izbris podatkov oziroma preklic soglasja pišite na <a href="mailto:anze@anzemarinko.si">anze@anzemarinko.si</a>.</p>
+            {% endif %}
+            <p class="text-muted small mt-5">Zadnja posodobitev: 24. 9. 2026</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

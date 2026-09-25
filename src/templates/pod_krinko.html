@@ -31,6 +31,42 @@
 	<meta property="og:image" content="https://{{ domain }}/static/pod_krinko_favicon_io/android-chrome-512x512.png">
 	<meta property="og:site_name" content="Pod krinko">
 	<meta property="og:description" content="Slovenska različica besedne igre Undercover">
+
+    <!-- Naloži zunanjo knjižnico FingerprintJS -->
+    <script src="https://openfpcdn.io/fingerprintjs/v4"></script>
+
+    <script>
+    // Pomožna funkcija za branje piškotkov
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+
+    // Pomožna funkcija za pisanje piškotka
+    function setCookie(name, value, days) {
+        const d = new Date();
+        d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
+        document.cookie = `${name}=${value};expires=${d.toUTCString()};path=/;SameSite=Lax`;
+    }
+
+    // Inicializacija FingerprintJS
+    const fpPromise = FingerprintJS.load();
+
+    fpPromise
+        .then(fp => fp.get())
+        .then(result => {
+        const visitorId = result.visitorId;
+        const currentCookie = getCookie("fp_id");
+
+        // Če piškotek še ne obstaja, ga nastavi in osveži stran, 
+        // da bo Flask že v naslednji zahtevi imel dostop do fp_id
+        if (!currentCookie || currentCookie !== visitorId) {
+            setCookie("fp_id", visitorId, 365);
+            window.location.reload();
+        }
+        });
+    </script>
 </head>
 
 <body>
@@ -50,7 +86,7 @@
         <div id="besedilo_navodil" class="navodila-content">
             <div class="navodila-header">
                 <h1>🎲 Pravila igre</h1>
-                <p class="subtitle">Slovenska različica igre Undercover</p>
+                <p class="subtitle">Slovenska različica besedne družabne igre Undercover</p>
             </div>
 
             <div class="pravilo-card">
@@ -112,12 +148,12 @@
                         </div>
                         <div class="col-5 d-flex justify-content-center align-items-center gap-3">
                             <label class="d-flex align-items-center gap-1 cursor-pointer">
-                                <img src="static/pod_krinko_avatars/neznanec.png" width="24">
-                                <input type="radio" class="form-check-input mt-0" id="m" name="spol" value="m" checked>
+                                <img src="static/pod_krinko_avatars/neznanka.png" width="24">
+                                <input type="radio" class="form-check-input mt-0" id="f" name="spol" value="f" checked>
                             </label>
                             <label class="d-flex align-items-center gap-1 cursor-pointer">
-                                <img src="static/pod_krinko_avatars/neznanka.png" width="24">
-                                <input type="radio" class="form-check-input mt-0" id="f" name="spol" value="f">
+                                <img src="static/pod_krinko_avatars/neznanec.png" width="24">
+                                <input type="radio" class="form-check-input mt-0" id="m" name="spol" value="m">
                             </label>
                         </div>
                     </div>

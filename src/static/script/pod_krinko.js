@@ -424,6 +424,10 @@ async function start_new_game() {
 
     // Besede
     const response = await fetch(`/pod_krinko/new_words`);
+    if (response.status === 429) {
+        window.location.href = "/pod_krinko/limit";
+        return;
+    }
     const besedi = await response.json();
     beseda_prebivalci = besedi[0];
     if (nUndercovers > 0) beseda_vohuni = besedi[1];

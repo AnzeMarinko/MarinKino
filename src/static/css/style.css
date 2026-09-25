@@ -889,19 +889,25 @@ video, img {
 .next-meme-btn {
     position: absolute;
     top: 50%;
-    left: 90%;
+    left: 97%;
     transform: translate(-50%, -50%);
     z-index: 9998;
-    background: #ffffff1a;
+    background: #ffffff0f;
     border: none;
     border-radius: 50%;
-    font-size: 32px;
+    font-size: 64px;
     padding: 30vh 30vw;
     cursor: pointer;
-    opacity: 0;
+    opacity: 0.8;
+    transition: all 0.25s ease-in-out;
 }
+
 .next-meme-btn:hover {
     opacity: 1;
+    background: #ffffff45;
+    border-color: rgba(255, 255, 255, 0.6);
+    transform: translate(-50%, -50%) scale(1.05);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
 }
 blockquote {
     border-left: 5px solid #ead7d7;
