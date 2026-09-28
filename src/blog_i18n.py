@@ -6,6 +6,9 @@ BLOG_LANGUAGES = {
         "flag": "🇸🇮",
         "direction": "ltr",
         "notice": "Google Translate: avtomatski prevod, možne so napake.",
+        "copy_link": "Kopiraj povezavo",
+        "link_copied": "Povezava kopirana.",
+        "copy_link_prompt": "Kopiraj povezavo:",
     },
     "en": {
         "name": "English",
@@ -15,6 +18,9 @@ BLOG_LANGUAGES = {
             "Google Translate: automatic translation may contain "
             "errors."
         ),
+        "copy_link": "Copy link",
+        "link_copied": "Link copied.",
+        "copy_link_prompt": "Copy link:",
     },
     "de": {
         "name": "Deutsch",
@@ -24,6 +30,9 @@ BLOG_LANGUAGES = {
             "Google Translate: Automatische Übersetzungen können "
             "Fehler enthalten."
         ),
+        "copy_link": "Link kopieren",
+        "link_copied": "Link kopiert.",
+        "copy_link_prompt": "Link kopieren:",
     },
     "es": {
         "name": "Español",
@@ -33,6 +42,9 @@ BLOG_LANGUAGES = {
             "Google Translate: la traducción automática puede contener "
             "errores."
         ),
+        "copy_link": "Copiar enlace",
+        "link_copied": "Enlace copiado.",
+        "copy_link_prompt": "Copiar enlace:",
     },
     "it": {
         "name": "Italiano",
@@ -42,6 +54,9 @@ BLOG_LANGUAGES = {
             "Google Translate: la traduzione automatica può contenere "
             "errori."
         ),
+        "copy_link": "Copia link",
+        "link_copied": "Link copiato.",
+        "copy_link_prompt": "Copia link:",
     },
     "fr": {
         "name": "Français",
@@ -51,6 +66,9 @@ BLOG_LANGUAGES = {
             "Google Translate : la traduction automatique peut "
             "contenir des erreurs."
         ),
+        "copy_link": "Copier le lien",
+        "link_copied": "Lien copié.",
+        "copy_link_prompt": "Copier le lien :",
     },
     "pl": {
         "name": "Polski",
@@ -60,6 +78,9 @@ BLOG_LANGUAGES = {
             "Google Translate: tłumaczenie automatyczne może zawierać "
             "błędy."
         ),
+        "copy_link": "Kopiuj link",
+        "link_copied": "Link skopiowany.",
+        "copy_link_prompt": "Kopiuj link:",
     },
     "uk": {
         "name": "Українська",
@@ -69,30 +90,45 @@ BLOG_LANGUAGES = {
             "Google Translate: автоматичний переклад може містити "
             "помилки."
         ),
+        "copy_link": "Копіювати посилання",
+        "link_copied": "Посилання скопійовано.",
+        "copy_link_prompt": "Копіювати посилання:",
     },
     "pt": {
         "name": "Português",
         "flag": "🇵🇹",
         "direction": "ltr",
         "notice": "Google Translate: a tradução automática pode conter erros.",
+        "copy_link": "Copiar ligação",
+        "link_copied": "Ligação copiada.",
+        "copy_link_prompt": "Copiar ligação:",
     },
     "ar": {
         "name": "العربية",
         "flag": "🇸🇦",
         "direction": "rtl",
         "notice": "ترجمة Google: قد تحتوي الترجمة الآلية على أخطاء.",
+        "copy_link": "نسخ الرابط",
+        "link_copied": "تم نسخ الرابط.",
+        "copy_link_prompt": "انسخ الرابط:",
     },
     "zh-CN": {
         "name": "简体中文",
         "flag": "🇨🇳",
         "direction": "ltr",
         "notice": "Google 翻译：自动翻译可能包含错误。",
+        "copy_link": "复制链接",
+        "link_copied": "链接已复制。",
+        "copy_link_prompt": "复制链接：",
     },
     "ja": {
         "name": "日本語",
         "flag": "🇯🇵",
         "direction": "ltr",
         "notice": "Google 翻訳：自動翻訳には誤りが含まれる場合があります。",
+        "copy_link": "リンクをコピー",
+        "link_copied": "リンクをコピーしました。",
+        "copy_link_prompt": "リンクをコピー：",
     },
 }
 

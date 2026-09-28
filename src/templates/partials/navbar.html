@@ -1,4 +1,6 @@
-<nav class="navbar navbar-expand-xl navbar-light bg-white shadow {{ 'fixed-top' if not is_music else '' }}">
+{% set has_blog_header = blog_translation_urls and not is_for_mail %}
+{% if has_blog_header %}<header id="blog-site-header">{% endif %}
+<nav class="navbar navbar-expand-xl navbar-light bg-white shadow {{ 'fixed-top' if not is_music and not has_blog_header else '' }}">
   <div class="container-fluid">
 
     <!-- LOGO + NASLOV -->
@@ -83,14 +85,15 @@
   </div>
 </nav>
 
-{% if not is_music %}
-  <div style="padding-top: 70px;"></div>
-{% endif %}
-
-{% if blog_translation_urls and not is_for_mail %}
+{% if has_blog_header %}
 <p id="translation-notice" class="site-translation-notice notranslate" translate="no" hidden>
   <span data-translation-notice></span>
 </p>
+</header>
+<div id="blog-header-spacer" aria-hidden="true"></div>
+<script defer src="{{ url_for('static', filename='js/blog_header.js') }}"></script>
+{% elif not is_music %}
+  <div style="padding-top: 70px;"></div>
 {% endif %}
 
 <div id="flash-container" class="position-fixed top-0 start-50 translate-middle-x mt-3" style="z-index: 1055;">
@@ -124,7 +127,7 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 {% if view_as and current_user.is_authenticated and current_user.is_admin %}
 <!-- View As Warning Banner -->
-<div class="alert alert-warning m-0 p-2 text-center" style="position: fixed; top: 0px; left: 0; right: 0; z-index: 1050; border-radius: 0;">
+<div id="blog-view-as-notice" class="alert alert-warning m-0 p-2 text-center" style="position: fixed; top: 0px; left: 0; right: 0; z-index: 1050; border-radius: 0;">
   <strong>⚠️ Pregled kot:</strong>
   {% if view_as == "anonymous" %} <span class="badge bg-danger">Neprijavljen uporabnik</span>
   {% elif view_as == "user" %} <span class="badge bg-info">Navaden uporabnik</span> {% endif %}

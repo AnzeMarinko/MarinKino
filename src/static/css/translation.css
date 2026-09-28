@@ -1,9 +1,50 @@
+#blog-site-header {
+    position: fixed;
+    top: var(--blog-toolbar-offset, 0px);
+    inset-inline: 0;
+    z-index: 1030;
+}
+
+#blog-header-spacer {
+    height: var(--blog-header-space, 70px);
+}
+
+@media (max-width: 1199px) {
+    #blog-site-header .navbar-brand {
+        min-width: 0;
+        max-width: calc(100vw - 14rem);
+    }
+
+    #blog-site-header .navbar-brand img {
+        flex-shrink: 0;
+    }
+
+    #blog-site-header .navbar-brand strong {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
 .site-translation {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
     flex: 0 0 auto;
     margin-inline-start: auto;
     margin-inline-end: 0.5rem;
     color: #334155;
     font: 0.9rem/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.site-translation .site-translation__copy {
+    flex: 0 0 2.5rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    margin: 0;
+    padding: 0;
+    color: #334155;
+    font-size: 1.2rem;
 }
 
 .site-translation .site-translation__toggle {
@@ -40,7 +81,7 @@
 .site-translation .site-translation__options {
     min-width: 13rem;
     max-width: calc(100vw - 1.5rem);
-    max-height: min(70vh, 30rem);
+    max-height: min(70vh, 30rem, calc(100dvh - var(--blog-toolbar-offset, 0px) - 5rem));
     overflow-y: auto;
     overscroll-behavior: contain;
     margin-top: 0.4rem;

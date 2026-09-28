@@ -3,6 +3,12 @@
 <div class="dropdown site-translation notranslate order-xl-last" translate="no"
      data-blog-language="{{ blog_language }}"
      data-blog-languages='{{ blog_languages | tojson }}'>
+  <button class="btn btn-outline-secondary site-translation__copy" type="button"
+          data-copy-url="{{ blog_translation_urls.sl|urlencode }}"
+          title="{{ blog_languages.sl.copy_link }}" aria-label="{{ blog_languages.sl.copy_link }}">
+    <i class="bi bi-link-45deg" data-copy-icon aria-hidden="true"></i>
+  </button>
+  <span class="visually-hidden" data-copy-status role="status"></span>
   <button id="blog-language-toggle" class="btn btn-outline-secondary dropdown-toggle site-translation__toggle"
           type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Jezik / Language: Slovenščina">
     <span class="site-translation__flag" data-language-flag aria-hidden="true">{{ blog_languages.sl.flag }}</span>
