@@ -3,7 +3,7 @@
 from redis import Redis
 
 DEVICE_IDLE_SECONDS = 7 * 24 * 60 * 60
-MAX_DEVICES = 3
+MAX_DEVICES = 10
 
 _REFRESH_DEVICE = """
 local key = KEYS[1]
