@@ -85,6 +85,8 @@
   <div style="padding-top: 70px;"></div>
 {% endif %}
 
+{% include "partials/language_selector.html" %}
+
 <div id="flash-container" class="position-fixed top-0 start-50 translate-middle-x mt-3" style="z-index: 1055;">
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% for category, message in messages %}

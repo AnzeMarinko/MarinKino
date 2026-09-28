@@ -1,0 +1,21 @@
+{% if blog_translation_urls and not is_for_mail %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/translation.css') }}">
+<div class="site-translation notranslate" translate="no"
+     data-blog-language="{{ blog_language }}"
+     data-blog-languages='{{ blog_languages | tojson }}'>
+  <details class="site-translation__control">
+    <summary class="site-translation__label">Language / Jezik</summary>
+    <nav class="site-translation__options" aria-label="Language / Jezik">
+      {% for code, target in blog_translation_urls.items() %}
+      <a href="{{ target }}" lang="{{ code }}" dir="{{ blog_languages[code].direction }}"
+         target="_blank" rel="noopener noreferrer"
+         title="{{ blog_languages[code].notice }}">{{ blog_languages[code].name }} ↗</a>
+      {% endfor %}
+    </nav>
+  </details>
+  <p id="translation-notice" class="site-translation__messages" hidden>
+    <span data-translation-notice></span>
+  </p>
+</div>
+<script defer src="{{ url_for('static', filename='js/blog_translation.js') }}"></script>
+{% endif %}

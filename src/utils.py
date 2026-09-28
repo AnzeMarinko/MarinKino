@@ -14,6 +14,8 @@ from flask import request, session
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash
 
+from blog_subscribers import normalize_subscribers
+
 log = logging.getLogger(__name__)
 redis_client = redis.Redis(
     host=os.getenv("REDIS_HOST", "localhost"),
@@ -40,22 +42,27 @@ SUBSCRIBERS_FILE = os.path.join(
 )
 
 
-def load_blog_subscribers() -> List[str]:
+def load_blog_subscribers() -> List[dict[str, str]]:
     path = os.path.normpath(SUBSCRIBERS_FILE)
     if os.path.exists(path):
         try:
             with open(path, "r", encoding="utf-8") as f:
-                return json.load(f)
+                return normalize_subscribers(json.load(f))
         except Exception:
             return []
     return []
 
 
-def save_blog_subscribers(subscribers: List[str]):
+def save_blog_subscribers(subscribers: List[dict[str, str] | str]):
     path = os.path.normpath(SUBSCRIBERS_FILE)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
-        json.dump(subscribers, f, ensure_ascii=False, indent=2)
+        json.dump(
+            normalize_subscribers(subscribers),
+            f,
+            ensure_ascii=False,
+            indent=2,
+        )
 
 
 def safe_path(base_folder, filename):
@@ -184,3 +191,5 @@ def send_mail(
             str(e),
         )
         raise
+
+    return failed or {}

@@ -19,6 +19,10 @@ from flask_login import current_user, login_required
 from PIL import Image
 from werkzeug.utils import secure_filename
 
+from blog_i18n import BLOG_LANGUAGES, messages
+from blog_subscribers import group_subscribers
+from blog_translation import translate_url
+from blueprints.blog_bp import public_base_url
 from content_preparation.config import LOG_FILENAME
 from utils import (
     is_current_admin_view,
@@ -748,6 +752,7 @@ def admin_blog_edit(post_id):
             ),
             "published_at": published_at,
             "mail_date": existing_mail_date,
+            "mail_languages_sent": post.get("mail_languages_sent", []),
         }
         save_blog_posts(posts)
 
@@ -842,8 +847,8 @@ def admin_blog_send_mail(post_id):
         flash("E-pošta za to objavo je bila že poslana.", "error")
         return redirect(request.referrer or url_for("admin.admin_blog"))
 
-    subs = load_blog_subscribers()
-    if not subs:
+    groups = group_subscribers(load_blog_subscribers())
+    if not groups:
         if (
             request.is_json
             or request.headers.get("X-Requested-With") == "XMLHttpRequest"
@@ -854,16 +859,61 @@ def admin_blog_send_mail(post_id):
         flash("Ni naročnikov za pošiljanje.", "error")
         return redirect(request.referrer or url_for("admin.admin_blog"))
 
-    # prepare email
-    subject = f"Nov blog: {post.get('title', '')}"
+    sent_languages = set(post.get("mail_languages_sent", []))
+    deliveries = []
     try:
-        html = render_template(
-            "mail_blog_post.html",
-            post=post,
-            is_for_mail=True,
-            domain=os.getenv("WWW_DOMAIN"),
+        base_url = public_base_url()
+        if not base_url:
+            raise ValueError("Public blog URL is not configured")
+        source_post_url = base_url + url_for(
+            "blog.blog_post", post_id=post_id
         )
+        source_blog_url = base_url + url_for("blog.blog_list")
+        for language, recipients in groups.items():
+            if language in sent_languages:
+                continue
+            copy = messages(language)
+            post_url = translate_url(source_post_url, language)
+            subject = (
+                f"Nov blog: {post.get('title', '')}"
+                if language == "sl"
+                else copy["new_post_subject"]
+            )
+            html = render_template(
+                "mail_blog_post.html",
+                post=post,
+                is_for_mail=True,
+                domain=os.getenv("WWW_DOMAIN"),
+                mail_base_url=base_url,
+                mail_copy=copy,
+                mail_language=language,
+                mail_direction=BLOG_LANGUAGES[language]["direction"],
+                blog_url=translate_url(source_blog_url, language),
+                post_url=post_url,
+            )
+            text_parts = [copy["new_post_intro"]]
+            if language == "sl":
+                text_parts.extend(
+                    [
+                        post.get("title", ""),
+                        post.get("excerpt") or post.get("subtitle", ""),
+                    ]
+                )
+            text_parts.extend(
+                [
+                    f"{copy['read_post']}: {post_url}",
+                    copy["greeting"],
+                    "Anže Marinko",
+                    copy["unsubscribe"],
+                ]
+            )
+            if language != "sl":
+                text_parts.append(copy["automatic_notice"])
+            deliveries.append(
+                (language, recipients, subject, html, "\n\n".join(text_parts))
+            )
     except Exception:
+        log.exception("Napaka pri oblikovanju maila naročnikom")
         if (
             request.is_json
             or request.headers.get("X-Requested-With") == "XMLHttpRequest"
@@ -874,7 +924,7 @@ def admin_blog_send_mail(post_id):
         flash("Napaka pri oblikovanju maila.", "error")
         return redirect(request.referrer or url_for("admin.admin_blog"))
 
-    # send as BCC to subscribers, direct To to admin email
+    # Keep subscribers private, with a separate BCC message per language.
     admin_emails = []
     for username, data in users.items():
         if data.get("is_admin"):
@@ -883,14 +933,21 @@ def admin_blog_send_mail(post_id):
         admin_emails = [os.getenv("GMAIL_USERNAME")]
 
     try:
-        send_mail(
-            to=admin_emails[0],
-            bcc=subs,
-            subject=subject,
-            html=html,
-            batch_id=post_id,
-            blog=True,
-        )
+        for language, recipients, subject, html, text in deliveries:
+            failed = send_mail(
+                to=admin_emails[0],
+                bcc=recipients,
+                subject=subject,
+                text=text,
+                html=html,
+                batch_id=post_id,
+                blog=True,
+            )
+            if failed:
+                raise RuntimeError("SMTP rejected notification recipients")
+            sent_languages.add(language)
+            posts[post_id]["mail_languages_sent"] = sorted(sent_languages)
+            save_blog_posts(posts)
     except Exception:
         log.exception("Napaka pri pošiljanju maila naročnikom")
         if (

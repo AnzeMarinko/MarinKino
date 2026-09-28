@@ -8,29 +8,39 @@
 <table width="100%" style="max-width:600px;background:#ffffff;border-radius:16px;padding:20px;">
 <tr>
 <td align="center" style="padding:20px 0;">
-    <a href="https://{{ domain }}"><div style="background:linear-gradient(135deg, #ef9918 0%, #ffcc5c 100%);width:100px;height:100px;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto;margin-bottom:15px;box-shadow:none;">
-        <img src="https://{{ domain }}/static/blog_favicon_io/android-chrome-512x512.png" width="80" style="max-width:100%;height:auto;" alt="MarinKino">
+    <a href="{{ blog_url }}"><div style="background:linear-gradient(135deg, #ef9918 0%, #ffcc5c 100%);width:100px;height:100px;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto;margin-bottom:15px;box-shadow:none;">
+        <img src="{{ mail_base_url|default('https://' ~ domain) }}/static/blog_favicon_io/android-chrome-512x512.png" width="80" style="max-width:100%;height:auto;" alt="{{ brand_name|default('Rože dobrega') }}">
     </div></a>
-    <h2 style="margin:0 0 8px;color:#333;font-size:28px;font-weight:700;">{{ post.title }}</h2>
+    <h2 style="margin:0 0 8px;color:#333;font-size:28px;font-weight:700;">{{ post.title if mail_language == 'sl' else mail_copy.new_post_title }}</h2>
     <div style="margin:0;color:#666;font-size:15px;font-weight:500;">
+          {% if mail_language == 'sl' %}
           {% if post.excerpt %}
             <p>{{ post.excerpt }}</p>
           {% elif post.subtitle %}
             <p>{{ post.subtitle }}</p>
           {% endif %}
+          {% else %}
+            <p>{{ mail_copy.new_post_intro }}</p>
+          {% endif %}
 
-          <p style="margin-top:12px;"><a href="https://{{ domain }}{{ url_for('blog.blog_post', post_id=post.id) }}" style="color:#007bff;">Preberi celotno objavo</a></p>
+          <p style="margin-top:12px;"><a href="{{ post_url }}" style="color:#007bff;">{{ mail_copy.read_post }}</a></p>
+          {% if mail_language != 'sl' %}
+          <p style="font-size:13px;">{{ mail_copy.automatic_notice }}</p>
+          {% endif %}
     </div>
 
     <div style="margin-top:18px;">
-      <p>Lep pozdrav,<br>Anže Marinko</p>
+      <p>{{ mail_copy.greeting }}<br><span dir="ltr">Anže Marinko</span></p>
     </div>
 </td>
 </tr>
 
 <tr>
 <td align="center" style="padding:20px 0 0;font-size:13px;color:#999;border-top:1px solid #eee;line-height:1.8;">
-    To je samodejno sporočilo. Če ne želite več prejemati obvestil, odgovorite na to sporočilo.
+    {{ mail_copy.unsubscribe }}
+</td>
+</tr>
+</table>
 </td>
 </tr>
 </table>

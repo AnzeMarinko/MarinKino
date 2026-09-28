@@ -4,8 +4,7 @@ import logging
 import os
 import secrets
 from datetime import datetime, timezone
-from typing import cast
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 import markdown
 import requests
@@ -22,6 +21,8 @@ from flask import (
 )
 from flask_login import current_user
 
+from blog_i18n import BLOG_LANGUAGES, messages, normalize_language
+from blog_translation import translate_url
 from utils import (
     FLASK_ENV,
     load_blog_subscribers,
@@ -46,6 +47,23 @@ SUBSCRIPTION_LIMIT_TTL = 60 * 60
 TURNSTILE_VERIFY_URL = (
     "https://challenges.cloudflare.com/turnstile/v0/siteverify"
 )
+
+
+@blog_bp.context_processor
+def blog_language_context():
+    language = normalize_language(request.args.get("lang"))
+    subscription_url = (public_base_url() or "") + url_for(
+        "blog.blog_subscription_form", lang=language
+    )
+    return {
+        "blog_languages": BLOG_LANGUAGES,
+        "blog_language": language,
+        "blog_copy": messages(language),
+        "subscription_url": subscription_url,
+        # Google rewrites href attributes. An opaque value lets our click
+        # handler open the native form with its own session and CSRF token.
+        "subscription_url_encoded": quote(subscription_url, safe=""),
+    }
 
 
 def masked_email(email):
@@ -96,6 +114,7 @@ def blog_list():
         posts=sorted_posts,
         pagetitle="Sončnice",
         blog_view="blog",
+        blog_translation_urls=blog_translation_urls(),
         turnstile_site_key=os.getenv("TURNSTILE_SITE_KEY"),
     )
 
@@ -107,6 +126,7 @@ def blog_terms():
         legal_page="terms",
         pagetitle="Pogoji uporabe",
         blog_view="blog",
+        blog_translation_urls=blog_translation_urls(),
     )
 
 
@@ -117,6 +137,7 @@ def blog_privacy():
         legal_page="privacy",
         pagetitle="Politika zasebnosti",
         blog_view="blog",
+        blog_translation_urls=blog_translation_urls(),
     )
 
 
@@ -220,144 +241,203 @@ def public_base_url():
     return None
 
 
+def blog_translation_urls():
+    """Link only the current public page, without queries or session data."""
+    base_url = public_base_url()
+    if not base_url:
+        return {}
+    parsed = urlsplit(base_url)
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+        or parsed.query
+        or parsed.fragment
+    ):
+        return {}
+
+    source_url = base_url + url_for(
+        request.endpoint, **(request.view_args or {})
+    )
+    links = {}
+    for language in BLOG_LANGUAGES:
+        if language != "sl":
+            links[language] = translate_url(source_url, language)
+    return links
+
+
+def subscription_redirect(language):
+    response = redirect(url_for("blog.blog_subscription_form", lang=language))
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@blog_bp.get("/blog/subscribe")
+def blog_subscription_form():
+    language = normalize_language(request.args.get("lang"))
+    base_url = public_base_url() or request.host_url.rstrip("/")
+    response = make_response(render_template(
+        "blog_subscribe.html",
+        language=language,
+        copy=messages(language),
+        direction=BLOG_LANGUAGES[language]["direction"],
+        blog_url=translate_url(base_url + url_for("blog.blog_list"), language),
+        terms_url=translate_url(
+            base_url + url_for("blog.blog_terms"), language
+        ),
+        privacy_url=translate_url(
+            base_url + url_for("blog.blog_privacy"), language
+        ),
+        turnstile_site_key=os.getenv("TURNSTILE_SITE_KEY"),
+    ))
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
+
 @blog_bp.route("/blog/subscribe", methods=["POST"])
 def blog_subscribe():
+    language = normalize_language(request.form.get("language"))
+    copy = messages(language)
     if request.form.get("website"):
         log.debug("Subscription rejected: honeypot_filled")
-        return redirect(url_for("blog.blog_list"))
+        return subscription_redirect(language)
 
     if request.form.get("terms_accepted") != "yes":
         log.debug("Subscription rejected: terms_not_accepted")
-        flash(
-            "Za naročnino morate sprejeti pogoje uporabe in politiko zasebnosti.",
-            "error",
-        )
-        return redirect(url_for("blog.blog_list"))
+        flash(copy["terms_required"], "error")
+        return subscription_redirect(language)
 
     turnstile_token = request.form.get("cf-turnstile-response")
-    log.debug(
-        "Subscription received: ip=%s email_present=%s turnstile_present=%s",
-        request.remote_addr,
-        bool(request.form.get("email")),
-        bool(turnstile_token),
-    )
     if not verify_turnstile(turnstile_token):
         log.warning("Subscription rejected: turnstile_failed")
-        flash("Preverjanje ni uspelo. Poskusite znova.", "error")
-        return redirect(url_for("blog.blog_list"))
+        flash(copy["verify_failed"], "error")
+        return subscription_redirect(language)
 
     raw_email = request.form.get("email")
-    email = raw_email.strip().lower() if raw_email else ""
+    email = raw_email.strip().casefold() if raw_email else ""
     if (
         not email
         or len(email) > 254
         or email.count("@") != 1
         or any(char.isspace() for char in email)
     ):
-        log.debug("Subscription rejected: invalid_email")
-        flash("Prosimo vnesite veljaven e-poštni naslov.", "error")
-        return redirect(url_for("blog.blog_list"))
+        flash(copy["invalid_email"], "error")
+        return subscription_redirect(language)
     if subscription_rate_limited(email):
-        log.warning("Subscription rejected: rate_limited")
-        flash("Poskusite znova pozneje.", "error")
-        return redirect(url_for("blog.blog_list"))
+        flash(copy["retry_later"], "error")
+        return subscription_redirect(language)
     subs = load_blog_subscribers()
-    spam_domains = ["@immenseignite.info", "@mail.ru"]
-    if email in subs or any(domain in email for domain in spam_domains):
-        log.debug(
-            "Subscription ignored: duplicate_or_blocked email=%s",
-            masked_email(email),
-        )
-        flash(
-            "Hvala! Če je naslov primeren, boste prejeli "
-            "potrditveno sporočilo.",
-            "success",
-        )
-        return redirect(url_for("blog.blog_list"))
+    existing = next((sub for sub in subs if sub["email"] == email), None)
+    spam_domains = {"immenseignite.info", "mail.ru"}
+    if (
+        existing and existing["language"] == language
+        or email.rsplit("@", 1)[-1] in spam_domains
+    ):
+        flash(copy["generic_success"], "success")
+        return subscription_redirect(language)
 
-    token = secrets.token_urlsafe(32)
-    redis_client.setex(
-        f"blog:subscription:pending:{token}",
-        SUBSCRIPTION_TOKEN_TTL,
-        email,
-    )
-    log.debug(
-        "Subscription pending: email=%s ttl=%s",
-        masked_email(email),
-        SUBSCRIPTION_TOKEN_TTL,
-    )
     base_url = public_base_url()
     if not base_url:
-        redis_client.delete(f"blog:subscription:pending:{token}")
         log.error("PUBLIC_BASE_URL or WWW_DOMAIN must be configured")
-        flash("Naročnine trenutno ni mogoče obdelati.", "error")
-        return redirect(url_for("blog.blog_list"))
-    confirmation_url = (
-        f"{base_url}{url_for('blog.blog_confirm_subscription', token=token)}"
+        flash(copy["unavailable"], "error")
+        return subscription_redirect(language)
+
+    token = secrets.token_urlsafe(32)
+    pending_key = f"blog:subscription:pending:{token}"
+    redis_client.setex(
+        pending_key,
+        SUBSCRIPTION_TOKEN_TTL,
+        json.dumps({"email": email, "language": language}),
+    )
+    # Confirmation tokens always stay on our origin, never in Google URLs.
+    confirmation_url = base_url + url_for(
+        "blog.blog_confirm_subscription", token=token, lang=language
     )
     try:
-        log.debug(
-            "Subscription confirmation mail: sending email=%s",
-            masked_email(email),
-        )
-        send_mail(
+        failed = send_mail(
             to=email,
-            subject="Potrdite naročnino na blog Rože dobrega",
+            subject=copy["confirmation_subject"],
             text=(
-                "Za potrditev naročnine odprite povezavo:\n"
-                f"{confirmation_url}\n\n"
-                "Povezava velja 24 ur."
+                f"{copy['confirmation_intro']}\n\n"
+                f"{copy['confirmation_instruction']}\n{confirmation_url}\n\n"
+                f"{copy['expires']}\n\n{copy['confirmation_ignore']}"
+                + (
+                    f"\n\n{copy['automatic_notice']}"
+                    if language != "sl" else ""
+                )
             ),
             html=render_template(
                 "mail_blog_subscription_confirmation.html",
                 confirmation_url=confirmation_url,
+                blog_url=translate_url(
+                    base_url + url_for("blog.blog_list"), language
+                ),
+                mail_copy=copy,
+                mail_language=language,
+                mail_direction=BLOG_LANGUAGES[language]["direction"],
+                brand_name="Rože dobrega",
+                domain=urlsplit(base_url).netloc,
+                mail_base_url=base_url,
                 is_for_mail=True,
             ),
             batch_id="subscriber_confirmation",
             blog=True,
         )
-        log.info(
-            "Subscription confirmation mail: sent email=%s",
-            masked_email(email),
-        )
+        if failed:
+            raise RuntimeError("SMTP rejected subscription confirmation")
+        log.info("Subscription confirmation sent: %s", masked_email(email))
     except Exception:
-        redis_client.delete(f"blog:subscription:pending:{token}")
+        redis_client.delete(pending_key)
         log.exception("Napaka pri pošiljanju potrditve naročnine")
-        flash("Potrditvenega sporočila ni bilo mogoče poslati.", "error")
-        return redirect(url_for("blog.blog_list"))
+        flash(copy["mail_failed"], "error")
+        return subscription_redirect(language)
 
-    flash(
-        "Preverite e-pošto in potrdite naročnino.",
-        "success",
-    )
-    return redirect(url_for("blog.blog_list"))
+    flash(copy["check_email"], "success")
+    return subscription_redirect(language)
 
 
 @blog_bp.route("/blog/subscribe/confirm/<token>")
 def blog_confirm_subscription(token):
-    email = cast(
-        str | None,
-        redis_client.getdel(f"blog:subscription:pending:{token}"),
-    )
-    if not email:
-        log.warning(
-            "Subscription confirmation rejected: token_missing_or_expired"
-        )
-        flash("Potrditvena povezava je neveljavna ali je potekla.", "error")
-        return redirect(url_for("blog.blog_list"))
+    pending = redis_client.getdel(f"blog:subscription:pending:{token}")
+    language = normalize_language(request.args.get("lang"))
+    if not pending:
+        flash(messages(language)["invalid_token"], "error")
+        return subscription_redirect(language)
 
+    # Links issued before language support stored only the email address.
+    if isinstance(pending, bytes):
+        pending = pending.decode("utf-8")
+    try:
+        record = json.loads(pending)
+    except (ValueError, TypeError):
+        record = {"email": pending, "language": "sl"}
+    if not isinstance(record, dict) or not isinstance(
+        record.get("email"), str
+    ):
+        flash(messages(language)["invalid_token"], "error")
+        return subscription_redirect(language)
+    email = record["email"].strip().casefold()
+    language = normalize_language(record.get("language"))
     subs = load_blog_subscribers()
-    if email not in subs:
-        log.info("Subscription confirmed: email=%s", masked_email(email))
-        subs.append(email)
-        save_blog_subscribers(subs)
+    existing = next((sub for sub in subs if sub["email"] == email), None)
+    if existing:
+        # A preference change requires the same email ownership confirmation.
+        existing["language"] = language
+    else:
+        subs.append({"email": email, "language": language})
+    save_blog_subscribers(subs)
+    if not existing:
+        log.info("Subscription confirmed: %s", masked_email(email))
         try:
             notify_admins_about_subscriber(email)
         except Exception:
             log.exception("Napaka pri pošiljanju obvestila o novem naročniku")
 
-    flash("Naročnina je potrjena. Hvala!", "success")
-    return redirect(url_for("blog.blog_list"))
+    flash(messages(language)["confirmed"], "success")
+    return subscription_redirect(language)
 
 
 @blog_bp.route("/blog/<post_id>")
@@ -401,6 +481,9 @@ def blog_post(post_id):
         post=post,
         pagetitle=post.get("title", "Sončnice"),
         blog_view="blog",
+        blog_translation_urls=(
+            blog_translation_urls() if post.get("published", False) else {}
+        ),
         og_image=og_image,
         og_url=request.url,
         og_title=post.get("title"),

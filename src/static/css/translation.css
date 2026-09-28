@@ -1,0 +1,88 @@
+.site-translation {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    width: 100%;
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid #dce3e8;
+    background: #f5f8fa;
+    color: #334155;
+    font: 0.85rem/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+    text-align: left;
+}
+
+.site-translation .site-translation__control {
+    flex: 0 1 auto;
+}
+
+.site-translation .site-translation__options {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    padding-block-start: 0.5rem;
+}
+
+.site-translation .site-translation__label {
+    margin: 0;
+    color: inherit;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0.5rem;
+}
+
+.site-translation .site-translation__control a {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.25rem;
+    margin: 0;
+    padding: 0.3rem 0.6rem;
+    border: 1px solid #8291a2;
+    border-radius: 0.35rem;
+    background: #fff;
+    color: #1e293b;
+    font: inherit;
+    text-decoration: none;
+}
+
+.site-translation .site-translation__control a:hover {
+    background: #e8f1f8;
+}
+
+.site-translation .site-translation__control a:focus-visible {
+    outline: 2px solid #1765a0;
+    outline-offset: 2px;
+}
+
+.site-translation .site-translation__messages {
+    flex: 1 1 18rem;
+    min-width: 0;
+}
+
+.site-translation p {
+    margin: 0;
+    color: inherit;
+    font: inherit;
+}
+
+.site-translation #translation-notice span {
+    display: block;
+}
+
+@media (max-width: 480px) {
+    .site-translation {
+        gap: 0.4rem;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8rem;
+    }
+
+    .site-translation .site-translation__control,
+    .site-translation .site-translation__messages {
+        flex-basis: 100%;
+    }
+}

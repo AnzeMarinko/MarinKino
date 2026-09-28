@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="{{ language }}" dir="{{ direction }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="google" content="notranslate">
+  <meta name="referrer" content="no-referrer">
+  <title>{{ copy.subscription_heading }} — Rože dobrega</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/blog_subscribe.css') }}">
+</head>
+<body>
+  <main class="subscription" data-native-subscription
+        data-blog-language="{{ language }}" data-blog-languages='{{ blog_languages | tojson }}'
+        data-subscription-url="{{ subscription_url_encoded }}">
+    <script src="{{ url_for('static', filename='js/blog_translation.js') }}"></script>
+    <a class="brand" href="{{ blog_url }}" rel="noreferrer">Rože dobrega</a>
+    <h1>{{ copy.subscription_heading }}</h1>
+    <p>{{ copy.subscription_intro }}</p>
+    {% with notices = get_flashed_messages(with_categories=true) %}
+      {% for category, message in notices %}
+      <p class="notice {{ category }}" role="{{ 'alert' if category == 'error' else 'status' }}">{{ message }}</p>
+      {% endfor %}
+    {% endwith %}
+    <form method="get" action="{{ url_for('blog.blog_subscription_form') }}" class="language-form">
+      <label for="subscription-language">{{ copy.language_label }}</label>
+      <div class="language-row">
+        <select id="subscription-language" name="lang" onchange="this.form.submit()">
+          {% for code, metadata in blog_languages.items() %}
+          <option value="{{ code }}" lang="{{ code }}" dir="{{ metadata.direction }}" {{ 'selected' if code == language else '' }}>{{ metadata.name }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" aria-label="{{ copy.language_label }}">✓</button>
+      </div>
+    </form>
+    <form method="post" action="{{ url_for('blog.blog_subscribe') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="language" value="{{ language }}">
+      <div class="honeypot" aria-hidden="true">
+        <label for="subscribe-website">Website</label>
+        <input type="text" name="website" id="subscribe-website" tabindex="-1" autocomplete="off">
+      </div>
+      <label for="subscribe-email">{{ copy.email_label }}</label>
+      <input type="email" name="email" id="subscribe-email" placeholder="{{ copy.email_placeholder }}" autocomplete="email" maxlength="254" dir="ltr" required>
+      <div class="terms">
+        <input type="checkbox" name="terms_accepted" value="yes" id="subscribe-terms" required>
+        <label for="subscribe-terms">{{ copy.terms_prefix }}
+          <a href="{{ terms_url }}" target="_blank" rel="noopener noreferrer">{{ copy.terms }}</a>
+          {{ copy.terms_join }}
+          <a href="{{ privacy_url }}" target="_blank" rel="noopener noreferrer">{{ copy.privacy }}</a>{{ copy.terms_suffix }}
+        </label>
+      </div>
+      {% if turnstile_site_key %}
+      <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" data-action="blog_subscribe" data-language="{{ language|lower }}" data-size="flexible"></div>
+      <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+      {% endif %}
+      <button class="submit" type="submit">{{ copy.subscribe }}</button>
+    </form>
+    {% if language != 'sl' %}<p class="translation-notice">{{ copy.automatic_notice }}</p>{% endif %}
+    <a href="{{ blog_url }}" rel="noreferrer">{{ copy.back_to_blog }}</a>
+  </main>
+</body>
+</html>

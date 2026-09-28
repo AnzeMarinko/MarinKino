@@ -3,7 +3,7 @@ import logging
 import os
 from copy import copy
 from datetime import date, datetime
-from urllib.parse import unquote
+from urllib.parse import unquote, urlsplit
 
 import pandas as pd
 from flask import (
@@ -17,6 +17,9 @@ from flask import (
 )
 from flask_login import current_user, login_required
 
+from blog_i18n import BLOG_LANGUAGES, messages, normalize_language
+from blog_translation import translate_url
+from blueprints.blog_bp import public_base_url
 from utils import (
     get_guest_identity,
     is_current_admin_view,
@@ -87,7 +90,10 @@ def pod_krinko_new_words():
 
     if not current_user.is_authenticated:
         identity = get_guest_identity()
-        key = f"pod_krinko:new_words:{identity}:{datetime.now().strftime('%Y%m%d%H')}"
+        key = (
+            f"pod_krinko:new_words:{identity}:"
+            f"{datetime.now().strftime('%Y%m%d%H')}"
+        )
         count = redis_client.incr(key)
         if count == 1:
             redis_client.expire(key, 3600)
@@ -138,6 +144,41 @@ def view_emails():
         return redirect(url_for("home"))
     is_for_mail = request.args.get("is_for_mail", "false") == "true"
     template_name = request.args.get("template_name", "mail_newuser") + ".html"
+    post = load_blog_posts().get("moja_srcna_izbranka")
+    preview_context = {}
+    if template_name in {
+        "mail_blog_post.html",
+        "mail_blog_subscription_confirmation.html",
+    }:
+        language = normalize_language(request.args.get("lang"))
+        base_url = public_base_url() or request.host_url.rstrip("/")
+        post = post or {
+            "id": "preview",
+            "title": "Primer nove objave",
+            "excerpt": "Primer povzetka objave za predogled e-pošte.",
+        }
+        preview_context = {
+            "mail_copy": messages(language),
+            "mail_language": language,
+            "mail_direction": BLOG_LANGUAGES[language]["direction"],
+            "mail_base_url": base_url,
+            "domain": urlsplit(base_url).netloc,
+            "brand_name": "Rože dobrega",
+            "blog_url": translate_url(
+                base_url + url_for("blog.blog_list"), language
+            ),
+            "post_url": translate_url(
+                base_url + url_for(
+                    "blog.blog_post", post_id=post.get("id", "preview")
+                ),
+                language,
+            ),
+            "confirmation_url": base_url + url_for(
+                "blog.blog_confirm_subscription",
+                token="preview",
+                lang=language,
+            ),
+        }
     return render_template(
         template_name,
         is_for_mail=is_for_mail,
@@ -147,7 +188,8 @@ def view_emails():
         expiry_minutes=30,
         reset_link="https://...",
         pagetitle="Naslov - MarinKino",
-        post=load_blog_posts().get("moja_srcna_izbranka"),
+        post=post,
+        **preview_context,
     )
 
 

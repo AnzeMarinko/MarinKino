@@ -87,6 +87,58 @@ Klic se izvede samo pri ustvarjanju oziroma ponovni predpripravi
 dosegljiv, audio analiza in predvajanje delujeta naprej brez semantične ocene.
 Semantična komponenta ima pri izbiri naslednje pesmi privzeto težo `0.2`.
 
+### 3.3. Jeziki javnega bloga in naročnin
+
+Javni blog podpira slovenščino ter prevode v angleščino, nemščino,
+španščino, italijanščino, francoščino, portugalščino, poljščino,
+ukrajinščino, arabščino, poenostavljeno kitajščino in japonščino.
+Izbirnik **Language / Jezik** odpre brezplačni
+[Google Translate za spletne strani](https://support.google.com/translate/answer/2534559)
+v novem zavihku. Prevede seznam, objavljene objave in pravne strani skupaj
+z glavo, navigacijo in nogo. Opozorilo o avtomatskem prevodu je vidno samo
+na prevedeni strani, v izbranem jeziku. Slovenski izvirnik nima opozorila
+in ostane v prvotnem zavihku.
+Osnutki in zasebne strani nimajo izbirnika.
+
+Naslov izvirnika izhaja iz `PUBLIC_BASE_URL` ali `WWW_DOMAIN`; nastavljena
+domena mora biti javno dosegljiva. Google prejme samo javni naslov in
+preverjeno oznako jezika `lang`, brez drugih parametrov ali potrditvenih
+žetonov. Aplikacija ne uporablja plačljivega prevajalskega API-ja in ne
+shranjuje prevodov objav; njihovo osveževanje upravlja Google. Pravilo
+obnovitve ob spremembi objave ali po 30 dneh bi bilo potrebno pri lastnem
+predpomnilniku za API.
+
+Gumb za naročanje odpre `/blog/subscribe?lang=…` na izvorni domeni.
+Obrazec je lokaliziran in ponuja spremembo jezika obvestil. JavaScript
+prenese tudi jezik z Googlove prevedene strani ter se izogne prepisovanju
+povezav skozi proxy. CSRF, Turnstile, omejevanje poskusov in potrjevanje
+naslova ostanejo vključeni. Potrditveni žeton velja 24 ur in se uporabi
+samo enkrat. Potrditvene povezave se nikoli ne prevajajo prek Googla.
+
+`data/blog_subscribers.json` uporablja zapise:
+
+```json
+[{"email": "reader@example.com", "language": "en"}]
+```
+
+Stari seznami e-poštnih naslovov se ob branju obravnavajo kot slovenski
+naročniki; ob naslednjem shranjevanju dobijo novo obliko. Ponovna prijava z
+istim naslovom in drugim jezikom spremeni nastavitev šele po potrditvi nove
+povezave. Stare, še veljavne potrditvene povezave ostanejo uporabne.
+
+Potrditve in obvestila imajo lokaliziran naslov, HTML in besedilno različico;
+arabščina uporablja smer RTL. Besedila so v `src/blog_i18n.py`, zato
+prevajalskih stroškov ni. Slovensko obvestilo o objavi ohrani naslov in
+povzetek; tujejezično pošlje kratko lokalizirano obvestilo s povezavo do
+prevedene objave, brez neprevedenega naslova ali povzetka.
+
+Obvestila se pošiljajo ločeno za vsak jezik, naslovniki ostanejo v BCC.
+Uspešno poslane jezikovne skupine se zabeležijo v `mail_languages_sent`,
+zato jih ponovitev po napaki druge skupine ne pošlje znova. `mail_date`
+se nastavi po uspehu vseh skupin. Delna zavrnitev naslovnikov prek SMTP
+ostane napaka te skupine; pri ponovitvi lahko že sprejeti naslovniki te
+skupine prejmejo podvojeno sporočilo.
+
 ### 4. Namesti Redis
 ```
 sudo apt update && sudo apt install -y redis-server
