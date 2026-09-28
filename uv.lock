@@ -1651,7 +1651,7 @@ requires-dist = [
     { name = "flask-limiter" },
     { name = "flask-login" },
     { name = "flask-wtf" },
-    { name = "gemini-srt-translator", specifier = ">=3.8.1" },
+    { name = "gemini-srt-translator", specifier = ">=3.8.3" },
     { name = "google-cloud" },
     { name = "google-cloud-translate" },
     { name = "holidays" },

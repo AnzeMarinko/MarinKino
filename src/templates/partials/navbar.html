@@ -21,9 +21,9 @@
       <!-- LEVI MENI -->
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
         {% if not current_user.is_authenticated or view_as == "anonymous" %}
-        <li class="nav-item"><a class="nav-link" href="/blog">Blog</a></li>
+        <!-- <li class="nav-item"><a class="nav-link" href="/blog">Blog</a></li>
         <li class="nav-item"><a class="nav-link" href="/memes">Šale</a></li>
-        <li class="nav-item"><a class="nav-link" href="/pod_krinko">Pod krinko</a></li>
+        <li class="nav-item"><a class="nav-link" href="/pod_krinko">Pod krinko</a></li> -->
        {% else %}
         <li class="nav-item"><a class="nav-link" href="/blog">Blog</a></li>
         <li class="nav-item"><a class="nav-link" href="/movies">Filmi</a></li>
@@ -72,7 +72,7 @@
         <a href="/admin/register" class="btn btn-sm btn-outline-warning">+ Uporabnik</a>
         <a href="/admin" class="btn btn-sm btn-outline-info">Nadzorna plošča</a>
           {% if fullscreenbutton %}
-          <a class="btn btn-sm btn-outline-secondary" id="delete-btn" onclick="izbrisiMeme({{ meme_file_name }})" title="Izbriši meme"><i class="bi bi-trash-fill"></i> Odstrani</a>
+          <a class="btn btn-sm btn-outline-secondary" id="delete-btn" onclick="izbrisiMeme('{{ meme_file_name }}')" title="Izbriši meme"><i class="bi bi-trash-fill"></i> Odstrani</a>
           {% endif %}
         {% endif %}
       </div>

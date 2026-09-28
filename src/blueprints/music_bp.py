@@ -509,15 +509,34 @@ def _build_radio_stories_metadata(root_dir):
         default_album="Radijska zgodba",
         include_genre=False,
     )
+
+    def _limit_duration(tracks, min_duration, max_duration):
+        return {
+            k: v
+            for k, v in tracks.items()
+            if min_duration <= float(v.get("duration", 0)) < max_duration
+        }
+
+    def _sort_tracks_list(tracks):
+        return [
+            (k, v)
+            for k, v in sorted(
+                tracks.items(),
+                key=lambda entry: (
+                    entry[1].get("artist", ""),
+                    entry[1].get("title", ""),
+                ),
+            )
+        ]
+
+    short_tracks = _limit_duration(tracks, 0, 600)
+    mid_tracks = _limit_duration(tracks, 600, 900)
+    long_tracks = _limit_duration(tracks, 900, float("inf"))
     return {
         key: value
-        for key, value in sorted(
-            tracks.items(),
-            key=lambda entry: (
-                entry[1].get("artist", ""),
-                entry[1].get("title", ""),
-            ),
-        )
+        for key, value in _sort_tracks_list(long_tracks)
+        + _sort_tracks_list(mid_tracks)
+        + _sort_tracks_list(short_tracks)
     }
 
 

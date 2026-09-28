@@ -7,6 +7,7 @@ from urllib.parse import quote
 from flask import (
     Blueprint,
     abort,
+    flash,
     make_response,
     render_template,
     send_from_directory,
@@ -17,6 +18,7 @@ from utils import (
     FLASK_ENV,
     get_guest_identity,
     is_current_admin_view,
+    redis_client,
     safe_path,
 )
 
@@ -25,7 +27,7 @@ log = logging.getLogger(__name__)
 memes_bp = Blueprint("memes", __name__)
 
 # Global variables
-meme_id = 0
+meme_id = None
 user_meme_count = {}
 user_meme_limit = 12
 
@@ -38,6 +40,7 @@ memes = [
         (".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp4")
     )
 ]
+ordered_memes = sorted(memes)
 random.shuffle(memes)
 MEMES_COUNT = len(memes)
 
@@ -59,15 +62,24 @@ def meme():
     user_meme_count[identity]["count"] += 1
     if (
         user_meme_count[identity]["count"] > user_meme_limit and not is_admin
-    ) or user_meme_count[identity]["count"] > 50:
+    ) or user_meme_count[identity]["count"] > 3000:
         return render_template(
             "limit_exceeded.html",
             section="šal",
             pagetitle="Dovolj šal za danes v MarinKino",
         )
 
-    izbrana = memes[meme_id]
-    meme_id = (meme_id + 1) % len(memes)
+    if is_admin:
+        meme_id = redis_client.incr("memes:explore") - 1
+        izbrana = ordered_memes[meme_id]
+        log.info("Admin selected meme: %s (ID: %d)", izbrana, meme_id)
+        if meme_id % 10 == 0:
+            log.info(user_meme_count)
+    else:
+        if meme_id is None:
+            meme_id = 0
+        izbrana = memes[meme_id]
+    meme_id = (meme_id + 1) % MEMES_COUNT
     return render_template(
         "memes.html",
         pagetitle="MarinKino - Šale",
@@ -136,8 +148,14 @@ def meme_remove(meme_file_name):
     try:
         path = safe_path("data/memes", meme_file_name)
     except ValueError:
+        log.warning("Invalid meme file path: %s", meme_file_name)
+        flash("Invalid meme file path.", "error")
         return "", 404
     if not os.path.exists(path):
+        log.warning("Meme file does not exist: %s", path)
+        flash("Meme file does not exist.", "error")
         return "", 404
     os.remove(path)
+    flash("Meme file removed successfully.", "success")
+    log.info("Meme file removed: %s", path)
     return "", 204

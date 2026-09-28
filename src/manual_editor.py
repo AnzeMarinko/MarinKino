@@ -224,7 +224,7 @@ def download_playlist(playlist_url, get_video=False):
     if not os.path.exists(incoming_folder):
         os.makedirs(incoming_folder)
     ydl_opts = {
-        "ignoreerrors": True,  # Če ena pesem ne dela, nadaljuj z naslednjo
+        "ignoreerrors": True,
         "outtmpl": f"{incoming_folder}/%(playlist_title)s/%(title)s.%(ext)s",
         "postprocessors": [
             {
@@ -236,9 +236,14 @@ def download_playlist(playlist_url, get_video=False):
             },
         ],
         "writethumbnail": True,
-        # To prepreči, da bi yt-dlp prekinil delovanje ob opozorilih
         "quiet": False,
         "no_warnings": True,
+        # DODAJ TE DVE VRSTICI:
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["android", "web"],
+            }
+        },
     }
     # Konfiguracija za yt-dlp
     if get_video:
@@ -261,6 +266,9 @@ def download_playlist(playlist_url, get_video=False):
         try:
             # extract_info s download=True dejansko sproži prenos
             info = ydl.extract_info(playlist_url, download=True)
+            if not info:
+                print("\n❌ Posnetek ali playlista ni na voljo.")
+                return False
 
             # Pridobimo ime playliste za izpis na koncu
             playlist_title = info.get("title", "Neznana playlista")
@@ -279,12 +287,6 @@ def download_playlist(playlist_url, get_video=False):
     process_incoming_music_folder(f"{INCOMING_MUSIC_FOLDER}/{playlist_title}")
     print("\nKončano! Glasnost je urejena in HLS pripravljen.")
     return True
-
-
-for url in []:
-    download_playlist(url)
-
-rename_existing_incoming_hls_dirs()
 
 
 def get_current_metadata(track_ref):
@@ -841,4 +843,9 @@ def download_yt_music():
 
 
 if __name__ == "__main__":
+    # po potrebi posodobi yt-dlp: pip install -U yt-dlp
+    for url in []:
+        download_playlist(url)
+    rename_existing_incoming_hls_dirs()
+
     app.run(host="0.0.0.0", port=8080)
