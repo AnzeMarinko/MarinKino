@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 
 <style>
-/* Simple color theme override for radio stories (orange tones) */
+/* Orange color theme for kids' radio. */
 .radio-accent { color: #d97706; }
 .radio-gradient { background: linear-gradient(135deg,#ff8c42 0%, #ffd1a3 100%); }
 .section-header h2 { color: #d97706 !important; }
 .toggle-btn.active { border-color: #d97706; }
 .toggle-btn { color: #d97706; }
-/* Hide albums UI for radio-stories (flat file list only) */
+/* Kids' radio uses a flat list without the album browser. */
 .browser-toggle { display: none !important; }
 #albums { display: none !important; }
 #tracks { width: 100% !important; }
@@ -40,7 +40,7 @@
             <button class="toggle-btn" data-target="albums"><h3></h3><i class="bi bi-disc"></i>
                 Albumi</h3></button>
             <button class="toggle-btn active" data-target="tracks"><h3></h3><i class="bi bi-music-note-beamed"></i>
-                Zgodbe</h3></button>
+                Otroški radio</h3></button>
         </div>
         <div id="albums" class="albums-section">
             <div class="section-header">
@@ -53,7 +53,7 @@
         <div id="tracks" class="tracks-section">
             <div class="section-header">
                 <i class="bi bi-music-note-beamed radio-accent"></i>
-                <h2>Zgodbe</h2>
+                <h2>Otroški radio</h2>
             </div>
             <input type="search" id="searchInput" placeholder="🔍 Iskanje po naslovu, avtorju..." class="search-input">
             <div id="trackList" class="track-list"></div>
@@ -67,7 +67,7 @@
                 <i class="bi bi-music-note"></i>
             </div>
             <div class="track-info">
-                <div id="nowPlayingTitle" class="track-title">Ni izbrane zgodbe</div>
+                <div id="nowPlayingTitle" class="track-title">Ni izbrane oddaje</div>
                 <div id="nowPlayingArtist" class="track-artist"></div>
                 <div id="nowPlayingAlbum" class="track-album"></div>
             </div>
@@ -85,7 +85,7 @@
 
         <!-- Controls -->
         <div class="controls-section">
-            <button class="control-btn" onclick="prev()" title="Prejšnja zgodba">
+            <button class="control-btn" onclick="prev()" title="Prejšnja oddaja">
                 <i class="bi bi-skip-backward-fill"></i>
             </button>
 
@@ -93,7 +93,7 @@
                 <i id="playIcon" class="bi bi-play-fill"></i>
             </button>
 
-            <button class="control-btn" onclick="next()" title="Naslednja zgodba">
+            <button class="control-btn" onclick="next()" title="Naslednja oddaja">
                 <i class="bi bi-skip-forward-fill"></i>
             </button>
 

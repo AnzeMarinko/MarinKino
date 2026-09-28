@@ -32,6 +32,8 @@ from blueprints import (
     music_bp,
     seo_bp,
 )
+from blueprints.auth_bp import load_device_user
+from device_sessions import DEVICE_IDLE_SECONDS
 from utils import FLASK_ENV, User, redis_client, users
 
 # Flask app setup
@@ -39,12 +41,13 @@ app = Flask(__name__, static_url_path="/static", static_folder="static")
 app.secret_key = os.getenv("FLASK_KEY")
 if FLASK_ENV == "production" and not app.secret_key:
     raise RuntimeError("FLASK_KEY must be configured in production")
-app.permanent_session_lifetime = timedelta(days=30)
+app.permanent_session_lifetime = timedelta(seconds=DEVICE_IDLE_SECONDS)
 app.config["REMEMBER_COOKIE_DURATION"] = timedelta(days=30)
 app.config.update(
     SESSION_COOKIE_SECURE=FLASK_ENV == "production",
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_REFRESH_EACH_REQUEST=True,
     REMEMBER_COOKIE_SECURE=FLASK_ENV == "production",
     REMEMBER_COOKIE_HTTPONLY=True,
     REMEMBER_COOKIE_SAMESITE="Lax",
@@ -255,9 +258,7 @@ def log_response_info(response):
 
 @login_manager.user_loader
 def load_user(user_id):
-    if user_id in users:
-        return User(user_id)
-    return None
+    return load_device_user(user_id)
 
 
 # Register blueprints

@@ -93,6 +93,33 @@ sudo apt update && sudo apt install -y redis-server
 sudo systemctl enable --now redis-server
 ```
 
+### 4.1. Prijavljene naprave
+
+Vsak uporabnik ima lahko največ **5 hkrati prijavljenih naprav**, tudi
+administrator. Napravo predstavlja posamezna brskalniška seja z naključnim
+`device_id` v podpisanem sejnem piškotku. ID ni povezan s FingerprintJS.
+Šesta prijava je zavrnjena z opozorilom, naj se uporabnik odjavi na eni od
+drugih naprav. Odjava takoj sprosti mesto.
+
+Redis hrani ID-je in čas zadnje uporabe v urejenem naboru
+`auth:devices:<uporabnik>`. Preverjanje omejitve in vpis naprave sta atomska,
+zato omejitev velja tudi pri sočasnih prijavah. Vsaka preverjena uporaba seje
+podaljša njeno veljavnost za **30 dni**. Po 7 dneh neaktivnosti seja ni več
+veljavna in ne zaseda mesta: potekli vnosi se odstranijo ob preverjanju ali
+novi prijavi, celoten neaktiven nabor pa poteče s TTL. Dodaten cron ni potreben.
+
+Ob uvedbi omejitve se morajo uporabniki z obstoječimi sejami brez `device_id`
+ponovno prijaviti. Prijava uporablja trajni sejni piškotek; stari
+`remember_token` se odstrani in ne more obnoviti potekle naprave. Tudi izguba
+evidence naprav v Redis zahteva ponovno prijavo.
+
+Regresijski testi v okolju z nameščenimi odvisnostmi projekta:
+
+```sh
+python -m pip install pytest 'fakeredis[lua]'
+PYTHONPATH=src python -m pytest tests/test_device_sessions.py tests/test_device_auth.py
+```
+
 ### 5. Zaženi aplikacijo lokalno
 ```
 uv run python src/app.py

@@ -506,7 +506,7 @@ def _private_albums_payload(store, visible_track_ids, album_id=None):
 def _build_radio_stories_metadata(root_dir):
     tracks = _discover_media_library(
         root_dir,
-        default_album="Radijska zgodba",
+        default_album="Otroški radio",
         include_genre=False,
     )
 
@@ -547,7 +547,7 @@ music_albums, music_metadata = _build_music_albums_and_metadata(
 MUSIC_COUNT = len(music_metadata)
 
 
-# Initialize radio stories
+# Initialize children's radio
 radio_stories_metadata = _build_radio_stories_metadata(str(RADIO_STORIES_ROOT))
 radio_stories_files = list(radio_stories_metadata.keys())
 STORIES_COUNT = len(radio_stories_files)
@@ -902,10 +902,10 @@ def mutate_private_album_songs(album_id):
 @music_bp.route("/radio-stories")
 @login_required
 def radio_stories():
-    """Separate page for radio stories (Radijske-zgodbe)."""
+    """Separate page for children's radio (Otroški radio)."""
     return render_template(
         "radio_stories.html",
-        pagetitle="MarinKino - Radijske zgodbe",
+        pagetitle="MarinKino - Otroški radio",
         is_music=True,
         radio_stories_files=list(radio_stories_metadata.keys()),
         radio_stories_metadata=radio_stories_metadata,

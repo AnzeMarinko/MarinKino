@@ -12,7 +12,7 @@
   4. **Izbira podnapisov**: če je podnapisov več, odpre pregled izsekov v brskalniku in v terminalu vprašaj, katere obdržimo.
   5. **Poravnava podnapisov**: poravna SAMO tiste podnapise, ki jih je skripta sama prenesla (ne že obstoječih iz videa); predlaga zamik/raztezek, omogoči odprtje predvajalnika v brskalniku za vizualno potrditev in ročno prilagoditev.
   6. **Prevod podnapisov**: če manjka slovenski prevod, vpraša ali naj ga samodejno prevede.
-  7. **Zvočne datoteke**: na koncu vpraša, ali naj obdela tudi glasbo/radijske zgodbe (pretvorba v `m3u8` + metapodatki).
+  7. **Zvočne datoteke**: na koncu vpraša, ali naj obdela tudi glasbo in vsebine otroškega radia (pretvorba v `m3u8` + metapodatki).
   * korak/film, ki ga preskočiš (odgovoriš z `n`), se ne ponavlja - skripta gre naprej na naslednji korak/film,
   * že potrjeni koraki (metapodatki, preverjanje/izbira/poravnava/prevod podnapisov) se zapišejo v `readme.json` pod `confirmed`, zato jih ob ponovnem zagonu ne bo znova spraševala (razen če eksplicitno rečeš, da želiš ponoviti),
 * znova zaženi server z ukazom `docker compose restart app` in preveri vse na novo dodane filme (naslovne slike, opise, podnapise ipd.),

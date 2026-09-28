@@ -84,7 +84,8 @@ const playbackRandomnessWeights = {
 };
 const storedPlaybackMode = localStorage.getItem("musicPlaybackMode");
 const playbackModes = ["sequential", "random", "similar", "repeat"];
-let playbackMode = playbackModes.includes(storedPlaybackMode)
+// Kids' radio always follows the displayed order, independently of music settings.
+let playbackMode = !isRadioStoriesPage && playbackModes.includes(storedPlaybackMode)
     ? storedPlaybackMode
     : "sequential";
 
@@ -272,6 +273,7 @@ function clearEndTransitionTimer() {
 
 function scheduleEndTransition() {
     clearEndTransitionTimer();
+    // Spoken episodes advance on "ended" so their final words are not cut off.
     if (
         isRadioStoriesPage ||
         isHlsSessionPlayback ||
@@ -344,8 +346,12 @@ function preloadNextTrack() {
 }
 
 function setPlaybackMode(mode) {
-    playbackMode = playbackModes.includes(mode) ? mode : "sequential";
-    localStorage.setItem("musicPlaybackMode", playbackMode);
+    playbackMode = !isRadioStoriesPage && playbackModes.includes(mode)
+        ? mode
+        : "sequential";
+    if (!isRadioStoriesPage) {
+        localStorage.setItem("musicPlaybackMode", playbackMode);
+    }
     updatePlaybackModeButtons();
 }
 
@@ -623,7 +629,7 @@ function buildTrackHtml(songId) {
     const trackMetadata = getTrackMetadata(songId);
     const title = trackMetadata.title || songId.split("/").slice(-1)[0];
     const artist = trackMetadata.artist
-        || (isRadioStoriesPage ? "Radijska zgodba" : "");
+        || (isRadioStoriesPage ? "Otroški radio" : "");
     const album = trackMetadata.album || "";
     const albumInfo = getAlbumDisplayInfo(album);
     const semantic = trackMetadata.semantic_analysis || {};
@@ -950,7 +956,7 @@ function renderCurrentAlbumTracks() {
 }
 
 function resetNowPlayingState() {
-    nowPlayingTitle.textContent = isRadioStoriesPage ? "Ni izbrane zgodbe" : "Ni izbrane pesmi";
+    nowPlayingTitle.textContent = isRadioStoriesPage ? "Ni izbrane oddaje" : "Ni izbrane pesmi";
     nowPlayingArtist.textContent = "";
     nowPlayingAlbum.textContent = "";
     audio.removeAttribute("src");
@@ -1079,6 +1085,7 @@ async function playTrack(index, options = {}) {
     try {
         audio.volume = options.automatic ? previousVolume : 0;
         const useHlsSession =
+            !isRadioStoriesPage &&
             !options.automatic &&
             ["sequential", "similar", "random"].includes(playbackMode) &&
             (
@@ -1253,6 +1260,7 @@ async function resumePlaybackIfNeeded() {
 }
 
 audio.addEventListener("play", () => {
+    endTransitionTrack = null;
     if ("mediaSession" in navigator) {
         navigator.mediaSession.playbackState = "playing";
     }
@@ -1549,7 +1557,7 @@ audio.onloadedmetadata = () => {
 
 function advanceAfterTrackEnd() {
     if (
-        isRadioStoriesPage ||
+        isLoadingTrack ||
         isHlsSessionPlayback ||
         endTransitionTrack === currentTrack
     ) {
@@ -1558,6 +1566,10 @@ function advanceAfterTrackEnd() {
     clearEndTransitionTimer();
     endTransitionTrack = currentTrack;
     updatePlayBtn("false");
+    if (playbackMode === "sequential" && getNextTrackIndex() < 0) {
+        playbackIntent = false;
+        return;
+    }
     next();
 }
 
@@ -2195,7 +2207,7 @@ if (initialAlbum) {
         
         nowPlayingTitle.textContent = trackMetadata.title || currentTrack;
         nowPlayingArtist.textContent = trackMetadata.artist
-            || (isRadioStoriesPage ? "Radijska zgodba" : "");
+            || (isRadioStoriesPage ? "Otroški radio" : "");
         nowPlayingAlbum.textContent = getAlbumDisplayInfo(
             trackMetadata.album || ""
         ).displayName;

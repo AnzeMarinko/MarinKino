@@ -348,8 +348,8 @@ def process_single_movie(folder):
 
 
 def run_interactive_pipeline(films_root):
-    # KORAK 0: procesiranje audio datotek (glasba/radijske zgodbe)
-    if ask_yes_no("Obdelam zvočne datoteke (glasba/radijske zgodbe)?"):
+    # KORAK 0: procesiranje audio datotek (glasba/otroški radio)
+    if ask_yes_no("Obdelam zvočne datoteke (glasba/otroški radio)?"):
         process_audio_folders()
 
     incoming_root = Path(films_root) / INCOMING_FOLDER_NAME

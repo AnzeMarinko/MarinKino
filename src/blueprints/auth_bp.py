@@ -18,6 +18,7 @@ from flask import (
 from flask_login import current_user, login_required, login_user, logout_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from device_sessions import MAX_DEVICES, DeviceSessionStore
 from utils import (
     find_user_by_email,
     is_current_admin_view,
@@ -33,6 +34,7 @@ WWW_DOMAIN = os.getenv("WWW_DOMAIN")
 AUTH_RATE_LIMIT = 5
 AUTH_RATE_LIMIT_TTL = 15 * 60
 PASSWORD_MIN_LENGTH = 12
+device_sessions = DeviceSessionStore(redis_client)
 
 # Shared utilities (imported from main app)
 users = {}
@@ -44,6 +46,47 @@ def init_auth_bp(_users, _user):
     global users, User
     users = _users
     User = _user
+
+
+def _clear_device_session():
+    # Preserve CSRF and flash state; never call logout_user from a user loader.
+    for key in (
+        "_user_id",
+        "_fresh",
+        "_id",
+        "_permanent",
+        "_remember_seconds",
+        "device_id",
+        "view_as",
+    ):
+        session.pop(key, None)
+    # Block fallback to an older username-only remember cookie.
+    session["_remember"] = "clear"
+
+
+def load_device_user(user_id):
+    """Authenticate only registered devices and refresh their idle timeout."""
+    device_id = session.get("device_id")
+    if (
+        user_id in users
+        and isinstance(device_id, str)
+        and device_id
+        and device_sessions.touch(user_id, device_id)
+    ):
+        session.permanent = True
+        return User(user_id)
+
+    _clear_device_session()
+    flash("Seja naprave ni več veljavna. Ponovno se prijavite.", "info")
+    return None
+
+
+def _logout_current_device():
+    device_id = session.get("device_id")
+    if device_id:
+        device_sessions.release(current_user.id, device_id)
+    logout_user()
+    _clear_device_session()
 
 
 def save_users():
@@ -124,8 +167,36 @@ def login():
         if username in users and check_password_hash(
             users[username]["password_hash"], password
         ):
+            previous_user_id = session.get("_user_id")
+            previous_device_id = session.get("device_id")
+            device_id = secrets.token_urlsafe(32)
+            if not device_sessions.register(
+                username,
+                device_id,
+                previous_device_id=(
+                    previous_device_id
+                    if previous_user_id == username
+                    else None
+                ),
+            ):
+                flash(
+                    f"Prijavljeni ste že na največ {MAX_DEVICES} napravah. "
+                    "Pred prijavo na tej napravi se odjavite na eni od "
+                    "drugih naprav.",
+                    "error",
+                )
+                return render_template("login.html", pagetitle="Prijava"), 403
+
+            if (
+                previous_user_id
+                and previous_user_id != username
+                and previous_device_id
+            ):
+                device_sessions.release(previous_user_id, previous_device_id)
+            _clear_device_session()
             user = User(username)
-            login_user(user, remember=True)
+            login_user(user, remember=False)
+            session["device_id"] = device_id
             session.permanent = True
             redis_client.incr(
                 f"auth:login:{date.today().isoformat()[:7]}:{username}"
@@ -423,7 +494,7 @@ def reset_password(token):
 @auth_bp.route("/logout")
 @login_required
 def logout():
-    logout_user()
+    _logout_current_device()
     return redirect(url_for("auth.login"))
 
 
@@ -451,7 +522,7 @@ def change_password():
             new_password
         )
         save_users()
-        logout_user()
+        _logout_current_device()
         flash("Geslo je bilo spremenjeno. Ponovno se prijavite.", "success")
         return redirect(url_for("auth.login"))
 
