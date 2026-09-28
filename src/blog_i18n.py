@@ -3,11 +3,13 @@
 BLOG_LANGUAGES = {
     "sl": {
         "name": "Slovenščina",
+        "flag": "🇸🇮",
         "direction": "ltr",
         "notice": "Google Translate: avtomatski prevod, možne so napake.",
     },
     "en": {
         "name": "English",
+        "flag": "🇬🇧",
         "direction": "ltr",
         "notice": (
             "Google Translate: automatic translation may contain "
@@ -16,6 +18,7 @@ BLOG_LANGUAGES = {
     },
     "de": {
         "name": "Deutsch",
+        "flag": "🇩🇪",
         "direction": "ltr",
         "notice": (
             "Google Translate: Automatische Übersetzungen können "
@@ -24,6 +27,7 @@ BLOG_LANGUAGES = {
     },
     "es": {
         "name": "Español",
+        "flag": "🇪🇸",
         "direction": "ltr",
         "notice": (
             "Google Translate: la traducción automática puede contener "
@@ -32,6 +36,7 @@ BLOG_LANGUAGES = {
     },
     "it": {
         "name": "Italiano",
+        "flag": "🇮🇹",
         "direction": "ltr",
         "notice": (
             "Google Translate: la traduzione automatica può contenere "
@@ -40,6 +45,7 @@ BLOG_LANGUAGES = {
     },
     "fr": {
         "name": "Français",
+        "flag": "🇫🇷",
         "direction": "ltr",
         "notice": (
             "Google Translate : la traduction automatique peut "
@@ -48,6 +54,7 @@ BLOG_LANGUAGES = {
     },
     "pl": {
         "name": "Polski",
+        "flag": "🇵🇱",
         "direction": "ltr",
         "notice": (
             "Google Translate: tłumaczenie automatyczne może zawierać "
@@ -56,6 +63,7 @@ BLOG_LANGUAGES = {
     },
     "uk": {
         "name": "Українська",
+        "flag": "🇺🇦",
         "direction": "ltr",
         "notice": (
             "Google Translate: автоматичний переклад може містити "
@@ -64,21 +72,25 @@ BLOG_LANGUAGES = {
     },
     "pt": {
         "name": "Português",
+        "flag": "🇵🇹",
         "direction": "ltr",
         "notice": "Google Translate: a tradução automática pode conter erros.",
     },
     "ar": {
         "name": "العربية",
+        "flag": "🇸🇦",
         "direction": "rtl",
         "notice": "ترجمة Google: قد تحتوي الترجمة الآلية على أخطاء.",
     },
     "zh-CN": {
         "name": "简体中文",
+        "flag": "🇨🇳",
         "direction": "ltr",
         "notice": "Google 翻译：自动翻译可能包含错误。",
     },
     "ja": {
         "name": "日本語",
+        "flag": "🇯🇵",
         "direction": "ltr",
         "notice": "Google 翻訳：自動翻訳には誤りが含まれる場合があります。",
     },

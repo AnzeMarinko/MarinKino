@@ -14,6 +14,26 @@
         url.searchParams.set('lang', selectedLanguage());
         return url.href;
     };
+    const displayLanguage = isTranslatedSite ? selectedLanguage() : 'sl';
+    const flag = document.querySelector('[data-language-flag]');
+    const name = document.querySelector('[data-language-name]');
+    const languageCode = document.querySelector('[data-language-code]');
+    if (flag && name && languageCode) {
+        flag.textContent = languages[displayLanguage].flag;
+        name.textContent = languages[displayLanguage].name;
+        name.lang = displayLanguage;
+        name.dir = languages[displayLanguage].direction;
+        languageCode.textContent = displayLanguage.split('-')[0].toUpperCase();
+        document.querySelector('#blog-language-toggle')?.setAttribute(
+            'aria-label', `Jezik / Language: ${languages[displayLanguage].name}`
+        );
+    }
+    document.querySelectorAll('.site-translation__options [data-language]').forEach((link) => {
+        if (link.dataset.language === displayLanguage) {
+            link.classList.add('active');
+            link.setAttribute('aria-current', 'true');
+        }
+    });
     const notice = document.querySelector('[data-translation-notice]');
     if (notice) {
         const language = selectedLanguage();
@@ -22,7 +42,7 @@
             notice.lang = language;
             notice.dir = languages[language].direction;
             notice.parentElement.hidden = false;
-            document.querySelector('.site-translation__options')
+            document.querySelector('#blog-language-toggle')
                 ?.setAttribute('aria-describedby', 'translation-notice');
         }
     }
@@ -36,6 +56,12 @@
         link.addEventListener('click', (event) => {
             event.preventDefault();
             window.open(originalUrl(link), '_blank', 'noopener,noreferrer');
+        });
+    });
+    document.querySelectorAll('a[data-original-url]').forEach((link) => {
+        link.addEventListener('click', (event) => {
+            event.preventDefault();
+            window.open(decodeURIComponent(link.dataset.originalUrl), '_blank', 'noopener,noreferrer');
         });
     });
 })();

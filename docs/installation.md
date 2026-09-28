@@ -92,7 +92,7 @@ Semantična komponenta ima pri izbiri naslednje pesmi privzeto težo `0.2`.
 Javni blog podpira slovenščino ter prevode v angleščino, nemščino,
 španščino, italijanščino, francoščino, portugalščino, poljščino,
 ukrajinščino, arabščino, poenostavljeno kitajščino in japonščino.
-Izbirnik **Language / Jezik** odpre brezplačni
+Spustni izbirnik z zastavicami in imeni jezikov v glavi strani odpre brezplačni
 [Google Translate za spletne strani](https://support.google.com/translate/answer/2534559)
 v novem zavihku. Prevede seznam, objavljene objave in pravne strani skupaj
 z glavo, navigacijo in nogo. Opozorilo o avtomatskem prevodu je vidno samo

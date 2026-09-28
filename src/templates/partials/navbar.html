@@ -10,6 +10,8 @@
         {% endif %}
     </a>
 
+    {% include "partials/language_selector.html" %}
+
     <!-- HAMBURGER -->
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
       <span class="navbar-toggler-icon"></span>
@@ -85,7 +87,11 @@
   <div style="padding-top: 70px;"></div>
 {% endif %}
 
-{% include "partials/language_selector.html" %}
+{% if blog_translation_urls and not is_for_mail %}
+<p id="translation-notice" class="site-translation-notice notranslate" translate="no" hidden>
+  <span data-translation-notice></span>
+</p>
+{% endif %}
 
 <div id="flash-container" class="position-fixed top-0 start-50 translate-middle-x mt-3" style="z-index: 1055;">
   {% with messages = get_flashed_messages(with_categories=true) %}

@@ -260,7 +260,7 @@ def blog_translation_urls():
     source_url = base_url + url_for(
         request.endpoint, **(request.view_args or {})
     )
-    links = {}
+    links = {"sl": source_url}
     for language in BLOG_LANGUAGES:
         if language != "sl":
             links[language] = translate_url(source_url, language)
