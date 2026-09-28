@@ -92,7 +92,7 @@
 
     <div class="d-flex flex-column flex-md-row justify-content-between small text-muted">
       <span>© 2025-{{ current_year }} Anže Marinko</span>
-      <span>{% if not current_user.is_authenticated or view_as == "anonymous" or blog_view == "blog" %}Sončnice (Rože dobrega){% else %}MarinKino{% endif %}</span>
+      <span>{% if not current_user.is_authenticated or view_as == "anonymous" or blog_view == "blog" %}Sončnice (<span class="notranslate" translate="no" data-blog-title>Rože dobrega</span>){% else %}MarinKino{% endif %}</span>
     </div>
     {% if blog_view == "blog" %}
     <div class="text-center small mt-2">

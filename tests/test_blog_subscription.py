@@ -139,6 +139,7 @@ def test_native_form_is_localized_with_same_origin_protections(
     ]
     for key in ("subscription_heading", "email_label", "subscribe"):
         assert messages(language)[key] in unescape(html)
+    assert f'>{messages(language)["blog_title"]}</a>' in unescape(html)
     assert "site-translation__control" not in html
     subscription.module.send_mail.assert_not_called()
 
@@ -162,6 +163,7 @@ def test_confirmation_email_and_persisted_preference_follow_selected_language(
     mail = subscription.module.send_mail.call_args.kwargs
     assert mail["to"] == "reader@example.com"
     assert mail["subject"] == messages(language)["confirmation_subject"]
+    assert messages(language)["blog_title"] in unescape(mail["html"])
     for field in ("text", "html"):
         rendered = unescape(mail[field])
         for message in (

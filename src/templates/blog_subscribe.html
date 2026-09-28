@@ -6,7 +6,7 @@
   <meta name="robots" content="noindex, nofollow">
   <meta name="google" content="notranslate">
   <meta name="referrer" content="no-referrer">
-  <title>{{ copy.subscription_heading }} — Rože dobrega</title>
+  <title>{{ copy.subscription_heading }} — {{ copy.blog_title }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/blog_subscribe.css') }}">
 </head>
 <body>
@@ -14,7 +14,7 @@
         data-blog-language="{{ language }}" data-blog-languages='{{ blog_languages | tojson }}'
         data-subscription-url="{{ subscription_url_encoded }}">
     <script src="{{ url_for('static', filename='js/blog_translation.js') }}"></script>
-    <a class="brand" href="{{ blog_url }}" rel="noreferrer">Rože dobrega</a>
+    <a class="brand" href="{{ blog_url }}" rel="noreferrer">{{ copy.blog_title }}</a>
     <h1>{{ copy.subscription_heading }}</h1>
     <p>{{ copy.subscription_intro }}</p>
     {% with notices = get_flashed_messages(with_categories=true) %}

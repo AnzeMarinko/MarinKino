@@ -378,7 +378,6 @@ def blog_subscribe():
                 mail_copy=copy,
                 mail_language=language,
                 mail_direction=BLOG_LANGUAGES[language]["direction"],
-                brand_name="Rože dobrega",
                 domain=urlsplit(base_url).netloc,
                 mail_base_url=base_url,
                 is_for_mail=True,

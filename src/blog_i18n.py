@@ -3,20 +3,21 @@
 BLOG_LANGUAGES = {
     "sl": {
         "name": "Slovenščina",
+        "blog_title": "Rože dobrega",
         "flag": "🇸🇮",
         "direction": "ltr",
-        "notice": "Google Translate: avtomatski prevod, možne so napake.",
+        "notice": "",
         "copy_link": "Kopiraj povezavo",
         "link_copied": "Povezava kopirana.",
         "copy_link_prompt": "Kopiraj povezavo:",
     },
     "en": {
         "name": "English",
+        "blog_title": "Flowers of Goodness",
         "flag": "🇬🇧",
         "direction": "ltr",
         "notice": (
-            "Google Translate: automatic translation may contain "
-            "errors."
+            "Google Translate: automatic translation may contain errors."
         ),
         "copy_link": "Copy link",
         "link_copied": "Link copied.",
@@ -24,6 +25,7 @@ BLOG_LANGUAGES = {
     },
     "de": {
         "name": "Deutsch",
+        "blog_title": "Blumen des Guten",
         "flag": "🇩🇪",
         "direction": "ltr",
         "notice": (
@@ -36,6 +38,7 @@ BLOG_LANGUAGES = {
     },
     "es": {
         "name": "Español",
+        "blog_title": "Flores del Bien",
         "flag": "🇪🇸",
         "direction": "ltr",
         "notice": (
@@ -48,11 +51,11 @@ BLOG_LANGUAGES = {
     },
     "it": {
         "name": "Italiano",
+        "blog_title": "Fiori del Bene",
         "flag": "🇮🇹",
         "direction": "ltr",
         "notice": (
-            "Google Translate: la traduzione automatica può contenere "
-            "errori."
+            "Google Translate: la traduzione automatica può contenere errori."
         ),
         "copy_link": "Copia link",
         "link_copied": "Link copiato.",
@@ -60,6 +63,7 @@ BLOG_LANGUAGES = {
     },
     "fr": {
         "name": "Français",
+        "blog_title": "Fleurs du Bien",
         "flag": "🇫🇷",
         "direction": "ltr",
         "notice": (
@@ -72,11 +76,11 @@ BLOG_LANGUAGES = {
     },
     "pl": {
         "name": "Polski",
+        "blog_title": "Kwiaty Dobra",
         "flag": "🇵🇱",
         "direction": "ltr",
         "notice": (
-            "Google Translate: tłumaczenie automatyczne może zawierać "
-            "błędy."
+            "Google Translate: tłumaczenie automatyczne może zawierać błędy."
         ),
         "copy_link": "Kopiuj link",
         "link_copied": "Link skopiowany.",
@@ -84,11 +88,11 @@ BLOG_LANGUAGES = {
     },
     "uk": {
         "name": "Українська",
+        "blog_title": "Квіти добра",
         "flag": "🇺🇦",
         "direction": "ltr",
         "notice": (
-            "Google Translate: автоматичний переклад може містити "
-            "помилки."
+            "Google Translate: автоматичний переклад може містити помилки."
         ),
         "copy_link": "Копіювати посилання",
         "link_copied": "Посилання скопійовано.",
@@ -96,6 +100,7 @@ BLOG_LANGUAGES = {
     },
     "pt": {
         "name": "Português",
+        "blog_title": "Flores do Bem",
         "flag": "🇵🇹",
         "direction": "ltr",
         "notice": "Google Translate: a tradução automática pode conter erros.",
@@ -105,6 +110,7 @@ BLOG_LANGUAGES = {
     },
     "ar": {
         "name": "العربية",
+        "blog_title": "زهور الخير",
         "flag": "🇸🇦",
         "direction": "rtl",
         "notice": "ترجمة Google: قد تحتوي الترجمة الآلية على أخطاء.",
@@ -114,6 +120,7 @@ BLOG_LANGUAGES = {
     },
     "zh-CN": {
         "name": "简体中文",
+        "blog_title": "善之花",
         "flag": "🇨🇳",
         "direction": "ltr",
         "notice": "Google 翻译：自动翻译可能包含错误。",
@@ -123,6 +130,7 @@ BLOG_LANGUAGES = {
     },
     "ja": {
         "name": "日本語",
+        "blog_title": "善の花",
         "flag": "🇯🇵",
         "direction": "ltr",
         "notice": "Google 翻訳：自動翻訳には誤りが含まれる場合があります。",
@@ -169,8 +177,7 @@ _MESSAGES = {
         "privacy": "politiko zasebnosti",
         "terms_suffix": ".",
         "terms_required": (
-            "Za naročnino sprejmite pogoje uporabe in politiko "
-            "zasebnosti."
+            "Za naročnino sprejmite pogoje uporabe in politiko zasebnosti."
         ),
         "verify_failed": "Preverjanje ni uspelo. Poskusite znova.",
         "invalid_email": "Vnesite veljaven e-poštni naslov.",
@@ -187,8 +194,8 @@ _MESSAGES = {
         "back_to_blog": "Nazaj na blog",
     },
     "en": {
-        "confirmation_subject": "Confirm your subscription · Rože dobrega",
-        "confirmation_intro": "Thank you for your interest in Rože dobrega.",
+        "confirmation_subject": "Confirm your subscription · Flowers of Goodness",
+        "confirmation_intro": "Thank you for your interest in Flowers of Goodness.",
         "confirmation_instruction": (
             "Click the button below to confirm your subscription."
         ),
@@ -200,9 +207,9 @@ _MESSAGES = {
             "This is an automated message. If you did not subscribe, "
             "you can ignore this email."
         ),
-        "new_post_subject": "New post · Rože dobrega",
-        "new_post_title": "A new post on Rože dobrega",
-        "new_post_intro": "A new post is waiting for you on Rože dobrega.",
+        "new_post_subject": "New post · Flowers of Goodness",
+        "new_post_title": "A new post on Flowers of Goodness",
+        "new_post_intro": "A new post is waiting for you on Flowers of Goodness.",
         "read_post": "Read the post in English",
         "unsubscribe": (
             "This is an automated message. To stop receiving notifications, "
@@ -239,8 +246,8 @@ _MESSAGES = {
         "back_to_blog": "Back to the blog",
     },
     "de": {
-        "confirmation_subject": "Abonnement bestätigen · Rože dobrega",
-        "confirmation_intro": "Vielen Dank für Ihr Interesse an Rože dobrega.",
+        "confirmation_subject": "Abonnement bestätigen · Blumen des Guten",
+        "confirmation_intro": "Vielen Dank für Ihr Interesse an Blumen des Guten.",
         "confirmation_instruction": (
             "Bestätigen Sie Ihr Abonnement mit der Schaltfläche unten."
         ),
@@ -255,9 +262,9 @@ _MESSAGES = {
             "Dies ist eine automatische Nachricht. Wenn Sie sich nicht "
             "angemeldet haben, können Sie diese E-Mail ignorieren."
         ),
-        "new_post_subject": "Neuer Beitrag · Rože dobrega",
-        "new_post_title": "Ein neuer Beitrag auf Rože dobrega",
-        "new_post_intro": "Auf Rože dobrega wartet ein neuer Beitrag auf Sie.",
+        "new_post_subject": "Neuer Beitrag · Blumen des Guten",
+        "new_post_title": "Ein neuer Beitrag auf Blumen des Guten",
+        "new_post_intro": "Auf Blumen des Guten wartet ein neuer Beitrag auf Sie.",
         "read_post": "Beitrag auf Deutsch lesen",
         "unsubscribe": (
             "Dies ist eine automatische Nachricht. Um keine "
@@ -310,8 +317,8 @@ _MESSAGES = {
         "back_to_blog": "Zurück zum Blog",
     },
     "es": {
-        "confirmation_subject": "Confirma tu suscripción · Rože dobrega",
-        "confirmation_intro": "Gracias por tu interés en Rože dobrega.",
+        "confirmation_subject": "Confirma tu suscripción · Flores del Bien",
+        "confirmation_intro": "Gracias por tu interés en Flores del Bien.",
         "confirmation_instruction": (
             "Pulsa el botón para confirmar tu suscripción."
         ),
@@ -323,9 +330,9 @@ _MESSAGES = {
             "Este es un mensaje automático. Si no te has suscrito, "
             "puedes ignorar este correo."
         ),
-        "new_post_subject": "Nueva publicación · Rože dobrega",
-        "new_post_title": "Una nueva publicación en Rože dobrega",
-        "new_post_intro": "Te espera una nueva publicación en Rože dobrega.",
+        "new_post_subject": "Nueva publicación · Flores del Bien",
+        "new_post_title": "Una nueva publicación en Flores del Bien",
+        "new_post_intro": "Te espera una nueva publicación en Flores del Bien.",
         "read_post": "Leer la publicación en español",
         "unsubscribe": (
             "Este es un mensaje automático. Para dejar de recibir avisos, "
@@ -333,8 +340,7 @@ _MESSAGES = {
         ),
         "subscription_heading": "Suscríbete a las nuevas publicaciones",
         "subscription_intro": (
-            "Te avisaremos por correo cuando haya una nueva "
-            "publicación."
+            "Te avisaremos por correo cuando haya una nueva publicación."
         ),
         "email_label": "Correo electrónico",
         "email_placeholder": "nombre@example.com",
@@ -365,8 +371,8 @@ _MESSAGES = {
         "back_to_blog": "Volver al blog",
     },
     "it": {
-        "confirmation_subject": "Conferma l’iscrizione · Rože dobrega",
-        "confirmation_intro": "Grazie per il tuo interesse per Rože dobrega.",
+        "confirmation_subject": "Conferma l’iscrizione · Fiori del Bene",
+        "confirmation_intro": "Grazie per il tuo interesse per Fiori del Bene.",
         "confirmation_instruction": (
             "Premi il pulsante qui sotto per confermare l’iscrizione."
         ),
@@ -380,9 +386,9 @@ _MESSAGES = {
             "Questo è un messaggio automatico. Se non hai richiesto "
             "l’iscrizione, puoi ignorare questa email."
         ),
-        "new_post_subject": "Nuovo articolo · Rože dobrega",
-        "new_post_title": "Un nuovo articolo su Rože dobrega",
-        "new_post_intro": "Un nuovo articolo ti aspetta su Rože dobrega.",
+        "new_post_subject": "Nuovo articolo · Fiori del Bene",
+        "new_post_title": "Un nuovo articolo su Fiori del Bene",
+        "new_post_intro": "Un nuovo articolo ti aspetta su Fiori del Bene.",
         "read_post": "Leggi l’articolo in italiano",
         "unsubscribe": (
             "Questo è un messaggio automatico. Per non ricevere più "
@@ -424,11 +430,10 @@ _MESSAGES = {
         "back_to_blog": "Torna al blog",
     },
     "fr": {
-        "confirmation_subject": "Confirmez votre abonnement · Rože dobrega",
-        "confirmation_intro": "Merci de votre intérêt pour Rože dobrega.",
+        "confirmation_subject": "Confirmez votre abonnement · Fleurs du Bien",
+        "confirmation_intro": "Merci de votre intérêt pour Fleurs du Bien.",
         "confirmation_instruction": (
-            "Cliquez sur le bouton ci-dessous pour confirmer votre "
-            "abonnement."
+            "Cliquez sur le bouton ci-dessous pour confirmer votre abonnement."
         ),
         "confirm": "Confirmer l’abonnement",
         "fallback_link": "Si le bouton ne fonctionne pas, ouvrez ce lien :",
@@ -438,9 +443,9 @@ _MESSAGES = {
             "Ceci est un message automatique. Si vous n’avez pas demandé "
             "cet abonnement, vous pouvez ignorer cet e-mail."
         ),
-        "new_post_subject": "Nouvel article · Rože dobrega",
-        "new_post_title": "Un nouvel article sur Rože dobrega",
-        "new_post_intro": "Un nouvel article vous attend sur Rože dobrega.",
+        "new_post_subject": "Nouvel article · Fleurs du Bien",
+        "new_post_title": "Un nouvel article sur Fleurs du Bien",
+        "new_post_intro": "Un nouvel article vous attend sur Fleurs du Bien.",
         "read_post": "Lire l’article en français",
         "unsubscribe": (
             "Ceci est un message automatique. Pour ne plus recevoir "
@@ -480,9 +485,9 @@ _MESSAGES = {
         "back_to_blog": "Retour au blog",
     },
     "pl": {
-        "confirmation_subject": "Potwierdź subskrypcję · Rože dobrega",
+        "confirmation_subject": "Potwierdź subskrypcję · Kwiaty Dobra",
         "confirmation_intro": (
-            "Dziękujemy za zainteresowanie blogiem Rože dobrega."
+            "Dziękujemy za zainteresowanie blogiem Kwiaty Dobra."
         ),
         "confirmation_instruction": (
             "Kliknij przycisk poniżej, aby potwierdzić subskrypcję."
@@ -495,9 +500,9 @@ _MESSAGES = {
             "To jest wiadomość automatyczna. Jeśli nie zamawiasz "
             "subskrypcji, możesz zignorować tę wiadomość."
         ),
-        "new_post_subject": "Nowy wpis · Rože dobrega",
-        "new_post_title": "Nowy wpis na blogu Rože dobrega",
-        "new_post_intro": "Na blogu Rože dobrega czeka na Ciebie nowy wpis.",
+        "new_post_subject": "Nowy wpis · Kwiaty Dobra",
+        "new_post_title": "Nowy wpis na blogu Kwiaty Dobra",
+        "new_post_intro": "Na blogu Kwiaty Dobra czeka na Ciebie nowy wpis.",
         "read_post": "Przeczytaj wpis po polsku",
         "unsubscribe": (
             "To jest wiadomość automatyczna. Aby zrezygnować "
@@ -534,8 +539,8 @@ _MESSAGES = {
         "back_to_blog": "Wróć do bloga",
     },
     "uk": {
-        "confirmation_subject": "Підтвердіть підписку · Rože dobrega",
-        "confirmation_intro": "Дякуємо за ваш інтерес до блогу Rože dobrega.",
+        "confirmation_subject": "Підтвердіть підписку · Квіти добра",
+        "confirmation_intro": "Дякуємо за ваш інтерес до блогу Квіти добра.",
         "confirmation_instruction": (
             "Натисніть кнопку нижче, щоб підтвердити підписку."
         ),
@@ -547,9 +552,9 @@ _MESSAGES = {
             "Це автоматичне повідомлення. Якщо ви не оформлювали "
             "підписку, можете проігнорувати цей лист."
         ),
-        "new_post_subject": "Нова публікація · Rože dobrega",
-        "new_post_title": "Нова публікація у блозі Rože dobrega",
-        "new_post_intro": "У блозі Rože dobrega на вас чекає нова публікація.",
+        "new_post_subject": "Нова публікація · Квіти добра",
+        "new_post_title": "Нова публікація у блозі Квіти добра",
+        "new_post_intro": "У блозі Квіти добра на вас чекає нова публікація.",
         "read_post": "Читати публікацію українською",
         "unsubscribe": (
             "Це автоматичне повідомлення. Щоб більше не отримувати "
@@ -569,8 +574,7 @@ _MESSAGES = {
         "privacy": "політикою конфіденційності",
         "terms_suffix": ".",
         "terms_required": (
-            "Погодьтеся з умовами користування та політикою "
-            "конфіденційності."
+            "Погодьтеся з умовами користування та політикою конфіденційності."
         ),
         "verify_failed": "Перевірка не вдалася. Спробуйте ще раз.",
         "invalid_email": "Введіть дійсну електронну адресу.",
@@ -589,9 +593,9 @@ _MESSAGES = {
         "back_to_blog": "Повернутися до блогу",
     },
     "pt": {
-        "confirmation_subject": "Confirme a sua subscrição · Rože dobrega",
+        "confirmation_subject": "Confirme a sua subscrição · Flores do Bem",
         "confirmation_intro": (
-            "Agradecemos o seu interesse no blogue Rože dobrega."
+            "Agradecemos o seu interesse no blogue Flores do Bem."
         ),
         "confirmation_instruction": (
             "Clique no botão abaixo para confirmar a subscrição."
@@ -604,9 +608,9 @@ _MESSAGES = {
             "Esta é uma mensagem automática. Se não pediu esta "
             "subscrição, pode ignorar este e-mail."
         ),
-        "new_post_subject": "Nova publicação · Rože dobrega",
-        "new_post_title": "Uma nova publicação no Rože dobrega",
-        "new_post_intro": "Uma nova publicação espera por si no Rože dobrega.",
+        "new_post_subject": "Nova publicação · Flores do Bem",
+        "new_post_title": "Uma nova publicação no Flores do Bem",
+        "new_post_intro": "Uma nova publicação espera por si no Flores do Bem.",
         "read_post": "Ler a publicação em português",
         "unsubscribe": (
             "Esta é uma mensagem automática. Para deixar de receber "
@@ -626,8 +630,7 @@ _MESSAGES = {
         "privacy": "política de privacidade",
         "terms_suffix": ".",
         "terms_required": (
-            "Aceite os termos de utilização e a política de "
-            "privacidade."
+            "Aceite os termos de utilização e a política de privacidade."
         ),
         "verify_failed": "A verificação falhou. Tente novamente.",
         "invalid_email": "Introduza um endereço de e-mail válido.",
@@ -644,24 +647,22 @@ _MESSAGES = {
         "back_to_blog": "Voltar ao blogue",
     },
     "ar": {
-        "confirmation_subject": "تأكيد الاشتراك · Rože dobrega",
-        "confirmation_intro": "شكرًا لاهتمامك بمدونة Rože dobrega.",
+        "confirmation_subject": "تأكيد الاشتراك · زهور الخير",
+        "confirmation_intro": "شكرًا لاهتمامك بمدونة زهور الخير.",
         "confirmation_instruction": "اضغط على الزر أدناه لتأكيد اشتراكك.",
         "confirm": "تأكيد الاشتراك",
         "fallback_link": "إذا لم يعمل الزر، افتح هذا الرابط:",
         "expires": "تنتهي صلاحية هذا الرابط بعد 24 ساعة.",
         "greeting": "مع أطيب التحيات،",
         "confirmation_ignore": (
-            "هذه رسالة تلقائية. إذا لم تطلب الاشتراك، يمكنك تجاهل هذه "
-            "الرسالة."
+            "هذه رسالة تلقائية. إذا لم تطلب الاشتراك، يمكنك تجاهل هذه الرسالة."
         ),
-        "new_post_subject": "تدوينة جديدة · Rože dobrega",
-        "new_post_title": "تدوينة جديدة على Rože dobrega",
-        "new_post_intro": "تنتظرك تدوينة جديدة على مدونة Rože dobrega.",
+        "new_post_subject": "تدوينة جديدة · زهور الخير",
+        "new_post_title": "تدوينة جديدة على زهور الخير",
+        "new_post_intro": "تنتظرك تدوينة جديدة على مدونة زهور الخير.",
         "read_post": "اقرأ التدوينة بالعربية",
         "unsubscribe": (
-            "هذه رسالة تلقائية. لإيقاف الإشعارات، يُرجى الرد على هذه "
-            "الرسالة."
+            "هذه رسالة تلقائية. لإيقاف الإشعارات، يُرجى الرد على هذه الرسالة."
         ),
         "subscription_heading": "اشترك لتصلك التدوينات الجديدة",
         "subscription_intro": (
@@ -692,8 +693,8 @@ _MESSAGES = {
         "back_to_blog": "العودة إلى المدونة",
     },
     "zh-CN": {
-        "confirmation_subject": "确认订阅 · Rože dobrega",
-        "confirmation_intro": "感谢您关注 Rože dobrega 博客。",
+        "confirmation_subject": "确认订阅 · 善之花",
+        "confirmation_intro": "感谢您关注 善之花 博客。",
         "confirmation_instruction": "请点击下方按钮确认订阅。",
         "confirm": "确认订阅",
         "fallback_link": "如果按钮无法使用，请打开以下链接：",
@@ -702,13 +703,12 @@ _MESSAGES = {
         "confirmation_ignore": (
             "这是一封自动发送的邮件。如果您没有申请订阅，请忽略此邮件。"
         ),
-        "new_post_subject": "新文章 · Rože dobrega",
-        "new_post_title": "Rože dobrega 发布了新文章",
-        "new_post_intro": "Rože dobrega 博客上有一篇新文章等您阅读。",
+        "new_post_subject": "新文章 · 善之花",
+        "new_post_title": "善之花 发布了新文章",
+        "new_post_intro": "善之花 博客上有一篇新文章等您阅读。",
         "read_post": "阅读文章的中文译文",
         "unsubscribe": (
-            "这是一封自动发送的邮件。"
-            "如果您不想继续接收通知，请回复此邮件。"
+            "这是一封自动发送的邮件。如果您不想继续接收通知，请回复此邮件。"
         ),
         "subscription_heading": "订阅新文章通知",
         "subscription_intro": "发布新文章时，我们会向您发送电子邮件。",
@@ -726,8 +726,7 @@ _MESSAGES = {
         "invalid_email": "请输入有效的电子邮箱地址。",
         "retry_later": "尝试次数过多，请稍后重试。",
         "generic_success": (
-            "如果此邮箱需要确认，您将收到一封邮件。"
-            "请同时检查垃圾邮件文件夹。"
+            "如果此邮箱需要确认，您将收到一封邮件。请同时检查垃圾邮件文件夹。"
         ),
         "check_email": "请检查邮箱并确认订阅。",
         "unavailable": "目前无法订阅，请稍后重试。",
@@ -737,10 +736,9 @@ _MESSAGES = {
         "back_to_blog": "返回博客",
     },
     "ja": {
-        "confirmation_subject": "購読の確認 · Rože dobrega",
+        "confirmation_subject": "購読の確認 · 善の花",
         "confirmation_intro": (
-            "Rože dobrega にご関心をお寄せいただき、"
-            "ありがとうございます。"
+            "善の花 にご関心をお寄せいただき、ありがとうございます。"
         ),
         "confirmation_instruction": (
             "下のボタンを押して購読を確認してください。"
@@ -756,9 +754,9 @@ _MESSAGES = {
             "購読を申し込んでいない場合は、"
             "このメールを無視してください。"
         ),
-        "new_post_subject": "新しい記事 · Rože dobrega",
-        "new_post_title": "Rože dobrega の新しい記事",
-        "new_post_intro": "Rože dobrega に新しい記事が公開されました。",
+        "new_post_subject": "新しい記事 · 善の花",
+        "new_post_title": "善の花 の新しい記事",
+        "new_post_intro": "善の花 に新しい記事が公開されました。",
         "read_post": "記事を日本語で読む",
         "unsubscribe": (
             "このメールは自動送信されています。"
@@ -790,8 +788,7 @@ _MESSAGES = {
         ),
         "check_email": "メールを確認し、購読を承認してください。",
         "unavailable": (
-            "現在、購読を受け付けていません。"
-            "後でもう一度お試しください。"
+            "現在、購読を受け付けていません。後でもう一度お試しください。"
         ),
         "mail_failed": (
             "メールを送信できませんでした。後でもう一度お試しください。"
@@ -818,5 +815,6 @@ def messages(language):
     code = normalize_language(language)
     return {
         **_MESSAGES[code],
+        "blog_title": BLOG_LANGUAGES[code]["blog_title"],
         "automatic_notice": BLOG_LANGUAGES[code]["notice"],
     }

@@ -163,7 +163,6 @@ def view_emails():
             "mail_direction": BLOG_LANGUAGES[language]["direction"],
             "mail_base_url": base_url,
             "domain": urlsplit(base_url).netloc,
-            "brand_name": "Rože dobrega",
             "blog_url": translate_url(
                 base_url + url_for("blog.blog_list"), language
             ),

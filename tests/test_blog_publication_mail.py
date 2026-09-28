@@ -101,6 +101,7 @@ def test_each_language_gets_its_own_private_localized_message(publication):
         assert payload["bcc"] == [f"{language.lower()}@example.com"]
         assert payload["blog"] is True
         assert copy["new_post_intro"] in payload["text"]
+        assert copy["blog_title"] in payload["text"]
         assert copy["unsubscribe"] in payload["text"]
         assert f'lang="{language}"' in payload["html"]
         if language == "sl":

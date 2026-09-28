@@ -16,6 +16,11 @@
         return url.href;
     };
     const displayLanguage = isTranslatedSite ? selectedLanguage() : 'sl';
+    document.querySelectorAll('[data-blog-title]').forEach((element) => {
+        element.textContent = languages[displayLanguage].blog_title;
+        element.lang = displayLanguage;
+        element.dir = languages[displayLanguage].direction;
+    });
     const copyButton = document.querySelector('[data-copy-url]');
     if (copyButton) {
         // Shared native URLs open the requested free translation. On Google's
@@ -32,7 +37,9 @@
         const copy = languages[displayLanguage];
         const status = document.querySelector('[data-copy-status]');
         const icon = copyButton.querySelector('[data-copy-icon]');
+        const flashContainer = document.querySelector('#flash-container');
         let resetCopy;
+        let copyFlash;
         copyButton.title = copy.copy_link;
         copyButton.lang = displayLanguage;
         status.lang = displayLanguage;
@@ -47,6 +54,7 @@
             const language = selectedLanguage();
             if (language !== 'sl') url.searchParams.set('lang', language);
             clearTimeout(resetCopy);
+            copyFlash?.remove();
             status.textContent = '';
             copyButton.title = copy.copy_link;
             icon.className = 'bi bi-link-45deg';
@@ -56,6 +64,21 @@
                 status.textContent = copy.link_copied;
                 copyButton.title = copy.link_copied;
                 icon.className = 'bi bi-check-lg';
+                if (flashContainer) {
+                    copyFlash = document.createElement('div');
+                    copyFlash.className = 'alert alert-success fade show flash-message notranslate';
+                    copyFlash.setAttribute('translate', 'no');
+                    copyFlash.setAttribute('aria-hidden', 'true');
+                    copyFlash.lang = displayLanguage;
+                    copyFlash.dir = copy.direction;
+                    copyFlash.textContent = copy.link_copied;
+                    flashContainer.append(copyFlash);
+                    const flash = copyFlash;
+                    setTimeout(() => {
+                        flash.classList.add('fade-out');
+                        setTimeout(() => flash.remove(), 700);
+                    }, 3000);
+                }
                 resetCopy = setTimeout(() => {
                     status.textContent = '';
                     copyButton.title = copy.copy_link;

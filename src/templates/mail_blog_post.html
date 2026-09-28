@@ -9,7 +9,7 @@
 <tr>
 <td align="center" style="padding:20px 0;">
     <a href="{{ blog_url }}"><div style="background:linear-gradient(135deg, #ef9918 0%, #ffcc5c 100%);width:100px;height:100px;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto;margin-bottom:15px;box-shadow:none;">
-        <img src="{{ mail_base_url|default('https://' ~ domain) }}/static/blog_favicon_io/android-chrome-512x512.png" width="80" style="max-width:100%;height:auto;" alt="{{ brand_name|default('Rože dobrega') }}">
+        <img src="{{ mail_base_url|default('https://' ~ domain) }}/static/blog_favicon_io/android-chrome-512x512.png" width="80" style="max-width:100%;height:auto;" alt="{{ mail_copy.blog_title }}">
     </div></a>
     <h2 style="margin:0 0 8px;color:#333;font-size:28px;font-weight:700;">{{ post.title if mail_language == 'sl' else mail_copy.new_post_title }}</h2>
     <div style="margin:0;color:#666;font-size:15px;font-weight:500;">
