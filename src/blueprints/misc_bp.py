@@ -210,6 +210,10 @@ def send_admin_emails():
         list_of_emailed_users = (
             [current_user.id] if not whole_list else list(users.keys())
         )
+        list_of_emailed_users = [
+            username for username in list_of_emailed_users
+            if users.get(username, {}).get("emails")
+        ]
         for username in list_of_emailed_users:
             emails = users.get(username, {}).get("emails", [])
             if emails:
@@ -236,6 +240,11 @@ def send_admin_emails():
     return render_template(
         "admin_mailing.html",
         pagetitle=f"Pošiljanje {template_name} mailov uporabnikom MarinKino",
+        recipients=[
+            {"name": username, "emails": user.get("emails", [])}
+            for username, user in users.items()
+            if user.get("emails")
+        ],
     )
 
 

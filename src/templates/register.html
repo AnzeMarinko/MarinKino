@@ -1,70 +1,15 @@
-{% extends "base.html" %}
-
-{% block content %}
-<div class="min-vh-100 d-flex align-items-center justify-content-center">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-md-6 col-lg-5">
-                <div class="card border-0 shadow-lg rounded-3 overflow-hidden">
-                    <div class="card-body p-5">
-                        <div class="text-center mb-4">
-                            <div class="display-6 fw-bold text-danger mb-2">MarinKino</div>
-                            <h2 class="h4 text-dark">Nova registracija</h2>
-                            <p class="text-muted small">Dodaj uporabnika v središče kvalitetnega razvedrila</p>
-                        </div>
-
-                        <div class="alert alert-info alert-dismissible fade show" role="alert">
-                            <i class="bi bi-info-circle me-2"></i>
-                            <small>Na e-naslov bo poslana enkratna povezava za nastavitev gesla.</small>
-                        </div>
-
-                        <form method="post" autocomplete="on">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                            <div class="mb-4">
-                                <label for="username" class="form-label fw-semibold">Uporabniško ime</label>
-                                <div class="input-group">
-                                    <span class="input-group-text border-0 bg-light">
-                                        <i class="bi bi-person"></i>
-                                    </span>
-                                    <input id="username" name="username" type="text" class="form-control border-0 bg-light rounded-end" placeholder="Vnesite ime" required>
-                                </div>
-                            </div>
-
-                            <div class="mb-4">
-                                <label for="email" class="form-label fw-semibold">E-naslov</label>
-                                <div class="input-group">
-                                    <span class="input-group-text border-0 bg-light">
-                                        <i class="bi bi-envelope"></i>
-                                    </span>
-                                    <input id="email" name="email" type="email" class="form-control border-0 bg-light rounded-end" placeholder="france@preseren.si" required>
-                                </div>
-                            </div>
-
-                            <div class="mb-4">
-                                <label for="email2" class="form-label fw-semibold">Dodaten e-naslov (izbirno)</label>
-                                <div class="input-group">
-                                    <span class="input-group-text border-0 bg-light">
-                                        <i class="bi bi-envelope"></i>
-                                    </span>
-                                    <input id="email2" name="email2" type="email" class="form-control border-0 bg-light rounded-end" placeholder="julija@primic.si">
-                                </div>
-                            </div>
-
-                            <div class="d-grid gap-2 mb-3">
-                                <button type="submit" class="btn btn-danger btn-lg rounded-2 fw-bold">
-                                    <i class="bi bi-person-plus me-2"></i>Registriraj uporabnika
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<style>
-    .input-group-text { color: var(--marinkino-red); }
-</style>
+{% extends "admin_base.html" %}
+{% block admin_title %}Povabi novega uporabnika{% endblock %}
+{% block admin_description %}Uporabnik prejme enkratno povezavo in si sam nastavi geslo.{% endblock %}
+{% block admin_content %}
+<section class="admin-panel admin-register" aria-labelledby="register-title">
+  <div class="admin-section-heading"><div><h2 id="register-title">Podatki uporabnika</h2><p>Obvezna sta uporabniško ime in glavni e-naslov.</p></div></div>
+  <form method="post" autocomplete="on">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="mb-4"><label for="username" class="form-label">Uporabniško ime <span class="text-danger">*</span></label><input id="username" name="username" type="text" class="form-control" value="{{ request.form.get('username', '') }}" placeholder="Na primer: janez.novak" required minlength="3" maxlength="30" pattern="[a-zA-Z0-9_.\-]+" autocomplete="off" aria-describedby="usernameHelp"><div id="usernameHelp" class="form-text">Vsaj 3 znaki. Črke brez šumnikov, številke, pika, podčrtaj ali vezaj.</div></div>
+    <div class="mb-4"><label for="email" class="form-label">Glavni e-naslov <span class="text-danger">*</span></label><input id="email" name="email" type="email" class="form-control" value="{{ request.form.get('email', '') }}" placeholder="janez@primer.si" autocomplete="email" required><div class="form-text">Na ta naslov bo poslana povezava za nastavitev gesla.</div></div>
+    <div class="mb-4"><label for="email2" class="form-label">Dodaten e-naslov <span class="text-muted fw-normal">· izbirno</span></label><input id="email2" name="email2" type="email" class="form-control" value="{{ request.form.get('email2', '') }}" placeholder="Dodaten naslov istega uporabnika"><div class="form-text">Pusti prazno, če uporabnik uporablja en naslov.</div></div>
+    <div class="admin-actions"><button type="submit" class="btn btn-primary"><i class="bi bi-person-plus" aria-hidden="true"></i> Ustvari uporabnika in pošlji povezavo</button><a href="/admin" class="btn btn-outline-secondary">Nazaj na pregled</a></div>
+  </form>
+</section>
 {% endblock %}

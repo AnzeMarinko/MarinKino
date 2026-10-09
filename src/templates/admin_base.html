@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<link rel="stylesheet" href="/static/css/admin.css">
+<main class="admin-page">
+  <div class="admin-shell">
+    <header class="admin-heading">
+      <div><p class="admin-eyebrow">MarinKino · upravljanje</p><h1>{% block admin_title %}Nadzorna plošča{% endblock %}</h1><p class="admin-lead">{% block admin_description %}Vsebine, uporabniki in pregled obiska na enem mestu.{% endblock %}</p></div>
+      <a class="btn btn-outline-secondary" href="/" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Odpri stran</a>
+    </header>
+    <nav class="admin-nav" aria-label="Administracija">
+      {% set path = request.path %}
+      <a href="/admin" {{ 'aria-current=page' if path == '/admin' else '' }}><i class="bi bi-grid" aria-hidden="true"></i> Pregled</a>
+      <a href="/admin/blog" {{ 'aria-current=page' if path.startswith('/admin/blog') else '' }}><i class="bi bi-journal-text" aria-hidden="true"></i> Blog</a>
+      <a href="/admin/send_emails" {{ 'aria-current=page' if path == '/admin/send_emails' else '' }}><i class="bi bi-envelope" aria-hidden="true"></i> E-pošta</a>
+      <a href="/admin/register" {{ 'aria-current=page' if path == '/admin/register' else '' }}><i class="bi bi-person-plus" aria-hidden="true"></i> Nov uporabnik</a>
+      <a href="/memes"><i class="bi bi-emoji-smile" aria-hidden="true"></i> Šale</a>
+    </nav>
+    {% block admin_content %}{% endblock %}
+  </div>
+</main>
+<script defer src="/static/script/admin.js"></script>
+{% block admin_scripts %}{% endblock %}
+{% endblock %}

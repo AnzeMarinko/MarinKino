@@ -1,6 +1,8 @@
-{% extends "base.html" %}
+{% extends "admin_base.html" %}
 
-{% block content %}
+{% block admin_title %}{{ "Nova blog objava" if not post else "Uredi blog objavo" }}{% endblock %}
+{% block admin_description %}Napiši vsebino, preglej prikaz in izberi, ali objavo shraniš kot osnutek ali objaviš javno.{% endblock %}
+{% block admin_content %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.css">
 <style>
 .markdown-preview {
@@ -16,7 +18,7 @@
     margin: 10px 0;
 }
 </style>
-<div class="container py-5">
+<div class="admin-editor">
     <div class="row justify-content-center">
         <div class="col-md-8">
             <div class="card">
@@ -24,7 +26,9 @@
                     <h5 class="mb-0">{{ "Nova objava" if not post else "Uredi objavo" }}</h5>
                 </div>
                 <div class="card-body">
-                    <form method="post" enctype="multipart/form-data">
+                    <div id="editorMessage" class="admin-notice" role="status" hidden></div>
+                    <div id="saveStatus" class="admin-dirty" role="status">Spremembe še niso bile shranjene v tej seji.</div>
+                    <form id="blogEditorForm" method="post" enctype="multipart/form-data">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <div class="mb-3">
                             <label for="title" class="form-label">Naslov *</label>
@@ -86,7 +90,7 @@
                         {% endif %}
 
                         <div class="mb-3">
-                            <label class="form-label">Slika objave</label>
+                            <label for="image_file" class="form-label">Slika objave</label>
                             {% if post and post.image %}
                             <div class="card mb-3">
                                 <div class="card-body">
@@ -115,17 +119,17 @@
                             <div id="image-crop-container" class="card mb-3 d-none">
                                 <div class="card-body">
                                     <h6 class="card-title">Izreži sliko (razmerje 6:5)</h6>
-                                    <div class="form-text mb-2">Prilagodite pozicijo in velikost izreza z drsniki.</div>
+                                    <div class="form-text mb-2">Izrez premakni z vlečenjem ali drsniki. Razmerje 6 : 5 ostane nespremenjeno.</div>
                                     <div id="image-preview-wrapper" class="position-relative border" style="overflow:auto; border:1px solid #dee2e6;">
                                         <img id="image-preview" class="d-block" src="" alt="Predogled slike" style="width:100%; height:auto;">
                                         <div id="crop-box" class="position-absolute border border-warning rounded" style="box-sizing:border-box; touch-action:none; cursor:move; border-width:2px;"></div>
                                     </div>
                                     <div class="mb-2">
-                                        <label for="crop-x-range" class="form-label mb-1">X pozicija (levo-desno)</label>
+                                        <label for="crop-x-range" class="form-label mb-1">Pomik levo–desno</label>
                                         <input id="crop-x-range" type="range" class="form-range" min="0" max="100" step="1" value="10">
                                     </div>
                                     <div class="mb-2">
-                                        <label for="crop-y-range" class="form-label mb-1">Y pozicija (zgoraj-spodaj)</label>
+                                        <label for="crop-y-range" class="form-label mb-1">Pomik gor–dol</label>
                                         <input id="crop-y-range" type="range" class="form-range" min="0" max="100" step="1" value="10">
                                     </div>
                                     <div class="d-flex align-items-center gap-2">
@@ -144,7 +148,7 @@
                         </div>
 
                         <div class="mb-3">
-                            <label for="content" class="form-label">Vsebina (Markdown) *</label>
+                            <label for="content-editor" class="form-label">Vsebina (Markdown) *</label>
                             <ul class="nav nav-tabs" id="editor-tabs" role="tablist">
                                 <li class="nav-item" role="presentation">
                                     <button class="nav-link active" id="edit-tab" data-bs-toggle="tab" data-bs-target="#edit-pane" type="button" role="tab" aria-controls="edit-pane" aria-selected="true">Urejanje</button>
@@ -166,9 +170,10 @@
                             </div>
                         </div>
 
-                        <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-primary">{{ "Ustvari" if not post else "Posodobi" }}</button>
-                            <a href="/admin/blog" class="btn btn-outline-secondary">Prekliči</a>
+                        <div class="d-flex gap-2 admin-editor-actions">
+                            <button type="submit" class="btn btn-primary">{{ "Shrani objavo" if not post else "Shrani spremembe" }}</button>
+                            <a href="/admin/blog" class="btn btn-outline-secondary">Nazaj na objave</a>
+                            <a id="editSavedLink" class="btn btn-outline-info" hidden>Odpri shranjeno objavo</a>
                             {% if post and post.get('published') and not post.get('mail_date') %}
                             <button type="button" id="send-mail-btn" class="btn btn-warning">Pošlji naročnikom</button>
                             {% elif post and post.get('mail_date') %}
@@ -184,355 +189,6 @@
 
 <script src="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    var simplemde = new SimpleMDE({
-        element: document.getElementById("content-editor"),
-        spellChecker: false,
-        nativeSpellcheck: true,
-        status: ["lines", "words"],
-        toolbar: [
-            "bold", "italic", "strikethrough", "|",
-            "heading-1", "heading-2", "heading-3", "|",
-            "code", "quote", "unordered-list", "ordered-list", "|",
-            "link", "image", "table", "horizontal-rule", "|",
-            "guide"
-        ],
-        previewRender: false
-    });
+<script defer src="/static/script/admin_blog_editor.js"></script>
 
-    function updatePreview() {
-        const markdown = simplemde.value();
-        if (markdown) {
-            const html = marked.parse(markdown);
-            document.getElementById('content-preview').innerHTML = html;
-        } else {
-            document.getElementById('content-preview').innerHTML = '<p class="text-muted">Predogled se bo prikazal tukaj</p>';
-        }
-    }
-
-    simplemde.codemirror.on('change', updatePreview);
-
-    document.getElementById('preview-tab').addEventListener('shown.bs.tab', function (e) {
-        updatePreview();
-    });
-
-    updatePreview();
-
-    // Character counter za SEO opis
-    const seoDescriptionTextarea = document.getElementById('seo_description');
-    const seoDescriptionCount = document.getElementById('seo-description-count');
-
-    function updateSeoDescriptionCount() {
-        const count = seoDescriptionTextarea.value.length;
-        seoDescriptionCount.textContent = count;
-        seoDescriptionCount.style.color = count > 155 ? '#dc3545' : count > 140 ? '#ffc107' : '#6c757d';
-    }
-
-    seoDescriptionTextarea.addEventListener('input', updateSeoDescriptionCount);
-    updateSeoDescriptionCount(); // Initial count
-
-    const imageFileInput = document.getElementById('image_file');
-    const imageCropContainer = document.getElementById('image-crop-container');
-    const imagePreview = document.getElementById('image-preview');
-    const imagePreviewWrapper = document.getElementById('image-preview-wrapper');
-    const cropBox = document.getElementById('crop-box');
-    const cropX = document.getElementById('crop_x');
-    const cropY = document.getElementById('crop_y');
-    const cropW = document.getElementById('crop_w');
-    const cropH = document.getElementById('crop_h');
-    const cropSizeRange = document.getElementById('crop-size-range');
-    const cropSizeLabel = document.getElementById('crop-size-label');
-    const cropXRange = document.getElementById('crop-x-range');
-    const cropYRange = document.getElementById('crop-y-range');
-
-    let cropState = {
-        dragging: false,
-        offsetX: 0,
-        offsetY: 0,
-    };
-
-    function showCropContainer() {
-        imageCropContainer.classList.remove('d-none');
-    }
-
-    function hideCropContainer() {
-        imageCropContainer.classList.add('d-none');
-        cropX.value = cropY.value = cropW.value = cropH.value = '';
-    }
-
-    function setCropBox(left, top, width, height) {
-        const imgWidth = imagePreview.clientWidth;
-        const imgHeight = imagePreview.clientHeight;
-
-        const maxLeft = Math.max(0, imgWidth - width);
-        const maxTop = Math.max(0, imgHeight - height);
-        left = Math.min(Math.max(0, left), maxLeft);
-        top = Math.min(Math.max(0, top), maxTop);
-
-        cropBox.style.left = left + 'px';
-        cropBox.style.top = top + 'px';
-        cropBox.style.width = width + 'px';
-        cropBox.style.height = height + 'px';
-
-        updateCropInputs();
-    }
-
-    function updateCropInputs() {
-        const imgWidth = imagePreview.clientWidth;
-        const imgHeight = imagePreview.clientHeight;
-        const left = parseFloat(cropBox.style.left || 0);
-        const top = parseFloat(cropBox.style.top || 0);
-        const width = parseFloat(cropBox.style.width || 0);
-        const height = parseFloat(cropBox.style.height || 0);
-
-        if (!imgWidth || !imgHeight || !width || !height) {
-            cropX.value = cropY.value = cropW.value = cropH.value = '';
-            return;
-        }
-
-        cropX.value = (left / imgWidth).toFixed(6);
-        cropY.value = (top / imgHeight).toFixed(6);
-        cropW.value = (width / imgWidth).toFixed(6);
-        cropH.value = (height / imgHeight).toFixed(6);
-        cropSizeLabel.textContent = `${Math.round((width / imgWidth) * 100)}%`;
-    }
-
-    function initCropBox() {
-        const wrapperWidth = imagePreviewWrapper.clientWidth;
-        const wrapperHeight = imagePreviewWrapper.clientHeight;
-        const imgWidth = imagePreview.clientWidth;
-        const imgHeight = imagePreview.clientHeight;
-        if (!imgWidth || !imgHeight) {
-            return;
-        }
-
-        let width = Math.min(imgWidth * 0.8, imgHeight * 6 / 5);
-        let height = width * 5 / 6;
-        if (height > imgHeight) {
-            height = imgHeight * 0.8;
-            width = height * 6 / 5;
-        }
-
-        const left = (imgWidth - width) / 2;
-        const top = (imgHeight - height) / 2;
-        setCropBox(left, top, width, height);
-        cropSizeRange.value = Math.round((width / imgWidth) * 100);
-
-        const maxLeft = Math.max(0, imgWidth - width);
-        const maxTop = Math.max(0, imgHeight - height);
-        cropXRange.value = maxLeft > 0 ? Math.round((left / maxLeft) * 100) : 10;
-        cropYRange.value = maxTop > 0 ? Math.round((top / maxTop) * 100) : 10;
-    }
-
-    function validateCropSelection() {
-        if (!imageFileInput.files.length) {
-            return true;
-        }
-        if (!cropX.value || !cropY.value || !cropW.value || !cropH.value) {
-            showAlert('Pri nalaganju slike morate izbrati del slike v razmerju 6:5.', 'danger');
-            return false;
-        }
-        return true;
-    }
-
-    imageFileInput.addEventListener('change', function() {
-        const file = this.files[0];
-        if (!file) {
-            hideCropContainer();
-            return;
-        }
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            imagePreview.src = e.target.result;
-            showCropContainer();
-            cropX.value = cropY.value = cropW.value = cropH.value = '';
-        };
-        reader.readAsDataURL(file);
-    });
-
-    imagePreview.addEventListener('load', function() {
-        setTimeout(initCropBox, 0);
-    });
-
-    window.addEventListener('resize', function() {
-        if (!imageCropContainer.classList.contains('d-none')) {
-            initCropBox();
-        }
-    });
-
-    cropBox.addEventListener('pointerdown', function(e) {
-        e.preventDefault();
-    });
-
-    cropXRange.addEventListener('input', function() {
-        const imgWidth = imagePreview.clientWidth;
-        const imgHeight = imagePreview.clientHeight;
-        if (!imgWidth || !imgHeight) {
-            return;
-        }
-
-        const cropBoxWidth = parseFloat(cropBox.style.width || 0);
-        const maxLeft = Math.max(0, imgWidth - cropBoxWidth);
-        const left = (parseInt(this.value) / 100) * maxLeft;
-        const top = parseFloat(cropBox.style.top || 0);
-        const width = parseFloat(cropBox.style.width || 0);
-        const height = parseFloat(cropBox.style.height || 0);
-
-        setCropBox(left, top, width, height);
-    });
-
-    cropYRange.addEventListener('input', function() {
-        const imgWidth = imagePreview.clientWidth;
-        const imgHeight = imagePreview.clientHeight;
-        if (!imgWidth || !imgHeight) {
-            return;
-        }
-
-        const cropBoxHeight = parseFloat(cropBox.style.height || 0);
-        const maxTop = Math.max(0, imgHeight - cropBoxHeight);
-        const left = parseFloat(cropBox.style.left || 0);
-        const top = (parseInt(this.value) / 100) * maxTop;
-        const width = parseFloat(cropBox.style.width || 0);
-        const height = parseFloat(cropBox.style.height || 0);
-
-        setCropBox(left, top, width, height);
-    });
-
-    document.addEventListener('pointerup', function() {
-        cropState.dragging = false;
-    });
-
-    imagePreviewWrapper.addEventListener('scroll', function() {
-        if (cropState.dragging) {
-            cropState.dragging = false;
-        }
-    });
-
-    cropSizeRange.addEventListener('input', function() {
-        const imgWidth = imagePreview.clientWidth;
-        const imgHeight = imagePreview.clientHeight;
-        if (!imgWidth || !imgHeight) {
-            return;
-        }
-        let width = Math.min(imgWidth * (Number(this.value) / 100), imgHeight * 6 / 5);
-        let height = width * 5 / 6;
-        if (height > imgHeight) {
-            height = imgHeight * 0.9;
-            width = height * 6 / 5;
-        }
-        const left = (imgWidth - width) / 2;
-        const top = (imgHeight - height) / 2;
-        setCropBox(left, top, width, height);
-    });
-
-    const form = document.querySelector('form');
-    form.addEventListener('submit', function(e) {
-        if (!validateCropSelection()) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-    });
-
-    // Ctrl+S za shranjevanje (AJAX, ne redirect)
-    document.addEventListener('keydown', function(e) {
-        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-            e.preventDefault();
-            if (validateCropSelection()) {
-                saveBlogPost();
-            }
-        }
-    });
-
-    function saveBlogPost() {
-        const form = document.querySelector('form');
-        const submitBtn = document.querySelector('button[type="submit"]');
-        const originalText = submitBtn.textContent;
-        submitBtn.disabled = true;
-        submitBtn.textContent = "Shranjujem...";
-
-        const formData = new FormData(form);
-
-        fetch(form.action || window.location.href, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                "X-CSRFToken": "{{ csrf_token() }}"
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Prikaži sporočilo o uspehu
-                showAlert('Blog objava shranjena.', 'success');
-            } else {
-                showAlert(data.message || 'Napaka pri shranjevanju.', 'error');
-            }
-            submitBtn.disabled = false;
-            submitBtn.textContent = originalText;
-        })
-        .catch(error => {
-            showAlert('Napaka pri shranjevanju: ' + error.message, 'error');
-            submitBtn.disabled = false;
-            submitBtn.textContent = originalText;
-        });
-    }
-
-    function showAlert(message, type) {
-        // Ustvari alert element
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-        alertDiv.setAttribute('role', 'alert');
-        alertDiv.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        `;
-
-        // Vstavi na začetek form-a
-        const form = document.querySelector('form');
-        form.parentElement.insertBefore(alertDiv, form);
-
-        // Avtomatsko zapri po 3 sekundah
-        setTimeout(() => {
-            alertDiv.remove();
-        }, 3000);
-    }
-    // Send mail to subscribers
-    const sendMailBtn = document.getElementById('send-mail-btn');
-    if (sendMailBtn) {
-        sendMailBtn.addEventListener('click', function() {
-            if (!confirm('Ali res želite poslati e-pošto vsem naročnikom?')) return;
-            sendMailBtn.disabled = true;
-            sendMailBtn.textContent = 'Pošiljam...';
-            fetch(window.location.pathname.replace('/edit/', '/send_mail/'), {
-                method: 'POST',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRFToken': '{{ csrf_token() }}',
-                },
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    showAlert(data.message || 'E-pošta poslana.', 'success');
-                    sendMailBtn.textContent = 'Pošlji naročnikom (poslano)';
-                    sendMailBtn.classList.remove('btn-warning');
-                    sendMailBtn.classList.add('btn-success');
-                    sendMailBtn.disabled = true;
-                } else {
-                    showAlert(data.message || 'Napaka pri pošiljanju.', 'danger');
-                    sendMailBtn.disabled = false;
-                    sendMailBtn.textContent = 'Pošlji naročnikom';
-                }
-            })
-            .catch(err => {
-                showAlert('Napaka pri pošiljanju: ' + err.message, 'danger');
-                sendMailBtn.disabled = false;
-                sendMailBtn.textContent = 'Pošlji naročnikom';
-            });
-        });
-    }
-});
-</script>
 {% endblock %}

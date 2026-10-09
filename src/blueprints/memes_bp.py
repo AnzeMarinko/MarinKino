@@ -8,9 +8,12 @@ from flask import (
     Blueprint,
     abort,
     flash,
+    jsonify,
     make_response,
     render_template,
+    request,
     send_from_directory,
+    url_for,
 )
 from flask_login import current_user, login_required
 
@@ -31,18 +34,23 @@ meme_id = None
 user_meme_count = {}
 user_meme_limit = 12
 
-# Initialize memes
-memes = os.listdir("data/memes")
-memes = [
-    slika
-    for slika in memes
-    if slika.lower().endswith(
-        (".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp4")
-    )
-]
-ordered_memes = sorted(memes)
-random.shuffle(memes)
-MEMES_COUNT = len(memes)
+MEMES_DIR = "data/memes"
+
+
+def available_memes():
+    """Read current files so additions and deletions work across workers."""
+    try:
+        return sorted(
+            filename
+            for filename in os.listdir(MEMES_DIR)
+            if filename.lower().endswith(
+                (".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp4")
+            )
+            and os.path.isfile(os.path.join(MEMES_DIR, filename))
+        )
+    except OSError:
+        log.warning("Meme directory unavailable", exc_info=True)
+        return []
 
 
 @memes_bp.route("/memes")
@@ -50,6 +58,23 @@ def meme():
     global meme_id
     global user_meme_count
     is_admin = current_user.is_authenticated and current_user.is_admin
+    wants_json = request.args.get("format") == "json"
+    files = available_memes()
+    if not files:
+        payload = {
+            "empty": True,
+            "meme_file_name": None,
+            "can_delete": is_current_admin_view(current_user),
+            "remaining": None,
+            "total": 0,
+        }
+        if wants_json:
+            return jsonify(payload)
+        return render_template(
+            "memes.html",
+            pagetitle="Šale in navdih",
+            meme_data=payload,
+        )
     identity = (
         current_user.id
         if current_user.is_authenticated
@@ -59,31 +84,59 @@ def meme():
     if user_meme_count[identity].get("last_date") != str(date.today()):
         user_meme_count[identity]["last_date"] = str(date.today())
         user_meme_count[identity]["count"] = 0
-    user_meme_count[identity]["count"] += 1
     if (
-        user_meme_count[identity]["count"] > user_meme_limit and not is_admin
-    ) or user_meme_count[identity]["count"] > 3000:
+        user_meme_count[identity]["count"] >= user_meme_limit and not is_admin
+    ) or user_meme_count[identity]["count"] >= 3000:
+        if wants_json:
+            return jsonify(
+                {
+                    "error": "limit_reached",
+                    "message": (
+                        "Dnevna omejitev šal je dosežena. "
+                        "Nove šale te čakajo jutri."
+                    ),
+                }
+            ), 429
         return render_template(
             "limit_exceeded.html",
             section="šal",
             pagetitle="Dovolj šal za danes v MarinKino",
         )
-
+    user_meme_count[identity]["count"] += 1
     if is_admin:
-        meme_id = redis_client.incr("memes:explore") - 1
-        izbrana = ordered_memes[meme_id]
+        meme_id = (redis_client.incr("memes:explore") - 1) % len(files)
+        previous = request.args.get("previous")
+        if len(files) > 1 and files[meme_id] == previous:
+            meme_id = (meme_id + 1) % len(files)
+        izbrana = files[meme_id]
         log.info("Admin selected meme: %s (ID: %d)", izbrana, meme_id)
         if meme_id % 10 == 0:
             log.info(user_meme_count)
     else:
-        if meme_id is None:
-            meme_id = 0
-        izbrana = memes[meme_id]
-    meme_id = (meme_id + 1) % MEMES_COUNT
+        choices = [
+            name for name in files if name != request.args.get("previous")
+        ] or files
+        izbrana = random.choice(choices)
+    payload = {
+        "empty": False,
+        "meme_file_name": izbrana,
+        "media_url": url_for("memes.meme_file", meme_file_name=izbrana),
+        "delete_url": url_for("memes.meme_remove", meme_file_name=izbrana),
+        "is_video": izbrana.lower().endswith(".mp4"),
+        "can_delete": is_current_admin_view(current_user),
+        "remaining": None
+        if is_admin
+        else max(0, user_meme_limit - user_meme_count[identity]["count"]),
+        "total": len(files),
+    }
+    if wants_json:
+        response = jsonify(payload)
+        response.headers["Cache-Control"] = "no-store"
+        return response
     return render_template(
         "memes.html",
         pagetitle="Šale in navdih",
-        fullscreenbutton=True,
+        meme_data=payload,
         meme_file_name=izbrana,
     )
 
@@ -91,8 +144,8 @@ def meme():
 @memes_bp.route("/memes/file/<meme_file_name>")
 def meme_file(meme_file_name):
     try:
-        _ = safe_path("../data/memes", meme_file_name)
-        if not os.path.exists(os.path.join("data/memes", meme_file_name)):
+        path = safe_path(MEMES_DIR, meme_file_name)
+        if not os.path.isfile(path):
             abort(404)
     except ValueError:
         abort(404)
@@ -131,7 +184,7 @@ def meme_file(meme_file_name):
             mimetype = "image/webp"
 
         response = send_from_directory(
-            "../data/memes",
+            os.path.abspath(MEMES_DIR),
             meme_file_name,
             mimetype=mimetype,
             conditional=True,
@@ -144,9 +197,9 @@ def meme_file(meme_file_name):
 @login_required
 def meme_remove(meme_file_name):
     if not is_current_admin_view(current_user):
-        return "", 204
+        return jsonify({"error": "forbidden"}), 403
     try:
-        path = safe_path("data/memes", meme_file_name)
+        path = safe_path(MEMES_DIR, meme_file_name)
     except ValueError:
         log.warning("Invalid meme file path: %s", meme_file_name)
         flash("Invalid meme file path.", "error")

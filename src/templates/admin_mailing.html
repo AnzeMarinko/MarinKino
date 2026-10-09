@@ -1,43 +1,18 @@
-{% extends "base.html" %}
-
-{% block title %}{{ pagetitle }}{% endblock %}
-
-{% block content %}
-
-<main class="container">
-<h2 class="text-center mb-3">{{ pagetitle }}</h2>
-
-<button class="btn btn-sm btn-outline-info" onclick="poslji_maile('false')">
-  Test sebi
-</button>
-
-<button class="btn btn-sm btn-outline-warning" onclick="poslji_maile('true')">
-  Vsem
-</button>
-
-<div id="results" class="mb-3"></div>
-<div id="emails" class="mb-3"></div>
-</main>
-
-<script>
-    function poslji_maile(whole_list='false') {
-    if (!confirm('Ali res želiš poslati mail ' + (whole_list == 'true' ? 'vsem uporabnikom' : 'testno sebi') + '?')) {
-        return false;
-    }
-    const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-    fetch("/admin/send_emails", { method: 'POST',
-            body: JSON.stringify({ whole_list: whole_list }),
-        headers: {
-            'X-CSRFToken': token
-        } })
-        .then(resp => resp.json())
-        .then(data => {console.log('Mail poslan!', data);
-            document.getElementById('results').innerHTML = '<div class="alert alert-success">Poslani maili: ' + data.sent + '<br>Čas pošiljanja: ' + data.time + '</div>';
-            document.getElementById('emails').innerHTML = '<pre>' + data.emails.join('\n') + '</pre>';
-        })
-        .catch(err => console.error(err));
-
-    return false;
-}
-</script>
+{% extends "admin_base.html" %}
+{% block admin_title %}E-pošta uporabnikom{% endblock %}
+{% block admin_description %}Preglej novičke, pošlji test sebi in nato po potrebi celotni skupini.{% endblock %}
+{% block admin_content %}
+<div class="admin-mail-layout">
+  <section class="admin-panel" aria-labelledby="mail-title">
+    <h2 id="mail-title">Filmski izbor MarinKino</h2>
+    <div class="admin-mail-step"><span>1</span><div><h3>Preveri vsebino</h3><p>Odpri predogled novičk. Preveri besedilo, povezave in slike.</p><a href="/last_mail_newsletter?is_for_mail=true" target="_blank" rel="noopener" class="btn btn-outline-secondary">Odpri predogled <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a></div></div>
+    <div class="admin-mail-step"><span>2</span><div><h3>Najprej test sebi</h3><p>Preveri sporočilo v svojem poštnem predalu. To dejanje pošlje pravo e-pošto na tvoje shranjene naslove.</p><button type="button" class="btn btn-primary" data-send-mail="false"><i class="bi bi-envelope-check" aria-hidden="true"></i> Pošlji test sebi</button></div></div>
+    <div class="admin-mail-step"><span>3</span><div><h3>Pošlji uporabnikom</h3><p>Sporočilo bo poslano vsem uporabnikom s shranjenim e-naslovom. Pred pošiljanjem potrdi prejemnike.</p><button type="button" class="btn btn-outline-primary" data-send-mail="true">Pošlji vsem uporabnikom</button></div></div>
+  </section>
+  <section class="admin-panel" aria-labelledby="recipients-title"><h2 id="recipients-title">Prejemniki</h2><p class="admin-lead">Pošiljanje vsem vključuje uporabnike MarinKino. Naročniki bloga se upravljajo ločeno pri blog objavah.</p><div class="admin-stat mt-3"><span>Uporabniki z e-naslovom</span><strong>{{ recipients|length }}</strong></div>{% if recipients %}<ul class="list-unstyled small mt-3 mb-0">{% for recipient in recipients %}<li class="py-2 border-bottom"><strong>{{ recipient.name }}</strong><span class="d-block text-muted text-break">{{ recipient.emails|join(', ') }}</span></li>{% endfor %}</ul>{% else %}<p class="admin-empty mt-3">Ni uporabnikov s shranjenim e-naslovom.</p>{% endif %}</section>
+</div>
+<div id="results" class="admin-notice" role="status" hidden></div>
+<details id="mailRecipientsResult" class="admin-panel" hidden><summary>Prejemniki zadnjega pošiljanja</summary><pre id="emails" class="small mt-3 mb-0"></pre></details>
+<dialog id="mailConfirmDialog" class="admin-mail-dialog" aria-labelledby="mailConfirmTitle"><h2 id="mailConfirmTitle">Potrditev pošiljanja</h2><p id="mailConfirmText"></p><div class="admin-actions"><button type="button" id="cancelMail" class="btn btn-outline-secondary">Prekliči</button><button type="button" id="confirmMail" class="btn btn-primary">Pošlji e-pošto</button></div></dialog>
 {% endblock %}
+{% block admin_scripts %}<script defer src="/static/script/admin_mailing.js"></script>{% endblock %}

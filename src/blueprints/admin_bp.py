@@ -184,7 +184,7 @@ def admin_panel():
                     k: v
                     for k, v in sorted(
                         list(access_stats_users[k1][k2].items()),
-                        key=lambda x: -user_counter[x[0]],
+                        key=lambda x: -user_counter.get(x[0], 0),
                     )
                     if v
                 }

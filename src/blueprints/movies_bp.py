@@ -1310,42 +1310,44 @@ def get_comments():
         metadata_file = os.path.join(FILMS_ROOT, "users_comments.json")
         if os.path.exists(metadata_file):
             with open(metadata_file, "r", encoding="utf-8") as f:
-                user_notes = json.loads(f.read()).get("user_notes", [])
+                user_notes = json.loads(f.read()).get("user_notes", {})
+                if not isinstance(user_notes, dict):
+                    user_notes = {}
                 for comment_index, note in user_notes.items():
                     # Pokaži samo uporabniške komentarje (ne admin opozoril)
-                    if not note.get("admin_response") and not note.get(
-                        "is_admin", False
-                    ):
+                    if not note.get("is_admin", False):
                         comments_list.append(
                             {
                                 "author": note.get("author"),
                                 "email": note.get("email"),
                                 "text": note.get("text"),
-                                "date": note.get("date")[:16],
+                                "date": (note.get("date") or "")[:16],
                                 "movie_folder": "Splošno",
                                 "movie_title": "Splošno",
                                 "comment_index": comment_index,
+                                "admin_response": note.get("admin_response"),
                                 "current_alerts": None,
                             }
                         )
 
         for movie_folder, movie_data in all_films.items():
-            user_notes = movie_data.get("user_notes", [])
+            user_notes = movie_data.get("user_notes", {})
+            if not isinstance(user_notes, dict):
+                continue
 
             for comment_index, note in user_notes.items():
                 # Pokaži samo uporabniške komentarje (ne admin opozoril)
-                if not note.get("admin_response") and not note.get(
-                    "is_admin", False
-                ):
+                if not note.get("is_admin", False):
                     comments_list.append(
                         {
                             "author": note.get("author"),
                             "email": note.get("email"),
                             "text": note.get("text"),
-                            "date": note.get("date")[:16],
+                            "date": (note.get("date") or "")[:16],
                             "movie_folder": movie_folder,
                             "movie_title": movie_data.get("title"),
                             "comment_index": comment_index,
+                            "admin_response": note.get("admin_response"),
                         }
                     )
 
