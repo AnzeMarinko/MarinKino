@@ -1,0 +1,12 @@
+{% extends "admin_base.html" %}
+{% block admin_title %}Cene zlata{% endblock %}
+{% block admin_description %}Gibanje cene zlata v evrih. Obdobje izberi neposredno na grafu.{% endblock %}
+{% block admin_content %}
+<section class="admin-panel" aria-labelledby="gold-title">
+  <div class="admin-section-heading"><div><h2 id="gold-title">Zlato · EUR</h2><p>Podatki in graf: BullionVault.</p></div><button type="button" class="btn btn-outline-secondary" id="retryGold"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Osveži graf</button></div>
+  <div id="goldMessage" class="admin-notice" role="status">Nalagam graf cene zlata …</div>
+  <div id="gold-price-chart" class="admin-gold-chart" aria-label="Graf cene zlata v evrih" aria-busy="true"></div>
+  <a href="https://www.bullionvault.com/gold-price-chart.do" target="_blank" rel="noopener noreferrer" class="small">Odpri graf pri BullionVault <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
+</section>
+{% endblock %}
+{% block admin_scripts %}<script defer src="/static/script/admin_gold.js"></script>{% endblock %}

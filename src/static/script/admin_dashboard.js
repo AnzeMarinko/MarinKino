@@ -5,6 +5,8 @@
     const el = id => document.getElementById(id);
     const empty = (id, text) => { const container = el(id); if (container) { container.classList.add("admin-empty"); container.textContent = text; } };
     const escape = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+    const colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf", "#393b79", "#637939", "#8c6d31", "#843c39", "#7b4173", "#3182bd", "#e6550d", "#31a354", "#756bb1", "#636363"];
+    const appearance = index => ({ line: { color: colors[index % colors.length], width: 2.5 }, marker: { color: colors[index % colors.length], size: 5 } });
     async function plot(id, traces, yTitle) {
         if (!traces.length || !traces.some(trace => trace.x.length)) { empty(id, "Za ta pregled še ni podatkov."); return; }
         if (!window.Plotly) { empty(id, "Grafa ni mogoče naložiti. Podatke preglej v tabelah ali osveži stran."); return; }
@@ -12,7 +14,7 @@
         try {
             await Plotly.newPlot(el(id), traces, {
                 margin: { t: 65, b: 45, l: 45, r: 20 }, font: { family: "system-ui, sans-serif", size: 11, color: "#536779" },
-                paper_bgcolor: "transparent", plot_bgcolor: "transparent", colorway: ["#29757b", "#d89c45", "#647ad0", "#589775"],
+                paper_bgcolor: "transparent", plot_bgcolor: "transparent", colorway: colors,
                 legend: { orientation: "h", x: 0, y: 1.15 }, hovermode: "x unified",
                 xaxis: { gridcolor: "#edf1f5", automargin: true }, yaxis: { title: { text: yTitle }, gridcolor: "#edf1f5", rangemode: "tozero", automargin: true },
             }, { responsive: true, displayModeBar: false, scrollZoom: false });
@@ -21,11 +23,12 @@
     const monthly = stats.accessMonthly || {};
     const months = Object.keys(monthly).sort();
     const routes = [...new Set(Object.values(monthly).flatMap(month => Object.keys(month)))];
-    plot("access-monthly-graph", routes.map(route => ({ x: months, y: months.map(month => monthly[month][route] || 0), name: escape(route), mode: "lines+markers", type: "scatter" })), "Dostopi");
+    plot("access-monthly-graph", routes.map((route, index) => ({ ...appearance(index), x: months, y: months.map(month => monthly[month][route] || 0), name: escape(route), mode: "lines+markers", type: "scatter" })), "Dostopi");
     function plotUsers() {
         const status = el("accessStatus").value;
         const dates = Object.keys(stats.accessUsers[status] || {}).sort();
-        const traces = (stats.users || []).map(user => ({
+        const traces = (stats.users || []).map((user, index) => ({
+            ...appearance(index),
             x: dates, y: dates.map(date => stats.accessUsers[status][date][user]?.count || 0),
             text: dates.map(date => escape(stats.accessUsers[status][date][user]?.routes || "").replace(/\n/g, "<br>")),
             name: escape(user), mode: "lines+markers", type: "scatter",
@@ -35,7 +38,7 @@
     }
     plotUsers(); el("accessStatus").disabled = !el("accessStatus").options.length;
     el("accessStatus").addEventListener("change", plotUsers);
-    const blogTraces = [["Vsi ogledi", stats.blogDaily || {}], ["Slovenija", stats.blogSiDaily || {}]].map(([name, values]) => ({ x: Object.keys(values).sort(), y: Object.keys(values).sort().map(date => values[date]), name, mode: "lines+markers", type: "scatter" }));
+    const blogTraces = [["Vsi ogledi", stats.blogDaily || {}], ["Slovenija", stats.blogSiDaily || {}]].map(([name, values], index) => ({ ...appearance(index), x: Object.keys(values).sort(), y: Object.keys(values).sort().map(date => values[date]), name, mode: "lines+markers", type: "scatter" }));
     plot("blog-views-graph", blogTraces, "Ogledi");
     if (el("geo-map")) {
         if (!window.L) empty("geo-map", "Zemljevida ni mogoče naložiti. Lokacije so prikazane v tabeli.");
@@ -52,22 +55,6 @@
             });
         }
     }
-    let goldStarted = false;
-    el("goldDetails").addEventListener("toggle", () => {
-        if (!el("goldDetails").open || goldStarted) return;
-        goldStarted = true;
-        const script = document.createElement("script"); script.src = "https://www.bullionvault.com/chart/bullionvaultchart.js";
-        script.onerror = () => empty("gold-price-chart", "Graf cene zlata trenutno ni na voljo.");
-        script.onload = () => {
-            try {
-                if (!window.BullionVaultChart) throw new Error("unavailable");
-                el("gold-price-chart").replaceChildren();
-                new window.BullionVaultChart({ bullion: "gold", currency: "EUR", timeframe: "1y", chartType: "line", miniChartModeAxis: "kg", referrerID: null, containerDefinedSize: true, miniChartMode: false, displayLatestPriceLine: true, switchBullion: false, switchCurrency: false, switchTimeframe: true, switchChartType: false, exportButton: false }, "gold-price-chart");
-            } catch (_error) { empty("gold-price-chart", "Graf cene zlata trenutno ni na voljo."); }
-        };
-        document.head.appendChild(script);
-    });
-
     let comments = [];
     const drafts = new Map();
     let loading = false;

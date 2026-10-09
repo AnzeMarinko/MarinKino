@@ -13,7 +13,8 @@
       <a href="/admin/blog" {{ 'aria-current=page' if path.startswith('/admin/blog') else '' }}><i class="bi bi-journal-text" aria-hidden="true"></i> Blog</a>
       <a href="/admin/send_emails" {{ 'aria-current=page' if path == '/admin/send_emails' else '' }}><i class="bi bi-envelope" aria-hidden="true"></i> E-pošta</a>
       <a href="/admin/register" {{ 'aria-current=page' if path == '/admin/register' else '' }}><i class="bi bi-person-plus" aria-hidden="true"></i> Nov uporabnik</a>
-      <a href="/memes"><i class="bi bi-emoji-smile" aria-hidden="true"></i> Šale</a>
+      <a href="/admin/logs" {{ 'aria-current=page' if path == '/admin/logs' else '' }}><i class="bi bi-terminal" aria-hidden="true"></i> Sistemski dnevnik</a>
+      <a href="/admin/gold" {{ 'aria-current=page' if path == '/admin/gold' else '' }}><i class="bi bi-graph-up" aria-hidden="true"></i> Cene zlata</a>
     </nav>
     {% block admin_content %}{% endblock %}
   </div>

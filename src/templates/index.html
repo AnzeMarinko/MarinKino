@@ -1,166 +1,28 @@
 {% extends "base.html" %}
-
 {% block content %}
-<div class="container py-5">
-    <div class="text-center mb-5">
-        <h1 class="display-4 fw-bold mb-3">Dobrodošli v MarinKino</h1>
-        <p class="lead text-muted">Središče kvalitetnega digitalnega razvedrila</p>
-    </div>
-
-    <div class="counter-cards row g-4">
-        <!-- Filmi -->
-        <div class="col-md-6 col-lg-4">
-            <a href="/movies?onlyrecommended=on" class="text-decoration-none">
-                <div class="card h-100 shadow-lg border-0 card-hover">
-                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center" style="background: var(--movie-page-background);">
-                        <div class="stat-icon mb-3">
-                            <i class="bi bi-film" style="color: black;"></i>
-                        </div>
-                        <div class="stat-number display-2 fw-bold text-dark">
-                            <span class="counter" data-target="{{ movies_count }}">0</span>
-                        </div>
-                        <p class="card-text text-dark-50 fs-5 mb-0">Filmov</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- Trajanje filmov -->
-        <div class="col-md-6 col-lg-4">
-            <a href="/movies?onlyrecommended=on" class="text-decoration-none">
-                <div class="card h-100 shadow-lg border-0 card-hover">
-                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center" style="background: var(--oranzno-rdeca-background);">
-                        <div class="stat-icon mb-3">
-                            <i class="bi bi-clock-history" style="color: white;"></i>
-                        </div>
-                        <div class="stat-number display-2 fw-bold text-white">
-                            <span class="counter" data-target="{{ movies_duration|round(0, 'common')|int }}">0</span>
-                        </div>
-                        <p class="card-text text-white-50 fs-5 mb-0">Ur filmov</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- Risanke -->
-        <div class="col-md-6 col-lg-4">
-            <a href="/movies?movietype=01-zbirke-risank" class="text-decoration-none">
-                <div class="card h-100 shadow-lg border-0 card-hover">
-                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center" style="background: var(--modro-rdeca-background);">
-                        <div class="stat-icon mb-3">
-                            <i class="bi bi-play-circle" style="color: white;"></i>
-                        </div>
-                        <div class="stat-number display-2 fw-bold text-white">
-                            <span class="counter" data-target="{{ cartoons_count }}">0</span>
-                        </div>
-                        <p class="card-text text-white-50 fs-5 mb-0">Zbirk risank</p>
-                        <div class="stat-number display-2 fw-bold text-white">
-                            <span class="counter" data-target="{{ cartoons_duration|round(0, 'common')|int }}">0</span>
-                        </div>
-                        <p class="card-text text-white-50 fs-5 mb-0">Ur risank</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- Memi -->
-        <div class="col-md-6 col-lg-4">
-            <a href="/memes" class="text-decoration-none">
-                <div class="card h-100 shadow-lg border-0 card-hover">
-                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center" style="background: var(--oranzno-zelena-background);">
-                        <div class="stat-icon mb-3">
-                            <i class="bi bi-emoji-smile" style="color: white;"></i>
-                        </div>
-                        <div class="stat-number display-2 fw-bold text-white">
-                            <span class="counter" data-target="{{ memes_count }}">0</span>
-                        </div>
-                        <p class="card-text text-white-50 fs-5 mb-0">Šal (meme)</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- Glasba -->
-        <div class="col-md-6 col-lg-4">
-            <a href="/music" class="text-decoration-none">
-                <div class="card h-100 shadow-lg border-0 card-hover">
-                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center" style="background: var(--music-background);">
-                        <div class="stat-icon mb-3">
-                            <i class="bi bi-music-note-beamed" style="color: white;"></i>
-                        </div>
-                        <div class="stat-number display-2 fw-bold text-white">
-                            <span class="counter" data-target="{{ music_count }}">0</span>
-                        </div>
-                        <p class="card-text text-white-50 fs-5 mb-0">Skladb</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- Družabna igra -->
-        <div class="col-md-6 col-lg-4">
-            <a href="/pod_krinko" class="text-decoration-none">
-                <div class="card h-100 shadow-lg border-0 card-hover">
-                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center" style="background: var(--zelena-background);">
-                        <div class="stat-icon mb-3">
-                            <i class="bi bi-people" style="color: black;"></i>
-                        </div>
-                        <div class="stat-number display-2 fw-bold text-dark">
-                            Pod krinko
-                        </div>
-                        <p class="card-text text-dark-50 fs-5 mb-0">Besedna družabna igra</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- Blogi -->
-        <div class="col-md-6 col-lg-4">
-            <a href="/blog" class="text-decoration-none">
-                <div class="card h-100 shadow-lg border-0 card-hover">
-                    <div class="card-body d-flex flex-column align-items-center justify-content-center text-center" style="background: var(--blog-background);">
-                        <div class="stat-icon mb-3">
-                            <i class="bi bi-book" style="color: white;"></i>
-                        </div>
-                        <div class="stat-number display-2 fw-bold text-white">{{ blog_count }}
-                        </div>
-                        <p class="card-text text-white-50 fs-5 mb-0">Blogov</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-    </div>
-</div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Animate numbers when page loads
-    const counters = document.querySelectorAll('.counter');
-
-    counters.forEach(counter => {
-        const target = parseInt(counter.getAttribute('data-target'));
-        if (target === 0) return;
-        if (isNaN(target)) {
-            counter.textContent = "-";
-            return;
-        }
-
-        const duration = 1500; // 1.5 seconds
-        const increment = target / (duration / 50); // Update every 50ms
-        let current = 0;
-
-        const updateCounter = () => {
-            current += increment;
-            if (current < target) {
-                counter.textContent = Math.floor(current);
-                setTimeout(updateCounter, 50);
-            } else {
-                counter.textContent = target;
-            }
-        };
-
-        updateCounter();
-    });
-});
-</script>
+<link rel="stylesheet" href="/static/css/home.css">
+<main class="home-page">
+  <div class="home-shell">
+    <header class="home-hero">
+      <div class="home-hero-content"><p class="home-eyebrow"><i class="bi bi-sun" aria-hidden="true"></i> Dobrodošel v MarinKino</p><h1>Čas za nekaj<br><span>dobrega.</span></h1><p>Film za skupen večer, glasba za dobro voljo ali igra za celo družbo. Izberi, kar ti danes paše.</p><div class="home-actions"><a class="home-primary" href="/movies?onlyrecommended=on"><i class="bi bi-play-circle" aria-hidden="true"></i> Poišči dober film <i class="bi bi-arrow-right" aria-hidden="true"></i></a><a class="home-secondary" href="#home-explore">Razišči vsebine <i class="bi bi-arrow-down" aria-hidden="true"></i></a></div></div>
+      <div class="home-hero-art" aria-hidden="true"><div class="home-art-orbit"></div><div class="home-art-disc"><i class="bi bi-camera-reels"></i></div><span class="home-art-note"><i class="bi bi-music-note-beamed"></i></span><span class="home-art-game"><i class="bi bi-dice-5"></i></span><span class="home-art-label">Za dobre trenutke.</span></div>
+    </header>
+    <section id="home-explore" aria-labelledby="home-explore-title">
+      <div class="home-section-heading"><div><p class="home-eyebrow">Kaj bomo danes?</p><h2 id="home-explore-title">Izberi svoj odmor.</h2></div><span>Vse na enem mestu.</span></div>
+      <div class="home-featured-grid">
+        <a class="home-feature home-feature-film" href="/movies?onlyrecommended=on"><div class="home-feature-top"><span class="home-card-icon"><i class="bi bi-film" aria-hidden="true"></i></span><span class="home-feature-tag">Za filmski večer</span></div><h3>Naj se zgodba začne.</h3><p>Pobrskaj med priporočenimi filmi in izberi naslednji skupni ogled.</p><div class="home-feature-bottom"><span>{{ movies_count|default(0, true)|int }} filmov · {{ movies_duration|default(0, true)|round(0, 'common')|int }} ur zgodb</span><span class="home-card-arrow"><i class="bi bi-arrow-up-right" aria-hidden="true"></i></span></div></a>
+        <a class="home-feature home-feature-game" href="/pod_krinko"><div class="home-feature-top"><span class="home-card-icon"><i class="bi bi-incognito" aria-hidden="true"></i></span><span class="home-feature-tag">Za celo družbo</span></div><h3>Kdo je pod krinko?</h3><p>Besedna igra namigov, blefiranja in razkrivanja skrivnih vlog.</p><div class="home-feature-bottom"><span>3–20 igralcev · en skupni telefon</span><span class="home-card-arrow"><i class="bi bi-arrow-up-right" aria-hidden="true"></i></span></div></a>
+      </div>
+      <div class="home-card-grid">
+        <a class="home-card home-card-cartoons" href="/movies?movietype=01-zbirke-risank"><span class="home-card-icon"><i class="bi bi-play-btn" aria-hidden="true"></i></span><h3>Risanke</h3><p>Male in velike pustolovščine za najmlajše.</p><div class="home-card-bottom"><span>{{ cartoons_count|default(0, true)|int }} zbirk · {{ cartoons_duration|default(0, true)|round(0, 'common')|int }} ur</span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></div></a>
+        <a class="home-card home-card-music" href="/music"><span class="home-card-icon"><i class="bi bi-music-note-beamed" aria-hidden="true"></i></span><h3>Glasba</h3><p>Tvoja najljubša melodija za vsak trenutek.</p><div class="home-card-bottom"><span>{{ music_count|default(0, true)|int }} skladb</span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></div></a>
+        <a class="home-card home-card-radio" href="/radio-stories"><span class="home-card-icon"><i class="bi bi-broadcast" aria-hidden="true"></i></span><h3>Otroški radio</h3><p>Pravljice in zgodbe, ki jim lahko prisluhneš.</p><div class="home-card-bottom"><span>Poslušaj zgodbo</span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></div></a>
+        <a class="home-card home-card-memes" href="/memes"><span class="home-card-icon"><i class="bi bi-emoji-smile" aria-hidden="true"></i></span><h3>Šale in navdih</h3><p>Majhen odmor. Še en razlog za nasmeh.</p><div class="home-card-bottom"><span>{{ memes_count|default(0, true)|int }} šal v zbirki</span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></div></a>
+        <a class="home-card home-card-weather" href="/weather"><span class="home-card-icon"><i class="bi bi-cloud-sun" aria-hidden="true"></i></span><h3>Vreme</h3><p>Preveri napoved in načrtuj svoj dan.</p><div class="home-card-bottom"><span>Poglej napoved</span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></div></a>
+        <a class="home-card home-card-blog" href="/blog"><span class="home-card-icon"><i class="bi bi-journal-text" aria-hidden="true"></i></span><h3>Sončnice</h3><p>Rože dobrega. Zapisi o življenju in hvaležnosti.</p><div class="home-card-bottom"><span>{{ blog_count|default(0, true)|int }} objav</span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></div></a>
+      </div>
+    </section>
+    <aside class="home-suggestions"><span class="home-card-icon"><i class="bi bi-lightbulb" aria-hidden="true"></i></span><div><h2>Pogrešaš kaj dobrega?</h2><p>Predlagaj film, pesem ali izboljšavo. MarinKino raste tudi s tvojimi idejami.</p></div><a href="/suggestions">Pošlji predlog <i class="bi bi-arrow-right" aria-hidden="true"></i></a></aside>
+  </div>
+</main>
 {% endblock %}

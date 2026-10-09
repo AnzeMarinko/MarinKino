@@ -11,7 +11,7 @@
   <a href="/admin/register"><i class="bi bi-person-plus" aria-hidden="true"></i><span><strong>Povabi uporabnika</strong><small>Povezava za nastavitev gesla</small></span></a>
   <a href="/admin/send_emails"><i class="bi bi-envelope-paper" aria-hidden="true"></i><span><strong>Pripravi e-pošto</strong><small>Najprej predogled in test sebi</small></span></a>
 </div>
-<nav class="admin-jumps" aria-label="Razdelki pregleda"><a href="#admin-comments">Komentarji</a><a href="#admin-users">Filmi in uporabniki</a><a href="#admin-access">Dostop</a><a href="#admin-blog-stats">Blog</a><a href="#admin-traffic">Obiskovalci</a><a href="#admin-tools">Orodja in dnevniki</a></nav>
+<nav class="admin-jumps" aria-label="Razdelki pregleda"><a href="#admin-comments">Komentarji</a><a href="#admin-users">Filmi in uporabniki</a><a href="#admin-access">Dostop</a><a href="#admin-blog-stats">Blog</a><a href="#admin-traffic">Obiskovalci</a><a href="#admin-tools">Orodja</a></nav>
 
 <section id="admin-comments" class="admin-panel" aria-labelledby="comments-title">
   <div class="admin-section-heading"><div><h2 id="comments-title">Komentarji na filmih</h2><p>Preberi vprašanja in odgovori neposredno iz nadzorne plošče.</p></div><button class="btn btn-outline-secondary" type="button" id="refreshComments"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Osveži</button></div>
@@ -51,11 +51,9 @@
 </section>
 
 <section id="admin-tools" class="admin-panel" aria-labelledby="tools-title">
-  <div class="admin-section-heading"><h2 id="tools-title">Orodja in dnevniki</h2></div>
+  <div class="admin-section-heading"><h2 id="tools-title">Orodja</h2></div>
   <div class="admin-view-as"><div><strong>Predogled strani kot uporabnik</strong><p class="small mb-0 mt-1">Odpre prikaz izbrane vloge. Za vrnitev uporabi povezavo v opozorilni pasici.</p></div><div class="admin-actions"><a href="/admin/set-view-as/anonymous" class="btn btn-outline-secondary">Neprijavljen</a><a href="/admin/set-view-as/user" class="btn btn-outline-secondary">Uporabnik</a><a href="/admin/clear-view-as" class="btn btn-outline-primary">Administrator</a></div></div>
-  <details><summary>Sistemski dnevnik</summary><pre class="admin-log">{{ system_log or 'Dnevnik trenutno ni na voljo.' }}</pre></details>
-  <details class="mt-3"><summary>Predloge e-pošte in sistemskih strani</summary><div class="admin-tools-list"><a class="btn btn-sm btn-outline-secondary" href="/admin/view_emails?template_name=mail_newuser&amp;is_for_mail=true" target="_blank" rel="noopener">Nov uporabnik</a><a class="btn btn-sm btn-outline-secondary" href="/admin/view_emails?template_name=mail_reset_password&amp;is_for_mail=true" target="_blank" rel="noopener">Novo geslo</a><a class="btn btn-sm btn-outline-secondary" href="/admin/view_emails?template_name=mail_blog_post&amp;is_for_mail=true" target="_blank" rel="noopener">Nova blog objava</a><a class="btn btn-sm btn-outline-secondary" href="/admin/view_emails?template_name=forgot_password" target="_blank" rel="noopener">Pozabljeno geslo</a><a class="btn btn-sm btn-outline-secondary" href="/admin/view_emails?template_name=reset_password" target="_blank" rel="noopener">Nastavitev gesla</a><a class="btn btn-sm btn-outline-secondary" href="/admin/view_emails?template_name=login" target="_blank" rel="noopener">Prijava</a><a class="btn btn-sm btn-outline-secondary" href="/admin/view_emails?template_name=limit_exceeded" target="_blank" rel="noopener">Dnevna omejitev</a><a class="btn btn-sm btn-outline-secondary" href="/last_mail_newsletter?is_for_mail=true" target="_blank" rel="noopener">Novičke</a></div></details>
-  <details class="mt-3" id="goldDetails"><summary>Cena zlata · EUR</summary><div id="gold-price-chart" style="height:500px;max-height:70vh;"><p class="admin-empty mt-3">Graf se naloži ob odprtju tega razdelka.</p></div></details>
+
 </section>
 <div id="adminData" data-stats='{{ {"accessUsers": access_stats_users, "users": users, "accessMonthly": access_stats_monthly, "blogDaily": blog_views_daily, "blogSiDaily": blog_si_views_daily, "geoCities": geo_stats_cities}|tojson }}' hidden></div>
 {% endblock %}

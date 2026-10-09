@@ -1,61 +1,17 @@
-{% extends "base.html" %}
-
-{% block content %}
-<div class="min-vh-100 d-flex align-items-center justify-content-center">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-md-6 col-lg-5">
-                <div class="card border-0 shadow-lg rounded-3 overflow-hidden">
-                    <div class="card-body p-5">
-                        <div class="text-center mb-4">
-                            <div class="display-6 fw-bold text-primary mb-2">Prijava</div>
-                            <h3 class="h4 text-dark">Dodatne vsebine za družino in prijatelje</h3>
-                            <p class="text-muted small">Vnesite vaše podatke za dostop</p>
-                        </div>
-
-                        <form method="post" autocomplete="on">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                            <div class="mb-4">
-                                <label for="username" class="form-label fw-semibold">Uporabniško ime</label>
-                                <div class="input-group">
-                                    <span class="input-group-text border-0 bg-light">
-                                        <i class="bi bi-person"></i>
-                                    </span>
-                                    <input id="username" name="username" type="text" class="form-control border-0 bg-light rounded-end" autocomplete="username" placeholder="Vnesite ime" required>
-                                </div>
-                            </div>
-
-                            <div class="mb-4">
-                                <label for="password" class="form-label fw-semibold">Geslo</label>
-                                <div class="input-group">
-                                    <span class="input-group-text border-0 bg-light">
-                                        <i class="bi bi-lock"></i>
-                                    </span>
-                                    <input id="password" name="password" type="password" class="form-control border-0 bg-light rounded-end" autocomplete="current-password" placeholder="Vnesite geslo" required>
-                                </div>
-                            </div>
-
-                            <div class="d-grid gap-2 mb-3">
-                                <button type="submit" class="btn btn-primary btn-lg rounded-2 fw-bold">
-                                    <i class="bi bi-box-arrow-in-right me-2"></i>Prijavi se
-                                </button>
-                            </div>
-                        </form>
-
-                        <div class="text-center">
-                            <a href="{{ url_for('auth.forgot_password') }}" class="text-decoration-none small text-primary fw-semibold">
-                                Pozabljeno geslo?
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<style>
-    .input-group-text { color: var(--vijolicna); }
-</style>
+{% extends "auth_base.html" %}
+{% from "partials/auth_fields.html" import password_field %}
+{% block heading %}Bog daj, dobrodošel!{% endblock %}
+{% block intro %}Prijetne vsebine za družino in prijatelje. Prijavi se in nadaljuj z raziskovanjem.{% endblock %}
+{% block tip %}<i class="bi bi-stars" aria-hidden="true"></i><span>Filmi, glasba in igre za skupne trenutke.</span>{% endblock %}
+{% block form_title %}Prijava{% endblock %}
+{% block description %}Vnesi uporabniško ime in geslo svojega računa.{% endblock %}
+{% block auth_content %}
+<form method="post" class="auth-form" autocomplete="on">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="auth-field"><label for="username">Uporabniško ime</label><input id="username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" value="{{ request.form.get('username', '') }}" required></div>
+  {{ password_field('password', 'Geslo') }}
+  <div class="auth-form-links"><a href="{{ url_for('auth.forgot_password') }}">Pozabljeno geslo?</a></div>
+  <button type="submit" class="auth-primary"><i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> Prijavi se</button>
+</form>
+<a class="auth-back" href="/"><i class="bi bi-arrow-left" aria-hidden="true"></i> Nazaj na domačo stran</a>
 {% endblock %}

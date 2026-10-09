@@ -133,3 +133,5 @@
 .admin-mail-dialog::backdrop { background: #132b3cc7; backdrop-filter: blur(4px); }
 .admin-mail-dialog h2 { font-size: 1.4rem; }
 .admin-mail-dialog p { margin-block: 1rem 1.5rem; line-height: 1.6; font-size: .9rem; }
+.admin-page .admin-log-full { max-height: 70vh; min-height: 240px; margin-top: 0; }
+.admin-gold-chart { height: 600px; max-height: 75vh; min-height: 320px; width: 100%; margin-bottom: 1rem; }

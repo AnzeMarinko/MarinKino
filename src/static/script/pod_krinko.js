@@ -54,6 +54,14 @@
         }
     }
 
+    function suggestRoles() {
+        count.value = clamp(count.value, 3, 20);
+        const hiddenRoles = Math.floor(Number(count.value) / 2);
+        spies.value = Math.ceil(hiddenRoles / 2);
+        whites.value = Math.floor(hiddenRoles / 2);
+        constrainRoles();
+    }
+
     function constrainRoles(changed = spies) {
         count.value = clamp(count.value, 3, 20);
         const max = Math.floor(Number(count.value) / 2);
@@ -77,10 +85,12 @@
 
     function restore() {
         const saved = readStorage(storageKey) || readStorage("podKrinkoData");
+        suggestRoles();
         if (saved && typeof saved === "object") {
             count.value = clamp(saved.nPlayers || 5, 3, 20);
-            spies.value = clamp(saved.nUndercovers ?? 1, 0, 10);
-            whites.value = clamp(saved.nWhites, 0, 10);
+            suggestRoles();
+            spies.value = clamp(saved.nUndercovers ?? spies.value, 0, 10);
+            whites.value = clamp(saved.nWhites ?? whites.value, 0, 10);
             el("nemec").checked = saved.nemec === true;
             const savedProfiles = saved.igralci || readStorage("podKrinko_zadnjaImena") || saved.tocke;
             if (Array.isArray(savedProfiles)) profiles = savedProfiles.slice(0, 20).map(p => ({ ime: String(p?.ime || "").slice(0, 30), spol: p?.spol === "m" ? "m" : "f" }));
@@ -350,7 +360,7 @@
         renderScores(el("osebe_rezultati"), true); persist(); setPhase("results"); el("resultsTitle").focus();
     }
 
-    count.addEventListener("input", () => { constrainRoles(); renderNames(); persist(); });
+    count.addEventListener("input", () => { suggestRoles(); renderNames(); persist(); });
     [spies, whites].forEach(input => input.addEventListener("input", () => { constrainRoles(input); persist(); }));
     root.querySelectorAll("[data-adjust]").forEach(button => button.addEventListener("click", () => {
         const input = el(button.dataset.adjust); input.value = Number(input.value) + Number(button.dataset.delta); input.dispatchEvent(new Event("input"));
@@ -364,8 +374,8 @@
         else confirmAction("Urediš ekipo?", "Trenutna igra se bo končala brez novih točk. Imena in dosedanje točke se ohranijo.", "Uredi ekipo", open);
     }));
     el("resetButton").addEventListener("click", () => confirmAction("Ponastaviš ekipo in točke?", "Shranjena imena, nastavitve in vse dosedanje točke v tem brskalniku bodo izbrisani.", "Ponastavi", () => {
-        el("namesInput").replaceChildren(); profiles = []; scores.clear(); count.value = 5; spies.value = 1; whites.value = 0; el("nemec").checked = false;
-        state.players = []; constrainRoles(); renderNames(); persist(); message();
+        el("namesInput").replaceChildren(); profiles = []; scores.clear(); count.value = 5; el("nemec").checked = false;
+        state.players = []; suggestRoles(); renderNames(); persist(); message();
     }));
     el("rulesButton").addEventListener("click", () => openDialog("rulesDialog"));
     root.querySelectorAll("[data-close-dialog]").forEach(button => button.addEventListener("click", () => button.closest("dialog").close()));

@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from collections import deque
 from datetime import date, datetime, timedelta, timezone
 
 import pandas as pd
@@ -106,6 +107,32 @@ def save_blog_posts(posts):
     os.makedirs(os.path.dirname(BLOG_DATA_FILE), exist_ok=True)
     with open(BLOG_DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(posts, f, ensure_ascii=False, indent=2)
+
+
+@admin_bp.route("/admin/logs")
+@login_required
+def admin_logs():
+    if not is_current_admin_view(current_user):
+        return redirect(url_for("home"))
+    try:
+        with open(LOG_FILENAME, encoding="utf-8", errors="replace") as stream:
+            system_log = "".join(deque(stream, maxlen=200)).rstrip()
+    except OSError:
+        system_log = "Dnevnik trenutno ni na voljo."
+    return render_template(
+        "admin_logs.html", pagetitle="Sistemski dnevnik · MarinKino",
+        system_log=system_log or "Dnevnik je prazen.",
+    )
+
+
+@admin_bp.route("/admin/gold")
+@login_required
+def admin_gold():
+    if not is_current_admin_view(current_user):
+        return redirect(url_for("home"))
+    return render_template(
+        "admin_gold.html", pagetitle="Cene zlata · MarinKino"
+    )
 
 
 @admin_bp.route("/admin")
@@ -286,50 +313,6 @@ def admin_panel():
         users_stats_dict = {}
         users_stats_columns = []
 
-    if os.path.exists(LOG_FILENAME):
-        with open(
-            LOG_FILENAME,
-            "r",
-            encoding="utf-8",
-        ) as f:
-            lines = [line.split(" - ") for line in f.read().split("\n")]
-            new_lines = []
-            last_line = lines[0]
-            for line in lines[1:]:
-                if "waitress.queue: Task queue depth is" in " - ".join(line):
-                    try:
-                        if int(line[-1].split(" ")[-1]) < 10:
-                            continue
-                    except Exception:
-                        pass
-                if (
-                    len(last_line) < 4
-                    or len(line) < 4
-                    or line[3] != last_line[3]
-                    or line[2] != last_line[2]
-                ):
-                    new_lines.append(" - ".join(last_line))
-                    last_line = line
-                else:
-                    last_line[0] = (
-                        last_line[0].split(" <-> ")[0] + " <-> " + line[0]
-                    )
-                    last_line[1] = (
-                        str(int(last_line[1].replace("x", "")) + int(line[1]))
-                        + "x"
-                    )
-            new_lines.append(" - ".join(last_line))
-
-            system_log = "\n".join(new_lines[-100:])
-        with open(
-            LOG_FILENAME,
-            "w",
-            encoding="utf-8",
-        ) as f:
-            f.write("\n".join(new_lines))
-    else:
-        system_log = "Missing log file!"
-
     # Referrer statistics
     referrer_stats = {}
     for key in redis_client.scan_iter("stats:referrer:*"):
@@ -414,7 +397,6 @@ def admin_panel():
     return render_template(
         "admin.html",
         pagetitle="MarinKino - Nadzorna plošča",
-        system_log=system_log,
         access_stats_users=access_stats_users,
         users=list(
             sorted(user_counter.keys(), key=lambda x: -user_counter[x])

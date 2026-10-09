@@ -1,0 +1,14 @@
+{% macro password_field(id, label, new=false) %}
+<div class="auth-field">
+  <label for="{{ id }}">{{ label }}</label>
+  <div class="auth-password">
+    <input id="{{ id }}" name="{{ id }}" type="password" autocomplete="{{ 'new-password' if new else 'current-password' }}" {% if new %}minlength="12" aria-describedby="password-help"{% endif %} required>
+    <button type="button" class="auth-reveal" data-password-toggle="{{ id }}" aria-controls="{{ id }}" aria-label="Pokaži: {{ label }}" aria-pressed="false" hidden>Pokaži</button>
+  </div>
+</div>
+{% endmacro %}
+{% macro password_help() %}
+<p id="password-help" class="auth-help">Najmanj 12 znakov: mala in velika črka, številka ter poseben znak. Geslo naj ne vsebuje uporabniškega imena.</p>
+<button type="button" id="generate-password" class="auth-secondary auth-generate" hidden><i class="bi bi-shuffle" aria-hidden="true"></i> Ustvari močno geslo</button>
+<p class="auth-feedback" id="password-feedback" role="status" aria-live="polite"></p>
+{% endmacro %}

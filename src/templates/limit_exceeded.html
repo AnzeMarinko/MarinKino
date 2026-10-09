@@ -1,44 +1,17 @@
-{% extends "base.html" %}
-
-{% block content %}
-<div class="min-vh-100 d-flex align-items-center justify-content-center">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-md-6 col-lg-5">
-                <div class="card border-0 shadow-lg rounded-3 overflow-hidden text-center">
-                    <div class="card-body p-5">
-                        <div class="mb-4">
-                            <div style="font-size: 4rem;">⏰</div>
-                            <h1 class="display-5 fw-bold text-dark mb-2">Dovolj za danes!</h1>
-                            <h2 class="h5 text-muted">Dovolj {{ section }} za danes!</h2>
-                        </div>
-
-                        <div class="alert alert-info mb-4" role="alert">
-                            <p class="mb-0">
-                                <i class="bi bi-info-circle me-2"></i>
-                                Upam, da je bil namen strani dosežen.
-                            </p>
-                        </div>
-
-                        <p class="lead text-muted mb-4">
-                            Zdaj, ko si se malo razvedril s prijetnim, pa je čas še za kaj koristnega:
-                        </p>
-
-                        <p><i class="bi bi-chat-dots text-success me-2"></i>Pogovor
-                            <i class="bi bi-check-circle text-success me-2"></i>Opravila<br>
-                            <i class="bi bi-moon text-success me-2"></i>Spanje
-                            <i class="bi bi-bicycle text-success me-2"></i>Šport
-                        </p>
-
-                        <p class="text-muted mb-4">Bog te blagoslovi!</p>
-
-                        <a href="/" class="btn btn-primary btn-lg rounded-2 fw-bold">
-                            <i class="bi bi-house-fill me-2"></i>Domov
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+{% extends "auth_base.html" %}
+{% block eyebrow %}Čas za odmor{% endblock %}
+{% block icon %}bi-hourglass-split{% endblock %}
+{% block heading %}Dovolj za danes.{% endblock %}
+{% block intro %}Današnja omejitev {{ section|default('te vsebine', true) }} je dosežena. Hvala za obisk — naj prijetni trenutki spremljajo tudi preostanek dneva.{% endblock %}
+{% block tip %}<i class="bi bi-heart" aria-hidden="true"></i><span>Bog te blagoslovi!</span>{% endblock %}
+{% block form_title %}Vzemi si čas zase.{% endblock %}
+{% block description %}Zdaj je lep trenutek za nekaj, kar ti dobro dene.{% endblock %}
+{% block auth_content %}
+<ul class="auth-breaks">
+  <li><i class="bi bi-chat-dots" aria-hidden="true"></i><span><strong>Pogovor</strong>Pokliči ali obišči koga od bližnjih.</span></li>
+  <li><i class="bi bi-bicycle" aria-hidden="true"></i><span><strong>Gibanje</strong>Sprehod, šport ali malo svežega zraka.</span></li>
+  <li><i class="bi bi-check2-circle" aria-hidden="true"></i><span><strong>Opravila</strong>Majhen korak pri nečem, kar te čaka.</span></li>
+  <li><i class="bi bi-moon-stars" aria-hidden="true"></i><span><strong>Počitek</strong>Predah ali dober spanec.</span></li>
+</ul>
+<a href="/" class="auth-primary"><i class="bi bi-house" aria-hidden="true"></i> Na domačo stran</a>
 {% endblock %}

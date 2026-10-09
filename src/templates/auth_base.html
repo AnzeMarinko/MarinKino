@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+<main class="auth-page">
+  <div class="auth-layout">
+    <aside class="auth-intro">
+      <span class="auth-eyebrow">MarinKino · {% block eyebrow %}Tvoj račun{% endblock %}</span>
+      <div class="auth-emblem" aria-hidden="true"><i class="bi {% block icon %}bi-person-circle{% endblock %}"></i></div>
+      <h1>{% block heading %}{% endblock %}</h1>
+      <p class="auth-lead">{% block intro %}{% endblock %}</p>
+      <div class="auth-tip">{% block tip %}{% endblock %}</div>
+    </aside>
+    <section class="auth-card" aria-labelledby="auth-form-title">
+      <h2 id="auth-form-title">{% block form_title %}{% endblock %}</h2>
+      <p class="auth-description">{% block description %}{% endblock %}</p>
+      {% block auth_content %}{% endblock %}
+    </section>
+  </div>
+</main>
+<script src="{{ url_for('static', filename='script/auth_forms.js') }}" defer></script>
+{% endblock %}

@@ -9,7 +9,7 @@
     <div class="container-fluid site-nav-inner">
       <a class="navbar-brand site-brand" href="{{ '/blog' if blog_brand else '/' }}" aria-label="{{ 'Sončnice' if blog_brand else 'MarinKino' }} · začetna stran">
         <img src="{{ '/static/blog_favicon_io/android-chrome-512x512.png' if blog_brand else '/static/logo.png' }}" width="38" height="38" alt="">
-        <span><strong>{{ 'Sončnice' if blog_brand else 'MarinKino' }}</strong><small>{{ 'Rože dobrega' if blog_brand else 'Tvoj čas za dober večer' }}</small></span>
+        <span><strong>{{ 'Sončnice' if blog_brand else 'MarinKino' }}</strong><small>{{ 'Rože dobrega' if blog_brand else 'Čas za razvedrilo' }}</small></span>
       </a>
       {% include "partials/language_selector.html" %}
       <button class="navbar-toggler site-menu-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Odpri glavni meni"><i class="bi bi-list" aria-hidden="true"></i><span>Meni</span></button>
@@ -32,7 +32,7 @@
               <li><a class="dropdown-item site-signout" href="/logout"><i class="bi bi-box-arrow-right" aria-hidden="true"></i> Odjava</a></li>
             </ul>
           </div>
-          {% else %}<a href="/login" class="site-login"><i class="bi bi-person" aria-hidden="true"></i> Prijava</a>{% endif %}
+          {% else %}<span class="site-guest-greeting">Bog daj <span id="greeting">dober dan</span></span><a href="/login" class="site-login"><i class="bi bi-person" aria-hidden="true"></i> Prijava</a>{% endif %}
           {% if admin_view and fullscreenbutton %}<button type="button" class="site-nav-button" id="delete-btn" onclick="izbrisiMeme({{ meme_file_name|tojson|forceescape }})"><i class="bi bi-trash" aria-hidden="true"></i> Odstrani</button>{% endif %}
         </div>
       </div>

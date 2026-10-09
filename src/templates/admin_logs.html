@@ -1,0 +1,9 @@
+{% extends "admin_base.html" %}
+{% block admin_title %}Sistemski dnevnik{% endblock %}
+{% block admin_description %}Zadnjih 200 vrstic za pregled delovanja in iskanje napak.{% endblock %}
+{% block admin_content %}
+<section class="admin-panel" aria-labelledby="log-title">
+  <div class="admin-section-heading"><div><h2 id="log-title">Zadnji dogodki</h2><p>Najstarejši prikazani dogodek je na vrhu, najnovejši na dnu.</p></div><a class="btn btn-outline-secondary" href="/admin/logs"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Osveži dnevnik</a></div>
+  <pre class="admin-log admin-log-full" tabindex="0" aria-label="Vsebina sistemskega dnevnika">{{ system_log }}</pre>
+</section>
+{% endblock %}

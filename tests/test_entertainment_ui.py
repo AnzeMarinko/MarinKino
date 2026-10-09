@@ -228,6 +228,7 @@ def test_game_validation_persistence_and_team_resize(browser_page):
 def test_game_resident_win_and_scores_survive_reload(browser_page):
     page = browser_page.page
     page.goto(browser_page.base + "/pod_krinko")
+    page.locator("#nWhitesSlider").fill("0")
     fill_names(page)
     seen = start_and_reveal(page)
     assert page.get_by_role("button", name="Izloči", exact=True).count() == 0
@@ -313,6 +314,7 @@ def test_weather_mobile_controls_and_chart_fallback(browser_page):
 def test_game_opponents_win_when_one_resident_remains(browser_page):
     page = browser_page.page
     page.goto(browser_page.base + "/pod_krinko")
+    page.locator("#nWhitesSlider").fill("0")
     fill_names(page)
     seen = start_and_reveal(page)
     resident_word = max(set(seen.values()), key=lambda word: list(seen.values()).count(word))
@@ -349,6 +351,7 @@ def test_game_mime_bonus_awarded_once(browser_page):
     page = browser_page.page
     page.goto(browser_page.base + "/pod_krinko")
     page.evaluate("Math.random = () => 0")
+    page.locator("#nWhitesSlider").fill("0")
     fill_names(page)
     page.locator("#nemec").check()
     seen = start_and_reveal(page)
@@ -408,3 +411,35 @@ def test_weather_clock_and_graph_use_location_timezone(browser_page):
     if os.environ.get("MARINKINO_PLOTLY_PATH"):
         page.wait_for_function("!document.querySelector('[data-chart-hours=\"24\"]').disabled")
         assert "13:00" in page.evaluate("document.getElementById('weatherChart').layout.xaxis.range[0]")
+
+
+def test_game_role_suggestions_follow_team_size(browser_page):
+    page = browser_page.page
+    page.goto(browser_page.base + "/pod_krinko")
+    assert page.locator("#nUndercoversSlider").input_value() == "1"
+    assert page.locator("#nWhitesSlider").input_value() == "1"
+    page.locator("#playerName0").fill("Ana")
+    for players in range(3, 21):
+        page.locator("#nPlayersSlider").evaluate(
+            "(input, value) => { input.value = value; "
+            "input.dispatchEvent(new Event('input', { bubbles: true })); }",
+            players,
+        )
+        hidden = players // 2
+        assert int(page.locator("#nUndercoversSlider").input_value()) == (
+            hidden + 1
+        ) // 2
+        assert int(page.locator("#nWhitesSlider").input_value()) == hidden // 2
+        assert page.locator(".pk-name-row").count() == players
+        assert page.locator("#playerName0").input_value() == "Ana"
+    page.locator("#nWhitesSlider").fill("0")
+    page.locator("#nUndercoversSlider").fill("2")
+    page.reload()
+    assert page.locator("#nPlayersSlider").input_value() == "20"
+    assert page.locator("#nUndercoversSlider").input_value() == "2"
+    assert page.locator("#nWhitesSlider").input_value() == "0"
+    page.locator("#resetButton").click()
+    page.locator("#confirmActionButton").click()
+    assert page.locator("#nPlayersSlider").input_value() == "5"
+    assert page.locator("#nUndercoversSlider").input_value() == "1"
+    assert page.locator("#nWhitesSlider").input_value() == "1"
