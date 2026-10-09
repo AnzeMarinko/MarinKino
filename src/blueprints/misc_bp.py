@@ -3,6 +3,7 @@ import logging
 import os
 from copy import copy
 from datetime import date, datetime
+from math import isfinite
 from urllib.parse import unquote, urlsplit
 
 import pandas as pd
@@ -27,6 +28,7 @@ from utils import (
     safe_path,
 )
 from weather_service import (
+    build_weather_data,
     daily_calendar,
     fetch_ip_location,
     fetch_weather_for_location,
@@ -286,6 +288,8 @@ def weather():
     latitude = request.args.get("lat", type=float)
     longitude = request.args.get("lon", type=float)
     query = (requested_location or "").strip()
+    search_warning = ""
+    weather_error = ""
 
     if not query and latitude is None and longitude is None:
         try:
@@ -310,28 +314,53 @@ def weather():
 
     query = query or "Ljubljana"
     search_results = []
-
-    if latitude is not None and longitude is not None:
-        weather_data = fetch_weather_for_location(latitude, longitude, query)
-    else:
+    valid_coordinates = (
+        latitude is not None
+        and longitude is not None
+        and isfinite(latitude)
+        and isfinite(longitude)
+        and -90 <= latitude <= 90
+        and -180 <= longitude <= 180
+    )
+    if not valid_coordinates:
+        search_failed = False
         try:
             search_results = geocode_location(query)[:5]
         except Exception:
-            search_results = []
+            search_failed = True
 
         if search_results:
             chosen = search_results[0]
-            weather_data = fetch_weather_for_location(
-                float(chosen["latitude"]),
-                float(chosen["longitude"]),
-                chosen.get("name") or query,
-            )
+            latitude = float(chosen["latitude"])
+            longitude = float(chosen["longitude"])
+            location_name = chosen.get("name") or query
         else:
-            weather_data = fetch_weather_for_location(
-                46.0569,
-                14.5058,
-                "Ljubljana",
+            latitude, longitude = 46.0569, 14.5058
+            location_name = "Ljubljana"
+            search_warning = (
+                "Iskanje krajev trenutno ni na voljo. "
+                "Prikazana je napoved za Ljubljano."
+                if search_failed
+                else f'Kraja »{query}« ni bilo mogoče najti. '
+                "Prikazana je napoved za Ljubljano. "
+                "Poskusi z bližnjim večjim krajem."
             )
+    else:
+        location_name = query
+
+    try:
+        weather_data = fetch_weather_for_location(
+            latitude, longitude, location_name
+        )
+    except Exception:
+        log.warning("Weather forecast unavailable", exc_info=True)
+        weather_data = build_weather_data({}, location_name)
+        weather_data["latitude"] = latitude
+        weather_data["longitude"] = longitude
+        weather_error = (
+            "Vremenski podatki trenutno niso dosegljivi. "
+            "Poskusi osvežiti stran ali izbrati drug kraj."
+        )
 
     weather_data["calendar"] = daily_calendar()
 
@@ -342,6 +371,8 @@ def weather():
         query=query,
         weather=weather_data,
         search_results=search_results,
+        search_warning=search_warning,
+        weather_error=weather_error,
     )
 
 

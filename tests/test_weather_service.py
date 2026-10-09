@@ -8,6 +8,21 @@ from weather_service import (
 
 
 class WeatherServiceTests(unittest.TestCase):
+    def test_forecast_dates_and_clock_follow_selected_location(self):
+        weather = build_weather_data(
+            {
+                "timezone": "Pacific/Auckland",
+                "utc_offset_seconds": 46800,
+                "current": {"time": "2026-10-10T00:15"},
+                "daily": {"time": ["2026-10-09", "2026-10-10"]},
+            },
+            "Auckland",
+        )
+        self.assertTrue(weather["daily"][0]["is_past"])
+        self.assertFalse(weather["daily"][1]["is_past"])
+        self.assertEqual(weather["utc_offset_seconds"], 46800)
+        self.assertEqual(weather["current"]["time"], "2026-10-10T00:15")
+
     def test_next_full_moon_countdown_returns_positive_hours(self):
         self.assertEqual(hours_until_next_full_moon(0.29), 149)
         self.assertEqual(hours_until_next_full_moon(0.5), 709)

@@ -275,7 +275,7 @@ def build_weather_data(
                 "date": day,
                 "weekday": weekday_name(day),
                 "is_weekend": weekday_name(day) in {"sobota", "nedelja"},
-                "is_past": str(day) < date.today().isoformat(),
+                "is_past": str(day) < current_date,
                 "weather_code": code,
                 "weather_label": summarize_weather_code(code),
                 "weather_icon": weather_icon(code),
@@ -313,7 +313,9 @@ def build_weather_data(
         "latitude": payload.get("latitude"),
         "longitude": payload.get("longitude"),
         "timezone": payload.get("timezone") or "auto",
+        "utc_offset_seconds": payload.get("utc_offset_seconds") or 0,
         "current": {
+            "time": current.get("time"),
             "temperature": current.get("temperature_2m"),
             "is_day": current.get("is_day"),
             "precipitation": current.get("precipitation"),

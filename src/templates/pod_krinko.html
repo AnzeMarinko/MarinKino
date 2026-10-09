@@ -1,239 +1,563 @@
-<!DOCTYPE html>
-<html lang="">
-
-<!-- https://www.iconfinder.com/iconsets/professions-1-2 -->
-
-<head>
-    {% include "partials/header.html" %}
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="keywords" content="Undercover, Igra, Slovenščina">
-    <meta name="description" content="Slovenska različica besedne igre Undercover">
-    <meta name="author" content="Anže Marinko">
-    <title>Pod krinko &#128372;</title>
-    <link rel="stylesheet" href="/static/css/pod_krinko.css">
-
-    <link rel="icon" type="image/x-icon" href="https://{{ domain }}/static/pod_krinko_favicon_io/favicon.ico">
-	<meta name="theme-color" content="#323F47">
-	<link rel="apple-touch-icon" sizes="180x180" href="https://{{ domain }}/static/pod_krinko_favicon_io/apple-touch-icon.png">
-	<link rel="icon" type="image/png" sizes="32x32" href="https://{{ domain }}/static/pod_krinko_favicon_io/favicon-32x32.png">
-	<link rel="icon" type="image/png" sizes="16x16" href="https://{{ domain }}/static/pod_krinko_favicon_io/favicon-16x16.png">
-	<link rel="icon" type="image/png" sizes="192x192" href="https://{{ domain }}/static/pod_krinko_favicon_io/android-chrome-192x192.png">
-	<link rel="icon" type="image/png" sizes="512x512" href="https://{{ domain }}/static/pod_krinko_favicon_io/android-chrome-512x512.png">
-	<link rel="manifest" href="https://{{ domain }}/static/pod_krinko_favicon_io/site.webmanifest">
-	<link rel="shortcut icon" href="https://{{ domain }}/static/pod_krinko_favicon_io/favicon.ico">
-	<meta name="msapplication-TileColor" content="#323F47">
-
-	<!-- Facebook Meta Tags -->
-	<meta property="og:title" content="Pod krinko &#128372;">
-	<meta property="og:type" content="website">
-	<meta property="og:url" content="https://anzemarinko.github.io/pod_krinko">
-	<meta property="og:image" content="https://{{ domain }}/static/pod_krinko_favicon_io/android-chrome-512x512.png">
-	<meta property="og:site_name" content="Pod krinko">
-	<meta property="og:description" content="Slovenska različica besedne igre Undercover">
-
-    {% include "partials/fingerprint.html" %}
-</head>
-
-<body>
-    {% include "partials/navbar.html" %}
-    <div class="game" data-bs-theme="dark">
-    <div class="pod-krinko-watchlight" aria-hidden="true">
-        <span class="pod-krinko-watchlight__beam pod-krinko-watchlight__beam--left"></span>
-        <span class="pod-krinko-watchlight__beam pod-krinko-watchlight__beam--right-one"></span>
-        <span class="pod-krinko-watchlight__beam pod-krinko-watchlight__beam--right-two"></span>
-    </div>
-    <div class="pod-krinko-silhouettes" aria-hidden="true">
-        <span class="pod-krinko-silhouette pod-krinko-silhouette--left"><b></b><i></i></span>
-        <span class="pod-krinko-silhouette pod-krinko-silhouette--right"><b></b><i></i></span>
-        <span class="pod-krinko-silhouette pod-krinko-silhouette--white"><b></b><i></i><em></em></span>
-    </div>
-    <section id="navodila" onclick="pravila_igre('none')" class="navodila-section">
-        <div id="besedilo_navodil" class="navodila-content">
-            <div class="navodila-header">
-                <h1>🎲 Pravila igre</h1>
-                <p class="subtitle">Slovenska različica besedne družabne igre Undercover</p>
-            </div>
-
-            <div class="pravilo-card">
-                <h2>👥 Vloge:</h2>
-                <ul>
-                    <li><b>PREBIVALCI:</b> Prejmejo isto skrivno besedo. Njihova naloga je razkrinkati vohune in gospoda v belem.</li>
-                    <li><b>VOHUN:</b> Dobi malenkost drugačno besedo. Njihova naloga je, da se pretvarja, da je prebivalec.</li>
-                    <li><b>GOSPOD V BELEM:</b> Ne prejme nobene besede. Njegova naloga je, da se pretvarja in poskuša ugotoviti besedo, ki jo imajo prebivalci.</li>
-                    <li><b>GOSPOD NEMEC:</b> Lahko ima katerokoli vlogo. Svojo besedo vedno pokaže s pantomimo. Svoji ekipi prinese dodatni 2 točki ob zmagi.</li>
-                </ul>
-            </div>
-
-            <div class="pravilo-card">
-                <h2>🎯 Potek igre:</h2>
-                <ul>
-                    <li><b>BESEDA:</b> Vsak igralec na skrivaj prebere svojo besedo s pritiskom na svojo kartici. Gospod v belem vedno ve svojo vlogo.</li>
-                    <li><b>OPISOVANJE:</b> Vsak igralec z eno besedo opiše svojo besedo. Gospod v belem improvizira (gotovo pa ni prvi na vrsti v prvem krogu). <i>Dobro poslušaj!</i></li>
-                    <li><b>IZLOČANJE:</b> Skupaj se odločite, koga boste izločili. Vsak se lahko zagovarja. Igralec z največ glasovi je izločen.</li>
-                    <li><b>ZMAGA:</b> Prebivalci zmagajo, če izločijo vse ostale vloge. Vohuni in gospod v belem pa zmagajo, če ostane le še eden prebivalec.</li>
-                    <li><b>TOČKOVANJE:</b> Prebivalci = 2 točki, Vohuni = 5 točk, Gospod v belem = 7 točk. Gospod Nemec = celotna ekipa +2 točki.</li>
-                </ul>
-            </div>
-
-            <p class="navodila-close">Klikni kamorkoli, da zapustiš pravila →</p>
-        </div>
-    </section>
-
-    <section id='nastavitve' class='nastavitve'>
-        <h1>POD KRINKO &#128372;</h1>
-
-        <div class="slidecontainer">
-            <img src="/static/pod_krinko_avatars/civilist.png"><img src="/static/pod_krinko_avatars/civilistka.png"> Število igralcev: <span
-                id="nPlayersText">10</span></br>
-            <input type="range" min="3" max="20" value="3" class="slider" id="nPlayersSlider">
-        </div>
-        <div class="slidecontainer">
-            <img src="/static/pod_krinko_avatars/pod_krinko.png"> Število vohunov: <span id="nUndercoversText">10</span></br>
-            <input type="range" min="0" max="6" value="1" class="slider" id="nUndercoversSlider">
-        </div>
-        <div class="slidecontainer">
-            <img src="/static/pod_krinko_avatars/gospod_v_belem.png"> Število gospodov v belem: <span id="nWhitesText">10</span></br>
-            <input type="range" min="0" max="4" value="0" class="slider" id="nWhitesSlider">
-        </div>
-        <div class="slidecontainer">
-            <label for="nemec"> Eden igralec je gospod Nemec:</label>
-            <input type="checkbox" id="nemec" name="nemec" value="nemec">
-        </div>
-
-        <div class="slidecontainer">
-            <b>Imena igralcev:</b></br>
-
-            <div id="namesInput">
-            </div>
-            <script id="hidden-template" type="text/x-custom-template">
-                <div class="nameInput mb-2 p-3 border border-secondary rounded shadow-sm" id="-1">
-                    <div class="row g-2 align-items-center">
-                        <div class="col-7">
-                            <input type="text" class="form-control bg-dark text-white border-secondary" id="name" placeholder="Ime igralca">
-                        </div>
-                        <div class="col-5 d-flex justify-content-center align-items-center gap-3">
-                            <label class="d-flex align-items-center gap-1 cursor-pointer">
-                                <img src="static/pod_krinko_avatars/neznanka.png" width="24">
-                                <input type="radio" class="form-check-input mt-0" id="f" name="spol" value="f" checked>
-                            </label>
-                            <label class="d-flex align-items-center gap-1 cursor-pointer">
-                                <img src="static/pod_krinko_avatars/neznanec.png" width="24">
-                                <input type="radio" class="form-check-input mt-0" id="m" name="spol" value="m">
-                            </label>
-                        </div>
-                    </div>
-                </div>
-			</script>
-        </div>
-
-        <button class="button button_agent" onclick="pravila_igre('block')">
-            Pravila
-        </button>
-        <button class="button button_agent" onclick="reset_game()">
-            Ponastavi
-        </button>
-        <button class="button button_beli" onclick="start_new_game()">
-            Začni
-        </button>
-    </section>
-
-    <section id='igra' class='igra'>
-        <div id="navodilo"></div>
-        <div id="kartice"></div>
-        <div id="stanje">
-            <div id="stanje_prebivalci"></div>
-            <div id="stanje_vohuni"></div>
-            <div id="stanje_beli"></div>
-        </div>
-        <div id="menu" class='menu'>
-            <div class='button button_menu' onclick="rezultati()">
-                Rezultati
-            </div>
-            <div class='button button_menu' onclick="start_new_game()">
-                Določi nove besede
-            </div>
-            <div class='button button_menu' onclick="pojdi_v_nastavitve()">
-                Nastavitve
-            </div>
-        </div>
-
-        <script id="hidden-card-template" type="text/x-custom-template">
-            <button id="card-1" class="button button_neznanec" onclick="overlay_display_mode(this, 'block')">
-                <img>
-                <div class="name">Ime</div>
-                <div id="izkljuci_gumb" class="izkljuci" onclick="izkljuci(this)">Izključi</div>
-            </button>
-        </script>
-        <div id="overlay" onclick="overlay_display_mode(this, 'none')">
-            <div id="text">
-                <div id="overlay_name">Ime:</div></br>
-                <div id="overlay_word">Beseda</div>
-            </div>
-        </div>
-    </section>
-
-    <section id="overlay_izkljucitev" onclick="overlay_display_mode(this, 'none')">
-        <div id="text_izkljucitev">
-            <img id="overlay_image"></br>
-            <div id="overlay_text_izkljucitev">Ime</div></br>
-            <div id="ugibanje_beli">
-                <input type="text" id="ugibanje" name="ugibanje" size="20" /></br>
-                <button class="button button_beli" onclick="ugibaj()">
-                    Ugibaj besedo
-                </button>
-            </div>
-        </div>
-    </section>
-
-    <script id="hidden-result-template" type="text/x-custom-template">
-        <button id="result-1" class="button_result button_neznanec">
-            <img><span class="name">Ime</span><span class="nove_tocke"></span><br>
-            <progress id="progress" value="32" max="100"> 32% </progress>
-        </button>
-    </script>
-    <section id="overlay_rezultati" onclick="overlay_display_mode(this, 'none')">
-        <div id="menu_results" class='menu'>
-            <div class='button button_menu' onclick="overlay_display_mode(this, 'none')">
-                Nadaljuj
-            </div>
-            <div class='button button_menu' onclick="start_new_game()">
-                Nova igra
-            </div>
-            <div class='button button_menu' onclick="pojdi_v_nastavitve()">
-                Nastavitve
-            </div>
-        </div>
-        <div id="text_rezultati">
-            <div id="besedi_rezultati">
-            </div>
-            <div id="osebe_rezultati">
-            </div>
-        </div>
-    </section>
-
-    <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Izločitev igralca</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body" id="modal-body-text">
-        Ali ste prepričani, da želite izločiti igralca?
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Prekliči</button>
-        <button type="button" class="btn btn-danger" id="confirmEliminationBtn">Izloči!</button>
-      </div>
-    </div>
+{% extends "base.html" %}
+{% block content %}
+<link href="/static/css/pod_krinko.css" rel="stylesheet"/>
+<link href="/static/pod_krinko_favicon_io/favicon.ico" rel="icon"/>
+<main class="game" data-bs-theme="dark" id="podKrinko">
+ <div class="pk-shell">
+  <header class="pk-header">
+   <a aria-label="Pod krinko, začetna stran" class="pk-brand" href="/pod_krinko">
+    <span class="pk-brand-icon">
+     <i aria-hidden="true" class="bi bi-incognito">
+     </i>
+    </span>
+    <span>
+     Pod krinko
+     <span class="pk-eyebrow">
+      Besedna igra za družbo
+     </span>
+    </span>
+   </a>
+   <button class="pk-button pk-button-quiet" id="rulesButton" type="button">
+    <i aria-hidden="true" class="bi bi-question-circle">
+    </i>
+    Kako se igra?
+   </button>
+  </header>
+  <ol aria-label="Potek igre" class="pk-steps">
+   <li aria-current="step" data-step="setup">
+    <span>
+     1
+    </span>
+    Priprava
+   </li>
+   <li data-step="reveal">
+    <span>
+     2
+    </span>
+    Skrivne besede
+   </li>
+   <li data-step="play">
+    <span>
+     3
+    </span>
+    Namigi in glasovanje
+   </li>
+   <li data-step="results">
+    <span>
+     4
+    </span>
+    Rezultati
+   </li>
+  </ol>
+  <div class="pk-message" hidden="" id="gameMessage" role="alert">
   </div>
-</div>
-</div>
-
-    <script src="/static/script/pod_krinko.js"></script>
-
-{% include "partials/footer.html" %}
-</body>
-
-</html>
+  <section aria-labelledby="setupTitle" id="nastavitve">
+   <div class="pk-intro">
+    <div>
+     <p class="pk-eyebrow">
+      Ena naprava. Veliko sumljivih obrazov.
+     </p>
+     <h1 id="setupTitle">
+      Kdo med vami
+      <br/>
+      <em>
+       skriva drugo besedo?
+      </em>
+     </h1>
+     <p>
+      Opiši svojo besedo. Poslušaj namige. Razkrinkaj vohuna.
+     </p>
+     <div class="pk-tags">
+      <span>
+       <i aria-hidden="true" class="bi bi-people">
+       </i>
+       3–20 igralcev
+      </span>
+      <span>
+       <i aria-hidden="true" class="bi bi-clock">
+       </i>
+       približno 10 minut
+      </span>
+      <span>
+       <i aria-hidden="true" class="bi bi-phone">
+       </i>
+       en telefon
+      </span>
+     </div>
+    </div>
+    <div aria-hidden="true" class="pk-lineup">
+     <img alt="" src="/static/pod_krinko_avatars/civilistka.png"/>
+     <img alt="" src="/static/pod_krinko_avatars/pod_krinko.png"/>
+     <img alt="" src="/static/pod_krinko_avatars/gospod_v_belem.png"/>
+     <span>
+      Zaupaj namigom. Ne obrazom.
+     </span>
+    </div>
+   </div>
+   <form id="setupForm" novalidate="">
+    <div class="pk-setup-grid">
+     <section aria-labelledby="rolesTitle" class="pk-panel">
+      <div class="pk-panel-title">
+       <span class="pk-number">
+        01
+       </span>
+       <div>
+        <h2 id="rolesTitle">
+         Sestavi ekipo
+        </h2>
+        <p>
+         Izberi igralce in skrivne vloge.
+        </p>
+       </div>
+      </div>
+      <div class="pk-player-count">
+       <label for="nPlayersSlider">
+        Število igralcev
+       </label>
+       <output for="nPlayersSlider" id="nPlayersText">
+        5
+       </output>
+      </div>
+      <div class="pk-range">
+       <button aria-label="En igralec manj" class="pk-icon-button" data-adjust="nPlayersSlider" data-delta="-1" type="button">
+        −
+       </button>
+       <input id="nPlayersSlider" max="20" min="3" type="range" value="5"/>
+       <button aria-label="En igralec več" class="pk-icon-button" data-adjust="nPlayersSlider" data-delta="1" type="button">
+        +
+       </button>
+      </div>
+      <div class="pk-range-labels">
+       <span>
+        3 igralci
+       </span>
+       <span>
+        20 igralcev
+       </span>
+      </div>
+      <div class="pk-role-row">
+       <img alt="" src="/static/pod_krinko_avatars/pod_krinko.png"/>
+       <div>
+        <label for="nUndercoversSlider">
+         Vohuni
+        </label>
+        <p>
+         Dobijo podobno, a drugačno besedo.
+        </p>
+       </div>
+       <div class="pk-counter">
+        <button aria-label="En vohun manj" data-adjust="nUndercoversSlider" data-delta="-1" type="button">
+         −
+        </button>
+        <input id="nUndercoversSlider" inputmode="numeric" max="2" min="0" type="number" value="1"/>
+        <button aria-label="En vohun več" data-adjust="nUndercoversSlider" data-delta="1" type="button">
+         +
+        </button>
+       </div>
+      </div>
+      <div class="pk-role-row">
+       <img alt="" src="/static/pod_krinko_avatars/gospod_v_belem.png"/>
+       <div>
+        <label for="nWhitesSlider">
+         Gospodje v belem
+        </label>
+        <p>
+         Brez besede. Blefirajo in ugibajo.
+        </p>
+       </div>
+       <div class="pk-counter">
+        <button aria-label="En gospod v belem manj" data-adjust="nWhitesSlider" data-delta="-1" type="button">
+         −
+        </button>
+        <input id="nWhitesSlider" inputmode="numeric" max="2" min="0" type="number" value="0"/>
+        <button aria-label="En gospod v belem več" data-adjust="nWhitesSlider" data-delta="1" type="button">
+         +
+        </button>
+       </div>
+      </div>
+      <div aria-live="polite" class="pk-team-summary" id="teamSummary">
+      </div>
+       <p class="pk-role-note mb-3">
+       Večina naj ostane prebivalcev: skrivnih nasprotnikov mora biti vsaj eden, največ pa polovica ekipe.
+      </p>
+      <label class="pk-option" for="nemec">
+       <input id="nemec" type="checkbox"/>
+       <span>
+        <strong>
+         Dodaj gospoda Nemca
+        </strong>
+        <small>
+         En naključni igralec daje namige s pantomimo. Ob njegovi zmagi ekipa dobi +2 točki.
+        </small>
+       </span>
+      </label>
+     </section>
+     <section aria-labelledby="namesTitle" class="pk-panel">
+      <div class="pk-panel-title">
+       <span class="pk-number">
+        02
+       </span>
+       <div>
+        <h2 id="namesTitle">
+         Kdo igra?
+        </h2>
+        <p>
+         Vnesi različna imena in izberi avatarje.
+        </p>
+       </div>
+      </div>
+      <div class="pk-names" id="namesInput">
+      </div>
+       <p class="pk-storage-note" id="storageNote">
+       <i aria-hidden="true" class="bi bi-bookmark-check">
+       </i>
+       Imena, nastavitve in točke se shranijo v tem brskalniku.
+      </p>
+     </section>
+    </div>
+    <div class="pk-start-bar">
+     <div>
+      <strong>
+       Pripravljeni na prvo skrivnost?
+      </strong>
+      <p>
+       Po začetku podaj napravo vsakemu igralcu posebej.
+      </p>
+     </div>
+     <div class="pk-actions">
+      <button class="pk-button pk-button-quiet" id="resetButton" type="button">
+       Ponastavi
+      </button>
+      <button class="pk-button pk-button-primary" data-start-game="" type="submit">
+       <i aria-hidden="true" class="bi bi-play-fill">
+       </i>
+       Začni igro
+      </button>
+     </div>
+    </div>
+   </form>
+   <div class="pk-quick-guide">
+    <div>
+     <span>
+      1
+     </span>
+     <strong>
+      Poglej besedo
+     </strong>
+     <p>
+      Na skrivaj. Nato skrij zaslon.
+     </p>
+    </div>
+    <div>
+     <span>
+      2
+     </span>
+     <strong>
+      Podaj namig
+     </strong>
+     <p>
+      Ena beseda, brez razkritja skrivnosti.
+     </p>
+    </div>
+    <div>
+     <span>
+      3
+     </span>
+     <strong>
+      Glasuj
+     </strong>
+     <p>
+      Skupaj izločite najbolj sumljivega.
+     </p>
+    </div>
+   </div>
+  </section>
+  <section aria-labelledby="gameTitle" hidden="" id="igra">
+   <div class="pk-game-heading">
+    <div>
+     <p class="pk-eyebrow" id="phaseLabel">
+      Skrivne besede
+     </p>
+     <h1 id="gameTitle" tabindex="-1">
+      Podaj napravo
+     </h1>
+    </div>
+    <button class="pk-button pk-button-quiet" data-open-settings="" type="button">
+     <i aria-hidden="true" class="bi bi-gear">
+     </i>
+     Nastavitve
+    </button>
+   </div>
+   <section aria-label="Razdeljevanje skrivnih besed" class="pk-panel pk-reveal" id="revealPanel">
+    <span class="pk-secret-icon">
+     <i aria-hidden="true" class="bi bi-shield-lock">
+     </i>
+    </span>
+    <p>
+     Napravo zdaj prevzame
+    </p>
+    <h2 id="revealPlayer">
+    </h2>
+    <p id="revealHint">
+     Prepričaj se, da zaslon vidiš samo ti.
+    </p>
+    <button class="pk-button pk-button-primary" id="revealButton" type="button">
+     <i aria-hidden="true" class="bi bi-eye">
+     </i>
+     Pokaži mojo besedo
+    </button>
+    <div class="pk-reveal-progress">
+     <progress aria-label="Razdeljene besede" id="revealProgress" max="5" value="0">
+     </progress>
+     <span aria-live="polite" id="revealCount">
+     </span>
+    </div>
+   </section>
+   <div hidden="" id="playPanel">
+    <section class="pk-panel pk-round-guide">
+     <div>
+      <p class="pk-eyebrow" id="roundLabel">
+       Krog 1
+      </p>
+      <h2 id="navodilo">
+      </h2>
+      <p id="roundHelp">
+      </p>
+      <p class="pk-mime-notice" hidden="" id="mimeNotice">
+      </p>
+     </div>
+     <button class="pk-button pk-button-primary" id="voteButton" type="button">
+      Zaključi namige · glasovanje
+      <i aria-hidden="true" class="bi bi-arrow-right">
+      </i>
+     </button>
+    </section>
+    <div aria-live="polite" class="pk-status" id="stanje">
+    </div>
+    <div class="pk-cards" id="kartice">
+    </div>
+    <div class="pk-game-menu">
+     <button class="pk-button pk-button-quiet" id="scoresButton" type="button">
+      <i aria-hidden="true" class="bi bi-trophy">
+      </i>
+      Točke
+     </button>
+     <button class="pk-button pk-button-quiet" data-start-game="" type="button">
+      <i aria-hidden="true" class="bi bi-arrow-repeat">
+      </i>
+      Nove besede
+     </button>
+    </div>
+   </div>
+  </section>
+  <section aria-labelledby="resultsTitle" hidden="" id="resultsPanel">
+   <div class="pk-results-heading">
+    <span class="pk-secret-icon">
+     <i aria-hidden="true" class="bi bi-trophy">
+     </i>
+    </span>
+    <p class="pk-eyebrow">
+     Skrivnost je razkrita
+    </p>
+    <h1 id="resultsTitle" tabindex="-1">
+    </h1>
+    <p id="winnerDescription">
+    </p>
+   </div>
+   <div class="pk-word-pair" id="besedi_rezultati">
+   </div>
+   <section class="pk-panel">
+    <h2>
+     Skupne točke
+    </h2>
+    <div class="pk-score-list" id="osebe_rezultati">
+    </div>
+   </section>
+   <div class="pk-result-actions">
+    <button class="pk-button pk-button-primary" data-start-game="" type="button">
+     <i aria-hidden="true" class="bi bi-arrow-repeat">
+     </i>
+     Nova igra z isto ekipo
+    </button>
+    <button class="pk-button pk-button-quiet" data-open-settings="" type="button">
+     Uredi ekipo
+    </button>
+   </div>
+  </section>
+  <noscript>
+   <p class="pk-message">
+    Za igro omogoči JavaScript v brskalniku.
+   </p>
+  </noscript>
+ </div>
+ <dialog aria-labelledby="rulesTitle" class="pk-dialog pk-rules" id="rulesDialog">
+  <div class="pk-dialog-heading">
+   <div>
+    <p class="pk-eyebrow">
+     Hitro do prve igre
+    </p>
+    <h2 id="rulesTitle">
+     Kako se igra Pod krinko?
+    </h2>
+   </div>
+   <button aria-label="Zapri navodila" class="pk-icon-button" data-close-dialog="" type="button">
+    ×
+   </button>
+  </div>
+  <p>
+   Igrajte v živo z eno napravo. Nihče ne sme videti besed drugih igralcev.
+  </p>
+  <div class="pk-rules-roles">
+   <article>
+    <img alt="" src="/static/pod_krinko_avatars/civilist.png"/>
+    <h3>
+     Prebivalci
+    </h3>
+    <p>
+     Vsi dobijo isto besedo. Izločiti morajo vse vohune in gospode v belem.
+    </p>
+    <strong>
+     Zmaga: 2 točki
+    </strong>
+   </article>
+   <article>
+    <img alt="" src="/static/pod_krinko_avatars/pod_krinko.png"/>
+    <h3>
+     Vohuni
+    </h3>
+    <p>
+     Dobijo podobno besedo. Ostati morajo neopazni, dokler ne ostane le en prebivalec.
+    </p>
+    <strong>
+     Zmaga: 5 točk
+    </strong>
+   </article>
+   <article>
+    <img alt="" src="/static/pod_krinko_avatars/gospod_v_belem.png"/>
+    <h3>
+     Gospod v belem
+    </h3>
+    <p>
+     Ne dobi besede. Ob izločitvi lahko enkrat ugiba besedo prebivalcev in takoj zmaga.
+    </p>
+    <strong>
+     Zmaga: 7 točk
+    </strong>
+   </article>
+  </div>
+  <ol class="pk-rules-flow">
+   <li>
+    <strong>
+     Na skrivaj preberi besedo.
+    </strong>
+    Pritisni »Pokaži mojo besedo«, si jo zapomni in pritisni »Skrij in predaj«.
+   </li>
+   <li>
+    <strong>
+     Vsak poda en namig.
+    </strong>
+    Začne označeni igralec, nato nadaljujte po vrsti. Namig naj bo ena beseda; skrivne besede ne izgovori. Gospod v belem v prvem krogu ne začne.
+   </li>
+   <li>
+    <strong>
+     Pogovorite se in glasujte.
+    </strong>
+    Po namigih pritisnite »Zaključi namige · glasovanje«. Igralca z največ glasovi izločite. Ob izenačenju ponovite glasovanje; aplikacija sama ne šteje glasov.
+   </li>
+   <li>
+    <strong>
+     Ponovite krog.
+    </strong>
+    Vloga izločenega igralca se razkrije. Prebivalci zmagajo, ko ni več nasprotnikov. Preživeli nasprotniki zmagajo, ko ostane največ en prebivalec.
+   </li>
+  </ol>
+  <p class="pk-rule-note">
+   <strong>
+    Gospod Nemec:
+   </strong>
+   naključno izbrani igralec ohrani svojo skrivno vlogo, namige pa daje s pantomimo. Če preživi in zmaga, vsak preživeli član njegove vloge prejme še 2 točki. Točke se sicer dodelijo preživelim zmagovalcem; uspešno ugibanje nagradi le gospoda v belem, ki je uganil.
+  </p>
+  <button class="pk-button pk-button-primary" data-close-dialog="" type="button">
+   Razumem, gremo igrat
+  </button>
+ </dialog>
+ <dialog aria-labelledby="secretName" class="pk-dialog pk-secret" id="secretDialog">
+  <span class="pk-eyebrow">
+   Samo za tvoje oči
+  </span>
+  <h2 id="secretName">
+  </h2>
+  <p id="secretLabel">
+   Tvoja skrivna beseda
+  </p>
+  <div class="pk-secret-word" id="secretWord">
+  </div>
+  <p id="secretHelp">
+   Zapomni si besedo. Svoje vloge še ne poznaš.
+  </p>
+  <button class="pk-button pk-button-primary" id="hideSecretButton" type="button">
+   <i aria-hidden="true" class="bi bi-eye-slash">
+   </i>
+   Skrij in predaj
+  </button>
+ </dialog>
+ <dialog aria-labelledby="actionTitle" class="pk-dialog" id="actionDialog">
+  <h2 id="actionTitle">
+  </h2>
+  <p id="actionText">
+  </p>
+  <div class="pk-actions">
+   <button class="pk-button pk-button-quiet" data-close-dialog="" type="button">
+    Prekliči
+   </button>
+   <button class="pk-button pk-button-primary" id="confirmActionButton" type="button">
+    Potrdi
+   </button>
+  </div>
+ </dialog>
+ <dialog aria-labelledby="eliminationTitle" class="pk-dialog pk-secret" id="eliminationDialog">
+  <img alt="" class="pk-elimination-avatar" id="eliminationAvatar" src="/static/pod_krinko_avatars/neznanec.png"/>
+  <p class="pk-eyebrow">
+   Glasovanje je odločilo
+  </p>
+  <h2 id="eliminationTitle">
+  </h2>
+  <p id="eliminationRole">
+  </p>
+  <form hidden="" id="guessForm">
+   <label for="ugibanje">
+    En poskus: katero besedo imajo prebivalci?
+   </label>
+   <input autocomplete="off" id="ugibanje" maxlength="80" required="" type="text"/>
+   <button class="pk-button pk-button-primary" type="submit">
+    Ugibaj besedo
+   </button>
+   <button class="pk-button pk-button-quiet" id="skipGuessButton" type="button">
+    Preskoči ugibanje
+   </button>
+  </form>
+  <p hidden="" id="guessFeedback" role="status">
+  </p>
+  <button class="pk-button pk-button-primary" id="continueRoundButton" type="button">
+   Nadaljuj
+  </button>
+ </dialog>
+ <dialog aria-labelledby="scoresTitle" class="pk-dialog" id="scoresDialog">
+  <div class="pk-dialog-heading">
+   <h2 id="scoresTitle">
+    Skupne točke
+   </h2>
+   <button aria-label="Zapri točke" class="pk-icon-button" data-close-dialog="" type="button">
+    ×
+   </button>
+  </div>
+  <p>
+   Skrivne vloge in besede se razkrijejo ob koncu igre.
+  </p>
+  <div class="pk-score-list" id="liveScores">
+  </div>
+ </dialog>
+</main>
+<script defer="" src="/static/script/pod_krinko.js">
+</script>
+{% endblock %}
