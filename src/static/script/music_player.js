@@ -778,7 +778,9 @@ function renderAlbums() {
     albumListEl.innerHTML = "";
     albums.forEach(album => {
         const div = document.createElement("div");
-        const albumNameInfo = getAlbumDisplayInfo(album.name);
+        const albumNameInfo = album.is_private
+            ? { displayName: album.name, hasSeparator: false }
+            : getAlbumDisplayInfo(album.name);
         div.className = "album-item" + (getAlbumKey(album) === currentAlbumKey ? " active" : "");
 
         if (albumNameInfo.hasSeparator) {
@@ -787,7 +789,7 @@ function renderAlbums() {
 
         if (album.is_private) {
             div.classList.add("album-item-private");
-            div.innerHTML = `<span class="album-item-label">${escapeMusicHtml(albumNameInfo.displayName || album.name)}<span class="album-item-private-badge">Moj album</span></span>`;
+            div.innerHTML = `<i class="bi bi-folder-heart album-item-private-icon" aria-hidden="true"></i><span class="album-item-label">${escapeMusicHtml(albumNameInfo.displayName || album.name)}<span class="album-item-private-badge">Moj album</span></span>`;
         } else {
             div.innerHTML = `<span class="album-item-label">${escapeMusicHtml(albumNameInfo.displayName || album.name)}</span>`;
         }

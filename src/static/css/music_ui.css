@@ -3,17 +3,10 @@
 .music-app-container.radio-stories-page { --audio-accent: #a76024; --audio-soft: #fbefdc; --audio-border: #eadfce; background: #faf5eb; }
 .music-app-container :focus-visible, .private-modal-content :focus-visible { outline: 3px solid var(--audio-accent, #286e75); outline-offset: 3px; }
 .music-app-container [hidden] { display: none !important; }
-.music-app-container .music-ambience, .music-app-container .radio-bubbles { opacity: .12; }
-.music-app-container .tracks-section::before, .music-app-container .player-section::before { display: none; }
 .audio-page-heading { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 1rem; position: relative; z-index: 3; padding: .2rem .25rem .6rem; }
 .audio-eyebrow { text-transform: uppercase; letter-spacing: .12em; color: var(--audio-accent); font-size: .62rem; font-weight: 700; }
 .audio-page-heading h1 { font-size: 1.8rem; font-weight: 750; letter-spacing: -.035em; margin: .2rem 0 .35rem; padding: 0; color: #263849; }
 .audio-page-heading p { color: #61727e; font-size: .8rem; line-height: 1.6; margin: 0; }
-.audio-help { position: relative; flex-shrink: 0; font-size: .8rem; color: var(--audio-accent); }
-.audio-help summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: .5rem; font-weight: 650; padding: .65rem .85rem; border-radius: .65rem; background: #fff; border: 1px solid var(--audio-border); list-style: none; }
-.audio-help summary::-webkit-details-marker { display: none; }
-.audio-help-content { position: absolute; top: calc(100% + .5rem); right: 0; width: min(340px, calc(100vw - 3rem)); background: #fff; border: 1px solid var(--audio-border); box-shadow: 0 10px 30px #24374718; padding: 1.25rem; border-radius: .85rem; color: #263849; z-index: 10; }
-.audio-help-content p { margin-top: .65rem; }
 .music-app-container #browser { border-radius: 1rem; background: #fff; border: 1px solid var(--audio-border); min-width: 0; position: relative; z-index: 1; }
 .music-app-container .albums-section { width: 225px; flex: 0 0 225px; background: #f7faf8; border-right: 1px solid var(--audio-border); }
 .music-app-container .tracks-section { background: #fff; min-width: 0; overflow: hidden; }
@@ -86,7 +79,6 @@
   .audio-page-heading h1 { font-size: 1.35rem; }
   .audio-page-heading > div > p { display: none; }
   .audio-eyebrow { font-size: .55rem; }
-  .audio-help summary { padding: .5rem .65rem; font-size: .72rem; }
   .music-app-container #browser { flex-direction: column; }
   .music-app-container .browser-toggle { display: flex !important; height: 44px; background: #f7faf8; border-bottom: 1px solid var(--audio-border); flex-shrink: 0; }
   .music-app-container .toggle-btn { color: #61727e; padding: .5rem; margin: 0; background-image: none; font-size: .8rem; border: 0; }
@@ -127,3 +119,29 @@
 }
 
 .audio-inline-action { border: 0; padding: .2rem 0; margin: 0; background: transparent; background-image: none; color: #286e75; font-size: inherit; font-weight: 650; text-decoration: underline; }
+
+/* Keep the original animated ambience visible around and through the panels. */
+.music-app-container .music-ambience { opacity: 1; pointer-events: none; }
+.music-app-container .radio-bubbles { opacity: 1; }
+.music-app-container:not(.radio-stories-page) .audio-page-heading h1 { color: #f5fcf8; }
+.music-app-container:not(.radio-stories-page) .audio-page-heading p { color: #d7e8e1; }
+.music-app-container:not(.radio-stories-page) .audio-eyebrow { color: #c4dad1; }
+.music-app-container #browser, .music-app-container .tracks-section { background: #ffffffeb; }
+.music-app-container .albums-section { background: #f7faf8d9; }
+.music-app-container .player-section { background: #ffffffe6; overflow-x: hidden; }
+.music-app-container .tracks-section::before, .music-app-container .player-section::before { inset: 0; opacity: .4; }
+.music-app-container .track-item { background: #ffffffbd; }
+.radio-stories-page .radio-bubbles span { border-color: #bc874c80; background: radial-gradient(circle at 32% 28%, #fffdf3cc, #e6bd781f 34%, #d3a46b33 100%); }
+.music-app-container .album-item { opacity: 1; font-weight: 700; }
+.music-app-container .album-item.album-item-after-separator { margin-left: .9rem; padding: .45rem .65rem; font-size: .75rem; font-weight: 400; text-align: right; background: #e9f1ed80; border-inline-start: 2px solid #bfd1c8; box-shadow: none; }
+.music-app-container .album-item-after-separator .album-item-label { flex: 1; }
+.music-app-container .album-item.album-item-after-separator.active { background: var(--audio-soft); border-color: #a9c5b9; color: var(--audio-accent); font-weight: 600; }
+
+/* Personal collections stand apart from the public album hierarchy. */
+.music-app-container .album-item.album-item-private { background: #fcf0d9; color: #785025; border: 1px solid #e5c99a; border-inline-start: 3px solid #c08a42; font-weight: 650; }
+.music-app-container .album-item.album-item-private:hover { background: #f8e6c4; border-color: #c99653; }
+.music-app-container .album-item.album-item-private.active { background: #f3dbad; border-color: #b9833e; color: #654019; box-shadow: inset 0 0 0 1px #b9833e33; }
+.music-app-container .album-item-private .album-item-label { flex: 1; }
+.music-app-container .album-item-private-icon { color: #a36d2c; flex-shrink: 0; font-size: 1.15rem; }
+.music-app-container .album-item-private-badge { display: block; width: fit-content; margin: .3rem 0 0; padding: .1rem .4rem; color: #785025; background: #fffaf0; border: 1px solid #e5c99a; font-size: .6rem; }
+.music-app-container .album-item-private .album-item-count { color: #785025; }

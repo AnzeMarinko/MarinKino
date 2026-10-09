@@ -35,6 +35,7 @@ def audio_site(ui):
     albums = [
         dict(name="Za dobro voljo", songs=songs),
         dict(name="Prazen album", songs=[]),
+        dict(name="Za dobro voljo - Podalbum", songs=[]),
     ]
 
     @ui.app.route("/music")
@@ -89,7 +90,7 @@ def audio_site(ui):
 def test_audio_templates(audio_site):
     for path in ["/music", "/radio-stories"]:
         html = audio_site.client.get(path).text
-        assert "Kako poslušam?" in html
+        assert "Kako poslušam?" not in html
         assert 'aria-label="Položaj predvajanja"' in html
         assert "user-scalable=no" not in html
 
@@ -108,6 +109,26 @@ def test_browser_audio_layout_search_keyboard_and_playback(
                 page.locator(".album-item").first.click()
                 assert page.locator("#tracks").is_visible()
             assert page.locator("#player").is_visible()
+            if path == "/music":
+                sub = page.locator(".album-item-after-separator")
+                assert sub.count() == 1
+                assert sub.evaluate(
+                    "(el) => parseFloat(getComputedStyle(el).marginLeft) > 0"
+                )
+                assert (
+                    page.locator(".music-ambience__wave").first.evaluate(
+                        "(el) => getComputedStyle(el).animationName"
+                    )
+                    != "none"
+                )
+            else:
+                assert (
+                    page.locator(".radio-bubbles span").first.evaluate(
+                        "(el) => getComputedStyle(el).animationName"
+                    )
+                    != "none"
+                )
+
             assert page.evaluate(
                 "document.documentElement.scrollWidth <= innerWidth + 1"
             )
@@ -138,9 +159,6 @@ def test_browser_audio_layout_search_keyboard_and_playback(
             )
             page.get_by_role("button", name="Premor", exact=True).click()
             assert page.locator("#audio").evaluate("(el) => el.paused")
-            page.locator(".audio-help summary").click()
-            assert page.locator(".audio-help-content").is_visible()
-            page.locator(".audio-help summary").click()
             if path == "/music" and width <= 812:
                 page.locator(".audio-private-details summary").click()
                 assert page.locator("#privateAlbumEmptyHint").is_visible()
