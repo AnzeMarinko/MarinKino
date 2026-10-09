@@ -22,6 +22,8 @@ _AUDIO_ANALYSIS_VERSION = 1
 _LIBROSA_ANALYSIS_VERSION = 1
 _GEMINI_SEMANTIC_ANALYSIS_VERSION = "1.1"
 _SAMPLE_RATE = 22050
+SIMILAR_RANDOMNESS_WEIGHT = 0.025
+_SIMILAR_DISTANCE_MARGIN = 0.08
 
 _DEFAULT_FEATURES = {
     "tempo": 0.5,
@@ -609,7 +611,8 @@ def load_cached_metadata(
     needs_analysis = metadata.get("analysis_backend") != requested_backend
     if enrich and source and needs_analysis:
         print(
-            f"Analyzing audio for {path.parent} from {metadata.get('analysis_backend')} to {requested_backend}"
+            f"Analyzing audio for {path.parent} "
+            f"from {metadata.get('analysis_backend')} to {requested_backend}"
         )
         try:
             metadata.update(
@@ -655,11 +658,14 @@ def _feature_distance(
 ) -> float:
     values_a = song_a.get("audio_features", {})
     values_b = song_b.get("audio_features", {})
-    for key in _DEFAULT_FEATURES:
-        values_a.setdefault(key, _DEFAULT_FEATURES[key])
-        values_b.setdefault(key, _DEFAULT_FEATURES[key])
-    values_a = [float(values_a[key]) for key in sorted(_DEFAULT_FEATURES)]
-    values_b = [float(values_b[key]) for key in sorted(_DEFAULT_FEATURES)]
+    values_a = [
+        _clamp_score(values_a.get(key, _DEFAULT_FEATURES[key]))
+        for key in sorted(_DEFAULT_FEATURES)
+    ]
+    values_b = [
+        _clamp_score(values_b.get(key, _DEFAULT_FEATURES[key]))
+        for key in sorted(_DEFAULT_FEATURES)
+    ]
     distance = math.sqrt(
         sum((a - b) ** 2 for a, b in zip(values_a, values_b)) / len(values_a)
     )
@@ -684,6 +690,8 @@ def _chord_distance(chord_a: Any, chord_b: Any) -> float:
 
 
 def _folder_distance(folder_a: Any, folder_b: Any) -> float:
+    if not folder_a or not folder_b:
+        return 0.5 if folder_a or folder_b else 0.0
     parts_a = Path(str(folder_a or "").split("/data/")[-1]).parts[:-1]
     parts_b = Path(str(folder_b or "").split("/data/")[-1]).parts[:-1]
     if parts_a == parts_b:
@@ -693,8 +701,8 @@ def _folder_distance(folder_a: Any, folder_b: Any) -> float:
         if left != right:
             break
         common += 1
-    minimum = min(len(parts_a), len(parts_b), 1)
-    return min(1.0, 1 - common / minimum)
+    depth = max(len(parts_a), len(parts_b))
+    return 1 - common / depth if depth else 0.0
 
 
 def _semantic_distance(
@@ -733,6 +741,58 @@ def calculate_distance(
         )
         + semantic_weight * _semantic_distance(song_a, song_b)
     )
+
+
+def calculate_similarity_distance(
+    song_a: Mapping[str, Any], song_b: Mapping[str, Any]
+) -> float:
+    """Prioritize sound and musical context over transition harmonics."""
+    distance = calculate_distance(
+        song_a, song_b,
+        {"audio": 1.6, "chord": 0.1, "folder": 0.15, "semantic": 0.8},
+    )
+    tags_a = {
+        str(tag).strip().casefold()
+        for tag in song_a.get("semantic_analysis", {}).get("tags", [])
+        if str(tag).strip()
+    }
+    tags_b = {
+        str(tag).strip().casefold()
+        for tag in song_b.get("semantic_analysis", {}).get("tags", [])
+        if str(tag).strip()
+    }
+    if tags_a and tags_b:
+        distance += 0.4 * (1 - len(tags_a & tags_b) / len(tags_a | tags_b))
+    elif tags_a or tags_b:
+        distance += 0.2
+    genre_a = str(song_a.get("genre") or "").strip().casefold()
+    genre_b = str(song_b.get("genre") or "").strip().casefold()
+    if genre_a and genre_b:
+        distance += 0.3 * (genre_a != genre_b)
+    elif genre_a or genre_b:
+        distance += 0.15
+    return distance
+
+
+def similar_candidates(
+    current_song: Mapping[str, Any],
+    playlist: Sequence[Mapping[str, Any]],
+    limit: int = 200,
+) -> list[Mapping[str, Any]]:
+    """Keep the nearest neighborhood; never widen it to fill a playlist."""
+    ranked = sorted(
+        (
+            (calculate_similarity_distance(current_song, song), song)
+            for song in playlist if song.get("id") != current_song.get("id")
+        ),
+        key=lambda item: item[0],
+    )
+    if not ranked:
+        return []
+    maximum_distance = ranked[0][0] + _SIMILAR_DISTANCE_MARGIN
+    return [
+        song for distance, song in ranked if distance <= maximum_distance
+    ][:limit]
 
 
 def select_next_song(
@@ -779,15 +839,21 @@ def select_next_song(
     if mode == "uniform_random":
         return rng_source.choice(candidates)
 
-    temperature = min(1.0, max(0.1, float(randomness_weight)))
-    distances = [
-        calculate_distance(
-            current_song or {},
-            song,
-            {"semantic": 0.2},
+    if mode == "similar":
+        candidates = similar_candidates(
+            current_song or {}, candidates, limit=3
         )
-        for song in candidates
-    ]
+        temperature = min(0.05, max(0.01, float(randomness_weight)))
+        distances = [
+            calculate_similarity_distance(current_song or {}, song)
+            for song in candidates
+        ]
+    else:
+        temperature = min(1.0, max(0.1, float(randomness_weight)))
+        distances = [
+            calculate_distance(current_song or {}, song, {"semantic": 0.2})
+            for song in candidates
+        ]
     scores = [-distance / temperature for distance in distances]
     maximum = max(scores)
     probabilities = [math.exp(score - maximum) for score in scores]

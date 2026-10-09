@@ -22,9 +22,11 @@ from mutagen.easyid3 import EasyID3
 from mutagen.mp3 import MP3, HeaderNotFoundError
 
 from music.recommendations import (
+    SIMILAR_RANDOMNESS_WEIGHT,
     calculate_transition_parameters,
     load_cached_metadata,
     select_next_song,
+    similar_candidates,
 )
 from utils import FLASK_ENV, is_current_admin_view, safe_path
 
@@ -620,7 +622,12 @@ def recommend_next_song():
     ]
     current_song = next(song for song in playlist if song["id"] == current_id)
     try:
-        randomness_weight = float(payload.get("randomness_weight", 0.1))
+        default_randomness = (
+            SIMILAR_RANDOMNESS_WEIGHT if mode == "similar" else 0.1
+        )
+        randomness_weight = float(
+            payload.get("randomness_weight", default_randomness)
+        )
         crossfade_duration_ms = int(payload.get("crossfade_duration_ms", 3000))
     except (TypeError, ValueError):
         return jsonify({"message": "Časovni parametri niso veljavni."}), 400
@@ -666,22 +673,23 @@ def create_hls_session_playlist():
         return jsonify({"message": "Manjka seznam skladb."}), 400
 
     track_ids = [str(track_id) for track_id in track_ids]
-    if len(track_ids) > 201 or any(
+    if (mode != "similar" and len(track_ids) > 201) or any(
         track_id not in visible_track_ids for track_id in track_ids
     ):
-        for track_id in track_ids:
-            if track_id not in visible_track_ids:
-                log.warning(f"Neveljaven seznam skladb {len(track_ids)}.")
-                return jsonify({"message": "Neveljaven seznam skladb."}), 400
+        log.warning("Neveljaven seznam skladb: %s vnosov.", len(track_ids))
+        return jsonify({"message": "Neveljaven seznam skladb."}), 400
 
     if mode not in {"sequential", "similar", "random"}:
         return jsonify({"message": "Neveljaven način predvajanja."}), 400
 
-    hls_track_ids = [
-        track_id
-        for track_id in track_ids
-        if visible_metadata[track_id].get("hls_path")
-    ]
+    track_ids = list(dict.fromkeys(track_ids))
+    hls_track_ids = []
+    for track_id in track_ids:
+        if visible_metadata[track_id].get("hls_path"):
+            hls_track_ids.append(track_id)
+        elif mode == "sequential":
+            # Leave a file-only track for the player's normal source fallback.
+            break
     if not hls_track_ids or hls_track_ids[0] != track_ids[0]:
         return jsonify({"message": "Trenutna skladba nima HLS vira."}), 400
 
@@ -692,12 +700,17 @@ def create_hls_session_playlist():
             for track_id in hls_track_ids
         ]
         current_song = candidates.pop(0)
+        if mode == "similar":
+            # Anchor the whole native stream to the starting song's style.
+            candidates = similar_candidates(current_song, candidates)
 
-        while candidates and len(session_track_ids) < 10:
+        while candidates:
             next_song = select_next_song(
                 current_song,
                 candidates,
-                randomness_weight=0.2 if mode == "similar" else 0.55,
+                randomness_weight=(
+                    SIMILAR_RANDOMNESS_WEIGHT if mode == "similar" else 0.55
+                ),
                 mode=mode,
             )
             if next_song is None:

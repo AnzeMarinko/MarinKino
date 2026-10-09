@@ -61,6 +61,7 @@ const selectedSongIds = new Set();
 let selectedPrivateAlbumId = localStorage.getItem("musicPrivateAlbumTarget") || null;
 let isLoadingTrack = false;
 let pendingManualTrackIndex = null;
+let pendingManualTrackOptions = null;
 let pendingRestoreTime = currentTime;
 let trackLoadToken = 0;
 let hlsInstance = null;
@@ -74,12 +75,14 @@ let endTransitionTrack = null;
 let isHlsSessionPlayback = false;
 let hlsSessionTracks = [];
 let hlsSessionTrackStart = 0;
+let hlsSessionMode = null;
+let hlsSessionAlbumKey = null;
 let playbackIntent = false;
 let resumePlaybackRequest = null;
 const randomCooldownMs = 60 * 60 * 1000;
 const randomCooldownStorageKey = "musicRandomCooldown";
 const playbackRandomnessWeights = {
-    similar: 0.05,
+    similar: 0.025,
     random: 0.15,
 };
 const storedPlaybackMode = localStorage.getItem("musicPlaybackMode");
@@ -307,20 +310,30 @@ function scheduleEndTransition() {
 
 function preloadNextTrack() {
     clearNextTrackPreload();
+    if (isHlsSessionPlayback) {
+        return;
+    }
     if (["similar", "random"].includes(playbackMode)) {
-        requestRecommendedTrack(playbackMode)
+        const requestedTrack = currentTrack;
+        const requestedMode = playbackMode;
+        requestRecommendedTrack(requestedMode)
             .then(payload => {
-                if (currentTrack === payload.song?.id) {
+                if (
+                    currentTrack !== requestedTrack || playbackMode !== requestedMode
+                    || requestedTrack === payload.song?.id
+                ) {
                     return;
                 }
                 preloadedRecommendation = {
-                    currentTrack,
-                    mode: playbackMode,
+                    currentTrack: requestedTrack,
+                    mode: requestedMode,
                     payload,
                 };
             })
             .catch(() => {
-                preloadedRecommendation = null;
+                if (currentTrack === requestedTrack && playbackMode === requestedMode) {
+                    preloadedRecommendation = null;
+                }
             });
         return;
     }
@@ -346,6 +359,9 @@ function preloadNextTrack() {
 }
 
 function setPlaybackMode(mode) {
+    syncHlsSessionTrack();
+    const previousMode = playbackMode;
+    const position = getPlaybackPosition().position;
     playbackMode = !isRadioStoriesPage && playbackModes.includes(mode)
         ? mode
         : "sequential";
@@ -353,6 +369,19 @@ function setPlaybackMode(mode) {
         localStorage.setItem("musicPlaybackMode", playbackMode);
     }
     updatePlaybackModeButtons();
+    if (!isHlsSessionPlayback) {
+        audio.loop = playbackMode === "repeat";
+    }
+    if (
+        previousMode !== playbackMode && audio.currentSrc && currentIndex >= 0
+        && (isHlsSessionPlayback || playbackIntent)
+    ) {
+        playTrack(currentIndex, {
+            forceSource: true,
+            resume: playbackIntent,
+            startTimeMs: position * 1000,
+        });
+    }
 }
 
 function getPlaybackModeInfo(mode) {
@@ -439,6 +468,56 @@ function getUniformRandomTrackIndex() {
     return candidateIndexes[Math.floor(Math.random() * candidateIndexes.length)];
 }
 
+function getSimilarTrackIndex() {
+    // Keep unavailable or late recommendations from turning similar into random.
+    const current = getTrackMetadata(currentTrack);
+    const score = value => Number.isFinite(Number(value))
+        ? Math.max(0, Math.min(1, Number(value)))
+        : 0.5;
+    const featureKeys = ["tempo", "energy", "mood", "instruments"];
+    const semanticKeys = ["mood", "spirituality", "calmness", "energy", "lyrical_depth"];
+    const tags = metadata => new Set(
+        (Array.isArray(metadata.semantic_analysis?.tags) ? metadata.semantic_analysis.tags : [])
+            .map(tag => String(tag).trim().toLowerCase()).filter(Boolean)
+    );
+    const currentTags = tags(current);
+    let bestIndex = -1;
+    let bestDistance = Infinity;
+    currentSongs.forEach((trackId, index) => {
+        if (trackId === currentTrack) {
+            return;
+        }
+        const candidate = getTrackMetadata(trackId);
+        const audioDistance = Math.sqrt(featureKeys.reduce((sum, key) => {
+            const delta = score(current.audio_features?.[key] ?? 0.5)
+                - score(candidate.audio_features?.[key] ?? 0.5);
+            return sum + delta * delta;
+        }, 0) / featureKeys.length);
+        const semanticDistance = semanticKeys.reduce((sum, key) => sum + Math.abs(
+            score(current.semantic_analysis?.[key] ?? 0.5)
+            - score(candidate.semantic_analysis?.[key] ?? 0.5)
+        ), 0) / semanticKeys.length;
+        const candidateTags = tags(candidate);
+        const overlap = [...currentTags].filter(tag => candidateTags.has(tag)).length;
+        const union = new Set([...currentTags, ...candidateTags]).size;
+        const tagDistance = currentTags.size && candidateTags.size
+            ? 1 - overlap / union
+            : union ? 0.5 : 0;
+        const currentGenre = String(current.genre || "").trim().toLowerCase();
+        const candidateGenre = String(candidate.genre || "").trim().toLowerCase();
+        const genreDistance = currentGenre && candidateGenre
+            ? Number(currentGenre !== candidateGenre)
+            : currentGenre || candidateGenre ? 0.5 : 0;
+        const distance = audioDistance * 1.6 + semanticDistance * 0.8
+            + tagDistance * 0.4 + genreDistance * 0.3;
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            bestIndex = index;
+        }
+    });
+    return bestIndex >= 0 ? bestIndex : currentSongs.length ? 0 : -1;
+}
+
 function updatePlaybackModeButtons() {
     const modeInfo = getPlaybackModeInfo(playbackMode);
 
@@ -495,10 +574,12 @@ async function requestRecommendedTrack(mode) {
 }
 
 async function requestHlsSessionPlaylist(index) {
+    const mode = playbackMode;
+    const albumKey = currentAlbumKey;
     const remainingTracks = currentSongs.filter(
         (_trackId, trackIndex) => trackIndex !== index
     );
-    if (playbackMode === "similar") {
+    if (mode === "random") {
         for (let trackIndex = remainingTracks.length - 1; trackIndex > 0; trackIndex -= 1) {
             const randomIndex = Math.floor(Math.random() * (trackIndex + 1));
             [remainingTracks[trackIndex], remainingTracks[randomIndex]] = [
@@ -507,7 +588,11 @@ async function requestHlsSessionPlaylist(index) {
             ];
         }
     }
-    const sessionCandidates = [currentSongs[index], ...remainingTracks.slice(0, 200)];
+    const sessionCandidates = mode === "sequential"
+        ? currentSongs.slice(index, index + 201)
+        : mode === "similar"
+            ? [currentSongs[index], ...remainingTracks]
+            : [currentSongs[index], ...remainingTracks.slice(0, 200)];
     const response = await fetch("/music/session-playlist", {
         method: "POST",
         headers: {
@@ -517,14 +602,14 @@ async function requestHlsSessionPlaylist(index) {
         },
         body: JSON.stringify({
             track_ids: sessionCandidates,
-            mode: playbackMode,
+            mode,
         }),
     });
     const payload = await response.json();
     if (!response.ok || !payload.url) {
         throw new Error(payload.message || "HLS session playlist ni na voljo.");
     }
-    return payload;
+    return { ...payload, mode, albumKey };
 }
 
 function attachTrackSource(trackId) {
@@ -533,8 +618,11 @@ function attachTrackSource(trackId) {
     isHlsSessionPlayback = false;
     hlsSessionTracks = [];
     hlsSessionTrackStart = 0;
+    hlsSessionMode = null;
+    hlsSessionAlbumKey = null;
     destroyHlsInstance();
     audio.pause();
+    audio.loop = playbackMode === "repeat";
 
     if (source.hlsUrl) {
         if (audio.canPlayType("application/vnd.apple.mpegurl")) {
@@ -584,12 +672,62 @@ function attachTrackSource(trackId) {
 function attachHlsSessionSource(session) {
     destroyHlsInstance();
     audio.pause();
-    audio.src = session.url;
-    audio.load();
     isHlsSessionPlayback = true;
     hlsSessionTracks = Array.isArray(session.tracks) ? session.tracks : [];
     hlsSessionTrackStart = 0;
+    hlsSessionMode = session.mode;
+    hlsSessionAlbumKey = session.albumKey;
+    audio.loop = session.mode === "similar";
+    audio.src = session.url;
+    audio.load();
     return Promise.resolve();
+}
+
+function canUseHlsSession() {
+    return !isRadioStoriesPage
+        && Boolean(audio.canPlayType("application/vnd.apple.mpegurl"))
+        && ["sequential", "similar", "random"].includes(playbackMode);
+}
+
+function getHlsSessionTrackPosition(trackId) {
+    if (!isHlsSessionPlayback) {
+        return null;
+    }
+    let start = 0;
+    for (const track of hlsSessionTracks) {
+        const duration = Number(track.duration) || 0;
+        if (track.id === trackId) {
+            return { start, duration };
+        }
+        start += duration;
+    }
+    return null;
+}
+
+function getPlaybackPosition() {
+    const track = getHlsSessionTrackPosition(currentTrack);
+    const duration = track ? track.duration : audio.duration;
+    const position = audio.currentTime - (track ? track.start : 0);
+    return {
+        duration: Number.isFinite(duration) ? Math.max(0, duration) : 0,
+        position: Number.isFinite(position)
+            ? Math.max(0, Math.min(position, duration || 0))
+            : 0,
+    };
+}
+
+function seekWithinCurrentTrack(position, fastSeek = false) {
+    syncHlsSessionTrack();
+    const { duration } = getPlaybackPosition();
+    const target = (isHlsSessionPlayback ? hlsSessionTrackStart : 0)
+        + Math.max(0, Math.min(Number(position) || 0, duration));
+    if (fastSeek && typeof audio.fastSeek === "function") {
+        audio.fastSeek(target);
+    } else {
+        audio.currentTime = target;
+    }
+    syncHlsSessionTrack();
+    updatePositionState();
 }
 
 function renderAlbums() {
@@ -816,7 +954,7 @@ function getVisibleTrackIds() {
 function getTrackIdsToDisplay(songIds) {
     const currentAlbum = getCurrentAlbum();
     const targetAlbum = privateAlbums.find(album => album.id === selectedPrivateAlbumId);
-    if (!targetAlbum || currentAlbum?.id === targetAlbum.id) {
+    if (!isTrackSelectionMode || !targetAlbum || currentAlbum?.id === targetAlbum.id) {
         return songIds;
     }
 
@@ -983,12 +1121,14 @@ function loadAlbum(album, options = {}) {
         renderAlbums();
         renderCurrentAlbumTracks();
         updatePrivateAlbumControls({ preferCurrentAlbum: true });
-        resetNowPlayingState();
+        if (!audio.currentSrc) {
+            resetNowPlayingState();
+        }
         return;
     }
 
     if (!currentSongs.includes(currentTrack)) {
-        if (options.preserveCurrentTrackIfMissing) {
+        if (options.preserveCurrentTrackIfMissing || audio.currentSrc) {
             currentIndex = -1;
         } else {
             currentTrack = currentSongs[0];
@@ -1011,6 +1151,7 @@ async function playTrack(index, options = {}) {
     if (isLoadingTrack) {
         if (!options.automatic) {
             pendingManualTrackIndex = index;
+            pendingManualTrackOptions = options;
         }
         if (!options.automatic) {
             return;
@@ -1018,36 +1159,49 @@ async function playTrack(index, options = {}) {
     }
     const loadToken = ++trackLoadToken;
     playbackIntent = options.resume ?? true;
+    const sessionTrack = !options.forceSource
+        && hlsSessionMode === playbackMode
+        && hlsSessionAlbumKey === currentAlbumKey
+        ? getHlsSessionTrackPosition(currentSongs[index])
+        : null;
+    if (sessionTrack) {
+        // Keep the native stream alive when using lock-screen track controls.
+        pendingRestoreTime = 0;
+        endTransitionTrack = null;
+        audio.currentTime = sessionTrack.start
+            + Math.max(0, Math.min((Number(options.startTimeMs) || 0) / 1000, sessionTrack.duration));
+        syncHlsSessionTrack();
+        refreshPlaybackUi();
+        updatePositionState();
+        if (playbackIntent && audio.paused) {
+            try {
+                await audio.play();
+            } catch (error) {
+                console.warn("Nadaljevanje predvajanja ni uspelo:", error);
+            }
+        } else if (!playbackIntent) {
+            audio.pause();
+        }
+        updatePlayBtn(audio.paused ? "false" : "true");
+        return;
+    }
     isLoadingTrack = true;
+    // Old source events must not replace the track selected for a new source.
+    isHlsSessionPlayback = false;
+    hlsSessionTracks = [];
+    hlsSessionTrackStart = 0;
     clearNextTrackPreload();
     clearEndTransitionTimer();
-    const updatePresentation = !options.automatic || !document.hidden;
-
-    const wasPlaying = !audio.paused && audio.currentSrc;
     const previousVolume = Number.isFinite(audio.volume) ? audio.volume : 1;
-    if (wasPlaying && !options.automatic) {
-        await fadeAudioVolume(0, 220);
-        if (loadToken !== trackLoadToken) {
-            return;
-        }
-    }
-    if (wasPlaying) {
-        audio.pause();
-        audio.currentTime = 0;
-    }
 
     currentIndex = index;
     currentTrack = currentSongs[index];
     endTransitionTrack = null;
-    const trackMetadata = getTrackMetadata(currentTrack);
-    if (updatePresentation) {
-        applyMusicAmbience(trackMetadata);
-    }
     const storedTrack = localStorage.getItem("track");
     const storedTime = parseFloat(localStorage.getItem("time") || 0);
     pendingRestoreTime = options.startTimeMs !== undefined
         ? Math.max(0, Number(options.startTimeMs) / 1000)
-        : currentTrack === storedTrack
+        : options.resume && currentTrack === storedTrack
             ? storedTime
             : 0;
 
@@ -1056,47 +1210,23 @@ async function playTrack(index, options = {}) {
         localStorage.setItem("time", 0);
     }
 
-    const title = trackMetadata.title || currentTrack;
-    const artist = trackMetadata.artist || "";
-    const album = trackMetadata.album || "";
-    const albumInfo = getAlbumDisplayInfo(album);
-
-    if (updatePresentation) {
-        nowPlayingTitle.style.opacity = "0.7";
-        nowPlayingArtist.style.opacity = "0.7";
-        nowPlayingAlbum.style.opacity = "0.7";
-
-        setTimeout(() => {
-            nowPlayingTitle.textContent = title;
-            nowPlayingArtist.textContent = artist;
-            nowPlayingAlbum.textContent = albumInfo.displayName;
-            nowPlayingAlbum.classList.toggle("has-separator", albumInfo.hasSeparator);
-            nowPlayingTitle.style.transition = "opacity 0.3s ease";
-            nowPlayingArtist.style.transition = "opacity 0.3s ease";
-            nowPlayingAlbum.style.transition = "opacity 0.3s ease";
-            nowPlayingAlbum.style.opacity = "1";
-        }, 150);
-
-        albumCover.style.transform = "scale(1)";
-        albumCover.style.transition = "transform 0.3s ease";
-    }
-    updateMediaSession(title, artist, albumInfo.displayName);
+    refreshPlaybackUi();
 
     try {
-        audio.volume = options.automatic ? previousVolume : 0;
-        const useHlsSession =
-            !isRadioStoriesPage &&
-            !options.automatic &&
-            ["sequential", "similar", "random"].includes(playbackMode) &&
-            (
-                audio.canPlayType("application/vnd.apple.mpegurl")
-                || isAppleMobile
-            );
+        audio.volume = previousVolume;
+        const useHlsSession = canUseHlsSession()
+            && Boolean(resolveTrackSource(currentTrack).hlsUrl);
         if (useHlsSession) {
             try {
                 const session = await requestHlsSessionPlaylist(index);
+                if (loadToken !== trackLoadToken) {
+                    return;
+                }
                 await attachHlsSessionSource(session);
             } catch (error) {
+                if (loadToken !== trackLoadToken) {
+                    return;
+                }
                 console.warn("HLS session playlist ni na voljo:", error);
                 await attachTrackSource(currentTrack);
             }
@@ -1119,13 +1249,16 @@ async function playTrack(index, options = {}) {
         return;
     }
 
+    if (!playbackIntent) {
+        isLoadingTrack = false;
+        updatePlayBtn("false");
+        playPendingManualTrack();
+        return;
+    }
     const playPromise = audio.play();
     if (playPromise !== undefined) {
         playPromise
-            .then(async () => {
-                if (!options.automatic) {
-                    await fadeAudioVolume(previousVolume || 1, 260);
-                }
+            .then(() => {
                 if (loadToken !== trackLoadToken) {
                     return;
                 }
@@ -1154,10 +1287,8 @@ async function playTrack(index, options = {}) {
         playPendingManualTrack();
     }
 
-    if (updatePresentation) {
-        highlightTrack();
+    if (!document.hidden) {
         scrollToActiveTrack();
-        updatePrivateAlbumControls();
     }
 }
 
@@ -1166,10 +1297,10 @@ function playPendingManualTrack() {
         return;
     }
     const nextIndex = pendingManualTrackIndex;
+    const options = pendingManualTrackOptions || {};
     pendingManualTrackIndex = null;
-    if (nextIndex !== currentIndex) {
-        playTrack(nextIndex);
-    }
+    pendingManualTrackOptions = null;
+    playTrack(nextIndex, options);
 }
 
 function retryAutomaticTransition(index, options) {
@@ -1181,8 +1312,9 @@ function retryAutomaticTransition(index, options) {
     }
     nextTransitionRetry = setTimeout(() => {
         nextTransitionRetry = null;
-        if (currentIndex === index && audio.paused) {
+        if (playbackIntent && currentIndex === index && audio.paused) {
             playTrack(index, {
+                ...options,
                 automatic: true,
                 retryCount: (options.retryCount || 0) + 1,
             });
@@ -1191,7 +1323,7 @@ function retryAutomaticTransition(index, options) {
 }
 
 function updateMediaSession(title, artist, album) {
-    if ("mediaSession" in navigator) {
+    if ("mediaSession" in navigator && typeof MediaMetadata !== "undefined") {
         navigator.mediaSession.metadata = new MediaMetadata({
             title,
             artist: artist || "Neznan izvajalec",
@@ -1203,30 +1335,38 @@ function updateMediaSession(title, artist, album) {
             ],
         });
 
-        navigator.mediaSession.setActionHandler("play", () => {
-            playbackIntent = true;
-            if (shouldStartHlsSession()) {
-                playTrack(currentIndex >= 0 ? currentIndex : 0);
-                return;
+        const handlers = {
+            play: () => {
+                playbackIntent = true;
+                syncHlsSessionTrack();
+                if (audio.ended) {
+                    playTrack(currentIndex >= 0 ? currentIndex : 0);
+                    return;
+                }
+                if (shouldStartHlsSession()) {
+                    playTrack(currentIndex >= 0 ? currentIndex : 0, {
+                        startTimeMs: getPlaybackPosition().position * 1000,
+                    });
+                    return;
+                }
+                resumePlaybackIfNeeded();
+            },
+            pause: () => {
+                playbackIntent = false;
+                audio.pause();
+                updatePlayBtn("false");
+            },
+            previoustrack: prev,
+            nexttrack: next,
+            seekto: details => seekWithinCurrentTrack(details.seekTime, details.fastSeek),
+        };
+        for (const [action, handler] of Object.entries(handlers)) {
+            try {
+                navigator.mediaSession.setActionHandler(action, handler);
+            } catch (_error) {
+                // Safari versions differ in their supported media actions.
             }
-            audio.play();
-            updatePlayBtn("true");
-        });
-        navigator.mediaSession.setActionHandler("pause", () => {
-            playbackIntent = false;
-            audio.pause();
-            updatePlayBtn("false");
-        });
-        navigator.mediaSession.setActionHandler("previoustrack", prev);
-        navigator.mediaSession.setActionHandler("nexttrack", next);
-        navigator.mediaSession.setActionHandler("seekto", details => {
-            if (details.fastSeek && "fastSeek" in audio) {
-                audio.fastSeek(details.seekTime);
-                return;
-            }
-            audio.currentTime = details.seekTime;
-            updatePositionState();
-        });
+        }
     }
 }
 
@@ -1237,12 +1377,17 @@ async function resumePlaybackIfNeeded() {
     if (resumePlaybackRequest) {
         return resumePlaybackRequest;
     }
+    if (audio.ended) {
+        advanceAfterTrackEnd();
+        return;
+    }
 
     resumePlaybackRequest = (async () => {
         try {
             if (shouldStartHlsSession()) {
                 await playTrack(currentIndex >= 0 ? currentIndex : 0, {
                     resume: true,
+                    startTimeMs: getPlaybackPosition().position * 1000,
                 });
             } else {
                 await audio.play();
@@ -1264,20 +1409,23 @@ audio.addEventListener("play", () => {
     if ("mediaSession" in navigator) {
         navigator.mediaSession.playbackState = "playing";
     }
+    updatePlayBtn("true");
 });
 audio.addEventListener("pause", () => {
     if ("mediaSession" in navigator) {
         navigator.mediaSession.playbackState = "paused";
     }
+    updatePlayBtn("false");
 });
 
 function updatePositionState() {
-    if ("mediaSession" in navigator && !Number.isNaN(audio.duration)) {
+    const { duration, position } = getPlaybackPosition();
+    if ("mediaSession" in navigator && duration > 0) {
         try {
             navigator.mediaSession.setPositionState({
-                duration: audio.duration,
-                playbackRate: audio.playbackRate,
-                position: audio.currentTime,
+                duration,
+                playbackRate: audio.playbackRate || 1,
+                position,
             });
         } catch (_error) {
         }
@@ -1303,10 +1451,15 @@ function refreshPlaybackUi() {
     }
     const trackMetadata = getTrackMetadata(currentTrack);
     const albumInfo = getAlbumDisplayInfo(trackMetadata.album || "");
-    applyMusicAmbience(trackMetadata);
+    if (!document.hidden) {
+        applyMusicAmbience(trackMetadata);
+    }
     nowPlayingTitle.textContent = trackMetadata.title || currentTrack;
     nowPlayingArtist.textContent = trackMetadata.artist || "";
     nowPlayingAlbum.textContent = albumInfo.displayName;
+    nowPlayingTitle.style.opacity = "1";
+    nowPlayingArtist.style.opacity = "1";
+    nowPlayingAlbum.style.opacity = "1";
     nowPlayingAlbum.classList.toggle("has-separator", albumInfo.hasSeparator);
     updateMediaSession(
         trackMetadata.title || currentTrack,
@@ -1315,6 +1468,7 @@ function refreshPlaybackUi() {
     );
     highlightTrack();
     updatePrivateAlbumControls();
+    updatePlayBtn(audio.paused ? "false" : "true");
 }
 
 function scrollToActiveTrack() {
@@ -1328,9 +1482,9 @@ function shouldStartHlsSession() {
     return (
         !isHlsSessionPlayback &&
         isAppleMobile &&
-        !isRadioStoriesPage &&
         currentSongs.length > 0 &&
-        ["sequential", "similar", "random"].includes(playbackMode)
+        canUseHlsSession() &&
+        Boolean(resolveTrackSource(currentTrack).hlsUrl)
     );
 }
 
@@ -1342,8 +1496,15 @@ function togglePlay() {
 
     if (audio.paused) {
         playbackIntent = true;
-        if (shouldStartHlsSession()) {
+        syncHlsSessionTrack();
+        if (audio.ended) {
             playTrack(currentIndex >= 0 ? currentIndex : 0);
+            return;
+        }
+        if (shouldStartHlsSession()) {
+            playTrack(currentIndex >= 0 ? currentIndex : 0, {
+                startTimeMs: getPlaybackPosition().position * 1000,
+            });
             return;
         }
         const playPromise = audio.play();
@@ -1368,7 +1529,27 @@ function togglePlay() {
 }
 
 function next() {
+    syncHlsSessionTrack();
     const token = automaticTransitionToken;
+    if (
+        isHlsSessionPlayback && hlsSessionMode === playbackMode
+        && hlsSessionAlbumKey === currentAlbumKey
+    ) {
+        const sessionIndex = hlsSessionTracks.findIndex(track => track.id === currentTrack);
+        const nextTrack = hlsSessionTracks[sessionIndex + 1];
+        const nextIndex = nextTrack ? currentSongs.indexOf(nextTrack.id) : -1;
+        if (nextIndex >= 0) {
+            playTrack(nextIndex, { automatic: true });
+            return;
+        }
+        if (playbackMode === "similar") {
+            const firstIndex = currentSongs.indexOf(hlsSessionTracks[0]?.id);
+            if (firstIndex >= 0) {
+                playTrack(firstIndex, { automatic: true });
+                return;
+            }
+        }
+    }
     if (playbackMode === "repeat") {
         playTrack(currentIndex >= 0 ? currentIndex : 0);
         return;
@@ -1394,7 +1575,9 @@ function next() {
                 return;
             }
         }
-        const fallbackIndex = getRandomTrackIndex();
+        const fallbackIndex = playbackMode === "similar"
+            ? getSimilarTrackIndex()
+            : getRandomTrackIndex();
         if (fallbackIndex >= 0) {
             playTrack(fallbackIndex, { automatic: true });
         }
@@ -1407,35 +1590,23 @@ function next() {
 }
 
 function prev() {
-    if (audio.currentTime > 3) {
-        audio.currentTime = 0;
+    syncHlsSessionTrack();
+    if (getPlaybackPosition().position > 3) {
+        seekWithinCurrentTrack(0);
+    } else if (isHlsSessionPlayback && hlsSessionAlbumKey === currentAlbumKey) {
+        const sessionIndex = hlsSessionTracks.findIndex(track => track.id === currentTrack);
+        const previousTrack = hlsSessionTracks[sessionIndex - 1];
+        const previousIndex = previousTrack ? currentSongs.indexOf(previousTrack.id) : -1;
+        if (previousIndex >= 0) {
+            playTrack(previousIndex);
+        } else if (currentIndex > 0) {
+            playTrack(currentIndex - 1);
+        } else {
+            seekWithinCurrentTrack(0);
+        }
     } else if (currentIndex > 0) {
         playTrack(currentIndex - 1);
     }
-}
-
-function fadeAudioVolume(targetVolume, durationMs = 300) {
-    const startVolume = Number.isFinite(audio.volume) ? audio.volume : 1;
-    const startTime = performance.now();
-
-    return new Promise(resolve => {
-        const tick = () => {
-            const elapsed = performance.now() - startTime;
-            const progress = Math.min(elapsed / durationMs, 1);
-            const eased = 1 - Math.pow(1 - progress, 3);
-            audio.volume = startVolume + (targetVolume - startVolume) * eased;
-
-            if (progress < 1) {
-                requestAnimationFrame(tick);
-                return;
-            }
-
-            audio.volume = targetVolume;
-            resolve();
-        };
-
-        requestAnimationFrame(tick);
-    });
 }
 
 function updatePlayBtn(playMode) {
@@ -1466,9 +1637,13 @@ function syncHlsSessionTrack() {
 
     let trackStart = 0;
     let activeTrack = hlsSessionTracks[hlsSessionTracks.length - 1];
-    for (const sessionTrack of hlsSessionTracks) {
+    for (let index = 0; index < hlsSessionTracks.length; index += 1) {
+        const sessionTrack = hlsSessionTracks[index];
         const trackDuration = Number(sessionTrack.duration) || 0;
-        if (audio.currentTime < trackStart + trackDuration) {
+        if (
+            audio.currentTime < trackStart + trackDuration
+            || index === hlsSessionTracks.length - 1
+        ) {
             activeTrack = sessionTrack;
             break;
         }
@@ -1476,7 +1651,7 @@ function syncHlsSessionTrack() {
     }
 
     const trackDuration = Number(activeTrack.duration) || 0;
-    const trackTime = Math.max(0, audio.currentTime - trackStart);
+    const trackTime = Math.max(0, Math.min(audio.currentTime - trackStart, trackDuration));
     hlsSessionTrackStart = trackStart;
     progress.max = trackDuration;
     progress.value = Math.min(trackTime, trackDuration);
@@ -1487,20 +1662,12 @@ function syncHlsSessionTrack() {
         currentTrack = activeTrack.id;
         currentIndex = currentSongs.indexOf(currentTrack);
         localStorage.setItem("track", currentTrack);
-        const trackMetadata = getTrackMetadata(currentTrack);
-        const albumInfo = getAlbumDisplayInfo(trackMetadata.album || "");
-        updateMediaSession(
-            trackMetadata.title || currentTrack,
-            trackMetadata.artist || "",
-            albumInfo.displayName
-        );
+        if (["similar", "random"].includes(playbackMode)) {
+            markRandomCooldown(currentTrack);
+        }
+        refreshPlaybackUi();
         if (!document.hidden) {
-            applyMusicAmbience(trackMetadata);
-            nowPlayingTitle.textContent = trackMetadata.title || currentTrack;
-            nowPlayingArtist.textContent = trackMetadata.artist || "";
-            nowPlayingAlbum.textContent = albumInfo.displayName;
-            nowPlayingAlbum.classList.toggle("has-separator", albumInfo.hasSeparator);
-            highlightTrack();
+            scrollToActiveTrack();
         }
     }
 
@@ -1523,6 +1690,8 @@ audio.ontimeupdate = () => {
         // iOS Safari sometimes omits HLS `ended` while the screen is locked.
         if (
             !isRadioStoriesPage
+            && playbackIntent
+            && !audio.paused
             && audio.duration > 1
             && audio.currentTime >= audio.duration - 0.75
         ) {
@@ -1532,10 +1701,7 @@ audio.ontimeupdate = () => {
 };
 
 progress.addEventListener("input", () => {
-    audio.currentTime = isHlsSessionPlayback
-        ? hlsSessionTrackStart + Number(progress.value)
-        : progress.value;
-    updatePositionState();
+    seekWithinCurrentTrack(progress.value);
     updateSeekBarBackground();
 });
 
@@ -1551,6 +1717,7 @@ audio.onloadedmetadata = () => {
     }
     pendingRestoreTime = 0;
     syncHlsSessionTrack();
+    updatePositionState();
     updateSeekBarBackground();
     scheduleEndTransition();
 };
@@ -1558,7 +1725,6 @@ audio.onloadedmetadata = () => {
 function advanceAfterTrackEnd() {
     if (
         isLoadingTrack ||
-        isHlsSessionPlayback ||
         endTransitionTrack === currentTrack
     ) {
         return;
@@ -1574,8 +1740,17 @@ function advanceAfterTrackEnd() {
 }
 
 audio.onended = () => {
+    if (!audio.ended || isLoadingTrack) {
+        return;
+    }
+    syncHlsSessionTrack();
     advanceAfterTrackEnd();
 };
+
+audio.addEventListener("seeked", () => {
+    syncHlsSessionTrack();
+    updatePositionState();
+});
 
 audio.addEventListener("play", () => {
     albumCover.style.animation = "spin 3s linear infinite";
@@ -1593,6 +1768,9 @@ audio.addEventListener("waiting", () => {
 audio.addEventListener("playing", () => {
     albumCover.style.opacity = "1";
     isLoadingTrack = false;
+    syncHlsSessionTrack();
+    refreshPlaybackUi();
+    updatePositionState();
     scheduleEndTransition();
 });
 
@@ -1607,6 +1785,8 @@ async function restorePlaybackState() {
 
     syncHlsSessionTrack();
     refreshPlaybackUi();
+    updatePositionState();
+    scrollToActiveTrack();
     await resumePlaybackIfNeeded();
     syncHlsSessionTrack();
     refreshPlaybackUi();
