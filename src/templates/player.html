@@ -11,6 +11,7 @@
 <header class="movie-view-heading"><a href="/movies">← Nazaj na filme</a><h1>{{ movie.title }} <small>{{ movie.year }}</small></h1><p>{{ movie.original_title }}</p></header>
 <div class="movie-page">
     <div class="description">
+        <div class="movie-watch-progress" data-movie-id="{{ movie.movie_id }}" style="--watch: {{ movie.watch_ratio|default(0) }}%;" role="progressbar" aria-label="Napredek ogleda" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ movie.watch_ratio|default(0)|round|int }}"></div>
         <div class="movie-overview">
             <div class="cover"><img src="/movies/file{{ movie.cover }}" alt="Plakat za {{ movie.title }}" class="{{ movie.recommendation_level }}"></div>
             <div class="movie-overview-copy">
@@ -240,7 +241,7 @@
     </div>
 
     <div class="plyr-container hls-player-block" style="margin-bottom: 20px;">
-        <video id="hlsVideoPlayer" controls playsinline preload="metadata">
+        <video id="hlsVideoPlayer" controls playsinline preload="metadata" poster="/movies/file{{ movie.cover }}">
             {% if slosubs_file %}
                 <track src="/movies/file/{{ group_folder }}/{{ folder }}/{{ slosubs_file }}" kind="subtitles" srclang="sl" label="{{ slosubs_file|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" default>
             {% endif %}
@@ -267,6 +268,7 @@
 
             // Inicializacija Plyr-a
             const player = window.Plyr ? new Plyr(video, {
+                ratio: '16:9',
                 controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'captions', 'settings', 'fullscreen', 'download'],
                 urls: { download: '/movies/download/{{ group_folder }}/{{ folder }}' },
                 keyboard: { focused: true, global: false }
@@ -409,7 +411,7 @@
     </script>
 {% elif not is_collection %}
     <div class="plyr-container">
-        <video id="videoPlayer" controls playsinline preload="metadata">
+        <video id="videoPlayer" controls playsinline preload="metadata" poster="/movies/file{{ movie.cover }}">
             <source src="/movies/file/{{ group_folder }}/{{ folder }}/{{ video_file }}" type="video/mp4">
             {% if slosubs_file %}
                 <track src="/movies/file/{{ group_folder }}/{{ folder }}/{{ slosubs_file }}" kind="subtitles" srclang="sl" label="{{ slosubs_file|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" default>
@@ -428,6 +430,7 @@
             const lastTime = {{ movie.last_play_time|default(0) }};
 
             const player = window.Plyr ? new Plyr(video, {
+                ratio: '16:9',
                 controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'captions', 'settings', 'fullscreen', 'download'],
                 urls: { download: '/movies/download/{{ group_folder }}/{{ folder }}' },
                 keyboard: {
@@ -451,7 +454,7 @@
     </div>
 
     <div id="collectionPlayerContainer" class="plyr-container" style="display: none;">
-        <video id="videoPlayer" controls playsinline preload="metadata">
+        <video id="videoPlayer" controls playsinline preload="metadata" poster="/movies/file{{ movie.cover }}">
             <source src="" type="video/mp4">
             Tvoj brskalnik ne podpira videa.
         </video>
@@ -473,6 +476,7 @@
 
         if (!globalPlayer && window.Plyr) {
             globalPlayer = new Plyr('#videoPlayer', {
+                ratio: '16:9',
                 controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'settings', 'fullscreen', 'download'],
                 urls: { download: '/movies/download/{{ group_folder }}/{{ folder }}' },
                 keyboard: {
@@ -505,6 +509,7 @@
             // Predvajalnik inicializiramo in napolnimo šele po izbiri datoteke
             player.source = {
                 type: 'video',
+                poster: document.getElementById('videoPlayer').getAttribute('poster'),
                 sources: [{ src: src, type: 'video/mp4' }]
             };
 

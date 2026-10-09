@@ -154,9 +154,15 @@ document.addEventListener('change', async event => {
         if (!progress && (await response.json()).status !== 'success') throw new Error();
         group.dataset.savedValue = radio.value;
         const card = group.closest('.movie-card');
+        if (progress) {
+            document.querySelectorAll('[data-movie-id]').forEach(element => {
+                if (element.dataset.movieId !== group.getAttribute('movie-id')) return;
+                element.style.setProperty('--watch', radio.value + '%');
+                const bar = element.matches('.movie-watch-progress') ? element : element.querySelector('.movie-watch-progress');
+                bar?.setAttribute('aria-valuenow', radio.value);
+            });
+        }
         if (progress && card) {
-            card.style.setProperty('--watch', radio.value + '%');
-            card.querySelector('.movie-watch-progress').setAttribute('aria-valuenow', radio.value);
             card.querySelector('.movie-play').innerHTML = 'Ogled filma <span aria-hidden="true">▶</span>';
         }
         if (!progress && card) {

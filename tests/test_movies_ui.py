@@ -1,5 +1,7 @@
 """Movie discovery and playback with isolated content and mocked mutations."""
 
+from pathlib import Path
+
 import pytest
 from flask import Response, jsonify, render_template, request
 from playwright.sync_api import expect
@@ -173,7 +175,7 @@ def test_browser_movie_catalog_filters_and_retry(films, browser):
         page.get_by_role("progressbar").evaluate(
             "el => el.getBoundingClientRect().height"
         )
-        == 10
+        == 20
     )
     page.get_by_text("Opis in možnosti", exact=True).click()
     assert page.get_by_text(
@@ -341,7 +343,15 @@ def test_browser_compact_movie_overview_and_ratings(films, browser):
         )
         if width > 800:
             overview = page.locator(".movie-overview").bounding_box()
-            assert overview["y"] < video["y"] + 32
+            assert (
+                abs(
+                    page.locator(".movie-page>.description").bounding_box()[
+                        "y"
+                    ]
+                    - video["y"]
+                )
+                < 2
+            )
             assert ratings["x"] > overview["x"] + overview["width"]
         else:
             assert (
@@ -351,3 +361,89 @@ def test_browser_compact_movie_overview_and_ratings(films, browser):
         page.screenshot(
             path=f"/private/tmp/movie-compact-{width}.png", full_page=False
         )
+
+
+def test_browser_plyr_controls_fit_and_progress_shines(films, browser):
+    # Optional local copies of the exact CDN assets; browser stays offline.
+    js = Path("/private/tmp/marinkino-plyr.js")
+    css = Path("/private/tmp/marinkino-plyr.css")
+    if (
+        not js.exists()
+        or not css.exists()
+        or not Path("/private/tmp/marinkino-plyr.svg").exists()
+    ):
+        pytest.skip(
+            "Local Plyr 3.7.8 assets required for library layout check"
+        )
+    page = browser.page
+    page.route(
+        "https://cdn.plyr.io/3.7.8/plyr.svg",
+        lambda route: route.fulfill(
+            path="/private/tmp/marinkino-plyr.svg",
+            content_type="image/svg+xml",
+        ),
+    )
+    page.route(
+        "https://cdn.plyr.io/3.7.8/plyr.js",
+        lambda route: route.fulfill(
+            path=str(js), content_type="application/javascript"
+        ),
+    )
+    page.route(
+        "https://cdn.plyr.io/3.7.8/plyr.css",
+        lambda route: route.fulfill(path=str(css), content_type="text/css"),
+    )
+    for width in [320, 390, 820, 1440]:
+        page.set_viewport_size({"width": width, "height": 900})
+        page.goto(browser.base + "/movies/play/test/one")
+        page.wait_for_function(
+            "document.getElementById('videoPlayer')?.plyr?.elements?.controls"
+        )
+        player = page.locator(".plyr-container").bounding_box()
+        video = page.locator("#videoPlayer").bounding_box()
+        assert abs(video["width"] / video["height"] - 16 / 9) < 0.05
+        controls = page.locator(".plyr__controls").bounding_box()
+        assert (
+            controls["y"] + controls["height"]
+            <= player["y"] + player["height"] + 1
+        )
+        for control in page.locator(
+            ".plyr__controls .plyr__controls__item:visible"
+        ).all():
+            bounds = control.bounding_box()
+            assert bounds["x"] >= player["x"] - 1
+            assert (
+                bounds["x"] + bounds["width"]
+                <= player["x"] + player["width"] + 1
+            )
+        assert (
+            page.locator("#videoPlayer")
+            .get_attribute("poster")
+            .endswith("poster.png")
+        )
+        assert page.locator(".cover img").bounding_box()["width"] >= (
+            170 if width == 1440 else 90
+        )
+        bar = page.get_by_role("progressbar")
+        expect(bar).to_have_attribute("aria-valuenow", "35")
+        assert bar.bounding_box()["height"] == 20
+        assert (
+            bar.evaluate(
+                "el => getComputedStyle(el, '::before').animationName"
+            )
+            == "movie-watch-sheen"
+        )
+        page.screenshot(
+            path=f"/private/tmp/movie-plyr-{width}.png", animations="disabled"
+        )
+    page.get_by_text("Pogledano", exact=True).click()
+    expect(page.get_by_role("progressbar")).to_have_attribute(
+        "aria-valuenow", "100"
+    )
+    page.emulate_media(reduced_motion="reduce")
+    assert (
+        page.get_by_role("progressbar").evaluate(
+            "el => getComputedStyle(el, '::before').animationName"
+        )
+        == "none"
+    )
