@@ -1,142 +1,58 @@
 {% extends "base.html" %}
-
+{% macro continue_button(label='Začni raziskovati') %}
+<form method="post" class="welcome-continue">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button type="submit" class="home-primary">{{ label }} <i class="bi bi-arrow-right" aria-hidden="true"></i></button>
+</form>
+{% endmacro %}
 {% block content %}
-<style>
-    .welcome-shell {
-        max-width: 1180px;
-        margin: 0 auto;
-        padding: 42px 18px 64px;
-    }
-    .welcome-hero {
-        background: linear-gradient(135deg, #173f40, #28635d);
-        border-radius: 18px;
-        padding: clamp(28px, 6vw, 64px);
-        color: #f8f3e6;
-        position: relative;
-        overflow: hidden;
-    }
-    .welcome-hero::after {
-        content: "";
-        position: absolute;
-        width: 230px;
-        height: 230px;
-        right: -70px;
-        bottom: -90px;
-        border: 30px solid #d8744b55;
-        border-radius: 50%;
-    }
-    .welcome-kicker {
-        color: #f2b18e;
-        font-size: .78rem;
-        font-weight: 700;
-        letter-spacing: .12em;
-        text-transform: uppercase;
-    }
-    .welcome-hero h1 {
-        max-width: 700px;
-        margin: 10px 0 12px;
-        font-size: clamp(2.1rem, 5vw, 4.2rem);
-        line-height: 1.04;
-    }
-    .welcome-hero p { max-width: 640px; color: #d2e5db; font-size: 1.08rem; }
-    .welcome-section-title { margin: 42px 0 18px; color: #173f40; }
-    .welcome-stats {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 14px;
-    }
-    .welcome-stat, .welcome-tab {
-        border: 1px solid #dce7e1;
-        border-radius: 12px;
-        background: #fff;
-        box-shadow: 0 10px 28px #173f4012;
-    }
-    .welcome-stat { padding: 20px; min-height: 125px; }
-    .welcome-stat strong { display: block; color: #d35d39; font-size: 2rem; line-height: 1; }
-    .welcome-stat span { display: block; margin-top: 10px; color: #607775; }
-    .welcome-tabs { align-items: stretch; }
-    .welcome-tab {
-        padding: 20px;
-        min-height: 170px;
-        display: flex;
-        flex-direction: column;
-    }
-    .welcome-tab-featured {
-        min-height: 215px;
-    }
-    .welcome-tab-icon { color: #d35d39; font-size: 1.6rem; }
-    .welcome-tab h3 { margin: 10px 0 5px; font-size: 1.12rem; color: #173f40; }
-    .welcome-tab p { margin: 0; color: #607775; font-size: .94rem; }
-    .welcome-tab p + p { margin-top: 10px; }
-    .welcome-soft-emphasis {
-        color: #d35d39;
-        font-weight: 600;
-    }
-    .welcome-actions { display: flex; justify-content: center; margin-top: 42px; }
-    .welcome-actions button { border: 0; border-radius: 8px; padding: 13px 28px; background: #d35d39; color: #fff; font-weight: 700; }
-    .welcome-actions button:hover { background: #a94327; }
-    @media (max-width: 850px) {
-        .welcome-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    }
-    @media (max-width: 520px) {
-        .welcome-shell { padding: 24px 12px 44px; }
-        .welcome-stats { grid-template-columns: 1fr; }
-        .welcome-tab-featured { min-height: 170px; }
-    }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/welcome.css') }}">
+<main class="home-page welcome-page">
+  <div class="home-shell">
+    <header class="home-hero welcome-hero">
+      <div class="home-hero-content">
+        <p class="home-eyebrow"><i class="bi bi-sun" aria-hidden="true"></i> Tvoj prvi obisk</p>
+        <h1>Bog daj,<br><span>{{ current_user.id }}!</span></h1>
+        <p>Dobrodošel v MarinKino. Filmi, glasba, zgodbe in igre za družino in prijatelje. Naj ti bodo v razvedrilo, sprostitev in navdih.</p>
+        <div class="home-actions">{{ continue_button() }}<a class="home-secondary" href="#welcome-explore">Najprej kratek ogled <i class="bi bi-arrow-down" aria-hidden="true"></i></a></div>
+      </div>
+      <aside class="welcome-hero-note" aria-labelledby="welcome-note-title">
+        <span class="welcome-note-icon"><i class="bi bi-compass" aria-hidden="true"></i></span>
+        <h2 id="welcome-note-title">Kaj ti danes paše?</h2>
+        <ul><li><i class="bi bi-film" aria-hidden="true"></i> Film za skupen večer.</li><li><i class="bi bi-music-note-beamed" aria-hidden="true"></i> Glasba za dobro voljo.</li><li><i class="bi bi-people" aria-hidden="true"></i> Igra za celo družbo.</li></ul>
+        <p>Vsebine so vedno pri roki v meniju na vrhu strani.</p>
+      </aside>
+    </header>
 
-<div class="welcome-shell">
-    <section class="welcome-hero">
-        <div class="welcome-kicker">Prvi obisk</div>
-        <h1>Dobrodošli v MarinKino, {{ current_user.id }}.</h1>
-        <p>Na enem mestu najdeš filme, šale, glasbo, otroški radio, nekaj prostora za igro in še kaj. Me veseli, da si tukaj. Upam, da ti bo stran v razvedrilo, sprostitev in navdih.</p> <p></p>Spodaj je kratek zemljevid strani.</p>
+    <section class="welcome-guide" aria-labelledby="welcome-guide-title">
+      <h2 id="welcome-guide-title">Za začetek je čisto preprosto.</h2>
+      <ol>
+        <li><span class="welcome-step" aria-hidden="true">1</span><div><h3>Izberi vsebino</h3><p>Začni s priporočenimi filmi ali odpri zavihek, ki te zanima.</p></div></li>
+        <li><span class="welcome-step" aria-hidden="true">2</span><div><h3>Vzemi si prijeten odmor</h3><p>Glej, poslušaj ali povabi družbo k igri Pod krinko.</p></div></li>
+        <li><span class="welcome-step" aria-hidden="true">3</span><div><h3>Povej, kaj ti je všeč</h3><p>Oceni ogledani film ali pošlji predlog za novo vsebino.</p></div></li>
+      </ol>
     </section>
 
-    <h2 class="welcome-section-title">Kaj je v zbirki?</h2>
-    <div class="welcome-stats">
-        <div class="welcome-stat"><strong>{{ stats.movies_count }}</strong><span>filmov</span></div>
-        <div class="welcome-stat"><strong>{{ stats.movies_duration|round(0, 'common')|int }}</strong><span>ur filmov</span></div>
-        <div class="welcome-stat"><strong>{{ stats.music_count }}</strong><span>skladb</span></div>
-        <div class="welcome-stat"><strong>{{ stats.memes_count }}</strong><span>šal</span></div>
-        <div class="welcome-stat"><strong>{{ stats.cartoons_count }}</strong><span>zbirk risank</span></div>
-        <div class="welcome-stat"><strong>{{ stats.cartoons_duration|round(0, 'common')|int }}</strong><span>ur risank</span></div>
-        <div class="welcome-stat"><strong>{{ stats.blog_count }}</strong><span>objav na blogu</span></div>
-        <div class="welcome-stat"><span>Pa tudi <div class="welcome-soft-emphasis">otroški radio, vreme</div> in družabna igra <div class="welcome-soft-emphasis">Pod krinko</div></span></div>
-    </div>
+    <section id="welcome-explore" aria-labelledby="welcome-explore-title">
+      <div class="home-section-heading"><div><p class="home-eyebrow">Kratek zemljevid strani</p><h2 id="welcome-explore-title">Najdi nekaj zase.</h2></div><span>Odpri vsebino s klikom na kartico.</span></div>
+      <div class="home-featured-grid">
+        <a class="home-feature home-feature-film" href="/movies?onlyrecommended=on"><div class="home-feature-top"><span class="home-card-icon"><i class="bi bi-film" aria-hidden="true"></i></span><span class="home-feature-tag">Za filmski večer</span></div><h3>Filmi</h3><p>Opisi, ocene in slovenski podnapisi. Za prvi ogled pobrskaj med priporočenimi filmi.</p><div class="home-feature-bottom"><span>{{ stats.movies_count }} filmov · {{ stats.movies_duration|round(0, 'common')|int }} ur zgodb</span><span class="home-card-arrow"><i class="bi bi-arrow-up-right" aria-hidden="true"></i></span></div></a>
+        <a class="home-feature home-feature-game" href="/pod_krinko"><div class="home-feature-top"><span class="home-card-icon"><i class="bi bi-incognito" aria-hidden="true"></i></span><span class="home-feature-tag">Za skupne trenutke</span></div><h3>Pod krinko</h3><p>Besedna igra namigov in skrivnih vlog. Dodaj igralce, izberi vloge in sledi navodilom v igri.</p><div class="home-feature-bottom"><span>3–20 igralcev · en skupni telefon</span><span class="home-card-arrow"><i class="bi bi-arrow-up-right" aria-hidden="true"></i></span></div></a>
+      </div>
+      <div class="home-card-grid">
+        <a class="home-card home-card-cartoons" href="/movies?movietype=01-zbirke-risank"><span class="home-card-icon"><i class="bi bi-play-btn" aria-hidden="true"></i></span><h3>Risanke</h3><p>Zbirke kratkih risank za male in velike radovedneže.</p><div class="home-card-bottom"><span>{{ stats.cartoons_count }} zbirk · {{ stats.cartoons_duration|round(0, 'common')|int }} ur</span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></div></a>
+        <a class="home-card home-card-music" href="/music"><span class="home-card-icon"><i class="bi bi-music-note-beamed" aria-hidden="true"></i></span><h3>Glasba</h3><p>Poslušaj na telefonu ali računalniku, brez oglasov in tudi ob izklopljenem zaslonu.</p><div class="home-card-bottom"><span>{{ stats.music_count }} skladb</span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></div></a>
+        <a class="home-card home-card-radio" href="/radio-stories"><span class="home-card-icon"><i class="bi bi-broadcast" aria-hidden="true"></i></span><h3>Otroški radio</h3><p>Pravljice in zvočne zgodbe za najmlajše poslušalce.</p><div class="home-card-bottom"><span>Prisluhni zgodbi</span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></div></a>
+        <a class="home-card home-card-memes" href="/memes"><span class="home-card-icon"><i class="bi bi-emoji-smile" aria-hidden="true"></i></span><h3>Šale in navdih</h3><p>Kratki videi in slike za majhno dnevno dozo smeha.</p><div class="home-card-bottom"><span>{{ stats.memes_count }} šal v zbirki</span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></div></a>
+        <a class="home-card home-card-weather" href="/weather"><span class="home-card-icon"><i class="bi bi-cloud-sun" aria-hidden="true"></i></span><h3>Vreme</h3><p>Preveri trenutno vreme in napoved, preden se odpraviš ven.</p><div class="home-card-bottom"><span>Načrtuj svoj dan</span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></div></a>
+        <a class="home-card home-card-blog" href="/blog"><span class="home-card-icon"><i class="bi bi-journal-text" aria-hidden="true"></i></span><h3>Blog Sončnice</h3><p>Rože dobrega. Razmišljanja o življenju in hvaležnosti, odprta tudi neprijavljenim.</p><div class="home-card-bottom"><span>{{ stats.blog_count }} objav</span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></div></a>
+      </div>
+    </section>
 
-    <h2 class="welcome-section-title">Zavihki</h2>
-    <div class="welcome-tabs row g-3">
-        <div class="col-12 col-lg-8">
-            <article class="welcome-tab welcome-tab-featured"><div class="welcome-tab-icon"><i class="bi bi-film"></i></div><h3>Filmi</h3><p>Celovečerni filmi, risanke in zbirke kratkih risank. Pri vsakem filmu najdeš opis, ocene in slovenske podnapise. Zaradi avtomatskega urejanja lahko pride do napak v podatkih filma in podnapisih (še posebej ob avtomatskem prevodu z umetno inteligenco).</p><p>Ob končanem ogledu filma bom vesel njegove ocene ali komentarja.</p></article>
-        </div>
-        <div class="col-12 col-md-6 col-lg-4">
-            <article class="welcome-tab"><div class="welcome-tab-icon"><i class="bi bi-emoji-smile"></i></div><h3>Šale</h3><p>Kratki videi in slike (meme) za minimalno dnevno dozo smeha.</p></article>
-        </div>
-        <div class="col-12 col-md-6 col-lg-4">
-            <article class="welcome-tab"><div class="welcome-tab-icon"><i class="bi bi-music-note-beamed"></i></div><h3>Glasba</h3><p>Glasba urejena za poslušanje na telefonu ali računalniku (brez oglasov, tudi ob izklopljenem zaslonu).</p></article>
-        </div>
-        <div class="col-12 col-md-6 col-lg-4">
-            <article class="welcome-tab"><div class="welcome-tab-icon"><i class="bi bi-broadcast"></i></div><h3>Otroški radio</h3><p>Zvočne vsebine za otroke.</p></article>
-        </div>
-        <div class="col-12 col-md-6 col-lg-4">
-            <article class="welcome-tab"><div class="welcome-tab-icon"><i class="bi bi-cloud-sun"></i></div><h3>Vreme</h3><p>Hiter pregled trenutnega vremena in napovedi.</p></article>
-        </div>
-        <div class="col-12 col-md-6 col-lg-4">
-            <article class="welcome-tab"><div class="welcome-tab-icon"><i class="bi bi-people"></i></div><h3>Pod krinko</h3><p>Besedna družabna igra za več igralcev (podprto do 20).</p></article>
-        </div>
-        <div class="col-12 col-md-6 col-lg-4">
-            <article class="welcome-tab"><div class="welcome-tab-icon"><i class="bi bi-journal-text"></i></div><h3>Blog</h3><p>Moja razmišljanja (trenutno edina vsebina odprta za neprijavljene uporabnike).</p></article>
-        </div>
-        <div class="col-12 col-md-6 col-lg-4">
-            <article class="welcome-tab"><div class="welcome-tab-icon"><i class="bi bi-lightbulb"></i></div><h3>Predlogi</h3><p>Pošlji komentar, predlog za film, glasbo ali izboljšavo strani.</p></article>
-        </div>
-    </div>
-
-    <div class="welcome-actions">
-        <form method="post">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit">Nadaljuj na MarinKino</button>
-        </form>
-    </div>
-</div>
+    <aside class="welcome-film-note"><i class="bi bi-info-circle" aria-hidden="true"></i><p>Podatki o filmih in podnapisi se urejajo tudi samodejno, zato lahko vsebujejo napake, zlasti pri prevodu z umetno inteligenco. Po ogledu bom vesel tvoje ocene ali komentarja.</p></aside>
+    <aside class="home-suggestions"><span class="home-card-icon"><i class="bi bi-lightbulb" aria-hidden="true"></i></span><div><h2>Tudi tvoje ideje štejejo.</h2><p>Predlagaj film, pesem ali izboljšavo strani.</p></div><a href="/suggestions">Pošlji predlog <i class="bi bi-arrow-right" aria-hidden="true"></i></a></aside>
+    <section class="welcome-finish" aria-labelledby="welcome-finish-title"><div><h2 id="welcome-finish-title">Naj se prijetni trenutki začnejo.</h2><p>Za nadaljevanje odpri domačo stran in izberi svojo prvo vsebino.</p></div>{{ continue_button('Nadaljuj na MarinKino') }}</section>
+  </div>
+</main>
 {% endblock %}
