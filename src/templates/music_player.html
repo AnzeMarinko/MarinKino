@@ -2,9 +2,9 @@
 
 {% block content %}
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/music_ui.css') }}">
 
-<div class="music-app-container">
+<main class="music-app-container">
     <div class="music-ambience" aria-hidden="true">
         <span class="music-ambience__orb music-ambience__orb--one"></span>
         <span class="music-ambience__orb music-ambience__orb--two"></span>
@@ -15,13 +15,15 @@
         <span class="music-ambience__wave music-ambience__wave--five"></span>
         <span class="music-ambience__wave music-ambience__wave--six"></span>
     </div>
+    <header class="audio-page-heading">
+      <div><span class="audio-eyebrow">Za dobro melodijo</span><h1>Glasba</h1><p>Izberi album ali poišči pesem. Svoje najljubše zberi v osebnih albumih.</p></div>
+      <details class="audio-help"><summary><i class="bi bi-question-circle" aria-hidden="true"></i> Kako poslušam?</summary><div class="audio-help-content"><strong>Začni z albumom.</strong><p>Klikni album, nato pesem. Iskanje išče v izbranem albumu. Gumb za način nadaljevanja izbira med zaporednim, naključnim, podobnim predvajanjem in ponavljanjem.</p><p>V »Moji albumi« ustvari zbirko. Pesmi dodaj iz predvajalnika ali z gumbom »Izberi pesmi« v seznamu.</p></div></details>
+    </header>
     <!-- Browser Section -->
-    <div id="browser">
+    <section id="browser" aria-label="Izbira glasbe">
         <div class="browser-toggle" id="browserToggle">
-            <button class="toggle-btn active" data-target="albums"><h3></h3><i class="bi bi-disc"></i>
-                Albumi</h3></button>
-            <button class="toggle-btn" data-target="tracks"><h3></h3><i class="bi bi-music-note-beamed"></i>
-                Pesmi</h3></button>
+            <button type="button" class="toggle-btn active" data-target="albums" aria-controls="albums" aria-pressed="true"><i class="bi bi-disc" aria-hidden="true"></i> Albumi</button>
+            <button type="button" class="toggle-btn" data-target="tracks" aria-controls="tracks" aria-pressed="false"><i class="bi bi-music-note-beamed" aria-hidden="true"></i> Pesmi</button>
         </div>
         <div id="albums" class="albums-section">
             <div class="section-header albums-header">
@@ -29,7 +31,7 @@
                     <i class="bi bi-disc"></i>
                     <h2>Albumi</h2>
                 </div>
-                <button id="managePrivateAlbumsBtn" class="section-action-btn" type="button" title="Uredi privat albume" data-bs-toggle="modal" data-bs-target="#privateAlbumsModal">
+                <button id="managePrivateAlbumsBtn" class="section-action-btn" type="button" aria-label="Uredi privat albume" title="Uredi privat albume" data-bs-toggle="modal" data-bs-target="#privateAlbumsModal">
                     <i class="bi bi-pencil-square"></i>
                     <span>Moji albumi</span>
                 </button>
@@ -41,16 +43,17 @@
             <div class="section-header tracks-header">
                 <div class="section-header-title">
                     <i class="bi bi-music-note-beamed"></i>
-                    <h2>Pesmi</h2>
+                    <h2 id="currentAlbumHeading">Pesmi</h2>
                 </div>
-                <button id="trackOptionsBtn" class="section-action-btn" type="button" title="Možnosti izbire pesmi" aria-expanded="false">
+                <button id="trackOptionsBtn" class="section-action-btn" type="button" aria-label="Izberi več pesmi za svoj album" title="Izberi več pesmi za svoj album" aria-expanded="false">
                     <i class="bi bi-three-dots"></i>
-                    <span>Možnosti</span>
+                    <span>Izberi pesmi</span>
                 </button>
             </div>
-            <input type="search" id="searchInput" placeholder="🔍 Iskanje po naslovu, izvajalcu..." class="search-input">
+            <div class="audio-search"><label for="searchInput" class="visually-hidden">Poišči pesem v izbranem albumu</label><i class="bi bi-search" aria-hidden="true"></i><input type="search" id="searchInput" placeholder="Poišči naslov, izvajalca …" class="search-input"><button type="button" id="clearSearchBtn" aria-label="Počisti iskanje" hidden><i class="bi bi-x-lg" aria-hidden="true"></i></button></div>
+            <p id="trackResultsStatus" class="audio-results" role="status" aria-live="polite"></p>
             <div id="trackSelectionToolbar" class="track-selection-toolbar" hidden>
-                <button id="exitTrackSelectionBtn" class="track-selection-btn track-selection-btn-muted" type="button" title="Izhod iz izbire">
+                <button id="exitTrackSelectionBtn" class="track-selection-btn track-selection-btn-muted" type="button" aria-label="Izhod iz izbire" title="Izhod iz izbire">
                     <i class="bi bi-x-lg"></i>
                     <span>Končaj</span>
                 </button>
@@ -72,12 +75,13 @@
             </div>
             <div id="trackList" class="track-list"></div>
         </div>
-    </div>
+    </section>
 
     <!-- Player Section -->
-    <div id="player" class="player-section">
+    <section id="player" class="player-section" aria-label="Predvajalnik">
+        <div class="audio-player-heading"><span><i class="bi bi-headphones" aria-hidden="true"></i> Tvoj predvajalnik</span><span id="playbackStatus" role="status" aria-live="polite">Izberi in predvajaj</span></div>
         <div class="now-playing-info">
-            <div class="album-cover">
+            <div class="album-cover" aria-hidden="true">
                 <i class="bi bi-music-note"></i>
             </div>
             <div class="track-info">
@@ -91,7 +95,7 @@
 
         <!-- Progress Bar -->
         <div class="progress-section">
-            <input type="range" id="seekBar" class="progress-bar">
+            <input type="range" id="seekBar" class="progress-bar" min="0" max="0" value="0" step="1" aria-label="Položaj predvajanja">
             <div class="time-display">
                 <span id="timeDisplay">0:00 / 0:00</span>
             </div>
@@ -100,37 +104,38 @@
         <!-- Controls -->
         <div class="controls-section">
             <div class="controls-row primary-controls">
-                <button id="prevBtn" class="control-btn control-btn-muted" onclick="prev()" title="Prejšnja pesem">
+                <button id="prevBtn" class="control-btn control-btn-muted" onclick="prev()" aria-label="Prejšnja pesem" title="Prejšnja pesem">
                     <i class="bi bi-skip-backward-fill"></i>
                 </button>
 
-                <button id="playBtn" class="control-btn btn-play" onclick="togglePlay()" title="Predvajaj / Pauziraj">
+                <button id="playBtn" class="control-btn btn-play" onclick="togglePlay()" aria-label="Predvajaj" title="Predvajaj">
                     <i id="playIcon" class="bi bi-play-fill"></i>
                 </button>
 
-                <button id="nextBtn" class="control-btn control-btn-primary" onclick="next()" title="Naslednja pesem">
+                <button id="nextBtn" class="control-btn control-btn-primary" onclick="next()" aria-label="Naslednja pesem" title="Naslednja pesem">
                     <i class="bi bi-skip-forward-fill"></i>
                 </button>
 
-                <button id="randomNextBtn" class="control-btn control-btn-accent" onclick="nextRandom()" title="Naslednja naključna pesem">
+                <button id="randomNextBtn" class="control-btn control-btn-accent" onclick="nextRandom()" aria-label="Naslednja naključna pesem" title="Naslednja naključna pesem">
                     <i class="bi bi-dice-5"></i>
                 </button>
             </div>
 
             <div class="controls-row secondary-controls">
-                <button id="playbackModeBtn" class="control-btn playback-mode-btn" onclick="cyclePlaybackMode()" title="Nastavitev nadaljevanja">
-                    <i id="playbackModeIcon" class="bi bi-arrow-repeat"></i>
+                <button id="playbackModeBtn" class="control-btn playback-mode-btn" onclick="cyclePlaybackMode()" aria-label="Nastavitev nadaljevanja" title="Nastavitev nadaljevanja">
+                    <i id="playbackModeIcon" class="bi bi-arrow-repeat"></i><span id="playbackModeLabel">Po vrsti</span>
                 </button>
 
                 {% if view_as != "anonymous" and view_as != "user" and current_user.is_authenticated and current_user.is_admin %}
-                <button id="delete-btn" class="control-btn btn-delete" onclick="izbrisiPesem()" title="Izbriši pesem">
+                <button id="delete-btn" class="control-btn btn-delete" onclick="izbrisiPesem()" aria-label="Izbriši pesem" title="Izbriši pesem">
                     <i class="bi bi-trash"></i>
                 </button>
                 {% endif %}
             </div>
         </div>
 
-        <div id="privateAlbumTools" class="private-tools">
+        <details class="audio-private-details"><summary><i class="bi bi-folder-plus" aria-hidden="true"></i> Dodaj v moj album</summary><div id="privateAlbumTools" class="private-tools">
+            <p id="privateAlbumEmptyHint" class="audio-player-hint" hidden>Še nimaš svojega albuma. <button type="button" class="audio-inline-action" data-bs-toggle="modal" data-bs-target="#privateAlbumsModal">Ustvari prvi album</button>, nato vanj dodaj priljubljene pesmi.</p>
             <div class="private-tools-row">
                 <div id="privateAlbumAddControls" class="private-tools-row">
                     <label for="privateAlbumSelect">Dodaj pesem v moj album:</label>
@@ -142,20 +147,20 @@
                 </div>
             </div>
         </div>
-    </div>
-</div>
+    </details></section>
+</main>
 
-<div class="modal fade" id="privateAlbumsModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="privateAlbumsModal" aria-labelledby="privateAlbumsTitle" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content private-modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Privat albumi</h5>
+                <h2 class="modal-title" id="privateAlbumsTitle">Moji albumi</h2>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Zapri"></button>
             </div>
             <div class="modal-body">
-                <p class="private-modal-note">Največ {{ max_private_albums }} albumov na uporabnika. Tu urejaš seznam in imena.</p>
+                <p class="private-modal-note">Največ {{ max_private_albums }} albumov na uporabnika. Ustvari album, nato vanj dodaj pesmi iz seznama ali predvajalnika.</p>
                 <form id="newPrivateAlbumForm" class="private-album-new-form">
-                    <input id="newPrivateAlbumName" type="text" maxlength="80" placeholder="Novo ime albuma" class="form-control">
+                    <label class="visually-hidden" for="newPrivateAlbumName">Ime novega albuma</label><input id="newPrivateAlbumName" required type="text" maxlength="80" placeholder="Novo ime albuma" class="form-control">
                     <button class="btn btn-warning" type="submit">Dodaj album</button>
                 </form>
                 <div id="privateAlbumsManagerList" class="private-manager-list"></div>

@@ -50,15 +50,22 @@ const maxPrivateAlbums = parseInt(configRoot?.dataset?.privateAlbumsMax || "10",
 const isAppleMobile = /iPad|iPhone|iPod/.test(navigator.userAgent)
     || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
-let currentAlbumKey = localStorage.getItem("musicAlbumKey") || null;
-let currentTrack = localStorage.getItem("track") || null;
-let currentTime = parseFloat(localStorage.getItem("time") || 0);
+// Storage restrictions must not prevent listening.
+const playbackStorageKey = key => isRadioStoriesPage ? `radioStories:${key}` : key;
+const playbackStorage = {
+    getItem(key) { try { return localStorage.getItem(playbackStorageKey(key)); } catch (_) { return null; } },
+    setItem(key, value) { try { localStorage.setItem(playbackStorageKey(key), value); } catch (_) {} },
+    removeItem(key) { try { localStorage.removeItem(playbackStorageKey(key)); } catch (_) {} },
+};
+let currentAlbumKey = playbackStorage.getItem("musicAlbumKey") || null;
+let currentTrack = playbackStorage.getItem("track") || null;
+let currentTime = parseFloat(playbackStorage.getItem("time") || 0);
 let currentSongs = [];
 let currentIndex = -1;
 let filteredSongs = [];
 let isTrackSelectionMode = false;
 const selectedSongIds = new Set();
-let selectedPrivateAlbumId = localStorage.getItem("musicPrivateAlbumTarget") || null;
+let selectedPrivateAlbumId = playbackStorage.getItem("musicPrivateAlbumTarget") || null;
 let isLoadingTrack = false;
 let pendingManualTrackIndex = null;
 let pendingManualTrackOptions = null;
@@ -85,7 +92,7 @@ const playbackRandomnessWeights = {
     similar: 0.025,
     random: 0.15,
 };
-const storedPlaybackMode = localStorage.getItem("musicPlaybackMode");
+const storedPlaybackMode = playbackStorage.getItem("musicPlaybackMode");
 const playbackModes = ["sequential", "random", "similar", "repeat"];
 // Kids' radio always follows the displayed order, independently of music settings.
 let playbackMode = !isRadioStoriesPage && playbackModes.includes(storedPlaybackMode)
@@ -124,6 +131,36 @@ privateAlbums = parseJsonDataset(
 );
 publicAlbums = albums.filter(album => !album.is_private);
 albums = [...privateAlbums, ...publicAlbums];
+
+function escapeMusicHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    })[char]);
+}
+
+function setPlaybackStatus(message, error = false) {
+    const status = document.getElementById('playbackStatus');
+    if (!status) return;
+    status.textContent = message;
+    status.dataset.error = String(error);
+}
+
+function updateSearchStatus(count) {
+    const status = document.getElementById('trackResultsStatus');
+    if (status) status.textContent = `${searchInput?.value ? 'Rezultati' : 'V zbirki'}: ${count} · ${isRadioStoriesPage ? 'izberi oddajo' : 'izberi pesem'}`;
+    const clear = document.getElementById('clearSearchBtn');
+    if (clear) clear.hidden = !searchInput?.value;
+}
+
+function activateWithKeyboard(element) {
+    element.tabIndex = 0;
+    element.setAttribute('role', 'button');
+    element.addEventListener('keydown', event => {
+        if (event.target !== element || !['Enter', ' '].includes(event.key)) return;
+        event.preventDefault();
+        element.click();
+    });
+}
 
 function encodeMediaPath(path) {
     return String(path)
@@ -199,9 +236,9 @@ function getCurrentAlbum() {
 
 function persistSelectedPrivateAlbum() {
     if (selectedPrivateAlbumId) {
-        localStorage.setItem("musicPrivateAlbumTarget", selectedPrivateAlbumId);
+        playbackStorage.setItem("musicPrivateAlbumTarget", selectedPrivateAlbumId);
     } else {
-        localStorage.removeItem("musicPrivateAlbumTarget");
+        playbackStorage.removeItem("musicPrivateAlbumTarget");
     }
 }
 
@@ -366,7 +403,7 @@ function setPlaybackMode(mode) {
         ? mode
         : "sequential";
     if (!isRadioStoriesPage) {
-        localStorage.setItem("musicPlaybackMode", playbackMode);
+        playbackStorage.setItem("musicPlaybackMode", playbackMode);
     }
     updatePlaybackModeButtons();
     if (!isHlsSessionPlayback) {
@@ -418,21 +455,21 @@ function getRandomCooldownTracks() {
     const now = Date.now();
     let entries = {};
     try {
-        entries = JSON.parse(localStorage.getItem(randomCooldownStorageKey) || "{}");
+        entries = JSON.parse(playbackStorage.getItem(randomCooldownStorageKey) || "{}");
     } catch (_error) {
         entries = {};
     }
     entries = Object.fromEntries(
         Object.entries(entries).filter(([_trackId, timestamp]) => now - Number(timestamp) < randomCooldownMs)
     );
-    localStorage.setItem(randomCooldownStorageKey, JSON.stringify(entries));
+    playbackStorage.setItem(randomCooldownStorageKey, JSON.stringify(entries));
     return entries;
 }
 
 function markRandomCooldown(trackId) {
     const entries = getRandomCooldownTracks();
     entries[trackId] = Date.now();
-    localStorage.setItem(randomCooldownStorageKey, JSON.stringify(entries));
+    playbackStorage.setItem(randomCooldownStorageKey, JSON.stringify(entries));
 }
 
 function getRandomTrackIndex() {
@@ -530,6 +567,9 @@ function updatePlaybackModeButtons() {
             );
         });
         playbackModeBtn.title = `Način nadaljevanja: ${modeInfo.title}`;
+        playbackModeBtn.setAttribute('aria-label', `${playbackModeBtn.title}. Klikni za spremembo.`);
+        const label = document.getElementById('playbackModeLabel');
+        if (label) label.textContent = modeInfo.title;
     }
 
     if (playbackModeIcon) {
@@ -747,17 +787,26 @@ function renderAlbums() {
 
         if (album.is_private) {
             div.classList.add("album-item-private");
-            div.innerHTML = `${albumNameInfo.displayName || album.name}<span class="album-item-private-badge">Moj album</span>`;
+            div.innerHTML = `<span class="album-item-label">${escapeMusicHtml(albumNameInfo.displayName || album.name)}<span class="album-item-private-badge">Moj album</span></span>`;
         } else {
-            div.textContent = albumNameInfo.displayName || album.name;
+            div.innerHTML = `<span class="album-item-label">${escapeMusicHtml(albumNameInfo.displayName || album.name)}</span>`;
         }
 
+        const count = document.createElement('span');
+        count.className = 'album-item-count';
+        count.textContent = String((album.songs || []).length);
+        div.appendChild(count);
+        activateWithKeyboard(div);
+        div.setAttribute('aria-pressed', String(getAlbumKey(album) === currentAlbumKey));
         div.onclick = () => {
             div.style.transform = "scale(0.95)";
             setTimeout(() => {
                 div.style.transform = "scale(1)";
             }, 100);
             loadAlbum(album);
+            if (window.matchMedia?.('(max-width: 812px)').matches) {
+                document.querySelector('.toggle-btn[data-target="tracks"]')?.click();
+            }
         };
         albumListEl.appendChild(div);
     });
@@ -777,15 +826,13 @@ function buildTrackHtml(songId) {
         ...(Array.isArray(semantic.suitable_for) ? semantic.suitable_for : []),
     ].slice(0, 4).join(" • ");
 
-    if (isRadioStoriesPage) {
-        const duration = trackMetadata.duration || 0;
-        const artistPrefix = artist ? `${artist} : ` : "";
-        return `<span class="track-main">${artistPrefix}<b>${title}</b></span><span class="track-duration">${formatTime(duration)}</span>`;
-    }
-
-    const albumClass = albumInfo.hasSeparator ? "album-after-separator" : "";
-    const tagMarkup = tagText ? `<small class="track-tags">${tagText}</small>` : "";
-    return `<i class="${albumClass}">${albumInfo.displayName}</i> : ${artist} : <b>${title}</b>${tagMarkup}`;
+    const duration = Number(trackMetadata.duration) || 0;
+    const details = isRadioStoriesPage
+        ? artist
+        : [artist, albumInfo.displayName].filter(Boolean).join(' · ');
+    const tagMarkup = tagText && !isRadioStoriesPage
+        ? `<small class="track-tags">${escapeMusicHtml(tagText)}</small>` : '';
+    return `<span class="audio-track-title">${escapeMusicHtml(title)}</span><span class="audio-track-meta">${escapeMusicHtml(details)}</span>${tagMarkup}${isRadioStoriesPage ? `<span class="track-duration">${formatTime(duration)}</span>` : ''}`;
 }
 
 function normalizeSearchText(value) {
@@ -892,6 +939,13 @@ function renderTrackCollection(songIds, useOriginalIndex) {
         const div = document.createElement("div");
         div.className = "track-item" + (songId === currentTrack ? " active" : "");
         div.dataset.trackId = songId;
+        activateWithKeyboard(div);
+        div.setAttribute('aria-label', `${isRadioStoriesPage ? 'Predvajaj oddajo' : 'Predvajaj pesem'}: ${getTrackMetadata(songId).title || songId}`);
+        div.setAttribute('aria-pressed', String(songId === currentTrack));
+        const icon = document.createElement('span');
+        icon.className = 'audio-track-icon bi bi-play-circle';
+        icon.setAttribute('aria-hidden', 'true');
+        div.appendChild(icon);
 
         const isSelected = selectedSongIds.has(songId);
         if (isTrackSelectionMode && isSelected) {
@@ -944,7 +998,7 @@ function renderTrackCollection(songIds, useOriginalIndex) {
         trackListEl.appendChild(div);
     });
     updateTrackSelectionControls();
-    scrollToActiveTrack();
+    updateSearchStatus(displayedSongIds.length);
 }
 
 function getVisibleTrackIds() {
@@ -1082,7 +1136,8 @@ function updateTrackSelectionControls() {
 
 function renderCurrentAlbumTracks() {
     if (!currentSongs.length) {
-        trackListEl.innerHTML = "<i style='color: #999; padding: 20px; text-align: center;'>Ni pesmi v tej zbirki.</i>";
+        trackListEl.innerHTML = `<div class="audio-empty">${isRadioStoriesPage ? 'Trenutno ni oddaj v zbirki.' : 'V tem albumu še ni pesmi. Izberi drug album ali dodaj pesmi v svojega.'}</div>`;
+        updateSearchStatus(0);
         updateTrackSelectionControls();
         return;
     }
@@ -1108,9 +1163,11 @@ function loadAlbum(album, options = {}) {
     }
 
     currentAlbumKey = getAlbumKey(album);
-    localStorage.setItem("musicAlbumKey", currentAlbumKey);
-    localStorage.setItem("album", album.name);
+    playbackStorage.setItem("musicAlbumKey", currentAlbumKey);
+    playbackStorage.setItem("album", album.name);
     currentSongs = [...(album.songs || [])];
+    const heading = document.getElementById('currentAlbumHeading');
+    if (heading) heading.textContent = getAlbumDisplayInfo(album.name).displayName || 'Pesmi';
     filteredSongs = [];
     if (isTrackSelectionMode) {
         exitTrackSelectionMode();
@@ -1186,6 +1243,7 @@ async function playTrack(index, options = {}) {
         return;
     }
     isLoadingTrack = true;
+    setPlaybackStatus('Pripravljam predvajanje …');
     // Old source events must not replace the track selected for a new source.
     isHlsSessionPlayback = false;
     hlsSessionTracks = [];
@@ -1197,17 +1255,17 @@ async function playTrack(index, options = {}) {
     currentIndex = index;
     currentTrack = currentSongs[index];
     endTransitionTrack = null;
-    const storedTrack = localStorage.getItem("track");
-    const storedTime = parseFloat(localStorage.getItem("time") || 0);
+    const storedTrack = playbackStorage.getItem("track");
+    const storedTime = parseFloat(playbackStorage.getItem("time") || 0);
     pendingRestoreTime = options.startTimeMs !== undefined
         ? Math.max(0, Number(options.startTimeMs) / 1000)
         : options.resume && currentTrack === storedTrack
             ? storedTime
             : 0;
 
-    localStorage.setItem("track", currentTrack);
+    playbackStorage.setItem("track", currentTrack);
     if (!pendingRestoreTime) {
-        localStorage.setItem("time", 0);
+        playbackStorage.setItem("time", 0);
     }
 
     refreshPlaybackUi();
@@ -1242,6 +1300,7 @@ async function playTrack(index, options = {}) {
         }
         audio.volume = previousVolume;
         console.error("Napaka pri pripravi vira:", error);
+        setPlaybackStatus('Vira ni mogoče naložiti. Poskusi drugo vsebino ali znova pritisni Predvajaj.', true);
         updatePlayBtn("false");
         isLoadingTrack = false;
         retryAutomaticTransition(index, options);
@@ -1274,6 +1333,7 @@ async function playTrack(index, options = {}) {
                 audio.volume = previousVolume;
                 if (error.name !== "AbortError") {
                     console.error("Napaka pri predvajanju:", error);
+                    setPlaybackStatus('Predvajanje ni uspelo. Znova pritisni Predvajaj ali izberi drugo vsebino.', true);
                     updatePlayBtn("false");
                 }
                 isLoadingTrack = false;
@@ -1442,6 +1502,7 @@ function highlightTrack() {
             trackEl.style.transition = "all 0.3s ease";
         }
         trackEl.classList.toggle("active", isActive);
+        trackEl.setAttribute('aria-pressed', String(isActive));
     });
 }
 
@@ -1473,8 +1534,12 @@ function refreshPlaybackUi() {
 
 function scrollToActiveTrack() {
     const active = document.querySelector(".track-item.active");
-    if (active) {
-        active.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (active && trackListEl?.getBoundingClientRect) {
+        const item = active.getBoundingClientRect();
+        const list = trackListEl.getBoundingClientRect();
+        if (item.top < list.top || item.bottom > list.bottom) {
+            trackListEl.scrollTop += item.top - list.top - list.height / 2 + item.height / 2;
+        }
     }
 }
 
@@ -1515,6 +1580,11 @@ function togglePlay() {
                 setTimeout(() => {
                     playBtn.style.transform = "scale(1)";
                 }, 150);
+            }).catch(error => {
+                if (error.name !== 'AbortError') {
+                    updatePlayBtn('false');
+                    setPlaybackStatus('Predvajanje ni uspelo. Znova pritisni Predvajaj.', true);
+                }
             });
         }
     } else {
@@ -1618,6 +1688,10 @@ function updatePlayBtn(playMode) {
         playIcon.className = "bi bi-play-fill";
     }
     playBtn.style.transition = "all 0.3s ease";
+    const playing = playMode === 'true';
+    playBtn.setAttribute('aria-label', playing ? 'Premor' : 'Predvajaj');
+    playBtn.title = playing ? 'Premor' : 'Predvajaj';
+    playBtn.setAttribute('aria-pressed', String(playing));
 }
 
 function updateSeekBarBackground() {
@@ -1625,6 +1699,7 @@ function updateSeekBarBackground() {
         const max = parseFloat(progress.max) || 1;
         const value = parseFloat(progress.value) || 0;
         const pct = Math.max(0, Math.min(100, (value / max) * 100));
+        progress.setAttribute('aria-valuetext', timeDisplay.textContent);
         progress.style.background = `linear-gradient(90deg, hsl(var(--music-mood-hue) 52% 16%) ${pct}%, hsl(var(--music-mood-hue) 24% 72% / 0.5) ${pct}%)`;
     } catch (_error) {
     }
@@ -1656,12 +1731,12 @@ function syncHlsSessionTrack() {
     progress.max = trackDuration;
     progress.value = Math.min(trackTime, trackDuration);
     timeDisplay.textContent = `${formatTime(trackTime)} / ${formatTime(trackDuration)}`;
-    localStorage.setItem("time", trackTime);
+    playbackStorage.setItem("time", trackTime);
 
     if (currentTrack !== activeTrack.id) {
         currentTrack = activeTrack.id;
         currentIndex = currentSongs.indexOf(currentTrack);
-        localStorage.setItem("track", currentTrack);
+        playbackStorage.setItem("track", currentTrack);
         if (["similar", "random"].includes(playbackMode)) {
             markRandomCooldown(currentTrack);
         }
@@ -1682,7 +1757,7 @@ audio.ontimeupdate = () => {
     }
     if (audio.duration) {
         progress.value = audio.currentTime;
-        localStorage.setItem("time", audio.currentTime);
+        playbackStorage.setItem("time", audio.currentTime);
         timeDisplay.textContent = `${formatTime(audio.currentTime)} / ${formatTime(audio.duration)}`;
         updatePositionState();
         updateSeekBarBackground();
@@ -1717,6 +1792,7 @@ audio.onloadedmetadata = () => {
     }
     pendingRestoreTime = 0;
     syncHlsSessionTrack();
+    if (!isHlsSessionPlayback) timeDisplay.textContent = `${formatTime(audio.currentTime)} / ${formatTime(audio.duration)}`;
     updatePositionState();
     updateSeekBarBackground();
     scheduleEndTransition();
@@ -1899,6 +1975,7 @@ function renderPrivateAlbumManager() {
         input.type = "text";
         input.className = "form-control";
         input.maxLength = 80;
+        input.setAttribute("aria-label", `Ime albuma: ${album.name}`);
         input.value = album.name;
 
         const count = document.createElement("span");
@@ -2003,6 +2080,8 @@ function updatePrivateAlbumControls(options = {}) {
     const currentAlbum = getCurrentAlbum();
     const isInsidePrivateAlbum = Boolean(currentAlbum?.is_private);
     const hasPrivateAlbums = privateAlbums.length > 0;
+    const emptyHint = document.getElementById('privateAlbumEmptyHint');
+    if (emptyHint) emptyHint.hidden = hasPrivateAlbums;
     const canAddSong = Boolean(currentTrack && selectedPrivateAlbumId && !isInsidePrivateAlbum);
     const canRemoveSong = Boolean(currentAlbum?.is_private && currentTrack);
     const removeAlbumName = currentAlbum?.name || "tega albuma";
@@ -2114,26 +2193,7 @@ async function removeCurrentSongFromPrivateAlbum() {
 
 function filterSongs() {
     const searchTerm = normalizeSearchText(searchInput?.value);
-    const scrollToSearchResults = (hasResults = false) => {
-        const tracksSection = document.getElementById("tracks");
-        if (!tracksSection) {
-            return;
-        }
-        const positionResults = () => {
-            const firstTrack = hasResults
-                ? tracksSection.querySelector(".track-item")
-                : null;
-            if (firstTrack) {
-                firstTrack.scrollIntoView({ behavior: "smooth", block: "center" });
-                return;
-            }
-            tracksSection.scrollTop = 0;
-            tracksSection.scrollTo(0, 0);
-        };
-        positionResults();
-        requestAnimationFrame(positionResults);
-        setTimeout(positionResults, 0);
-    };
+    const scrollToSearchResults = () => { trackListEl.scrollTop = 0; };
 
     if (!searchTerm) {
         filteredSongs = [...currentSongs];
@@ -2156,7 +2216,9 @@ function filterSongs() {
     filteredSongs = rankedSongs.map(result => result.songId);
 
     if (!filteredSongs.length) {
-        trackListEl.innerHTML = "<i style='color: #999; padding: 20px; text-align: center;'>Ni rezultatov iskanja.</i>";
+        trackListEl.innerHTML = '<div class="audio-empty">Ni zadetkov. Poskusi drug naslov ali počisti iskanje.</div>';
+        updateSearchStatus(0);
+        updateTrackSelectionControls();
         scrollToSearchResults();
         return;
     }
@@ -2169,7 +2231,7 @@ let searchDebounceTimer = null;
 
 function scheduleSongFilter() {
     clearTimeout(searchDebounceTimer);
-    searchDebounceTimer = setTimeout(filterSongs, 500);
+    searchDebounceTimer = setTimeout(filterSongs, 180);
 }
 
 if (privateAlbumSelect) {
@@ -2295,7 +2357,10 @@ if (removeSelectedSongsBtn) {
     removeSelectedSongsBtn.addEventListener("click", removeSelectedSongsFromCurrentPrivateAlbum);
 }
 
+let browserToggleInitialized = false;
 function initializeBrowserToggle() {
+    if (browserToggleInitialized) return;
+    browserToggleInitialized = true;
     const albumsSection = document.getElementById("albums");
     const tracksSection = document.getElementById("tracks");
     const toggleButtons = document.querySelectorAll(".toggle-btn");
@@ -2309,6 +2374,7 @@ function initializeBrowserToggle() {
 
         toggleButtons.forEach(btn => {
             btn.classList.toggle("active", btn.dataset.target === nextTarget);
+            btn.setAttribute('aria-pressed', String(btn.dataset.target === nextTarget));
         });
 
         if (nextTarget === "albums") {
@@ -2319,7 +2385,7 @@ function initializeBrowserToggle() {
             albumsSection.classList.remove("active");
         }
 
-        localStorage.setItem("musicBrowserTab", nextTarget);
+        playbackStorage.setItem("musicBrowserTab", nextTarget);
     }
 
     toggleButtons.forEach(btn => {
@@ -2331,7 +2397,7 @@ function initializeBrowserToggle() {
     });
 
     const defaultTab = isRadioStoriesPage ? "tracks" : "albums";
-    const savedTabRaw = localStorage.getItem("musicBrowserTab");
+    const savedTabRaw = playbackStorage.getItem("musicBrowserTab");
     const savedTab =
         savedTabRaw === "albums" || savedTabRaw === "tracks"
             ? savedTabRaw
@@ -2339,7 +2405,7 @@ function initializeBrowserToggle() {
     switchView(isRadioStoriesPage ? "tracks" : savedTab);
 
     window.addEventListener("orientationchange", () => {
-        const savedTab = localStorage.getItem("musicBrowserTab");
+        const savedTab = playbackStorage.getItem("musicBrowserTab");
         const nextTab =
             isRadioStoriesPage
                 ? "tracks"
@@ -2361,7 +2427,7 @@ ensureSelectedPrivateAlbum();
 renderPrivateAlbumManager();
 
 let initialAlbum = albums[0] || null;
-const legacyAlbumName = localStorage.getItem("album") || "Vse";
+const legacyAlbumName = playbackStorage.getItem("album") || "Vse";
 if (!currentAlbumKey && legacyAlbumName) {
     initialAlbum = albums.find(album => album.name === legacyAlbumName) || initialAlbum;
     currentAlbumKey = getAlbumKey(initialAlbum);
@@ -2403,6 +2469,30 @@ if (initialAlbum) {
 
 if (searchInput) {
     searchInput.addEventListener("input", scheduleSongFilter);
+    document.getElementById('clearSearchBtn')?.addEventListener('click', () => {
+        clearTimeout(searchDebounceTimer);
+        searchInput.value = '';
+        filterSongs();
+        searchInput.focus();
+    });
+}
+
+audio.addEventListener('playing', () => setPlaybackStatus('Predvaja se'));
+audio.addEventListener('pause', () => setPlaybackStatus('Začasno ustavljeno'));
+audio.addEventListener('waiting', () => setPlaybackStatus('Nalaganje …'));
+audio.addEventListener('error', () => {
+    updatePlayBtn('false');
+    setPlaybackStatus('Vsebine ni mogoče predvajati. Poskusi znova ali izberi drugo.', true);
+});
+if (!currentSongs.length) {
+    renderCurrentAlbumTracks();
+    setPlaybackStatus('Izberi album z vsebinami');
+}
+if (musicAppContainer && typeof ResizeObserver !== 'undefined') {
+    const header = document.getElementById('blog-site-header');
+    if (header) new ResizeObserver(() => {
+        musicAppContainer.style.setProperty('--audio-header-height', `${header.getBoundingClientRect().height}px`);
+    }).observe(header);
 }
 
 if (document.readyState === "loading") {

@@ -2,68 +2,38 @@
 
 {% block content %}
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/music_ui.css') }}">
 
-<style>
-/* Orange color theme for kids' radio. */
-.radio-accent { color: #d97706; }
-.radio-gradient { background: linear-gradient(135deg,#ff8c42 0%, #ffd1a3 100%); }
-.section-header h2 { color: #d97706 !important; }
-.toggle-btn.active { border-color: #d97706; }
-.toggle-btn { color: #d97706; }
-/* Kids' radio uses a flat list without the album browser. */
-.browser-toggle { display: none !important; }
-#albums { display: none !important; }
-#tracks { width: 100% !important; }
-/* Duration styling: italic, a bit separated and right-aligned in a small fixed box */
-.track-duration {
-    font-style: italic;
-    color: #666;
-}
 
-@media (max-width: 768px) {
-    #browserToggle,
-    .browser-toggle {
-        display: none !important;
-    }
-}
-</style>
 
-<div class="music-app-container radio-stories-page">
+<main class="music-app-container radio-stories-page">
     <div class="radio-bubbles" aria-hidden="true">
         <span></span><span></span><span></span><span></span><span></span>
         <span></span><span></span><span></span><span></span><span></span>
     </div>
+    <header class="audio-page-heading">
+      <div><span class="audio-eyebrow">Čas za zgodbo</span><h1>Otroški radio</h1><p>Pravljice in zgodbe za male poslušalce. Izberi oddajo in prisluhni.</p></div>
+      <details class="audio-help"><summary><i class="bi bi-question-circle" aria-hidden="true"></i> Kako poslušam?</summary><div class="audio-help-content"><strong>Izberi zgodbo.</strong><p>Klikni naslov oddaje ali pritisni Predvajaj. Oddaje si sledijo po vrsti.</p><p>S puščicama preskoči na prejšnjo ali naslednjo oddajo. Drsnik premakne poslušanje na izbrani trenutek.</p></div></details>
+    </header>
     <!-- Browser Section -->
-    <div id="browser">
-        <div class="browser-toggle" id="browserToggle">
-            <button class="toggle-btn" data-target="albums"><h3></h3><i class="bi bi-disc"></i>
-                Albumi</h3></button>
-            <button class="toggle-btn active" data-target="tracks"><h3></h3><i class="bi bi-music-note-beamed"></i>
-                Otroški radio</h3></button>
-        </div>
-        <div id="albums" class="albums-section">
-            <div class="section-header">
-                <i class="bi bi-disc radio-accent"></i>
-                <h2>Albumi</h2>
-            </div>
-            <div id="albumList" class="album-list"></div>
-        </div>
-
+    <section id="browser" aria-label="Izbira oddaj">
+        <div id="albums" hidden><div id="albumList"></div></div>
         <div id="tracks" class="tracks-section">
             <div class="section-header">
                 <i class="bi bi-music-note-beamed radio-accent"></i>
                 <h2>Otroški radio</h2>
             </div>
-            <input type="search" id="searchInput" placeholder="🔍 Iskanje po naslovu, avtorju..." class="search-input">
+            <div class="audio-search"><label for="searchInput" class="visually-hidden">Poišči oddajo</label><i class="bi bi-search" aria-hidden="true"></i><input type="search" id="searchInput" placeholder="Poišči naslov ali avtorja …" class="search-input"><button type="button" id="clearSearchBtn" aria-label="Počisti iskanje" hidden><i class="bi bi-x-lg" aria-hidden="true"></i></button></div>
+            <p id="trackResultsStatus" class="audio-results" role="status" aria-live="polite"></p>
             <div id="trackList" class="track-list"></div>
         </div>
-    </div>
+    </section>
 
     <!-- Player Section -->
-    <div id="player" class="player-section">
+    <section id="player" class="player-section" aria-label="Predvajalnik">
+        <div class="audio-player-heading"><span><i class="bi bi-headphones" aria-hidden="true"></i> Tvoj predvajalnik</span><span id="playbackStatus" role="status" aria-live="polite">Izberi in predvajaj</span></div>
         <div class="now-playing-info">
-            <div class="album-cover">
+            <div class="album-cover" aria-hidden="true">
                 <i class="bi bi-music-note"></i>
             </div>
             <div class="track-info">
@@ -77,34 +47,35 @@
 
         <!-- Progress Bar -->
         <div class="progress-section">
-            <input type="range" id="seekBar" class="progress-bar">
+            <input type="range" id="seekBar" class="progress-bar" min="0" max="0" value="0" step="1" aria-label="Položaj predvajanja">
             <div class="time-display">
                 <span id="timeDisplay">0:00 / 0:00</span>
             </div>
         </div>
 
         <!-- Controls -->
-        <div class="controls-section">
-            <button class="control-btn" onclick="prev()" title="Prejšnja oddaja">
+        <div class="controls-section"><div class="controls-row primary-controls">
+            <button class="control-btn" onclick="prev()" aria-label="Prejšnja oddaja" title="Prejšnja oddaja">
                 <i class="bi bi-skip-backward-fill"></i>
             </button>
 
-            <button id="playBtn" class="control-btn btn-play" onclick="togglePlay()" title="Predvajaj / Pauziraj">
+            <button id="playBtn" class="control-btn btn-play" onclick="togglePlay()" aria-label="Predvajaj" title="Predvajaj">
                 <i id="playIcon" class="bi bi-play-fill"></i>
             </button>
 
-            <button class="control-btn" onclick="next()" title="Naslednja oddaja">
+            <button class="control-btn" onclick="next()" aria-label="Naslednja oddaja" title="Naslednja oddaja">
                 <i class="bi bi-skip-forward-fill"></i>
             </button>
 
             {% if view_as != "anonymous" and view_as != "user" and current_user.is_authenticated and current_user.is_admin %}
-            <button id="delete-btn" class="control-btn btn-delete" onclick="izbrisiPesem()" title="Izbriši datoteko">
+            <button id="delete-btn" class="control-btn btn-delete" onclick="izbrisiPesem()" aria-label="Izbriši datoteko" title="Izbriši datoteko">
                 <i class="bi bi-trash"></i>
             </button>
             {% endif %}
-        </div>
-    </div>
-</div>
+        </div></div>
+        <p class="audio-player-hint">Oddaje se nadaljujejo po vrsti. Poslušanje začasno ustaviš z gumbom za premor.</p>
+    </section>
+</main>
 
 {# Provide a single synthetic album named 'Vse' and metadata mapped for the player #}
 <div id="albums-root" data-albums='{{ [{"name": "Vse", "songs": radio_stories_files}] | tojson | safe }}'></div>

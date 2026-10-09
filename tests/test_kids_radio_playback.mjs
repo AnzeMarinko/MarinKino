@@ -44,6 +44,8 @@ class Element {
     scrollIntoView() { this.scrollCount = (this.scrollCount || 0) + 1; }
     removeAttribute(name) { delete this[name]; }
     getAttribute(name) { return this[name] ?? null; }
+    setAttribute(name, value) { this[name] = String(value); }
+    click() { this.onclick?.(); }
 }
 
 function createPlayer({
