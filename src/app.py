@@ -168,6 +168,7 @@ def log_response_info(response):
             or "favicon.ico" in request_parts[0]
             or ".well-known" in request_parts[0]
             or "movies/file/" in request.path
+            or "blog/image/" in request.path
             or "blog/track-reading/" in request.path
             or request.path.endswith(".m4s")
         ):
