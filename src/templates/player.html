@@ -11,17 +11,64 @@
 <header class="movie-view-heading"><a href="/movies">← Nazaj na filme</a><h1>{{ movie.title }} <small>{{ movie.year }}</small></h1><p>{{ movie.original_title }}</p></header>
 <div class="movie-page">
     <div class="description">
-        <div class="cover"><img src="/movies/file{{ movie.cover }}" alt="Plakat za {{ movie.title }}" class="{{ movie.recommendation_level }}"></div>
-        <div class="slosinh">{{ movie.slosinh }}</div>
-        <div class="genres">
-            {% for genre in movie.genres %}
-            <span class="genre-badge {{ genre|lower|replace(' ', '-') if genre in known_genres else 'unknown' }}">{{ genre }}</span>
-            {% endfor %}
-        </div></br>
+        <div class="movie-overview">
+            <div class="cover"><img src="/movies/file{{ movie.cover }}" alt="Plakat za {{ movie.title }}" class="{{ movie.recommendation_level }}"></div>
+            <div class="movie-overview-copy">
+                <div class="movie-meta"><span class="movie-runtime"><i class="bi bi-clock" aria-hidden="true"></i> {{ movie.runtimes }} min</span></div>
+                {% if movie.slosinh %}<div class="slosinh">{{ movie.slosinh }}</div>{% endif %}
+                <div class="genres">
+                    {% for genre in movie.genres %}
+                    <span class="genre-badge {{ genre|lower|replace(' ', '-') if genre in known_genres else 'unknown' }}">{{ genre }}</span>
+                    {% endfor %}
+                </div>
+                {% if movie.players %}<p class="movie-cast"><strong>Igrajo:</strong> {{ movie.players }}</p>{% endif %}
+                <div class="movie-synopsis"><h2>Opis filma</h2><p>{{ movie.description }}</p></div>
+            </div>
+        </div>
+    {% if subtitle_buttons %}</br>
+        <hr>Podnapisi (izberete v predvajalniku med možnostmi): {% for subtitle in subtitle_buttons %}<span class="subtitles">{{ subtitle }}</span> {% endfor %}
+        {% endif %}</br>
+        <hr>{% if is_collection %}
+            <div>
+                {% for video_file in video_files %}
+                    <button class="video-btn" style="--watch: {{ movie.watch_info[video_file]['watch_ratio']|default(0) }}%;"
+                        onclick="playVideo('/movies/file/{{ group_folder }}/{{ folder }}/{{ video_file }}', {{ movie.watch_info[video_file]['last_play_time']|default(0) }}, this)">
+                        {{ video_file|replace('.mp4', '') }} ({{ movie.runtimes_by_files[video_file|replace('.mp4', '')] }} min)
+                    </button>
+                {% endfor %}
+                </div></br>
         <hr>
-        <b>{{ movie.players }}</b></br>
-        <hr>{{ movie.description }}
-        <hr>
+        {% else %}
+
+            <div class="selectors izbira" movie-id="{{ movie.movie_id }}">
+                <input type="radio" id="opcija1-{{ movie.movie_id }}" name="izbor-{{ movie.movie_id }}" value="0" {% if movie.watch_ratio|default(0) == 0 %}checked{% endif %}>
+                <label for="opcija1-{{ movie.movie_id }}">Nepogledano</label>
+
+                <input type="radio" id="opcija2-{{ movie.movie_id }}" name="izbor-{{ movie.movie_id }}" value="100" {% if movie.watch_ratio|default(0) >= 100 %}checked{% endif %}>
+                <label for="opcija2-{{ movie.movie_id }}">Pogledano</label>
+            </div>
+
+            {% if view_as != "anonymous" and view_as != "user" and current_user.is_authenticated and current_user.is_admin %}
+            <div class="buttons">
+                <hr>
+                <div class="selectors priporocilo" movie-folder="{{ movie.folder }}">
+                    <input type="radio" id="priporocilo1-{{ movie.movie_id }}" name="priporocaj-{{ movie.movie_id }}" value="" {% if not movie.recommendation_level %}checked{% endif %}>
+                    <label for="priporocilo1-{{ movie.movie_id }}">Odstrani priporočilo</label>
+                    <input type="radio" id="priporocilo2-{{ movie.movie_id }}" name="priporocaj-{{ movie.movie_id }}" value="recommend" {% if movie.recommendation_level == "recommend" %}checked{% endif %}>
+                    <label for="priporocilo2-{{ movie.movie_id }}">Priporoči</label>
+                    <input type="radio" id="priporocilo3-{{ movie.movie_id }}" name="priporocaj-{{ movie.movie_id }}" value="warm-recommend" {% if movie.recommendation_level == "warm-recommend" %}checked{% endif %}>
+                    <label for="priporocilo3-{{ movie.movie_id }}">Toplo priporoči</label>
+                </div><hr>
+                <form action="/movies/remove{{ movie.folder }}" method="post" onsubmit="return odstraniMovieCard(event, this);">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit">Odstrani</button>
+                </form>
+            </div>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    <div class="movie-player-right-side">
         <div id="rating-summary" data-movie-folder="{{ movie.folder }}" data-is-collection="{{ 'true' if is_collection else 'false' }}">
             <h4>Ocene filma</h4>
             <div>
@@ -118,50 +165,7 @@
                 <button type="button" class="btn btn-primary" onclick="openRatingModal()">Oceni film</button>
             </div>
         </div>
-    {% if subtitle_buttons %}</br>
-        <hr>Podnapisi (izberete v predvajalniku med možnostmi): {% for subtitle in subtitle_buttons %}<span class="subtitles">{{ subtitle }}</span> {% endfor %}
-        {% endif %}</br>
-        <hr>{% if is_collection %}
-            <div>
-                {% for video_file in video_files %}
-                    <button class="video-btn" style="--watch: {{ movie.watch_info[video_file]['watch_ratio']|default(0) }}%;"
-                        onclick="playVideo('/movies/file/{{ group_folder }}/{{ folder }}/{{ video_file }}', {{ movie.watch_info[video_file]['last_play_time']|default(0) }}, this)">
-                        {{ video_file|replace('.mp4', '') }} ({{ movie.runtimes_by_files[video_file|replace('.mp4', '')] }} min)
-                    </button>
-                {% endfor %}
-                </div></br>
-        <hr>
-        {% else %}
 
-            <div class="selectors izbira" movie-id="{{ movie.movie_id }}">
-                <input type="radio" id="opcija1-{{ movie.movie_id }}" name="izbor-{{ movie.movie_id }}" value="0" {% if movie.watch_ratio|default(0) == 0 %}checked{% endif %}>
-                <label for="opcija1-{{ movie.movie_id }}">Nepogledano</label>
-
-                <input type="radio" id="opcija2-{{ movie.movie_id }}" name="izbor-{{ movie.movie_id }}" value="100" {% if movie.watch_ratio|default(0) >= 100 %}checked{% endif %}>
-                <label for="opcija2-{{ movie.movie_id }}">Pogledano</label>
-            </div>
-
-            {% if view_as != "anonymous" and view_as != "user" and current_user.is_authenticated and current_user.is_admin %}
-            <div class="buttons">
-                <hr>
-                <div class="selectors priporocilo" movie-folder="{{ movie.folder }}">
-                    <input type="radio" id="priporocilo1-{{ movie.movie_id }}" name="priporocaj-{{ movie.movie_id }}" value="" {% if not movie.recommendation_level %}checked{% endif %}>
-                    <label for="priporocilo1-{{ movie.movie_id }}">Odstrani priporočilo</label>
-                    <input type="radio" id="priporocilo2-{{ movie.movie_id }}" name="priporocaj-{{ movie.movie_id }}" value="recommend" {% if movie.recommendation_level == "recommend" %}checked{% endif %}>
-                    <label for="priporocilo2-{{ movie.movie_id }}">Priporoči</label>
-                    <input type="radio" id="priporocilo3-{{ movie.movie_id }}" name="priporocaj-{{ movie.movie_id }}" value="warm-recommend" {% if movie.recommendation_level == "warm-recommend" %}checked{% endif %}>
-                    <label for="priporocilo3-{{ movie.movie_id }}">Toplo priporoči</label>
-                </div><hr>
-                <form action="/movies/remove{{ movie.folder }}" method="post" onsubmit="return odstraniMovieCard(event, this);">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit">Odstrani</button>
-                </form>
-            </div>
-            {% endif %}
-        {% endif %}
-    </div>
-
-    <div class="movie-player-right-side">
     <!-- Prikaz opozoril (samo admin) -->
     {% set admin_alerts = movie.user_notes.values()|selectattr('is_admin')|list %}
     {% if admin_alerts %}

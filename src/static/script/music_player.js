@@ -770,8 +770,8 @@ function seekWithinCurrentTrack(position, fastSeek = false) {
     updatePositionState();
 }
 
-// Keep the selected branch open; sibling album groups stay compact.
-let albumHierarchyActivated = Boolean(currentAlbumKey);
+// Expansion is independent of selection, so an active album can be collapsed.
+let expandedAlbumKey = currentAlbumKey;
 let previouslyExpandedAlbums = new Set();
 
 function renderAlbums() {
@@ -797,8 +797,8 @@ function renderAlbums() {
         } else roots.push(album);
     });
     const expandedKeys = new Set();
-    if (albumHierarchyActivated) {
-        let album = getCurrentAlbum();
+    if (expandedAlbumKey) {
+        let album = findAlbumByKey(expandedAlbumKey);
         while (album) {
             expandedKeys.add(getAlbumKey(album));
             album = parentByKey.get(getAlbumKey(album));
@@ -840,7 +840,10 @@ function renderAlbums() {
             div.appendChild(chevron);
         }
         div.onclick = () => {
-            albumHierarchyActivated = true;
+            const key = getAlbumKey(album);
+            expandedAlbumKey = children.length && expandedKeys.has(key)
+                ? getAlbumKey(parentByKey.get(key))
+                : key;
             div.style.transform = "scale(0.95)";
             setTimeout(() => {
                 div.style.transform = "scale(1)";

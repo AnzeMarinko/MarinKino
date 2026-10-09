@@ -27,8 +27,8 @@ def films(ui):
         title="Poletni večer",
         year="2025",
         original_title="Summer",
-        slosinh="Slovenski podnapisi",
-        genres=["drama"],
+        slosinh="Sinhronizirano",
+        genres=["drama", "komedija", "akcija"],
         players="Ana",
         description="Opis filma <b>ostane besedilo</b>.",
         runtimes=90,
@@ -49,7 +49,7 @@ def films(ui):
             movies=movies,
             has_more=bool(movies),
             group_folders={"test": "Filmi"},
-            known_genres=["drama"],
+            known_genres=["drama", "komedija", "akcija"],
             selected_movietype="",
             selected_genre="",
             sort="",
@@ -88,7 +88,7 @@ def films(ui):
             "player.html",
             movie=data,
             is_collection=collection,
-            known_genres=["drama"],
+            known_genres=["drama", "komedija", "akcija"],
             group_folder="test",
             folder="one",
             video_file="film.mp4",
@@ -135,6 +135,7 @@ def films(ui):
             },
         )
 
+    ui.movie = movie
     return ui, calls
 
 
@@ -152,13 +153,36 @@ def test_browser_movie_catalog_filters_and_retry(films, browser):
     page.goto(browser.base + "/movies")
     assert page.locator(".movie-card").count() == 1
     assert page.get_by_role("link", name="Nadaljuj ogled").is_visible()
+    expect(page.get_by_role("progressbar")).to_have_attribute(
+        "aria-valuenow", "35"
+    )
+    assert page.locator(".movie-watch-state").count() == 0
+    assert page.locator(".movie-runtime").is_visible()
+    assert page.get_by_text("Sinhronizirano", exact=True).is_visible()
+    colors = page.locator(".genre-badge").evaluate_all(
+        "els => els.map(el => getComputedStyle(el).backgroundColor)"
+    )
+    assert len(set(colors)) == 3
+    assert (
+        page.locator(".movie-card").evaluate(
+            "el => parseFloat(getComputedStyle(el).borderTopWidth)"
+        )
+        == 3
+    )
+    assert (
+        page.get_by_role("progressbar").evaluate(
+            "el => el.getBoundingClientRect().height"
+        )
+        == 10
+    )
     page.get_by_text("Opis in možnosti", exact=True).click()
     assert page.get_by_text(
         "Opis filma <b>ostane besedilo</b>.", exact=True
     ).is_visible()
     page.get_by_text("Pogledano", exact=True).click()
     page.wait_for_function(
-        "document.querySelector('.movie-watch-state').textContent.includes('✓')"
+        "document.querySelector('.movie-watch-progress')"
+        ".getAttribute('aria-valuenow') === '100'"
     )
     assert calls == ["/movies/progress-change"]
     ui.app.config["MOVIE_PAGE_FAIL"] = True
@@ -251,3 +275,79 @@ def test_browser_movie_collection_and_hls_fallback(films, browser):
             getComputedStyle(document.getElementById('hlsAudioContainer'))
                 .display !== 'none';
     }""")
+
+
+def test_browser_movie_hover_and_touch_details(films, browser):
+    page = browser.page
+    page.set_viewport_size({"width": 1440, "height": 900})
+    page.goto(browser.base + "/movies")
+    card = page.locator(".movie-card")
+    details = page.locator(".movie-details")
+    expect(details).not_to_have_attribute("open", "")
+    card.hover()
+    expect(details).to_be_visible()
+    expect(page.get_by_text("Igrajo:", exact=True)).to_be_visible()
+    page.get_by_text("Nepogledano", exact=True).hover()
+    expect(details).to_be_visible()
+    bounds = details.bounding_box()
+    assert bounds["x"] >= 0 and bounds["x"] + bounds["width"] <= 1440
+    page.locator("h1").hover()
+    expect(details).not_to_have_attribute("open", "")
+    page.locator(".movie-poster").focus()
+    expect(details).to_be_visible()
+    page.locator("#movie-search").focus()
+    expect(details).not_to_have_attribute("open", "")
+    page.locator("#movie-grid").evaluate(
+        "el => { el.style.width = '240px'; el.style.marginLeft = 'auto'; }"
+    )
+    card.hover()
+    expect(details).to_be_visible()
+    assert details.bounding_box()["x"] < card.bounding_box()["x"]
+    assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    page.locator("h1").hover()
+    page.locator("#movie-grid").evaluate("el => el.removeAttribute('style')")
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.get_by_text("Opis in možnosti", exact=True).click()
+    expect(page.get_by_text("Igrajo:", exact=True)).to_be_visible()
+    assert details.evaluate("el => getComputedStyle(el).position") == "static"
+
+
+def test_browser_compact_movie_overview_and_ratings(films, browser):
+    ui, _ = films
+    ui.movie["ratings_summary"] = {
+        key: dict(avg=4, count=5)
+        for key in [
+            "violence",
+            "sexual",
+            "age_group",
+            "would_watch_again",
+            "video_quality",
+            "subtitles_quality",
+        ]
+    }
+    ui.movie["description"] = "Daljši opis filma. " * 80
+    page = browser.page
+    for width in [390, 820, 1440]:
+        height = 844 if width <= 800 else 768
+        page.set_viewport_size({"width": width, "height": height})
+        page.goto(browser.base + "/movies/play/test/one")
+        video = page.locator("#videoPlayer").bounding_box()
+        ratings = page.locator("#rating-summary").bounding_box()
+        assert video["height"] <= 241
+        assert ratings["y"] >= video["y"] + video["height"]
+        assert ratings["y"] + ratings["height"] < height
+        assert page.evaluate(
+            "document.documentElement.scrollWidth <= innerWidth"
+        )
+        if width > 800:
+            overview = page.locator(".movie-overview").bounding_box()
+            assert overview["y"] < video["y"] + 32
+            assert ratings["x"] > overview["x"] + overview["width"]
+        else:
+            assert (
+                ratings["y"]
+                < page.locator(".movie-overview").bounding_box()["y"]
+            )
+        page.screenshot(
+            path=f"/private/tmp/movie-compact-{width}.png", full_page=False
+        )

@@ -107,7 +107,9 @@ def test_browser_audio_layout_search_keyboard_and_playback(
             page.locator(".track-item").first.wait_for(state="attached")
             if path == "/music" and width <= 812:
                 page.locator('.toggle-btn[data-target="albums"]').click()
-                page.locator(".album-item").first.click()
+                parent = page.locator(".album-item").first
+                if parent.get_attribute("aria-expanded") != "true":
+                    parent.click()
                 assert page.locator("#albums").is_visible()
                 page.locator(".album-item-after-separator").click()
                 assert page.locator("#tracks").is_visible()
@@ -269,6 +271,17 @@ def test_browser_subalbums_follow_selected_branch(audio_site, browser):
         "el => el.nextElementSibling.classList.contains("
         "'album-children-opening')"
     )
+    parent.click()
+    expect(child).to_be_hidden()
+    expect(parent).to_have_attribute("aria-expanded", "false")
+    parent.press("Enter")
+    expect(child).to_be_visible()
+    child.click()
+    expect(grandchild).to_be_visible()
+    child.click()
+    expect(grandchild).to_be_hidden()
+    expect(child).to_be_visible()
+    expect(parent).to_have_attribute("aria-expanded", "true")
     child.click()
     expect(grandchild).to_be_visible()
     expect(child).to_have_attribute("aria-pressed", "true")
@@ -280,6 +293,11 @@ def test_browser_subalbums_follow_selected_branch(audio_site, browser):
     expect(
         page.get_by_role("button", name="Druga veja 0", exact=True)
     ).to_be_visible()
+    expect(parent).to_have_attribute("aria-expanded", "false")
+    other.click()
+    expect(page.locator(".album-item-after-separator:visible")).to_have_count(0)
+    expect(other).to_have_attribute("aria-expanded", "false")
+    other.click()
     expect(parent).to_have_attribute("aria-expanded", "false")
     page.reload()
     expect(

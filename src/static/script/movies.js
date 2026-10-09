@@ -33,6 +33,41 @@ async function odstraniMovieCard(event, form) {
     finally { button.disabled = false; }
     return false;
 }
+const movieHoverMedia = window.matchMedia('(min-width: 700px) and (hover: hover) and (pointer: fine)');
+function attachMovieHover(card) {
+    const details = card.querySelector('.movie-details');
+    function show() {
+        if (!movieHoverMedia.matches) return;
+        details.open = true;
+        const rect = card.getBoundingClientRect();
+        const width = details.offsetWidth;
+        const left = rect.right + width <= innerWidth - 12
+            ? rect.width - 1
+            : rect.left - width >= 12 ? 1 - width : 12 - rect.left;
+        details.style.left = `${left}px`;
+        const top = Math.max(12 - rect.top, Math.min(0, innerHeight - 12 - rect.top - details.offsetHeight));
+        details.style.top = `${top}px`;
+    }
+    function hide() {
+        if (movieHoverMedia.matches && !card.contains(document.activeElement) && !card.matches(':hover')) {
+            details.open = false;
+        }
+    }
+    card.addEventListener('mouseenter', show);
+    card.addEventListener('mouseleave', hide);
+    card.addEventListener('focusin', show);
+    card.addEventListener('focusout', () => queueMicrotask(hide));
+}
+movieHoverMedia.addEventListener('change', () => {
+    grid?.querySelectorAll('.movie-details').forEach(details => {
+        details.open = false;
+        details.style.removeProperty('left');
+        details.style.removeProperty('top');
+    });
+});
+function movieGenreClass(genre) {
+    return String(genre).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+}
 function renderMovieCard(movie) {
     const text = escapeMovieText;
     const wrapper = document.createElement('article');
@@ -48,12 +83,12 @@ function renderMovieCard(movie) {
             <img src="/movies/file${text(moviePath(movie.thumbnail))}" alt="Plakat za ${text(movie.title)}" loading="lazy">
             ${recommendation ? `<span class="movie-recommendation">${recommendation === 'warm-recommend' ? '★ Toplo priporočamo' : '★ Priporočamo'}</span>` : ''}
         </a>
-        <div class="movie-card-body"><div class="movie-meta"><span>${text(movie.year)}</span><span>${text(movie.runtimes)} min</span></div>
+        <div class="movie-watch-progress" role="progressbar" aria-label="Napredek ogleda" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(watched)}"></div>
+        <div class="movie-card-body"><div class="movie-meta"><span>${text(movie.year)}</span><span class="movie-runtime"><i class="bi bi-clock" aria-hidden="true"></i> ${text(movie.runtimes)} min</span></div>
         <h2><a href="${text(link)}">${text(movie.title)}</a></h2>
         <p class="original-title">${text(movie.original_title)}</p>
-        ${movie.slosinh ? `<p class="slosinh">${text(movie.slosinh)}</p>` : ''}
-        <div class="genres">${(movie.genres || []).map(g => `<span class="genre-badge">${text(g)}</span>`).join('')}</div>
-        <p class="movie-watch-state">${watched >= 100 ? '✓ Pogledano' : watched > 0 ? `Ogledano ${Math.round(watched)} %` : 'Še ni pogledano'}</p>
+        ${movie.slosinh ? `<p class="slosinh"><i class="bi bi-volume-up-fill" aria-hidden="true"></i> ${text(movie.slosinh)}</p>` : ''}
+        <div class="genres">${(movie.genres || []).map(g => `<span class="genre-badge ${movieGenreClass(g)}">${text(g)}</span>`).join('')}</div>
         <a class="movie-play" href="${text(link)}">${watched > 0 && watched < 100 ? 'Nadaljuj ogled' : 'Ogled filma'} <span aria-hidden="true">▶</span></a>
         <details class="movie-details"><summary>Opis in možnosti</summary>
             <p>${text(movie.description)}</p>${movie.players ? `<p><strong>Igrajo:</strong> ${text(movie.players)}</p>` : ''}
@@ -63,6 +98,7 @@ function renderMovieCard(movie) {
             <form action="/movies/remove${text(moviePath(movie.folder))}" method="post" onsubmit="odstraniMovieCard(event, this); return false;"><button class="movie-delete" type="submit">Odstrani film</button></form>` : ''}
         </details></div>`;
     wrapper.querySelectorAll('.selectors').forEach(group => group.dataset.savedValue = group.querySelector('input:checked')?.value);
+    attachMovieHover(wrapper);
     return wrapper;
 }
 function appendMovies(movies, initial = false) {
@@ -120,7 +156,7 @@ document.addEventListener('change', async event => {
         const card = group.closest('.movie-card');
         if (progress && card) {
             card.style.setProperty('--watch', radio.value + '%');
-            card.querySelector('.movie-watch-state').textContent = radio.value === '100' ? '✓ Pogledano' : 'Še ni pogledano';
+            card.querySelector('.movie-watch-progress').setAttribute('aria-valuenow', radio.value);
             card.querySelector('.movie-play').innerHTML = 'Ogled filma <span aria-hidden="true">▶</span>';
         }
         if (!progress && card) {
