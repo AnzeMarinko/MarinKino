@@ -3,7 +3,7 @@
 <link rel="stylesheet" href="/static/css/memes.css">
 <main class="memes-page" id="memesPage" data-meme='{{ meme_data|tojson }}'>
   <div class="memes-shell">
-    <header class="memes-heading"><div><p class="memes-eyebrow"><i class="bi bi-emoji-smile" aria-hidden="true"></i> Majhen odmor za dober dan</p><h1>Šale in navdih</h1><p>Še en razlog za nasmeh. Ena šala naenkrat.</p></div><button type="button" class="meme-control" id="memeFullscreen" aria-label="Preklopi celozaslonski prikaz"><i class="bi bi-arrows-fullscreen" aria-hidden="true"></i><span>Celozaslonsko</span></button></header>
+    <header class="memes-heading"><div><h1><i class="bi bi-emoji-smile" aria-hidden="true"></i> Šale in navdih</h1></div><button type="button" class="meme-control" id="memeFullscreen" aria-label="Preklopi celozaslonski prikaz"><i class="bi bi-arrows-fullscreen" aria-hidden="true"></i><span>Celozaslonsko</span></button></header>
     <div id="memeMessage" class="meme-message" role="status" hidden></div>
     <section class="meme-stage" id="mediaContainer" aria-label="Trenutna šala" aria-busy="false">
       <div class="meme-media" id="memeMedia">
@@ -15,7 +15,6 @@
     </section>
     <div class="meme-navigation"><button type="button" class="meme-control" id="previousMeme" disabled><i class="bi bi-arrow-left" aria-hidden="true"></i> Prejšnja</button><button type="button" class="meme-next" id="nextButton"><span>{{ 'Preveri zbirko' if meme_data.empty else 'Naslednja šala' }}</span><i class="bi bi-arrow-right" aria-hidden="true"></i></button></div>
     <div class="meme-bottom"><p class="meme-help"><i class="bi bi-keyboard" aria-hidden="true"></i> Puščici ← in → menjata šale. Videoposnetek zaženi z gumbom za predvajanje.</p>{% if meme_data.can_delete %}<button type="button" class="meme-delete" id="deleteMemeButton" {{ 'hidden' if meme_data.empty else '' }}><i class="bi bi-trash" aria-hidden="true"></i> Odstrani iz zbirke</button>{% endif %}</div>
-    <details class="meme-instructions"><summary>Kako deluje?</summary><p>Izberi »Naslednja šala« za novo vsebino. »Prejšnja« te vrne na že odprte šale v tej seji. Pri videu puščici znotraj predvajalnika premikata posnetek. Celozaslonski način zapreš z Esc ali istim gumbom. Dnevna omejitev velja za nove šale; vračanje na že odprte šale je ne porablja.</p></details>
   </div>
   {% if meme_data.can_delete %}<dialog id="deleteMemeDialog" class="meme-dialog" aria-labelledby="deleteMemeTitle"><h2 id="deleteMemeTitle">Odstranim to šalo?</h2><p>Datoteka bo izbrisana iz zbirke za vse uporabnike. Dejanja ni mogoče razveljaviti.</p><div class="meme-dialog-actions"><button type="button" class="meme-control" id="cancelDeleteMeme">Prekliči</button><button type="button" class="meme-delete-confirm" id="confirmDeleteMeme">Izbriši šalo</button></div></dialog>{% endif %}
   <noscript><p class="meme-message">Za menjavo šal omogoči JavaScript ali <a href="/memes">osveži stran</a>.</p></noscript>

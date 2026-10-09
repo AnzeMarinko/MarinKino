@@ -16,10 +16,10 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 os.umask(0)
 
 from blueprints import (
-    MEMES_COUNT,
     MUSIC_COUNT,
     admin_bp,
     auth_bp,
+    available_memes,
     blog_bp,
     get_movies_statistics,
     init_admin_bp,
@@ -287,7 +287,7 @@ def home():
     ):
         stats = get_movies_statistics()
         stats["music_count"] = MUSIC_COUNT
-        stats["memes_count"] = MEMES_COUNT
+        stats["memes_count"] = len(available_memes())
         stats["blog_count"] = sum(
             v.get("published", False) for v in load_blog_posts().values()
         )

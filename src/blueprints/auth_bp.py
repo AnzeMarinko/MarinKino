@@ -142,13 +142,13 @@ def password_strength_error(password, username=""):
 def get_welcome_stats():
     """Vrne enake osnovne statistike kot domača stran."""
     from blueprints.blog_bp import load_blog_posts
-    from blueprints.memes_bp import MEMES_COUNT
+    from blueprints.memes_bp import available_memes
     from blueprints.movies_bp import get_movies_statistics
     from blueprints.music_bp import MUSIC_COUNT
 
     stats = get_movies_statistics()
     stats["music_count"] = MUSIC_COUNT
-    stats["memes_count"] = MEMES_COUNT
+    stats["memes_count"] = len(available_memes())
     stats["blog_count"] = sum(
         post.get("published", False) for post in load_blog_posts().values()
     )

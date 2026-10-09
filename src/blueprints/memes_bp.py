@@ -2,6 +2,7 @@ import logging
 import os
 import random
 from datetime import date
+from functools import lru_cache
 from urllib.parse import quote
 
 from flask import (
@@ -37,6 +38,7 @@ user_meme_limit = 12
 MEMES_DIR = "data/memes"
 
 
+@lru_cache(maxsize=1)
 def available_memes():
     """Read current files so additions and deletions work across workers."""
     try:
