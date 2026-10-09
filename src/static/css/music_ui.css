@@ -17,7 +17,7 @@
 .music-app-container .album-list { padding: .65rem; }
 .music-app-container .album-item { display: flex; align-items: center; justify-content: space-between; gap: .6rem; border: 1px solid transparent; border-radius: .65rem; background: transparent; box-shadow: none; padding: .75rem; color: #52665f; font-size: .82rem; font-weight: 550; line-height: 1.5; text-align: start; margin: 0 0 .35rem; overflow-wrap: anywhere; }
 .music-app-container .album-item:hover { background: #edf4f0; transform: none; }
-.music-app-container .album-item.active { background: var(--audio-soft); color: var(--audio-accent); border-color: #bfd5ce; font-weight: 700; }
+.music-app-container .album-item.active { background: #286e75; color: #fff; border-color: #205b61; font-weight: 750; box-shadow: 0 3px 10px #205b6133, inset 0 0 0 1px #ffffff40; }
 .album-item-label { min-width: 0; }
 .album-item-count { font-size: .68rem; font-weight: 500; flex-shrink: 0; color: #61727e; }
 .music-app-container .album-item-private-badge { background: #e0ede5; color: #48685b; margin-left: .4rem; font-size: .58rem; }
@@ -135,13 +135,19 @@
 .music-app-container .album-item { opacity: 1; font-weight: 700; }
 .music-app-container .album-item.album-item-after-separator { margin-left: .9rem; padding: .45rem .65rem; font-size: .75rem; font-weight: 400; text-align: right; background: #e9f1ed80; border-inline-start: 2px solid #bfd1c8; box-shadow: none; }
 .music-app-container .album-item-after-separator .album-item-label { flex: 1; }
-.music-app-container .album-item.album-item-after-separator.active { background: var(--audio-soft); border-color: #a9c5b9; color: var(--audio-accent); font-weight: 600; }
+.music-app-container .album-item.album-item-after-separator.active { background: #286e75; border-color: #205b61; color: #fff; font-weight: 650; box-shadow: 0 3px 10px #205b6133, inset 0 0 0 1px #ffffff40; }
 
 /* Personal collections stand apart from the public album hierarchy. */
 .music-app-container .album-item.album-item-private { background: #fcf0d9; color: #785025; border: 1px solid #e5c99a; border-inline-start: 3px solid #c08a42; font-weight: 650; }
 .music-app-container .album-item.album-item-private:hover { background: #f8e6c4; border-color: #c99653; }
-.music-app-container .album-item.album-item-private.active { background: #f3dbad; border-color: #b9833e; color: #654019; box-shadow: inset 0 0 0 1px #b9833e33; }
+.music-app-container .album-item.album-item-private.active { background: #f3dbad; border-color: #b9833e; color: #654019; box-shadow: inset 0 0 0 2px #b9833e80, 0 3px 10px #78502526; }
 .music-app-container .album-item-private .album-item-label { flex: 1; }
 .music-app-container .album-item-private-icon { color: #a36d2c; flex-shrink: 0; font-size: 1.15rem; }
 .music-app-container .album-item-private-badge { display: block; width: fit-content; margin: .3rem 0 0; padding: .1rem .4rem; color: #785025; background: #fffaf0; border: 1px solid #e5c99a; font-size: .6rem; }
 .music-app-container .album-item-private .album-item-count { color: #785025; }
+
+/* Larger public groups anchor the album hierarchy. */
+.music-app-container .album-item:not(.album-item-after-separator):not(.album-item-private):not(.active) { background: #fff; border-color: #bdcfc7; box-shadow: 0 2px 5px #294c3f0c; color: #314f46; }
+.music-app-container .album-item:not(.album-item-after-separator):not(.album-item-private) { padding: .9rem .75rem; font-size: .9rem; font-weight: 750; }
+.music-app-container .album-item:not(.album-item-after-separator):not(.album-item-private):not(.active):hover { background: #e8f2ed; border-color: #89aba0; }
+.music-app-container .album-item.active:not(.album-item-private) .album-item-count { color: #e8f6f1; font-weight: 700; }

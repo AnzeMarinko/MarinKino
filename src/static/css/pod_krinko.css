@@ -197,6 +197,32 @@ body:has(.game dialog[open]) { overflow: hidden; }
     .pk-word-pair { gap: .5rem; }
     .pk-word-pair > div { padding: 1rem; }
 }
+/* Slow trails and light give the game a quiet secret-agent mood. */
+.game { position: relative; isolation: isolate; }
+.pk-shell { position: relative; z-index: 1; }
+.pk-ambience { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.pk-ambient-glow { position: absolute; width: min(650px, 100vw); aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, #4c826044, transparent 68%); animation: pk-light-drift 24s ease-in-out infinite alternate; }
+.pk-ambient-glow-one { top: -160px; right: -140px; }
+.pk-ambient-glow-two { top: 650px; left: -240px; background: radial-gradient(circle, #c4a7641a, transparent 68%); animation-delay: -12s; animation-duration: 30s; }
+.pk-ambient-orbit { position: absolute; width: 420px; aspect-ratio: 1; border: 1px solid #efd68e18; border-radius: 50%; top: 130px; right: -180px; animation: pk-orbit-drift 32s ease-in-out infinite alternate; }
+.pk-ambient-orbit::after { content: ''; position: absolute; inset: 25px; border: 1px dashed #efd68e12; border-radius: 50%; }
+.pk-ambient-orbit-two { top: 610px; left: -290px; width: 520px; animation-delay: -16s; }
+.pk-ambient-spark { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: #efd68e; opacity: .25; box-shadow: 0 0 12px #efd68e55; animation: pk-spark-drift 16s ease-in-out infinite alternate; }
+.pk-ambient-spark:nth-last-child(4) { top: 110px; left: 12%; }
+.pk-ambient-spark:nth-last-child(3) { top: 340px; right: 7%; animation-delay: -5s; }
+.pk-ambient-spark:nth-last-child(2) { top: 690px; left: 4%; animation-delay: -10s; }
+.pk-ambient-spark:last-child { top: 880px; right: 12%; animation-delay: -8s; }
+.pk-lineup img { animation: pk-avatar-float 9s ease-in-out infinite; }
+.pk-lineup img:nth-child(2) { animation-delay: -3s; }
+.pk-lineup img:nth-child(3) { animation-delay: -6s; }
+#igra:not([hidden]), #resultsPanel:not([hidden]), .pk-dialog[open] { animation: pk-soft-enter .2s ease-out; }
+.pk-steps li { transition: color .2s, box-shadow .2s; }
+@keyframes pk-light-drift { from { transform: translate3d(-15px, 0, 0) scale(.94); } to { transform: translate3d(30px, 25px, 0) scale(1.05); } }
+@keyframes pk-orbit-drift { from { transform: translate3d(0, 0, 0) rotate(-8deg); } to { transform: translate3d(-25px, 30px, 0) rotate(12deg); } }
+@keyframes pk-spark-drift { from { transform: translate3d(0, 0, 0); opacity: .2; } to { transform: translate3d(12px, -22px, 0); opacity: .5; } }
+@keyframes pk-avatar-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes pk-soft-enter { from { opacity: .6; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 480px) { .pk-ambient-orbit-one { width: 280px; right: -180px; } .pk-ambient-glow-two { top: 850px; } }
 @media (prefers-reduced-motion: reduce) {
     .game *, .game *::before, .game *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
