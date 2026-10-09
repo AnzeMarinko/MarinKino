@@ -41,6 +41,10 @@
             }
         });
         toolbarBottom = Math.max(0, Math.ceil(toolbarBottom));
+        const headerBottom = `${Math.ceil(toolbarBottom + header.getBoundingClientRect().height)}px`;
+        if (document.documentElement.style.getPropertyValue('--site-header-height') !== headerBottom) {
+            document.documentElement.style.setProperty('--site-header-height', headerBottom);
+        }
         const offset = `${toolbarBottom}px`;
         if (header.style.getPropertyValue('--blog-toolbar-offset') !== offset) {
             header.style.setProperty('--blog-toolbar-offset', offset);

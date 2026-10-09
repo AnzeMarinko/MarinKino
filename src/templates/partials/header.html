@@ -1,8 +1,6 @@
 
-<meta charset="UTF-8">
 <meta name="csrf-token" content="{{ csrf_token() }}">
-<title>{{ pagetitle }}</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ pagetitle|default('MarinKino', true) }}</title>
 
 <!-- SEO Meta Tags -->
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
@@ -18,6 +16,7 @@
 {% else %}
     <link rel="stylesheet" href="/static/css/style.css">
 {% endif %}
+<link rel="stylesheet" href="/static/css/site_chrome.css">
 
 <meta name="author" content="Anže Marinko">
 <meta name="theme-color" content="#ffcc5c">

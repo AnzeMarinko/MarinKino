@@ -1,106 +1,21 @@
-
-
-<footer class="bg-white border-top mt-5">
-  <div class="container py-4">
-
-    {% if not current_user.is_authenticated or view_as == "anonymous" or blog_view == "blog" %}
-    <div class="row g-4">
-
-      <!-- INFO -->
-      <div class="col-md-6">
-        <h6 class="fw-bold"><i class="bi bi-sun"></i> Sončnice</h6>
-        <p class="small text-muted">
-            Namen pisanja bloga je želja po širitvi veselja do življenja, zaupanja v Boga in hvaležnosti. V vsem tem mi je bila in je še vedno pokojna ženka Karolina velik zgled.<br>
-            <a class="footer-link" href="/blog/o-blogu">Več o blogu ...</a>
-        </p>
+{% set public_view = not current_user.is_authenticated or view_as == 'anonymous' %}
+{% set blog_brand = public_view or blog_view == 'blog' %}
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <div class="site-footer-grid">
+      <div class="site-footer-about">
+        <a class="site-footer-brand" href="{{ '/blog' if blog_brand else '/' }}"><img src="{{ '/static/blog_favicon_io/android-chrome-512x512.png' if blog_brand else '/static/logo.png' }}" width="40" height="40" alt=""><span>{{ 'Sončnice' if blog_brand else 'MarinKino' }}</span></a>
+        {% if blog_brand %}<p><span class="notranslate" translate="no" data-blog-title>Rože dobrega</span>. Zapisi o veselju do življenja, zaupanju v Boga in hvaležnosti. Navdih zanje ostaja Karolina.</p><a class="site-footer-more" href="/blog/o-blogu">Spoznaj blog <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+        {% else %}<p>Filmi, glasba, šale in majhni odmori za družino in prijatelje. Vsebine v slovenščini, brez oglasov.</p><a class="site-footer-more" href="/suggestions">Imaš idejo za izboljšavo? <i class="bi bi-arrow-right" aria-hidden="true"></i></a>{% endif %}
       </div>
-
-      <!-- TEHNIKA -->
-      <div class="col-md-3">
-        <h6 class="fw-bold"><i class="bi bi-cpu"></i> Tehnične informacije</h6>
-        <ul class="small text-muted mb-0">
-          <li>Strežnik: Raspberry Pi</li>
-          <li>Backend: Python + Flask + Nginx</li>
-        </ul>
+      <nav aria-label="Povezave v nogi"><h2>{{ 'Razišči' if blog_brand else 'Za dober večer' }}</h2><ul class="site-footer-links">
+        {% if blog_brand %}<li><a href="/blog">Vsi zapisi</a></li><li><a href="/blog/o-blogu">O blogu</a></li><li><a href="/blog/o-meni">O avtorju</a></li>{% else %}<li><a href="/movies">Filmi in risanke</a></li><li><a href="/music">Glasba</a></li><li><a href="/radio-stories">Otroški radio</a></li><li><a href="/memes">Šale in navdih</a></li><li><a href="/pod_krinko">Pod krinko</a></li>{% endif %}
+      </ul></nav>
+      <div><h2>Ostanimo povezani</h2><p>Avtor in vzdrževanje<br><strong>Anže Marinko</strong></p><a class="site-footer-contact" href="mailto:anze@anzemarinko.si">anze@anzemarinko.si</a>
+        <div class="site-footer-socials"><a href="mailto:anze@anzemarinko.si" aria-label="Pošlji e-pošto"><i class="bi bi-envelope" aria-hidden="true"></i></a><a href="https://www.facebook.com/anze.marinko" target="_blank" rel="noopener noreferrer" aria-label="Anže na Facebooku"><i class="bi bi-facebook" aria-hidden="true"></i></a><a href="https://www.instagram.com/anzemarinko96/" target="_blank" rel="noopener noreferrer" aria-label="Anže na Instagramu"><i class="bi bi-instagram" aria-hidden="true"></i></a><a href="https://github.com/AnzeMarinko/MarinKino" target="_blank" rel="noopener noreferrer" aria-label="MarinKino na GitHubu"><i class="bi bi-github" aria-hidden="true"></i></a></div>
       </div>
-
-      <!-- AVTOR -->
-      <div class="col-md-3">
-        <h6 class="fw-bold"><i class="bi bi-person-lines-fill"></i> Avtor</h6>
-        <p class="small text-muted mb-1">
-          <strong>Anže Marinko</strong><br><a class="footer-link" href="/blog/o-meni">Več o meni ...</a>
-        </p>
-        <h3>
-            <a target="_blank" class="footer-link" href="mailto:anze@anzemarinko.si"><i class="bi bi-envelope"></i></a>
-            <a target="_blank" class="footer-link" href="https://www.facebook.com/anze.marinko"><i class="bi bi-facebook"></i></a>
-            <a target="_blank" class="footer-link" href="https://www.instagram.com/anzemarinko96/"><i class="bi bi-instagram"></i></a>
-            <a target="_blank" class="footer-link" href="https://github.com/AnzeMarinko"><i class="bi bi-github"></i></a>
-        </h3>
-
-      </div>
-
     </div>
-    {% else %}
-    <div class="row g-4">
-
-      <!-- INFO -->
-      <div class="col-md-4">
-        <h6 class="fw-bold"><i class="bi bi-camera-reels"></i> MarinKino</h6>
-        <p class="small text-muted">
-          Družinski pregledovalnik filmov, risank, glasbe, šal, ... na domačem strežniku.
-          Namenjen je enostavni izbiri in ogledu kvalitetnih vsebin v slovenščini brez oglasov.
-          Nabor filmov in risank se bo sčasoma spreminjal (zaenkrat tudi ne trdim, da je zagotovo vsak film kvaliteten po vsebini).
-        </p>
-        <p class="small text-muted">
-          Ideja je sicer do neke mere podobna SloFlix s poudarkom na kvalitetni vsebini. Mimogrede, stran sem začel pripravljati preden je izšel SloFlix.
-        </p>
-      </div>
-
-      <!-- TEHNIKA -->
-      <div class="col-md-4">
-        <h6 class="fw-bold"><i class="bi bi-cpu"></i> Tehnične informacije</h6>
-        <ul class="small text-muted mb-0">
-          <li>Strežnik: Raspberry Pi</li>
-          <li>Backend: Python + Flask + Nginx</li>
-          <li>Podrobnosti in naslovne slike filmov: avtomatsko pridobljene, opisi po potrebi prevedeni z umetno inteligenco</li>
-          <li>Podnapisi: ponekod avtomatsko pridobljeni in po potrebi prevedeni z umetno inteligenco ter avtomatsko poravnani z zvokom, ki pri filmih slabše kvalitete snemanja ni nujno poravnan tudi s sliko</li>
-        </ul>
-      </div>
-
-      <!-- AVTOR -->
-      <div class="col-md-4">
-        <h6 class="fw-bold"><i class="bi bi-person-lines-fill"></i> O projektu</h6>
-        <p class="small text-muted mb-1">
-          Avtor in vzdrževanje: <strong>Anže Marinko</strong> (<a target="_blank"
-     class="footer-link" href="mailto:anze@anzemarinko.si">anze@anzemarinko.si</a>)
-        </p>
-        <p class="small text-muted">
-          Projekt je nastal iz praktične potrebe, veselja do programiranja in je večinoma avtomatiziran,
-          zato so možne napake v opisih ali prevodih. Za večje napake bom vesel opozoril in predlogov (popravki, izboljšave, nove vsebine ...).
-          Za novega uporabnika recite skrbniku strani. Praviloma je stran le za družino in prijatelje.
-        </p>
-        <p class="small text-muted">
-        <a target="_blank"
-     class="footer-link" href="https://github.com/AnzeMarinko/MarinKino">Repozitorij</a>
-        </p>
-      </div>
-
-    </div>
-    {% endif %}
-
-    <hr class="my-3">
-
-    <div class="d-flex flex-column flex-md-row justify-content-between small text-muted">
-      <span>© 2025-{{ current_year }} Anže Marinko</span>
-      <span>{% if not current_user.is_authenticated or view_as == "anonymous" or blog_view == "blog" %}Sončnice (<span class="notranslate" translate="no" data-blog-title>Rože dobrega</span>){% else %}MarinKino{% endif %}</span>
-    </div>
-    {% if blog_view == "blog" %}
-    <div class="text-center small mt-2">
-      <a href="{{ url_for('blog.blog_terms') }}" class="footer-link">Pogoji uporabe</a>
-      <span class="mx-1">·</span>
-      <a href="{{ url_for('blog.blog_privacy') }}" class="footer-link">Politika zasebnosti</a>
-    </div>
-    {% endif %}
-
+    <details class="site-footer-details"><summary>O projektu in vsebinah</summary><div>{% if blog_translation_urls %}<p>Blog omogoča tudi avtomatske prevode celotne strani. Za izvirno besedilo izberi slovenščino v meniju jezika.</p>{% endif %}<p>Stran teče na domačem strežniku Raspberry Pi s Python, Flask in Nginx. Projekt je nastal iz praktične potrebe in veselja do programiranja.</p>{% if not blog_brand %}<p>Opisi in podnapisi so lahko avtomatsko pridobljeni ali prevedeni. Pri opisih, prevodih in poravnavi podnapisov so možne napake; opozorila in popravke pošlji prek <a href="/suggestions">Predlogov</a>. Nabor vsebin se spreminja. Za dostop novega uporabnika se obrni na skrbnika.</p>{% endif %}</div></details>
+    <div class="site-footer-bottom"><span>© 2025–{{ current_year }} Anže Marinko</span>{% if blog_view == 'blog' %}<nav aria-label="Pravne informacije"><a href="{{ url_for('blog.blog_terms') }}">Pogoji uporabe</a><a href="{{ url_for('blog.blog_privacy') }}">Zasebnost</a></nav>{% else %}<span>{{ 'Sončnice · Rože dobrega' if blog_brand else 'MarinKino · čas za dobre vsebine' }}</span>{% endif %}<a href="#site-top" class="site-back-top">Na vrh <i class="bi bi-arrow-up" aria-hidden="true"></i></a></div>
   </div>
 </footer>

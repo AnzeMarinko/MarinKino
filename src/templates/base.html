@@ -9,13 +9,13 @@
 </head>
 
 {% if not is_for_mail %}
-  <body class="bg-light text-dark">
+  <body id="site-top" class="bg-light text-dark">
     {% include "partials/navbar.html" %}
 {% else %}
   <body style="font-family: Arial, sans-serif; background:#f4f4f4;">
 {% endif %}
 
-{% block content %}{% endblock %}
+{% if not is_for_mail %}<div id="main-content" tabindex="-1">{% endif %}{% block content %}{% endblock %}{% if not is_for_mail %}</div>{% endif %}
 
 {% if not is_for_mail and not fullscreenbutton and not is_music %}
     {% include "partials/footer.html" %}

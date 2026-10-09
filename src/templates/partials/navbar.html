@@ -1,140 +1,55 @@
 {% set has_blog_header = blog_translation_urls and not is_for_mail %}
-{% if has_blog_header %}<header id="blog-site-header">{% endif %}
-<nav class="navbar navbar-expand-xl navbar-light bg-white shadow {{ 'fixed-top' if not is_music and not has_blog_header else '' }}">
-  <div class="container-fluid">
-
-    <!-- LOGO + NASLOV -->
-    <a class="navbar-brand d-flex align-items-center gap-2" href="/">
-        {% if not current_user.is_authenticated or view_as == "anonymous" or blog_view == "blog" %}
-         <img src="/static/blog_favicon_io/android-chrome-512x512.png" height="36"><strong>Sončnice</strong>
-        {% else %}
-         <img src="/static/logo.png" height="36"><strong>MarinKino</strong>
-        {% endif %}
-    </a>
-
-    {% include "partials/language_selector.html" %}
-
-    <!-- HAMBURGER -->
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
-      <span class="navbar-toggler-icon"></span>
-    </button>
-
-    <!-- MENI -->
-    <div class="collapse navbar-collapse" id="mainNavbar">
-
-      <!-- LEVI MENI -->
-      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-        {% if not current_user.is_authenticated or view_as == "anonymous" %}
-        <!-- <li class="nav-item"><a class="nav-link" href="/blog">Blog</a></li>
-        <li class="nav-item"><a class="nav-link" href="/memes">Šale</a></li>
-        <li class="nav-item"><a class="nav-link" href="/pod_krinko">Pod krinko</a></li> -->
-       {% else %}
-        <li class="nav-item"><a class="nav-link" href="/blog">Blog</a></li>
-        <li class="nav-item"><a class="nav-link" href="/movies">Filmi</a></li>
-        <li class="nav-item"><a class="nav-link" href="/memes">Šale</a></li>
-        <li class="nav-item"><a class="nav-link" href="/music">Glasba</a></li>
-        <li class="nav-item"><a class="nav-link" href="/radio-stories">Otroški radio</a></li>
-        <li class="nav-item"><a class="nav-link" href="/weather">Vreme</a></li>
-        <li class="nav-item"><a class="nav-link" href="/pod_krinko">Pod krinko</a></li>
-        <li class="nav-item"><a class="nav-link" href="/suggestions">Predlogi</a></li>
-      {% endif %}
-      </ul>
-
-      <!-- DESNI DEL: UPORABNIK -->
-      <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-2">
-        <span class="text-secondary">
-          Bog daj <span id="greeting"></span>{% if not current_user.is_authenticated or view_as == "anonymous" %}
-       {% else %}, <strong>{{ current_user.id }}</strong>{% endif %}
-          <script>
-            function getGreeting() {
-                const hour = new Date().getHours();
-
-                if (hour < 4)      return "lahko noč";
-                if (hour < 10)     return "dobro jutro";
-                if (hour < 18)     return "dober dan";
-                return "dober večer";
-            }
-
-            document.getElementById("greeting").textContent = getGreeting();
-            </script>
-
-        </span>
-
-        {% if fullscreenbutton %}
-        <a class="btn btn-sm btn-outline-secondary" id="fullscreen-toggle" onclick="preklopiFullscreen()" title="Celozaslonski način">
-            <i class="bi bi-fullscreen"></i> Celozaslonsko</a>
-        {% endif %}
-
-        {% if current_user.is_authenticated and view_as != "anonymous" %}
-        <a href="/password/change" class="btn btn-sm btn-outline-secondary">Spremeni geslo</a>
-        <a href="/logout" class="btn btn-sm btn-outline-info">Odjava</a>
-        {% else %}
-        <a href="/login" class="btn btn-sm btn-outline-info">Prijava</a>
-        {% endif %}
-
-        {% if current_user.is_authenticated and current_user.is_admin and view_as != "anonymous" and view_as != "user" %}
-        <a href="/admin/register" class="btn btn-sm btn-outline-warning">+ Uporabnik</a>
-        <a href="/admin" class="btn btn-sm btn-outline-info">Nadzorna plošča</a>
-          {% if fullscreenbutton %}
-          <a class="btn btn-sm btn-outline-secondary" id="delete-btn" onclick="izbrisiMeme('{{ meme_file_name }}')" title="Izbriši meme"><i class="bi bi-trash-fill"></i> Odstrani</a>
-          {% endif %}
-        {% endif %}
+{% set public_view = not current_user.is_authenticated or view_as == 'anonymous' %}
+{% set blog_brand = public_view or blog_view == 'blog' %}
+{% set admin_view = current_user.is_authenticated and current_user.is_admin and view_as != 'anonymous' and view_as != 'user' %}
+{% set path = request.path %}
+<a class="site-skip-link" href="#main-content">Preskoči na vsebino</a>
+<header id="blog-site-header" class="site-header {{ 'site-header-static' if is_music else '' }}">
+  <nav class="navbar navbar-expand-xxl site-navbar" aria-label="Glavna navigacija">
+    <div class="container-fluid site-nav-inner">
+      <a class="navbar-brand site-brand" href="{{ '/blog' if blog_brand else '/' }}" aria-label="{{ 'Sončnice' if blog_brand else 'MarinKino' }} · začetna stran">
+        <img src="{{ '/static/blog_favicon_io/android-chrome-512x512.png' if blog_brand else '/static/logo.png' }}" width="38" height="38" alt="">
+        <span><strong>{{ 'Sončnice' if blog_brand else 'MarinKino' }}</strong><small>{{ 'Rože dobrega' if blog_brand else 'Tvoj čas za dober večer' }}</small></span>
+      </a>
+      {% include "partials/language_selector.html" %}
+      <button class="navbar-toggler site-menu-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Odpri glavni meni"><i class="bi bi-list" aria-hidden="true"></i><span>Meni</span></button>
+      <div class="collapse navbar-collapse" id="mainNavbar">
+        <ul class="navbar-nav site-nav-links me-auto">
+          {% set links = [('/blog', 'Blog', 'journal-text'), ('/blog/o-blogu', 'O blogu', 'sun'), ('/blog/o-meni', 'O avtorju', 'person')] if public_view else [('/blog', 'Blog', 'journal-text'), ('/movies', 'Filmi', 'film'), ('/memes', 'Šale', 'emoji-smile'), ('/music', 'Glasba', 'music-note-beamed'), ('/radio-stories', 'Otroški radio', 'broadcast'), ('/weather', 'Vreme', 'cloud-sun'), ('/pod_krinko', 'Pod krinko', 'incognito'), ('/suggestions', 'Predlogi', 'lightbulb')] %}
+          {% for href, label, icon in links %}
+          {% set active = (path == href or path.startswith(href + '/')) and not (public_view and href == '/blog' and path in ['/blog/o-blogu', '/blog/o-meni']) %}
+          <li class="nav-item"><a class="nav-link {{ 'active' if active else '' }}" href="{{ href }}" {% if active %}aria-current="page"{% endif %}><i class="bi bi-{{ icon }}" aria-hidden="true"></i><span>{{ label }}</span></a></li>
+          {% endfor %}
+        </ul>
+        <div class="site-nav-account">
+          {% if fullscreenbutton %}<button type="button" class="site-nav-button" id="fullscreen-toggle" onclick="preklopiFullscreen()"><i class="bi bi-arrows-fullscreen" aria-hidden="true"></i> Celozaslonsko</button>{% endif %}
+          {% if not public_view %}
+          <div class="dropdown site-account">
+            <button class="site-account-toggle dropdown-toggle" type="button" id="siteAccountToggle" data-bs-toggle="dropdown" aria-expanded="false"><span class="site-user-icon"><i class="bi bi-person" aria-hidden="true"></i></span><span class="site-user-name"><small>Bog daj <span id="greeting">dober dan</span></small><strong>{{ current_user.id }}</strong></span></button>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="siteAccountToggle">
+              {% if admin_view %}<li><a class="dropdown-item" href="/admin"><i class="bi bi-grid" aria-hidden="true"></i> Nadzorna plošča</a></li><li><a class="dropdown-item" href="/admin/register"><i class="bi bi-person-plus" aria-hidden="true"></i> Povabi uporabnika</a></li><li><hr class="dropdown-divider"></li>{% endif %}
+              <li><a class="dropdown-item" href="/password/change"><i class="bi bi-key" aria-hidden="true"></i> Spremeni geslo</a></li>
+              <li><a class="dropdown-item site-signout" href="/logout"><i class="bi bi-box-arrow-right" aria-hidden="true"></i> Odjava</a></li>
+            </ul>
+          </div>
+          {% else %}<a href="/login" class="site-login"><i class="bi bi-person" aria-hidden="true"></i> Prijava</a>{% endif %}
+          {% if admin_view and fullscreenbutton %}<button type="button" class="site-nav-button" id="delete-btn" onclick="izbrisiMeme({{ meme_file_name|tojson|forceescape }})"><i class="bi bi-trash" aria-hidden="true"></i> Odstrani</button>{% endif %}
+        </div>
       </div>
-
     </div>
-  </div>
-</nav>
-
-{% if has_blog_header %}
-<p id="translation-notice" class="site-translation-notice notranslate" translate="no" hidden>
-  <span data-translation-notice></span>
-</p>
+  </nav>
+  {% if has_blog_header %}<p id="translation-notice" class="site-translation-notice notranslate" translate="no" hidden><span data-translation-notice></span></p>{% endif %}
 </header>
-<div id="blog-header-spacer" aria-hidden="true"></div>
-<script defer src="{{ url_for('static', filename='js/blog_header.js') }}"></script>
-{% elif not is_music %}
-  <div style="padding-top: 70px;"></div>
-{% endif %}
+{% if not is_music %}<div id="blog-header-spacer" aria-hidden="true"></div><script defer src="/static/js/blog_header.js"></script>{% endif %}
+<script defer src="/static/js/site_navigation.js"></script>
 
-<div id="flash-container" class="position-fixed top-0 start-50 translate-middle-x mt-3" style="z-index: 1055;">
+<div id="flash-container" class="site-flashes" aria-label="Obvestila">
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% for category, message in messages %}
-      <div class="alert alert-{{ 'danger' if category == 'error' else category }} fade show flash-message" role="alert">
-        {{ message }}
-      </div>
+    <div class="alert alert-{{ 'danger' if category == 'error' else 'success' if category == 'success' else 'warning' if category == 'warning' else 'info' }} alert-dismissible fade show flash-message" role="{{ 'alert' if category == 'error' else 'status' }}">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Zapri obvestilo"></button></div>
     {% endfor %}
   {% endwith %}
 </div>
-
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  const messages = document.querySelectorAll(".flash-message");
-
-  messages.forEach((msg, index) => {
-    // koliko časa je vidno (ms)
-    const isError = msg.classList.contains("alert-danger");
-    const visibleTime = ( isError ? 5000 : 3000 ) + index * 500;
-
-    setTimeout(() => {
-      msg.classList.add("fade-out");
-
-      setTimeout(() => {
-        msg.remove();
-      }, 700); // mora biti > CSS transition
-    }, visibleTime);
-  });
-});
-</script>
 {% if view_as and current_user.is_authenticated and current_user.is_admin %}
-<!-- View As Warning Banner -->
-<div id="blog-view-as-notice" class="alert alert-warning m-0 p-2 text-center" style="position: fixed; top: 0px; left: 0; right: 0; z-index: 1050; border-radius: 0;">
-  <strong>⚠️ Pregled kot:</strong>
-  {% if view_as == "anonymous" %} <span class="badge bg-danger">Neprijavljen uporabnik</span>
-  {% elif view_as == "user" %} <span class="badge bg-info">Navaden uporabnik</span> {% endif %}
-  <a href="/admin/clear-view-as" class="ms-3 btn btn-sm btn-outline-warning">Nazaj na administrator</a>
-</div>
-<style>
-body { padding-top: 120px !important; }
-.fixed-top { top: 40px; }
-</style>
+<div id="blog-view-as-notice" class="site-view-notice {{ 'site-view-notice-static' if is_music else '' }}" role="status"><span><i class="bi bi-eye" aria-hidden="true"></i> Pregled kot: <strong>{{ 'neprijavljen uporabnik' if view_as == 'anonymous' else 'navaden uporabnik' }}</strong></span><a href="/admin/clear-view-as">Nazaj na administratorja <i class="bi bi-arrow-right" aria-hidden="true"></i></a></div>
 {% endif %}

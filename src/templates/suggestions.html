@@ -1,119 +1,33 @@
 {% extends "base.html" %}
-
-{% block title %}Predlogi in komentar{% endblock %}
-
 {% block content %}
-<div class="suggestions suggestions-animated">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-8">
-                <!-- Header -->
-                <div class="text-center text-white mb-5">
-                    <div style="font-size: 3rem; margin-bottom: 1rem;">💡</div>
-                    <h1 class="display-5 fw-bold">Vaši predlogi so dragoceni</h1>
-                    <p class="lead">Pošljite svoje ideje za izboljšave in povratne informacije</p>
-                </div>
-
-                <!-- Form Card -->
-                <div class="card border-0 shadow-lg rounded-3 overflow-hidden mb-4">
-                    <div class="card-body p-5">
-                        <h2 class="h4 mb-4">Pošlji svoj predlog</h2>
-
-                        <form id="suggestionForm" onsubmit="submitSuggestion(event)">
-                            <div class="mb-4">
-                                <label for="suggestionType" class="form-label fw-semibold">Vrsta predloga</label>
-                                <select id="suggestionType" name="type" class="form-select form-select-lg" required>
-                                    <option value="">-- Izberi vrsto --</option>
-                                    <option value="predlog za film">🎬 Predlog filma/risanke</option>
-                                    <option value="predlog za glasbo">🎵 Predlog pesmi</option>
-                                    <option value="nova funkcionalnost">✨ Ideja za novo funkcionalnost</option>
-                                    <option value="izboljsava">🔧 Predlog za izboljšavo</option>
-                                    <option value="napaka">🐛 Poročilo o napaki</option>
-                                    <option value="komentar">💬 Drug komentar</option>
-                                </select>
-                            </div>
-
-                            <div class="mb-4">
-                                <label for="suggestionText" class="form-label fw-semibold">Tvoj predlog</label>
-                                <textarea id="suggestionText" name="suggestion" class="form-control form-control-lg" required minlength="10" rows="6" placeholder="Napišite svoj predlog ali idejo..."></textarea>
-                                <small class="text-muted d-block mt-2">Najmanj 10 znakov</small>
-                            </div>
-
-                            <div class="d-grid gap-2">
-                                <button type="submit" class="btn btn-primary btn-lg rounded-2 fw-bold">
-                                    <i class="bi bi-send me-2"></i>Pošlji predlog
-                                </button>
-                            </div>
-
-                            <div id="suggestionStatus" class="status-message mt-3"></div>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- Info Card -->
-                <div class="thanks card border-0 shadow-lg rounded-3 overflow-hidden">
-                    <div class="card-body p-4 text-center">
-                        <div style="font-size: 2rem;">🎬</div>
-                        <h3 class="h5 mb-2">Hvala za povratne informacije!</h3>
-                        <p class="mb-0 text-muted">Vsak predlog je dragocen in mi pomaga, da MarinKino izboljšam.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
+<link rel="stylesheet" href="/static/css/suggestions.css">
+<main class="suggestions-page" id="suggestionsPage" data-draft-key="marinkino-suggestion:{{ current_user.id }}">
+  <div class="suggestions-shell">
+    <header class="suggestions-heading"><p class="suggestions-eyebrow"><i class="bi bi-lightbulb" aria-hidden="true"></i> Tvoje ideje štejejo</p><h1>Skupaj izboljšajmo MarinKino.</h1><p>Pogrešaš film, imaš idejo ali kaj ne deluje? Napiši predlog. Vsak pomaga pri izboljšavah.</p></header>
+    <div class="suggestions-layout">
+      <section class="suggestions-card" aria-labelledby="suggestionFormTitle">
+        <div class="suggestion-card-heading"><span class="suggestion-icon"><i class="bi bi-chat-square-text" aria-hidden="true"></i></span><div><h2 id="suggestionFormTitle">Kaj imaš v mislih?</h2><p>Izberi vrsto in opiši predlog.</p></div></div>
+        <form id="suggestionForm">
+          <label for="suggestionType">Vrsta predloga <span aria-hidden="true">*</span></label>
+          <select id="suggestionType" name="type" required aria-describedby="suggestionHint"><option value="">Izberi vrsto predloga …</option><option value="predlog za film">Film ali risanka</option><option value="predlog za glasbo">Pesem ali glasba</option><option value="nova funkcionalnost">Nova funkcija</option><option value="izboljsava">Izboljšava strani</option><option value="napaka">Nekaj ne deluje</option><option value="komentar">Drugo sporočilo</option></select>
+          <div id="suggestionHint" class="suggestion-hint"><i class="bi bi-info-circle" aria-hidden="true"></i><span>Namig za pisanje se prikaže, ko izbereš vrsto predloga.</span></div>
+          <label for="suggestionText">Tvoj predlog <span aria-hidden="true">*</span></label>
+          <textarea id="suggestionText" name="suggestion" required minlength="10" rows="7" aria-describedby="suggestionTextHelp suggestionCount" placeholder="Opiši, kaj želiš dodati ali izboljšati …"></textarea>
+          <div class="suggestion-text-meta"><span id="suggestionTextHelp">Najmanj 10 znakov, brez presledkov na začetku in koncu.</span><span id="suggestionCount">0 znakov</span></div>
+          <div class="suggestion-draft-row"><span id="suggestionDraftStatus" role="status">Osnutek se med pisanjem shrani v tem brskalniku.</span><button type="button" id="clearSuggestion" class="suggestion-clear" disabled>Počisti osnutek</button></div>
+          <div id="suggestionStatus" class="suggestion-notice" role="status" tabindex="-1" hidden></div>
+          <button type="submit" id="sendSuggestion" class="suggestion-submit"><i class="bi bi-send" aria-hidden="true"></i><span>Pošlji predlog</span><i class="bi bi-arrow-right" aria-hidden="true"></i></button>
+          <p class="suggestion-sender"><i class="bi bi-person-check" aria-hidden="true"></i> Pošiljaš kot <strong>{{ current_user.id }}</strong>. Predlog prejme skrbnik strani.</p>
+        </form>
+        <noscript><p class="suggestion-notice">Za pošiljanje predlogov omogoči JavaScript v brskalniku.</p></noscript>
+      </section>
+      <aside class="suggestion-sidebar" aria-label="Pomoč pri pisanju">
+        <div class="suggestion-tip"><i class="bi bi-stars" aria-hidden="true"></i><h2>Majhna ideja. Dobra sprememba.</h2><p>Ni treba napisati dolgega sporočila. Pomembno je, da poveš, kaj bi ti olajšalo uporabo.</p></div>
+        <div class="suggestion-guide"><h2>Da lažje pomagam</h2><ol><li><strong>Povej, za kaj gre.</strong><span>Naslov filma, pesmi ali ime podstrani.</span></li><li><strong>Dodaj podrobnosti.</strong><span>Pri napaki napiši, kaj si naredil in kaj se je zgodilo.</span></li><li><strong>Opiši želeni rezultat.</strong><span>Kaj bi se moralo prikazati ali delovati drugače?</span></li></ol></div>
+        <details class="suggestion-faq"><summary>Kaj se zgodi po pošiljanju?</summary><p>Predlog se shrani med sporočila skrbniku. Če skrbnik odgovori, prejmeš odgovor na e-naslov svojega uporabniškega računa.</p></details>
+      </aside>
     </div>
-</div>
-
-<script>
-function submitSuggestion(event) {
-    event.preventDefault();
-
-    const comment_type = document.getElementById('suggestionType').value;
-    const text = document.getElementById('suggestionText').value.trim();
-    const statusDiv = document.getElementById('suggestionStatus');
-
-    if (!comment_type || !text) {
-        statusDiv.className = 'status-message error';
-        statusDiv.textContent = '❌ Prosim izpolnite vsa polja.';
-        return;
-    }
-
-    const data = {
-        comment_type: comment_type,
-        movieFolder: "Splošno",
-        comment: text
-    };
-
-    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-
-    fetch('/movies/add-comment', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            "X-CSRFToken": csrfToken
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.status === 'success') {
-            statusDiv.className = 'status-message success';
-            statusDiv.textContent = '✓ Hvala! Tvoj predlog je bil uspešno poslan. Administrator ga bo kmalu pregledal.';
-            document.getElementById('suggestionForm').reset();
-
-            setTimeout(() => {
-                statusDiv.textContent = '';
-                statusDiv.className = 'status-message';
-            }, 5000);
-        } else {
-            statusDiv.className = 'status-message error';
-            statusDiv.textContent = '❌ Napaka: ' + result.message;
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        statusDiv.className = 'status-message error';
-        statusDiv.textContent = '❌ Napaka pri pošiljanju predloga. Poskusite ponovno.';
-    });
-}
-</script>
+  </div>
+</main>
+<script defer src="/static/js/suggestions.js"></script>
 {% endblock %}
