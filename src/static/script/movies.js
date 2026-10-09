@@ -1,246 +1,154 @@
-function odstraniMovieCard(event, form) {
-    if (!confirm('Ali res želiš izbrisati vse datoteke v mapi?')) {
-        return false;
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+const grid = document.getElementById('movie-grid');
+const movieStatus = document.getElementById('movies-status');
+const moreMovies = document.getElementById('movies-more');
+let currentPage = 1;
+let loading = false;
+let hasMore = false;
+const escapeMovieText = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+const moviePath = value => String(value || '').split('/').map(encodeURIComponent).join('/');
+function movieFeedback(text) {
+    let status = movieStatus || document.getElementById('movie-action-status');
+    if (!status) {
+        status = document.createElement('p');
+        status.id = 'movie-action-status';
+        status.setAttribute('role', 'status');
+        document.querySelector('.movie-view-heading')?.append(status);
     }
+    status.textContent = text;
+}
+async function odstraniMovieCard(event, form) {
     event.preventDefault();
-    // Najdi najbližji parent z class "movie-card"
-    const card = form.closest('.movie-card');
-    const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-    fetch(form.action, { method: 'POST',
-        headers: {
-            'X-CSRFToken': token
-        } })
-        .then(resp => resp.json())
-        .then(data => console.log('Film odstranjen', data))
-        .catch(err => console.error(err));
-    if (card) {
-        card.remove(); // odstrani iz DOM
-    }
-
+    if (!confirm('Ali res želiš izbrisati vse datoteke tega filma?')) return false;
+    const button = form.querySelector('button');
+    button.disabled = true;
+    try {
+        const response = await fetch(form.action, {method: 'POST', headers: {'X-CSRFToken': csrfToken}});
+        const data = await response.json();
+        if (!response.ok || data.status !== 'success') throw new Error();
+        const card = form.closest('.movie-card');
+        if (card) { card.remove(); movieFeedback('Film je odstranjen.'); }
+        else window.location.href = '/movies';
+    } catch { movieFeedback('Filma ni bilo mogoče odstraniti. Poskusi znova.'); }
+    finally { button.disabled = false; }
     return false;
 }
-
-let currentPage = 0;
-let loading = false;
-
-// CSRF token
-const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-
-// Glavni container
-const grid = document.getElementById("movie-grid");
-
-function attachHover(card) {
-    const desc = card.querySelector('.description');
-    if (!desc) return;
-
-    card.addEventListener('mouseenter', () => {
-        if (window.innerWidth < 700) {
-            return;
-        }
-        // Najprej ponastavi pozicijo
-        desc.style.left = '100%';
-        desc.style.right = 'auto';
-        desc.style.top = '0';
-
-        // Pokaži začasno, da lahko izmerimo velikost
-        desc.style.opacity = '1';
-        desc.style.pointerEvents = 'auto';
-
-        const rect = desc.getBoundingClientRect();
-        const overflowRight = rect.right > window.innerWidth;
-        const overflowBottom = rect.bottom > window.innerHeight;
-
-        // Če gre izven desnega roba, pokaži levo
-        if (overflowRight) {
-            desc.style.left = 'auto';
-            desc.style.right = '100%';
-        }
-
-        // Če gre izven spodnjega roba, prestavi opis navzgor
-        if (overflowBottom) {
-            const shift = rect.bottom - window.innerHeight + 10; // nekaj dodatnega prostora
-            desc.style.top = `-${shift}px`;
-        }
-
-        const rect_new = desc.getBoundingClientRect();
-        const overflowLeft = rect_new.left < 0;
-
-        // Če gre izven levega roba, zozaj
-        if (overflowLeft) {
-            desc.style.width = `${rect_new.right - 5}px`;
-        }
-    });
-
-    card.addEventListener('mouseleave', () => {
-        desc.style.opacity = '0';
-        desc.style.pointerEvents = 'none';
-        desc.style.top = '0';
-    });
-}
-
-
-async function loadNextPage() {
-    if (loading) return;
-    loading = true;
-
-    const response = await fetch(`/movies/page?page=${currentPage}`);
-    const data = await response.json();
-
-    data.movies.forEach(movie => {
-        const card = renderMovieCard(movie);
-        grid.appendChild(card);
-        attachHover(card);
-    });
-
-    if (data.has_more) {
-        currentPage += 1;
-        loading = false;
-    }
-}
-
 function renderMovieCard(movie) {
-    const wrapper = document.createElement("div");
-    wrapper.className = `movie-card ${movie.movie_id} ${movie.recommendation_level}`;
-    wrapper.style = `--watch: ${movie.watch_ratio}%;`;
-
+    const text = escapeMovieText;
+    const wrapper = document.createElement('article');
+    const recommendation = ['recommend', 'warm-recommend'].includes(movie.recommendation_level) ? movie.recommendation_level : '';
+    const watched = Math.max(0, Math.min(100, Number(movie.watch_ratio) || 0));
+    const id = String(movie.movie_id);
+    wrapper.className = `movie-card ${recommendation}`;
+    wrapper.dataset.movieId = id;
+    wrapper.style.setProperty('--watch', `${watched}%`);
+    const link = '/movies/play' + moviePath(movie.folder);
     wrapper.innerHTML = `
-        <a href="/movies/play${movie.folder}">
-            <img src="/movies/file${movie.thumbnail}" alt="Poster" loading="lazy">
+        <a class="movie-poster" href="${text(link)}" aria-label="Ogled: ${text(movie.title)}">
+            <img src="/movies/file${text(moviePath(movie.thumbnail))}" alt="Plakat za ${text(movie.title)}" loading="lazy">
+            ${recommendation ? `<span class="movie-recommendation">${recommendation === 'warm-recommend' ? '★ Toplo priporočamo' : '★ Priporočamo'}</span>` : ''}
         </a>
-
-        <h3><b>${movie.title}</b>${movie.year}<br><i class="original-title">${movie.original_title}</i>
-            <div class="slosinh">${movie.slosinh}</div>
-        </h3>
-
-        <div class="genres">
-            ${movie.genres.map(g => `
-                <span class="genre-badge ${g.toLowerCase().replace(/ /g, '-')}">${g}</span>
-            `).join('')}
-        </div>
-
-        <div class="description">
-            <b>${movie.players}</b><br>
-            <hr>${movie.description}
-
-            <br><hr>
-
-            <div class="selectors izbira" movie-id="${movie.movie_id}">
-                <input type="radio" id="opcija1-${movie.movie_id}" name="izbor-${movie.movie_id}" value="0">
-                <label for="opcija1-${movie.movie_id}">Nepogledano</label>
-
-                <input type="radio" id="opcija2-${movie.movie_id}" name="izbor-${movie.movie_id}" value="100">
-                <label for="opcija2-${movie.movie_id}">Pogledano</label>
-            </div>
-            ${movie.is_admin ? `
-            <hr><div class="selectors priporocilo" movie-folder="${movie.folder}">
-                <input type="radio" id="priporocilo1-${movie.movie_id}" name="priporocaj-${movie.movie_id}" value="">
-                <label for="priporocilo1-${movie.movie_id}">Odstrani priporočilo</label>
-                <input type="radio" id="priporocilo2-${movie.movie_id}" name="priporocaj-${movie.movie_id}" value="recommend">
-                <label for="priporocilo2-${movie.movie_id}">Priporoči</label>
-                <input type="radio" id="priporocilo3-${movie.movie_id}" name="priporocaj-${movie.movie_id}" value="warm-recommend">
-                <label for="priporocilo3-${movie.movie_id}">Toplo priporoči</label>
-            </div>` : ""}
-        </div>
-
-        <div class="buttons">
-            <button class="runtime">${movie.runtimes} min</button>${movie.is_admin ? `
-            <form action="/movies/remove${movie.folder}" method="post" onsubmit="return odstraniMovieCard(event, this);">
-                <input type="hidden" name="csrf_token" value="${csrfToken}">
-                <button type="submit">Odstrani</button>
-            </form>
-            ` : ""}
-        </div>
-    `;
-
+        <div class="movie-card-body"><div class="movie-meta"><span>${text(movie.year)}</span><span>${text(movie.runtimes)} min</span></div>
+        <h2><a href="${text(link)}">${text(movie.title)}</a></h2>
+        <p class="original-title">${text(movie.original_title)}</p>
+        ${movie.slosinh ? `<p class="slosinh">${text(movie.slosinh)}</p>` : ''}
+        <div class="genres">${(movie.genres || []).map(g => `<span class="genre-badge">${text(g)}</span>`).join('')}</div>
+        <p class="movie-watch-state">${watched >= 100 ? '✓ Pogledano' : watched > 0 ? `Ogledano ${Math.round(watched)} %` : 'Še ni pogledano'}</p>
+        <a class="movie-play" href="${text(link)}">${watched > 0 && watched < 100 ? 'Nadaljuj ogled' : 'Ogled filma'} <span aria-hidden="true">▶</span></a>
+        <details class="movie-details"><summary>Opis in možnosti</summary>
+            <p>${text(movie.description)}</p>${movie.players ? `<p><strong>Igrajo:</strong> ${text(movie.players)}</p>` : ''}
+            <fieldset class="selectors izbira" movie-id="${text(id)}"><legend>Stanje ogleda</legend>
+            ${[0,100].map(value => `<input type="radio" id="watch-${text(id)}-${value}" name="izbor-${text(id)}" value="${value}" ${watched === value ? 'checked' : ''}><label for="watch-${text(id)}-${value}">${value ? 'Pogledano' : 'Nepogledano'}</label>`).join('')}</fieldset>
+            ${movie.is_admin ? `<fieldset class="selectors priporocilo" movie-folder="${text(movie.folder)}"><legend>Priporočilo</legend>${['','recommend','warm-recommend'].map((value,index) => `<input type="radio" id="recommend-${text(id)}-${index}" name="priporocaj-${text(id)}" value="${value}" ${recommendation === value ? 'checked' : ''}><label for="recommend-${text(id)}-${index}">${['Brez priporočila','Priporoči','Toplo priporoči'][index]}</label>`).join('')}</fieldset>
+            <form action="/movies/remove${text(moviePath(movie.folder))}" method="post" onsubmit="odstraniMovieCard(event, this); return false;"><button class="movie-delete" type="submit">Odstrani film</button></form>` : ''}
+        </details></div>`;
+    wrapper.querySelectorAll('.selectors').forEach(group => group.dataset.savedValue = group.querySelector('input:checked')?.value);
     return wrapper;
 }
-
-if (grid) {
-    // Infinite scroll trigger
-    window.addEventListener("scroll", () => {
-        if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 100) {
-            loadNextPage();
-        }
-    });
-
-    // Zaženi prvo nalaganje
-    loadNextPage();
+function appendMovies(movies, initial = false) {
+    movies.forEach(movie => grid.append(renderMovieCard(initial ? {...movie, is_admin: grid.dataset.admin === 'true'} : movie)));
 }
-
-document.addEventListener("change", (e) => {
-    if (e.target.matches('.selectors.izbira input[type="radio"]')) {
-
-        const radio = e.target;
-        const skupina = radio.closest(".selectors.izbira");
-        const movieId = skupina.getAttribute("movie-id");
-        const izbor = radio.value;
-
-        const token = document.querySelector('meta[name="csrf-token"]').content;
-
-        fetch("/movies/progress-change", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': token
-            },
-            body: JSON.stringify({ izbor, movieId })
-        });
-
-        document.querySelectorAll('.' + movieId).forEach(el => {
-            el.style.setProperty('--watch', izbor + '%');
-        });
-    } else if ((e.target.matches('.selectors.priporocilo input[type="radio"]'))) {
-
-        const radio = e.target;
-        const skupina = radio.closest(".selectors.priporocilo");
-        const movieFolder = skupina.getAttribute("movie-folder");
-        const recommendation_level = radio.value;
-
-        const token = document.querySelector('meta[name="csrf-token"]').content;
-
-        fetch("/movies/recommend", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': token
-            },
-            body: JSON.stringify({ recommendation_level, movieFolder })
-        });
-
+async function loadNextPage() {
+    if (loading || !hasMore) return;
+    loading = true;
+    moreMovies.disabled = true;
+    moreMovies.textContent = 'Nalagam …';
+    grid.setAttribute('aria-busy', 'true');
+    try {
+        const response = await fetch(`/movies/page?page=${currentPage}`);
+        if (!response.ok) throw new Error();
+        const data = await response.json();
+        if (!Array.isArray(data.movies)) throw new Error();
+        appendMovies(data.movies);
+        hasMore = data.has_more;
+        currentPage++;
+        moreMovies.hidden = !hasMore;
+        movieFeedback(`Prikazanih filmov: ${grid.children.length}${hasMore ? '' : ' · Vsi filmi so naloženi.'}`);
+    } catch { movieFeedback('Nalaganje ni uspelo. Poskusi znova.'); }
+    finally {
+        loading = false;
+        moreMovies.disabled = false;
+        moreMovies.textContent = 'Naloži več filmov';
+        grid.setAttribute('aria-busy', 'false');
     }
+}
+if (grid) {
+    const initial = JSON.parse(document.getElementById('movies-initial').textContent);
+    appendMovies(initial.movies, true);
+    hasMore = initial.has_more;
+    moreMovies.hidden = !hasMore;
+    movieFeedback(initial.movies.length ? `Prikazanih filmov: ${grid.children.length}` : 'Ni filmov za izbrane pogoje. Poskusi drugačno iskanje ali ponastavi filtre.');
+    moreMovies.addEventListener('click', loadNextPage);
+}
+document.addEventListener('change', async event => {
+    const radio = event.target;
+    const group = radio.closest('.selectors');
+    if (!group || !radio.matches('input[type="radio"]')) return;
+    const progress = group.classList.contains('izbira');
+    if (!progress && !group.classList.contains('priporocilo')) return;
+    const inputs = [...group.querySelectorAll('input')];
+    const previous = group.dataset.savedValue;
+    inputs.forEach(input => input.disabled = true);
+    try {
+        const response = await fetch(progress ? '/movies/progress-change' : '/movies/recommend', {
+            method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+            body: JSON.stringify(progress ? {izbor: radio.value, movieId: group.getAttribute('movie-id')} : {recommendation_level: radio.value, movieFolder: group.getAttribute('movie-folder')})
+        });
+        if (!response.ok || response.redirected) throw new Error();
+        if (!progress && (await response.json()).status !== 'success') throw new Error();
+        group.dataset.savedValue = radio.value;
+        const card = group.closest('.movie-card');
+        if (progress && card) {
+            card.style.setProperty('--watch', radio.value + '%');
+            card.querySelector('.movie-watch-state').textContent = radio.value === '100' ? '✓ Pogledano' : 'Še ni pogledano';
+            card.querySelector('.movie-play').innerHTML = 'Ogled filma <span aria-hidden="true">▶</span>';
+        }
+        if (!progress && card) {
+            card.classList.remove('recommend','warm-recommend');
+            if (radio.value) card.classList.add(radio.value);
+            card.querySelector('.movie-recommendation')?.remove();
+            if (radio.value) {
+                const badge = document.createElement('span');
+                badge.className = 'movie-recommendation';
+                badge.textContent = radio.value === 'warm-recommend' ? '★ Toplo priporočamo' : '★ Priporočamo';
+                card.querySelector('.movie-poster').append(badge);
+            }
+        }
+        movieFeedback('Sprememba shranjena.');
+    } catch {
+        inputs.forEach(input => input.checked = input.value === previous);
+        movieFeedback('Spremembe ni bilo mogoče shraniti. Poskusi znova.');
+    } finally { inputs.forEach(input => input.disabled = false); }
 });
-
-document.addEventListener('DOMContentLoaded', function() {
-  const filterForm = document.querySelector('form');
-  if (!filterForm) return;
-
-  filterForm.addEventListener('submit', function(e) {
-    e.preventDefault();
-
-    const formData = new FormData(this);
-    const params = new URLSearchParams();
-
-    // Handle all form fields
-    formData.forEach((value, key) => {
-      params.append(key, value);
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.selectors').forEach(group => group.dataset.savedValue = group.querySelector('input:checked')?.value);
+    document.getElementById('movieFilterForm')?.addEventListener('submit', function(event) {
+        event.preventDefault();
+        const params = new URLSearchParams(new FormData(this));
+        this.querySelectorAll('input[type="checkbox"]').forEach(input => { if (!input.checked) params.set(input.name, 'off'); });
+        window.location.href = '/movies?' + params;
     });
-
-    // Handle checkboxes - ensure unchecked ones are included with "off" value
-    const checkboxes = this.querySelectorAll('input[type="checkbox"]');
-    checkboxes.forEach(checkbox => {
-      if (!params.has(checkbox.name)) {
-        params.append(checkbox.name, 'off');
-      }
-    });
-
-    console.log('Filter params:', params.toString()); // Debug
-
-    // Build new URL and navigate
-    const baseUrl = this.getAttribute('action') || window.location.pathname;
-    window.location.href = baseUrl + '?' + params.toString();
-  });
 });
-
 document.addEventListener("DOMContentLoaded", function () {
     const video = document.getElementById("videoPlayer") || document.getElementById("hlsVideoPlayer") || document.querySelector(".plyr-container video, .plyr video");
     if (!video) return;
@@ -326,49 +234,28 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 
-function submitComment(event, movieFolder) {
+async function submitComment(event, movieFolder) {
     event.preventDefault();
-
-    const commentText = document.getElementById('commentText').value;
-    const statusDiv = document.getElementById('commentStatus');
-
-    const data = {
-        movieFolder: movieFolder,
-        comment: commentText,
-        comment_type: "komentar na film"
-    };
-    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-
-    fetch('/movies/add-comment', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            "X-CSRFToken": csrfToken
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.status === 'success') {
-            statusDiv.className = 'status-message success';
-            statusDiv.textContent = 'Hvala! Vaš komentar je bil poslan. Administrator bo kmalu odgovoril.';
-            document.getElementById('commentForm').reset();
-
-            // Počisti status po 5 sekundah
-            setTimeout(() => {
-                statusDiv.textContent = '';
-                statusDiv.className = 'status-message';
-            }, 5000);
-        } else {
-            statusDiv.className = 'status-message error';
-            statusDiv.textContent = 'Napaka: ' + result.message;
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        statusDiv.className = 'status-message error';
-        statusDiv.textContent = 'Napaka pri pošiljanju komentarja. Poskusite ponovno.';
-    });
+    const form = document.getElementById('commentForm');
+    const button = form.querySelector('button[type="submit"]');
+    if (button.disabled) return;
+    const status = document.getElementById('commentStatus');
+    button.disabled = true;
+    status.textContent = 'Pošiljam …';
+    try {
+        const response = await fetch('/movies/add-comment', {
+            method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+            body: JSON.stringify({movieFolder, comment: document.getElementById('commentText').value, comment_type: 'komentar na film'})
+        });
+        const result = await response.json();
+        if (!response.ok || result.status !== 'success') throw new Error(result.message || 'Komentarja ni bilo mogoče poslati. Poskusi znova.');
+        status.className = 'status-message success';
+        status.textContent = 'Hvala! Komentar je poslan skrbniku v pregled.';
+        form.reset();
+    } catch (error) {
+        status.className = 'status-message error';
+        status.textContent = error.message || 'Komentarja ni bilo mogoče poslati. Poskusi znova.';
+    } finally { button.disabled = false; }
 }
 
 const ALERT_TYPES_PAGE = {
@@ -537,21 +424,32 @@ function deleteAlertOnPage(button, movieFolder, index) {
         const modal = document.createElement('div');
         modal.id = 'ratingModal';
         modal.style.display = 'none';
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
+        modal.setAttribute('aria-labelledby', 'rating-title');
         modal.innerHTML = `
             <div class="rating-modal-inner">
-                <h3>Oceni film</h3>
-                <div class="rating-row"><label>Koliko bi priporočali ogled?</label> <span class="stars" data-name="would-watch">${[1,2,3,4,5].map(i=>`<span class="star" data-value="${i}"><i class="bi bi-star-fill"></i></span>`).join('')}</span></div>
-                <div class="rating-row"><label>Prisotni prizori nasilja:</label> <span class="stars" data-name="violence">${[1,2,3,4,5].map(i=>`<span class="star" data-value="${i}"><i class="bi bi-exclamation-triangle-fill"></i></span>`).join('')}</span></div>
-                <div class="rating-row"><label>Prisotni prizori spolnosti:</label> <span class="stars" data-name="sexual">${[1,2,3,4,5].map(i=>`<span class="star" data-value="${i}"><i class="bi bi-exclamation-triangle-fill"></i></span>`).join('')}</span></div>
-                <div class="rating-row"><label>Primerno starostni skupini:</label> <span class="age-options" data-name="age_group">${[3,6,10,14,18].map(v=>`<span class="age-option" data-value="${v}">+${v}</span>`).join('')}</span></div>
-                <div class="rating-row"><label>Kvaliteta videa:</label> <span class="stars" data-name="video_quality">${[1,2,3,4,5].map(i=>`<span class="star" data-value="${i}"><i class="bi bi-film"></i></span>`).join('')}</span></div>
-                <div class="rating-row"><label>Kvaliteta podnapisov:</label> <span class="stars" data-name="subtitles_quality">${[1,2,3,4,5].map(i=>`<span class="star" data-value="${i}"><i class="bi bi-chat-dots-fill"></i></span>`).join('')}</span></div>
+                <h3 id="rating-title">Oceni film</h3><p>Oceni le področja, ki jih želiš. Višja ocena pomeni večjo prisotnost ali boljšo kakovost.</p>
+                <div class="rating-row"><label>Koliko bi priporočali ogled?</label> <span class="stars" data-name="would-watch">${[1,2,3,4,5].map(i=>`<button type="button" class="star" aria-label="${i} od 5" data-value="${i}"><i class="bi bi-star-fill"></i></button>`).join('')}</span></div>
+                <div class="rating-row"><label>Prisotni prizori nasilja:</label> <span class="stars" data-name="violence">${[1,2,3,4,5].map(i=>`<button type="button" class="star" aria-label="${i} od 5" data-value="${i}"><i class="bi bi-exclamation-triangle-fill"></i></button>`).join('')}</span></div>
+                <div class="rating-row"><label>Prisotni prizori spolnosti:</label> <span class="stars" data-name="sexual">${[1,2,3,4,5].map(i=>`<button type="button" class="star" aria-label="${i} od 5" data-value="${i}"><i class="bi bi-exclamation-triangle-fill"></i></button>`).join('')}</span></div>
+                <div class="rating-row"><label>Primerno starostni skupini:</label> <span class="age-options" data-name="age_group">${[3,6,10,14,18].map(v=>`<button type="button" class="age-option" data-value="${v}">+${v}</button>`).join('')}</span></div>
+                <div class="rating-row"><label>Kvaliteta videa:</label> <span class="stars" data-name="video_quality">${[1,2,3,4,5].map(i=>`<button type="button" class="star" aria-label="${i} od 5" data-value="${i}"><i class="bi bi-film"></i></button>`).join('')}</span></div>
+                <div class="rating-row"><label>Kvaliteta podnapisov:</label> <span class="stars" data-name="subtitles_quality">${[1,2,3,4,5].map(i=>`<button type="button" class="star" aria-label="${i} od 5" data-value="${i}"><i class="bi bi-chat-dots-fill"></i></button>`).join('')}</span></div>
                 <div class="rating-actions">
                     <button id="ratingSkip">Preskoči</button>
                     <button id="ratingSubmit">Pošlji oceno</button>
                 </div>
             </div>`;
         document.body.appendChild(modal);
+        modal.addEventListener('keydown', event => {
+            if (event.key === 'Escape') { document.getElementById('ratingSkip').click(); return; }
+            if (event.key !== 'Tab') return;
+            const buttons = [...modal.querySelectorAll('button:not(:disabled)')];
+            const first = buttons[0], last = buttons[buttons.length - 1];
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+        });
 
         document.getElementById('ratingSkip').addEventListener('click', () => {
             hideRatingModal();
@@ -596,6 +494,7 @@ function deleteAlertOnPage(button, movieFolder, index) {
         ratingShown = true;
         const m = document.getElementById('ratingModal');
         m.style.display = 'flex';
+        m.querySelector('button').focus();
     }
 
     // Expose function to open modal from templates
@@ -607,6 +506,7 @@ function deleteAlertOnPage(button, movieFolder, index) {
         const m = document.getElementById('ratingModal');
         if (m) m.style.display = 'none';
         ratingNeeded = false;
+        document.querySelector('[onclick="openRatingModal()"]')?.focus();
     }
 
     async function submitRating() {
@@ -626,25 +526,22 @@ function deleteAlertOnPage(button, movieFolder, index) {
             body: JSON.stringify({ movieFolder, violence, sexual, age_group, would_watch_again, video_quality, subtitles_quality })
         });
         const json = await res.json();
+        if (!res.ok) throw new Error();
         if (json.status !== 'success') throw 'error';
-        // update summary on page
         if (json.summary) {
-            document.getElementById('violence-avg').textContent = json.summary.violence.avg;
-            document.getElementById('violence-count').textContent = json.summary.violence.count;
-            document.getElementById('sexual-avg').textContent = json.summary.sexual.avg;
-            document.getElementById('sexual-count').textContent = json.summary.sexual.count;
-            document.getElementById('age-avg').textContent = json.summary.age_group.avg;
-            document.getElementById('age-count').textContent = json.summary.age_group.count;
-            if (json.summary.would_watch_again) {
-                document.getElementById('would-watch-avg').textContent = json.summary.would_watch_again.avg;
-                document.getElementById('would-watch-again-count').textContent = json.summary.would_watch_again.count;
-            }
-            if (json.summary.video_quality) {
-                document.getElementById('video-quality-count').textContent = json.summary.video_quality.count;
-            }
-            if (json.summary.subtitles_quality) {
-                document.getElementById('subtitles-quality-count').textContent = json.summary.subtitles_quality.count;
-            }
+            const metrics = {violence: 'violence', sexual: 'sexual', age_group: 'age', would_watch_again: 'would-watch-again', video_quality: 'video-quality', subtitles_quality: 'subtitles-quality'};
+            Object.entries(metrics).forEach(([key, prefix]) => {
+                const metric = json.summary[key];
+                const count = document.getElementById(prefix + '-count');
+                if (!metric || !count) return;
+                count.textContent = metric.count;
+                const icons = count.closest('div').querySelectorAll('.icons-base i');
+                icons.forEach((icon, index) => {
+                    const percent = Math.max(0, Math.min(1, Number(metric.avg) - index)) * 100;
+                    icon.style.color = `color-mix(in srgb, var(--marinkino-orange) ${percent}%, #bfbfbf ${100 - percent}%)`;
+                });
+            });
+            movieFeedback('Ocena je shranjena. Hvala!');
         }
     }
 

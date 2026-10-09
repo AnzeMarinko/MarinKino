@@ -83,6 +83,7 @@ def audio_site(ui):
         return Response(output.getvalue(), mimetype="audio/wav")
 
     ui.metadata = metadata
+    ui.public_albums = albums
     ui.personal = personal
     return ui
 
@@ -107,7 +108,12 @@ def test_browser_audio_layout_search_keyboard_and_playback(
             if path == "/music" and width <= 812:
                 page.locator('.toggle-btn[data-target="albums"]').click()
                 page.locator(".album-item").first.click()
+                assert page.locator("#albums").is_visible()
+                page.locator(".album-item-after-separator").click()
                 assert page.locator("#tracks").is_visible()
+                page.locator('.toggle-btn[data-target="albums"]').click()
+                page.locator(".album-item").first.click()
+                page.locator('.toggle-btn[data-target="tracks"]').click()
             assert page.locator("#player").is_visible()
             if path == "/music":
                 sub = page.locator(".album-item-after-separator")
@@ -234,3 +240,56 @@ def test_browser_music_and_radio_restore_separate_tracks(audio_site, browser):
     )
     page.goto(browser.base + "/music")
     assert page.locator("#nowPlayingTitle").inner_text() == "Zgodba o lisici"
+
+
+def test_browser_subalbums_follow_selected_branch(audio_site, browser):
+    from playwright.sync_api import expect
+
+    audio_site.public_albums.extend(
+        [
+            dict(name="Za dobro voljo - Podalbum - Podrobno", songs=[]),
+            dict(name="Prazen album - Druga veja", songs=[]),
+        ]
+    )
+    page = browser.page
+    page.set_viewport_size({"width": 1440, "height": 900})
+    page.goto(browser.base + "/music")
+    child = page.get_by_role("button", name="Podalbum 0", exact=True)
+    grandchild = page.get_by_role("button", name="Podrobno 0", exact=True)
+    parent = page.get_by_role("button", name="Za dobro voljo 2", exact=True)
+    other = page.get_by_role("button", name="Prazen album 0", exact=True)
+    expect(page.locator(".album-item-after-separator:visible")).to_have_count(
+        0
+    )
+    parent.click()
+    expect(child).to_be_visible()
+    expect(parent).to_have_attribute("aria-expanded", "true")
+    expect(grandchild).to_be_hidden()
+    assert parent.evaluate(
+        "el => el.nextElementSibling.classList.contains("
+        "'album-children-opening')"
+    )
+    child.click()
+    expect(grandchild).to_be_visible()
+    expect(child).to_have_attribute("aria-pressed", "true")
+    grandchild.click()
+    expect(grandchild).to_have_attribute("aria-pressed", "true")
+    expect(child).to_be_visible()
+    other.click()
+    expect(child).to_be_hidden()
+    expect(
+        page.get_by_role("button", name="Druga veja 0", exact=True)
+    ).to_be_visible()
+    expect(parent).to_have_attribute("aria-expanded", "false")
+    page.reload()
+    expect(
+        page.get_by_role("button", name="Druga veja 0", exact=True)
+    ).to_be_visible()
+    page.emulate_media(reduced_motion="reduce")
+    parent.click()
+    assert (
+        page.locator(".album-children-opening").first.evaluate(
+            "el => getComputedStyle(el).animationName"
+        )
+        == "none"
+    )

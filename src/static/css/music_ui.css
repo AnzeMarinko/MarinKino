@@ -151,3 +151,19 @@
 .music-app-container .album-item:not(.album-item-after-separator):not(.album-item-private) { padding: .9rem .75rem; font-size: .9rem; font-weight: 750; }
 .music-app-container .album-item:not(.album-item-after-separator):not(.album-item-private):not(.active):hover { background: #e8f2ed; border-color: #89aba0; }
 .music-app-container .album-item.active:not(.album-item-private) .album-item-count { color: #e8f6f1; font-weight: 700; }
+
+/* Reveal subalbums directly below their selected parent. */
+.music-app-container .album-children { display: grid; grid-template-rows: 1fr; }
+.music-app-container .album-children[hidden] { display: none; }
+.music-app-container .album-children-inner { min-height: 0; overflow: hidden; padding-inline-start: .45rem; }
+.music-app-container .album-children-opening { animation: album-children-slide 280ms ease-out both; }
+.music-app-container .album-expand-icon { flex-shrink: 0; font-size: .7rem; transition: transform 200ms ease; }
+.music-app-container .album-item[aria-expanded="true"] .album-expand-icon { transform: rotate(180deg); }
+@keyframes album-children-slide {
+    from { grid-template-rows: 0fr; opacity: 0; transform: translateY(-6px); }
+    to { grid-template-rows: 1fr; opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .music-app-container .album-children-opening { animation: none; }
+    .music-app-container .album-expand-icon { transition: none; }
+}

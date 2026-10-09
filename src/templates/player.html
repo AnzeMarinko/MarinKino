@@ -6,11 +6,13 @@
 <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
 
-<main class="container">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/movies_ui.css') }}">
+<main class="container movie-view">
+<header class="movie-view-heading"><a href="/movies">← Nazaj na filme</a><h1>{{ movie.title }} <small>{{ movie.year }}</small></h1><p>{{ movie.original_title }}</p></header>
 <div class="movie-page">
     <div class="description">
-        <div class="cover"><img src="/movies/file{{ movie.cover }}" alt="Poster" class="{{ movie.recommendation_level }}"></div>
-        <h1><b>{{ movie.title }}</b>{{ movie.year }}<br><i class="original-title">{{ movie.original_title }}</i><div class="slosinh">{{ movie.slosinh }}</div></h1></br>
+        <div class="cover"><img src="/movies/file{{ movie.cover }}" alt="Plakat za {{ movie.title }}" class="{{ movie.recommendation_level }}"></div>
+        <div class="slosinh">{{ movie.slosinh }}</div>
         <div class="genres">
             {% for genre in movie.genres %}
             <span class="genre-badge {{ genre|lower|replace(' ', '-') if genre in known_genres else 'unknown' }}">{{ genre }}</span>
@@ -75,7 +77,7 @@
                 <small>(<span id="age-count">{{ movie.ratings_summary.age_group.count if movie.ratings_summary and movie.ratings_summary.age_group else 0 }}</span>)</small>
                 <span class="age-display">
 
-                    <span class="age-option {% if age_avg and (a == (age_avg|round(0, 'common')|int or a)) %}selected{% endif %}">+{{ age_avg | int }}</span>
+                    <span class="age-option selected">+{{ age_avg | int }}</span>
                 </span>
             </div>
             {% endif %}
@@ -117,7 +119,7 @@
             </div>
         </div>
     {% if subtitle_buttons %}</br>
-        <hr>Podnapisi (izberete v predvajalniku med možnostmi): {% for subtitle in subtitle_buttons %}<button class="subtitles">{{ subtitle }}</button> {% endfor %}
+        <hr>Podnapisi (izberete v predvajalniku med možnostmi): {% for subtitle in subtitle_buttons %}<span class="subtitles">{{ subtitle }}</span> {% endfor %}
         {% endif %}</br>
         <hr>{% if is_collection %}
             <div>
@@ -132,10 +134,10 @@
         {% else %}
 
             <div class="selectors izbira" movie-id="{{ movie.movie_id }}">
-                <input type="radio" id="opcija1-{{ movie.movie_id }}" name="izbor-{{ movie.movie_id }}" value="0">
+                <input type="radio" id="opcija1-{{ movie.movie_id }}" name="izbor-{{ movie.movie_id }}" value="0" {% if movie.watch_ratio|default(0) == 0 %}checked{% endif %}>
                 <label for="opcija1-{{ movie.movie_id }}">Nepogledano</label>
 
-                <input type="radio" id="opcija2-{{ movie.movie_id }}" name="izbor-{{ movie.movie_id }}" value="100">
+                <input type="radio" id="opcija2-{{ movie.movie_id }}" name="izbor-{{ movie.movie_id }}" value="100" {% if movie.watch_ratio|default(0) >= 100 %}checked{% endif %}>
                 <label for="opcija2-{{ movie.movie_id }}">Pogledano</label>
             </div>
 
@@ -143,11 +145,11 @@
             <div class="buttons">
                 <hr>
                 <div class="selectors priporocilo" movie-folder="{{ movie.folder }}">
-                    <input type="radio" id="priporocilo1-{{ movie.movie_id }}" name="priporocaj-{{ movie.movie_id }}" value="">
+                    <input type="radio" id="priporocilo1-{{ movie.movie_id }}" name="priporocaj-{{ movie.movie_id }}" value="" {% if not movie.recommendation_level %}checked{% endif %}>
                     <label for="priporocilo1-{{ movie.movie_id }}">Odstrani priporočilo</label>
-                    <input type="radio" id="priporocilo2-{{ movie.movie_id }}" name="priporocaj-{{ movie.movie_id }}" value="recommend">
+                    <input type="radio" id="priporocilo2-{{ movie.movie_id }}" name="priporocaj-{{ movie.movie_id }}" value="recommend" {% if movie.recommendation_level == "recommend" %}checked{% endif %}>
                     <label for="priporocilo2-{{ movie.movie_id }}">Priporoči</label>
-                    <input type="radio" id="priporocilo3-{{ movie.movie_id }}" name="priporocaj-{{ movie.movie_id }}" value="warm-recommend">
+                    <input type="radio" id="priporocilo3-{{ movie.movie_id }}" name="priporocaj-{{ movie.movie_id }}" value="warm-recommend" {% if movie.recommendation_level == "warm-recommend" %}checked{% endif %}>
                     <label for="priporocilo3-{{ movie.movie_id }}">Toplo priporoči</label>
                 </div><hr>
                 <form action="/movies/remove{{ movie.folder }}" method="post" onsubmit="return odstraniMovieCard(event, this);">
@@ -260,11 +262,11 @@
 
 
             // Inicializacija Plyr-a
-            const player = new Plyr(video, {
+            const player = window.Plyr ? new Plyr(video, {
                 controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'captions', 'settings', 'fullscreen', 'download'],
                 urls: { download: '/movies/download/{{ group_folder }}/{{ folder }}' },
-                keyboard: { focused: true, global: true }
-            });
+                keyboard: { focused: true, global: false }
+            }) : video;
 
             function restoreSavedTime() {
                 if (
@@ -328,7 +330,7 @@
             }
 
             // Način 1: HLS.js (Chrome, Firefox, Edge, Android...)
-            if (Hls.isSupported()) {
+            if (window.Hls && Hls.isSupported()) {
 
                 const hls = new Hls({
                     debug: false
@@ -398,7 +400,7 @@
                 audioSelect.innerHTML = '<option>HLS ni podprt v brskalniku</option>';
             }
 
-            player.on('ready', restoreSavedTime);
+            if (player.on) player.on('ready', restoreSavedTime);
         });
     </script>
 {% elif not is_collection %}
@@ -421,20 +423,22 @@
             const video = document.getElementById('videoPlayer');
             const lastTime = {{ movie.last_play_time|default(0) }};
 
-            const player = new Plyr(video, {
+            const player = window.Plyr ? new Plyr(video, {
                 controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'captions', 'settings', 'fullscreen', 'download'],
                 urls: { download: '/movies/download/{{ group_folder }}/{{ folder }}' },
                 keyboard: {
                     focused: true,  // Bližnjice delujejo, ko je predvajalnik fokusiran
-                    global: true    // Bližnjice (kot je Space) delujejo globalno na strani
+                    global: false    // Bližnjice (kot je Space) delujejo globalno na strani
                 }
-            });
+            }) : video;
 
-            player.on('ready', () => {
+            const restoreTime = () => {
                 if (lastTime < player.duration) {
                     player.currentTime = lastTime;
                 }
-            });
+            };
+            video.addEventListener('loadedmetadata', restoreTime, {once: true});
+            if (player.on) player.on('ready', restoreTime);
         });
     </script>
 {% else %}
@@ -463,13 +467,13 @@
             playerContainer.style.display = 'block';
         }
 
-        if (!globalPlayer) {
+        if (!globalPlayer && window.Plyr) {
             globalPlayer = new Plyr('#videoPlayer', {
                 controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'settings', 'fullscreen', 'download'],
                 urls: { download: '/movies/download/{{ group_folder }}/{{ folder }}' },
                 keyboard: {
                     focused: true,
-                    global: true
+                    global: false
                 }
             });
         }
@@ -484,6 +488,15 @@
 
         const player = ensureCollectionPlayer();
 
+        if (!player) {
+            const video = document.getElementById('videoPlayer');
+            video.src = src;
+            video.addEventListener('loadedmetadata', () => {
+                if (startTime > 0 && startTime < video.duration) video.currentTime = startTime;
+                video.play().catch(() => {});
+            }, {once: true});
+            video.load();
+        }
         if (player) {
             // Predvajalnik inicializiramo in napolnimo šele po izbiri datoteke
             player.source = {
@@ -504,7 +517,7 @@
                 ) {
                     player.currentTime = startTime;
                 }
-                player.play();
+                player.play()?.catch(() => {});
             };
 
             video.addEventListener('loadedmetadata', setStartTime, { once: true });
@@ -567,7 +580,7 @@
                 <textarea id="commentText" name="comment" required minlength="5" rows="4" placeholder="Napišite vaš komentar..."></textarea>
             </div>
             <button type="submit">Pošlji komentar</button>
-            <div id="commentStatus" class="status-message"></div>
+            <div id="commentStatus" class="status-message" role="status" aria-live="polite"></div>
         </form>
     </div>
 </div>

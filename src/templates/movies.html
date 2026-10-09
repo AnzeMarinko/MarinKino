@@ -2,13 +2,15 @@
 
 {% block content %}
 
-<main class="container">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/movies_ui.css') }}">
+<main class="container movies-catalog">
+<header class="movies-heading"><span class="movies-eyebrow">FILMSKI VEČER</span><h1>Kaj si ogledamo danes?</h1><p>Poišči film, odkrij priporočila in nadaljuj tam, kjer si ostal.</p></header>
 <div class="container my-4">
-  <form method="get" class="row g-2 align-items-end bg-white p-3 rounded shadow">
+  <form id="movieFilterForm" method="get" class="row g-2 align-items-end movie-filters" aria-label="Filtri filmov">
 
     <div class="col-12 col-md-6 col-lg-4">
-      <select class="form-select" name="movietype">
-        <option value="">-- Tip filmov --</option>
+      <label for="movie-movietype">Vrsta filmov</label><select id="movie-movietype" class="form-select" name="movietype">
+        <option value="">Vse vrste</option>
         {% for group in group_folders %}
           <option value="{{ group }}" {% if group == selected_movietype %}selected{% endif %}>
             {{ group_folders[group] }}
@@ -18,8 +20,8 @@
     </div>
 
     <div class="col-6 col-md-6 col-lg-4">
-      <select class="form-select" name="genre">
-        <option value="">-- Žanr --</option>
+      <label for="movie-genre">Žanr</label><select id="movie-genre" class="form-select" name="genre">
+        <option value="">Vsi žanri</option>
         {% for genre in known_genres %}
           <option value="{{ genre }}" {% if genre == selected_genre %}selected{% endif %}>
             {{ genre|capitalize }}
@@ -29,7 +31,7 @@
     </div>
 
     <div class="col-6 col-md-6 col-lg-4">
-      <select class="form-select" name="sort">
+      <label for="movie-sort">Vrstni red</label><select id="movie-sort" class="form-select" name="sort">
         <option value="">Naključni vrstni red</option>
         <option value="name-asc" {% if sort == "name-asc" %}selected{% endif %}>Ime ↑</option>
         <option value="name-desc" {% if sort == "name-desc" %}selected{% endif %}>Ime ↓</option>
@@ -39,12 +41,12 @@
     </div>
 
     <div class="col-12 col-md-6 col-lg-4">
-      <div class="input-group">
+      <label for="movie-search">Iskanje</label><div class="input-group">
         <span class="input-group-text bg-white">
           <i class="bi bi-search text-secondary"></i>
         </span>
         <input
-          type="text"
+          type="search" id="movie-search"
           name="q"
           value="{{ request.args.get('q','') }}"
           class="form-control border-start-0"
@@ -82,15 +84,20 @@
 
     <div class="col-12 col-md-6 col-lg-4">
       {% if current_user.is_authenticated and view_as != "anonymous" %}
-      <button type="submit" class="btn btn-orange w-100">Pripravi</button>
+      <button type="submit" class="btn btn-orange w-100">Poišči filme</button>
       {% endif %}
     </div>
 
+<a class="movies-reset" href="/movies?movietype=&genre=&sort=&q=&onlyunwatched=off&onlyrecommended=off">Ponastavi filtre</a>
   </form>
 </div>
 
 
- <div class="movie-grid" id="movie-grid"></div>
+ <p id="movies-status" role="status" aria-live="polite"></p>
+ <div class="movie-grid" id="movie-grid" data-admin="{{ 'true' if current_user.is_authenticated and current_user.is_admin and view_as not in ['anonymous', 'user'] else 'false' }}"></div>
+ <script id="movies-initial" type="application/json">{{ {'movies': movies, 'has_more': has_more}|tojson }}</script>
+ <div class="movies-pagination"><button id="movies-more" type="button" hidden>Naloži več filmov</button></div>
+ {% if not current_user.is_authenticated or view_as == 'anonymous' %}<div class="movies-empty"><h2>Tvoj filmski večer se začne tukaj.</h2><p>Za ogled filmske zbirke se prijavi.</p><a class="movie-play" href="/login">Prijava</a></div>{% endif %}
 
 <script defer src="/static/script/movies.js"></script>
 </main>

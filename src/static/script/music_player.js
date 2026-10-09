@@ -770,13 +770,43 @@ function seekWithinCurrentTrack(position, fastSeek = false) {
     updatePositionState();
 }
 
-function renderAlbums() {
-    if (!albumListEl) {
-        return;
-    }
+// Keep the selected branch open; sibling album groups stay compact.
+let albumHierarchyActivated = Boolean(currentAlbumKey);
+let previouslyExpandedAlbums = new Set();
 
-    albumListEl.innerHTML = "";
+function renderAlbums() {
+    if (!albumListEl) return;
+    const childrenByKey = new Map();
+    const parentByKey = new Map();
+    const publicByName = new Map(albums.filter(album => !album.is_private).map(album => [album.name, album]));
+    const roots = [];
     albums.forEach(album => {
+        let parent = null;
+        if (!album.is_private) {
+            const parts = album.name.split(' - ');
+            while (parts.length > 1 && !parent) {
+                parts.pop();
+                parent = publicByName.get(parts.join(' - '));
+            }
+        }
+        if (parent) {
+            const key = getAlbumKey(parent);
+            if (!childrenByKey.has(key)) childrenByKey.set(key, []);
+            childrenByKey.get(key).push(album);
+            parentByKey.set(getAlbumKey(album), parent);
+        } else roots.push(album);
+    });
+    const expandedKeys = new Set();
+    if (albumHierarchyActivated) {
+        let album = getCurrentAlbum();
+        while (album) {
+            expandedKeys.add(getAlbumKey(album));
+            album = parentByKey.get(getAlbumKey(album));
+        }
+    }
+    const restoreAlbumFocus = albumListEl.contains(document.activeElement);
+    albumListEl.innerHTML = '';
+    function appendAlbum(album, container, parent = null) {
         const div = document.createElement("div");
         const albumNameInfo = album.is_private
             ? { displayName: album.name, hasSeparator: false }
@@ -789,9 +819,9 @@ function renderAlbums() {
 
         if (album.is_private) {
             div.classList.add("album-item-private");
-            div.innerHTML = `<i class="bi bi-folder-heart album-item-private-icon" aria-hidden="true"></i><span class="album-item-label">${escapeMusicHtml(albumNameInfo.displayName || album.name)}<span class="album-item-private-badge">Moj album</span></span>`;
+            div.innerHTML = `<i class="bi bi-folder-heart album-item-private-icon" aria-hidden="true"></i><span class="album-item-label">${escapeMusicHtml((parent ? album.name.split(" - ").slice(-1)[0] : albumNameInfo.displayName) || album.name)}<span class="album-item-private-badge">Moj album</span></span>`;
         } else {
-            div.innerHTML = `<span class="album-item-label">${escapeMusicHtml(albumNameInfo.displayName || album.name)}</span>`;
+            div.innerHTML = `<span class="album-item-label">${escapeMusicHtml((parent ? album.name.split(" - ").slice(-1)[0] : albumNameInfo.displayName) || album.name)}</span>`;
         }
 
         const count = document.createElement('span');
@@ -800,18 +830,45 @@ function renderAlbums() {
         div.appendChild(count);
         activateWithKeyboard(div);
         div.setAttribute('aria-pressed', String(getAlbumKey(album) === currentAlbumKey));
+        const children = childrenByKey.get(getAlbumKey(album)) || [];
+        if (children.length) {
+            div.setAttribute('aria-expanded', String(expandedKeys.has(getAlbumKey(album))));
+            div.setAttribute('aria-controls', `album-children-${albums.indexOf(album)}`);
+            const chevron = document.createElement('i');
+            chevron.className = 'bi bi-chevron-down album-expand-icon';
+            chevron.setAttribute('aria-hidden', 'true');
+            div.appendChild(chevron);
+        }
         div.onclick = () => {
+            albumHierarchyActivated = true;
             div.style.transform = "scale(0.95)";
             setTimeout(() => {
                 div.style.transform = "scale(1)";
             }, 100);
             loadAlbum(album);
-            if (window.matchMedia?.('(max-width: 812px)').matches) {
+            if (!children.length && window.matchMedia?.('(max-width: 812px)').matches) {
                 document.querySelector('.toggle-btn[data-target="tracks"]')?.click();
             }
         };
-        albumListEl.appendChild(div);
-    });
+        container.appendChild(div);
+        if (children.length) {
+            const group = document.createElement('div');
+            group.id = `album-children-${albums.indexOf(album)}`;
+            group.className = 'album-children';
+            group.hidden = !expandedKeys.has(getAlbumKey(album));
+            if (!group.hidden && !previouslyExpandedAlbums.has(getAlbumKey(album))) {
+                group.classList.add('album-children-opening');
+            }
+            const inner = document.createElement('div');
+            inner.className = 'album-children-inner';
+            children.forEach(child => appendAlbum(child, inner, album));
+            group.appendChild(inner);
+            container.appendChild(group);
+        }
+    }
+    roots.forEach(album => appendAlbum(album, albumListEl));
+    previouslyExpandedAlbums = expandedKeys;
+    if (restoreAlbumFocus) albumListEl.querySelector('.album-item.active')?.focus({preventScroll: true});
 }
 
 function buildTrackHtml(songId) {
