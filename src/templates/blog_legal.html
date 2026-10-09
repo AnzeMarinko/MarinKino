@@ -1,9 +1,12 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/blog.css') }}">
+<main class="blog-page blog-reading-page">
+ <div class="blog-reading-shell">
+  <nav class="blog-breadcrumb" aria-label="Pot do strani"><a href="/blog"><i class="bi bi-arrow-left" aria-hidden="true"></i> Nazaj na blog</a></nav>
+  <article class="blog-article blog-legal blog-content">
+   <p class="blog-kicker">Sončnice · naročnina in zasebnost</p>
             {% if legal_page == "terms" %}
             <h1 class="mb-4">Pogoji uporabe naročnine</h1>
             <p>Prijava na obvestila bloga <span class="notranslate" translate="no" data-blog-title>Rože dobrega</span> je prostovoljna in brezplačna.</p>
@@ -26,7 +29,8 @@
             <p>Za dostop, popravek ali izbris podatkov oziroma preklic soglasja pišite na <a href="mailto:anze@anzemarinko.si">anze@anzemarinko.si</a>.</p>
             {% endif %}
             <p class="text-muted small mt-5">Zadnja posodobitev: 24. 9. 2026</p>
-        </div>
-    </div>
-</div>
+  </article>
+  <nav class="blog-legal-links" aria-label="Povezane strani"><a href="{{ url_for('blog.blog_terms') }}" {% if legal_page == 'terms' %}aria-current="page"{% endif %}>Pogoji uporabe</a><a href="{{ url_for('blog.blog_privacy') }}" {% if legal_page != 'terms' %}aria-current="page"{% endif %}>Politika zasebnosti</a><a href="{{ subscription_url }}" data-subscription-url="{{ subscription_url_encoded }}" target="_blank" rel="noopener noreferrer">{{ blog_copy.subscribe }}</a></nav>
+ </div>
+</main>
 {% endblock %}

@@ -1,70 +1,25 @@
 {% extends "base.html" %}
-
 {% block content %}
-<div class="container py-5">
-    <div class="row">
-        <div class="col-lg-8 mx-auto">
-            <!-- Breadcrumb Navigation -->
-            <nav aria-label="breadcrumb" class="mb-4">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="/blog">Blog</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">{{ post.title }}</li>
-                </ol>
-            </nav>
-
-            <article itemscope itemtype="https://schema.org/BlogPosting">
-                <header class="mb-4">
-                    <h1 class="display-4 fw-bold mb-3" itemprop="headline">{{ post.title }}</h1>
-                    {% if post.subtitle %}
-                    <p class="lead text-muted" itemprop="description">{{ post.subtitle }}</p>
-                    {% endif %}
-                    <div class="text-muted mb-3">
-                        <small>
-                            <span itemprop="datePublished" content="{{ post.created_at }}">Objavljeno: {{ post.created_at_display }}</span>
-                        </small>
-                    </div>
-
-                    <!-- Author Information -->
-                    <div class="card bg-light mb-3" itemprop="author" itemscope itemtype="https://schema.org/Person">
-                        <div class="card-body">
-                            <small>
-                                <strong>Avtor:</strong>
-                                <a href="/blog/o-meni" itemprop="url">
-                                    <span itemprop="name">Anže Marinko</span>
-                                </a>
-                            </small>
-                        </div>
-                    </div>
-                </header>
-
-                {% if post.image %}
-                <div class="mb-4" style="align-items: center; display: flex; justify-content: center;">
-                    <img src="/blog/image/{{ post.image }}"
-                         class="img-fluid rounded"
-                         alt="{{ post.image_desc or post.title }}"
-                         itemprop="image"
-                         style="max-height: 50vh;">
-                </div>
-                {% if post.image_desc %}
-                <p class="small text-muted text-center">{{ post.image_desc }}</p>
-                {% endif %}
-                {% endif %}
-
-                <!-- Main Content -->
-                <div class="blog-content" itemprop="articleBody">
-                    {{ post.content_html|safe }}
-                </div>
-            </article>
-
-            <hr class="my-5">
-
-            <div class="text-center">
-                <a href="/blog" class="btn btn-outline-primary">Nazaj na seznam blogov</a>
-            </div>
-        </div>
-    </div>
-</div>
-
+<link rel="stylesheet" href="{{ url_for('static', filename='css/blog.css') }}">
+<main class="blog-page blog-reading-page">
+ <div class="blog-reading-shell">
+  <nav class="blog-breadcrumb" aria-label="Pot do objave"><a href="/blog"><i class="bi bi-arrow-left" aria-hidden="true"></i> Vsi zapisi</a><span aria-current="page">{{ post.title }}</span></nav>
+  <article class="blog-article" itemscope itemtype="https://schema.org/BlogPosting">
+   <header class="blog-article-header">
+    <p class="blog-kicker">Sončnice · <span class="notranslate" translate="no" data-blog-title>Rože dobrega</span></p>
+    <h1 itemprop="headline">{{ post.title }}</h1>
+    {% if post.subtitle %}<p class="blog-article-subtitle" itemprop="description">{{ post.subtitle }}</p>{% endif %}
+    <div class="blog-article-meta"><span itemprop="author" itemscope itemtype="https://schema.org/Person"><a href="/blog/o-meni" itemprop="url"><i class="bi bi-person-circle" aria-hidden="true"></i> <span itemprop="name">Anže Marinko</span></a></span><time itemprop="datePublished" datetime="{{ post.published_at or post.created_at }}">{{ post.created_at_display }}</time>{% if not post.published %}<span class="blog-draft">Osnutek</span>{% endif %}</div>
+   </header>
+   {% if post.image %}<figure class="blog-article-image"><img src="{{ url_for('blog.blog_image_file', file_name=post.image) }}" alt="{{ post.image_desc or post.title }}" itemprop="image" decoding="async">{% if post.image_desc %}<figcaption>{{ post.image_desc }}</figcaption>{% endif %}</figure>{% endif %}
+   <details class="blog-toc" id="blogToc" hidden><summary>V tem zapisu <i class="bi bi-list-ul" aria-hidden="true"></i></summary><nav aria-label="Kazalo zapisa" id="blogTocLinks"></nav></details>
+   <div class="blog-content" itemprop="articleBody">{{ post.content_html|safe }}</div>
+   <footer class="blog-article-footer"><span><i class="bi bi-flower1" aria-hidden="true"></i> Hvala, ker bereš.</span><a class="blog-text-link" href="/blog">Nazaj na vse zapise <i class="bi bi-arrow-right" aria-hidden="true"></i></a></footer>
+  </article>
+  {% include 'partials/blog_subscribe_banner.html' %}
+ </div>
+</main>
+<script defer src="{{ url_for('static', filename='js/blog_ui.js') }}"></script>
 <!-- Breadcrumb Schema -->
 <script type="application/ld+json">
 {
@@ -86,7 +41,7 @@
     {
       "@type": "ListItem",
       "position": 3,
-      "name": "{{ post.title }}",
+      "name": {{ post.title|tojson }},
       "item": "{{ og_url if og_url else 'https://' + domain }}"
     }
   ]

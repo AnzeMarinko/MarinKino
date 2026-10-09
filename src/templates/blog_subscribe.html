@@ -14,9 +14,10 @@
         data-blog-language="{{ language }}" data-blog-languages='{{ blog_languages | tojson }}'
         data-subscription-url="{{ subscription_url_encoded }}">
     <script src="{{ url_for('static', filename='js/blog_translation.js') }}"></script>
+    <img class="subscription-logo" src="{{ url_for('static', filename='blog_favicon_io/android-chrome-192x192.png') }}" width="56" height="56" alt="">
     <a class="brand" href="{{ blog_url }}" rel="noreferrer">{{ copy.blog_title }}</a>
     <h1>{{ copy.subscription_heading }}</h1>
-    <p>{{ copy.subscription_intro }}</p>
+    <p class="subscription-intro">{{ copy.subscription_intro }}</p>
     {% with notices = get_flashed_messages(with_categories=true) %}
       {% for category, message in notices %}
       <p class="notice {{ category }}" role="{{ 'alert' if category == 'error' else 'status' }}">{{ message }}</p>
@@ -41,7 +42,7 @@
         <input type="text" name="website" id="subscribe-website" tabindex="-1" autocomplete="off">
       </div>
       <label for="subscribe-email">{{ copy.email_label }}</label>
-      <input type="email" name="email" id="subscribe-email" placeholder="{{ copy.email_placeholder }}" autocomplete="email" maxlength="254" dir="ltr" required>
+      <input type="email" name="email" id="subscribe-email" placeholder="{{ copy.email_placeholder }}" inputmode="email" autocapitalize="none" spellcheck="false" autocomplete="email" maxlength="254" dir="ltr" required>
       <div class="terms">
         <input type="checkbox" name="terms_accepted" value="yes" id="subscribe-terms" required>
         <label for="subscribe-terms">{{ copy.terms_prefix }}
@@ -57,7 +58,7 @@
       <button class="submit" type="submit">{{ copy.subscribe }}</button>
     </form>
     {% if language != 'sl' %}<p class="translation-notice">{{ copy.automatic_notice }}</p>{% endif %}
-    <a href="{{ blog_url }}" rel="noreferrer">{{ copy.back_to_blog }}</a>
+    <a class="subscription-back" href="{{ blog_url }}" rel="noreferrer">{{ copy.back_to_blog }}</a>
   </main>
 </body>
 </html>

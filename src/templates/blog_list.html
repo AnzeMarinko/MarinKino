@@ -1,144 +1,29 @@
 {% extends "base.html" %}
-
 {% block content %}
-{% macro subscription_card() %}
-<div class="col-md-6 col-lg-4 mb-4">
-    <section class="blog-subscribe-section h-100" aria-labelledby="subscribe-heading">
-        <div class="blog-subscribe-inner">
-            <div class="blog-subscribe-copy">
-                <span class="blog-subscribe-kicker">Nova objava v tvoj e-poštni predal</span>
-                <h2 id="subscribe-heading">Ostani blizu</h2>
-                <p>Naroči se na obvestilo, ko na blogu nastane kaj novega.</p>
-            </div>
-            <a class="btn btn-primary" href="{{ subscription_url }}"
-               data-subscription-url="{{ subscription_url_encoded }}"
-               target="_blank" rel="noopener noreferrer">{{ blog_copy.subscribe }}</a>
-        </div>
-    </section>
-</div>
-{% endmacro %}
-
-<div class="container py-5">
-    <div class="text-center mb-5">
-        <h3 class="display-6 fw-bold mb-3 notranslate" translate="no" data-blog-title>Rože dobrega</h3>
-        <p class="lead text-muted">Blog</p>
-    </div>
-
-    <div class="row">
-        {% for post in posts %}
-        <div class="col-md-6 col-lg-4 mb-4">
-            <div class="card h-100 shadow-sm">
-                {% if post.image %}
-                <a href="/blog/{{ post.id }}"><img src="/blog/image/{{ post.image }}" class="card-img-top blog-card-image" alt="{{ post.title }}" loading="lazy"></a>
-                {% elif current_user.is_authenticated and current_user.is_admin %}
-                <div class="blog-image-placeholder" aria-label="Objava nima naslovne slike">
-                    <i class="bi bi-image"></i>
-                    <span>Brez naslovne slike</span>
-                </div>
-                {% endif %}
-                <div class="card-body">
-                    <h5 class="card-title">{{ post.title }}</h5>
-                    <p class="card-text text-muted">{{ post.excerpt|truncate(100) }}</p>
-                    <p class="card-text"><small class="text-muted">{{ post.created_at_display }}</small></p>
-                    <a href="/blog/{{ post.id }}" class="btn btn-outline-primary">Preberi več</a>
-                </div>
-            </div>
-        </div>
-        {% if loop.index == 1 %}
-        {{ subscription_card() }}
-        {% endif %}
-        {% endfor %}
-        {% if posts|length == 0 %}
-        {{ subscription_card() }}
-        {% endif %}
-    </div>
-</div>
-<style>
-    .blog-subscribe-section {
-        padding: 1.5rem clamp(1.25rem, 4vw, 2.25rem);
-        border: 1px solid rgba(239, 153, 24, 0.28);
-        border-radius: 1rem;
-        background: linear-gradient(120deg, #fffaf0, #fff 62%, #fff3e0);
-        box-shadow: 0 0.75rem 2rem rgba(75, 54, 26, 0.08);
-    }
-
-    .blog-subscribe-inner {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 1.25rem;
-        align-items: center;
-    }
-
-    .blog-subscribe-kicker {
-        color: #c26d00;
-        font-size: 0.75rem;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-    }
-
-    .blog-subscribe-copy h2 {
-        margin: 0.25rem 0 0.4rem;
-        color: #443629;
-        font-size: 1.35rem;
-    }
-
-    .blog-subscribe-copy p {
-        margin: 0;
-        color: #75685b;
-        font-size: 0.95rem;
-    }
-
-    .blog-subscribe-form {
-        display: grid;
-        gap: 0.7rem;
-    }
-
-    .blog-subscribe-email-row {
-        display: flex;
-        gap: 0.5rem;
-    }
-
-    .blog-subscribe-email-row .form-control {
-        min-width: 0;
-    }
-
-    .blog-subscribe-form .form-check-label {
-        color: #75685b;
-    }
-
-    .blog-image-placeholder {
-        display: flex;
-        width: 100%;
-        aspect-ratio: 6 / 5;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-        color: #8b8177;
-        background: #f1eee9;
-        font-size: 0.9rem;
-    }
-
-    .blog-card-image {
-        width: 100%;
-        aspect-ratio: 6 / 5;
-        object-fit: cover;
-    }
-
-    .blog-image-placeholder i {
-        font-size: 1.4rem;
-    }
-
-    @media (max-width: 767.98px) {
-        .blog-subscribe-inner {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    @media (max-width: 420px) {
-        .blog-subscribe-email-row {
-            flex-direction: column;
-        }
-    }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/blog.css') }}">
+<main class="blog-page">
+ <div class="blog-shell">
+  <header class="blog-hero">
+   <div><p class="blog-kicker">Sončnice · osebni blog</p><h1 class="notranslate" translate="no" data-blog-title>Rože dobrega</h1><p class="blog-lead">Zapisi o veselju do življenja, zaupanju v Boga in hvaležnosti. Majhne misli, ki lahko polepšajo dan.</p><div class="blog-actions"><a class="blog-button" href="#blog-posts">Razišči zapise <i class="bi bi-arrow-down" aria-hidden="true"></i></a><a class="blog-text-link" href="/blog/o-blogu">O blogu <i class="bi bi-arrow-right" aria-hidden="true"></i></a></div></div>
+   <div class="blog-flower" aria-hidden="true"><span class="blog-flower-ring"></span><i class="bi bi-flower1"></i><span>Vsak dan nekaj dobrega.</span></div>
+  </header>
+  <section id="blog-posts" aria-labelledby="blog-posts-title">
+   <div class="blog-section-heading"><div><p class="blog-kicker">Za trenutek miru</p><h2 id="blog-posts-title">Zapisi za branje.</h2></div><div class="blog-search" hidden><label class="visually-hidden" for="blogSearch">Poišči objavo</label><i class="bi bi-search" aria-hidden="true"></i><input type="search" id="blogSearch" placeholder="Poišči naslov ali temo …"><button type="button" id="blogClearSearch" aria-label="Počisti iskanje" hidden><i class="bi bi-x-lg" aria-hidden="true"></i></button></div></div>
+   <p class="blog-search-status" id="blogSearchStatus" role="status" aria-live="polite" hidden></p>
+   <div class="blog-post-grid">
+   {% for post in posts %}
+    <article class="blog-post-card{% if loop.first %} blog-post-featured{% endif %}" data-blog-post data-post-search="{{ post.title }} {{ post.excerpt|default('', true) }}">
+     <a class="blog-post-image-link" href="{{ url_for('blog.blog_post', post_id=post.id) }}" tabindex="-1" aria-hidden="true">
+      {% if post.image %}<img src="{{ url_for('blog.blog_image_file', file_name=post.image) }}" alt="" class="blog-card-image" loading="{{ 'eager' if loop.first else 'lazy' }}" decoding="async">{% else %}<span class="blog-image-placeholder"><i class="bi bi-flower1" aria-hidden="true"></i></span>{% endif %}
+     </a>
+     <div class="blog-post-copy"><div class="blog-post-meta"><time datetime="{{ post.published_at or post.created_at }}">{{ post.created_at_display }}</time>{% if not post.published %}<span class="blog-draft">Osnutek</span>{% elif loop.first %}<span>Najnovejši zapis</span>{% endif %}</div><h3><a href="{{ url_for('blog.blog_post', post_id=post.id) }}">{{ post.title }}</a></h3><p>{{ post.excerpt|default('', true)|striptags|truncate(180 if loop.first else 140) }}</p><a class="blog-read-link" href="{{ url_for('blog.blog_post', post_id=post.id) }}" aria-label="Preberi: {{ post.title }}">Preberi zapis <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a></div>
+    </article>
+   {% else %}<p class="blog-empty">Prvi zapisi še nastajajo. Naroči se na obvestila in izvedi, ko bo objavljeno kaj novega.</p>{% endfor %}
+   </div>
+   <p class="blog-empty" id="blogNoResults" hidden>Ni zadetkov. Poskusi drugo besedo ali počisti iskanje.</p>
+  </section>
+  {% include 'partials/blog_subscribe_banner.html' %}
+ </div>
+</main>
+<script defer src="{{ url_for('static', filename='js/blog_ui.js') }}"></script>
 {% endblock %}
