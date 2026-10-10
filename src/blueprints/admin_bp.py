@@ -494,9 +494,9 @@ def admin_blog_new():
         subtitle = request.form.get("subtitle")
         content = request.form.get("content")
         image = request.form.get("image")
-        excerpt = request.form.get("excerpt")
         keywords = request.form.get("keywords")
-        seo_description = request.form.get("seo_description")
+        seo_description = request.form.get("seo_description", "").strip()
+        excerpt = seo_description
         image_desc = request.form.get("image_desc")
         published = request.form.get("published") == "1"
         image_file = request.files.get("image_file")
@@ -635,9 +635,9 @@ def admin_blog_edit(post_id):
         title = request.form.get("title")
         subtitle = request.form.get("subtitle")
         content = request.form.get("content")
-        excerpt = request.form.get("excerpt")
         keywords = request.form.get("keywords")
-        seo_description = request.form.get("seo_description")
+        seo_description = request.form.get("seo_description", "").strip()
+        excerpt = seo_description
         image_desc = request.form.get("image_desc")
         published = request.form.get("published") == "1"
         image_file = request.files.get("image_file")

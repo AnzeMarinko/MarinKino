@@ -41,11 +41,6 @@
                         </div>
 
                         <div class="mb-3">
-                            <label for="excerpt" class="form-label">Izvleček</label>
-                            <textarea class="form-control" id="excerpt" name="excerpt" rows="3">{{ post.excerpt if post else '' }}</textarea>
-                        </div>
-
-                        <div class="mb-3">
                             <label for="keywords" class="form-label">Ključne besede (SEO)</label>
                             <input type="text" class="form-control" id="keywords" name="keywords" value="{{ post.keywords if post else '' }}" placeholder="Vera, Karolina, družina ...">
                             <div class="form-text">Ločite ključne besede z vejico. Pomagajo pri iskanju v Googlu (5-7 besed).</div>
@@ -53,9 +48,9 @@
 
                         <div class="mb-3">
                             <label for="seo_description" class="form-label">SEO opis</label>
-                            <textarea class="form-control" id="seo_description" name="seo_description" rows="2" maxlength="160">{{ post.seo_description if post else '' }}</textarea>
+                            <textarea class="form-control" id="seo_description" name="seo_description" rows="2" maxlength="160">{{ (post.seo_description or post.excerpt)|default('', true) if post else '' }}</textarea>
                             <div class="form-text">
-                                <span id="seo-description-count">0</span>/160 znakov. Kratek opis za Google rezultate (155-160 znakov). Če prazno, se uporabi izvleček.
+                                <span id="seo-description-count">0</span>/160 znakov. Kratek opis za Google in izvleček na seznamu objav.
                             </div>
                         </div>
 

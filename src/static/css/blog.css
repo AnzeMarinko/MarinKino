@@ -116,3 +116,26 @@
 }
 @media (max-width: 480px) { .blog-post-grid { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .blog-page * { transition: none !important; scroll-behavior: auto !important; } }
+
+.blog-browse-tools { display:flex; align-items:center; gap:.75rem; min-width:0; }
+.blog-index { position:relative; flex-shrink:0; }
+.blog-index summary { cursor:pointer; font-size:.85rem; font-weight:700; color:var(--blog-ink); padding:.75rem; border:1px solid #cfdccc; border-radius:.7rem; background:white; }
+.blog-index nav { position:absolute; inset-inline-end:0; top:calc(100% + .5rem); z-index:20; width:min(420px, calc(100vw - 40px)); max-height:420px; overflow:auto; background:white; border:1px solid #cfdccc; border-radius:1rem; box-shadow:0 10px 28px #28443124; padding:.5rem; }
+.blog-index ul { list-style:none; padding:0; margin:0; }
+.blog-index a { display:flex; align-items:baseline; justify-content:space-between; gap:1rem; padding:.7rem; color:var(--blog-ink); text-decoration:none; border-radius:.5rem; font-size:.85rem; }
+.blog-index a:hover,.blog-index a:focus-visible { background:#edf4ea; }
+.blog-index time { flex-shrink:0; color:var(--blog-muted); font-size:.75rem; }
+.blog-pagination { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:.4rem; margin:2rem 0; }
+.blog-pagination a,.blog-pagination span { display:inline-flex; align-items:center; justify-content:center; min-width:40px; min-height:40px; padding:.5rem .8rem; border-radius:.65rem; text-decoration:none; font-size:.85rem; }
+.blog-pagination a { background:white; border:1px solid #cfdccc; color:var(--blog-ink); }
+.blog-pagination a:hover { background:#edf4ea; }
+.blog-pagination .blog-page-current { background:#416b55; color:white; font-weight:700; }
+#blog-posts { scroll-margin-top:90px; }
+#blogSearchFeedback:empty { display:none; }
+@media(max-width:767px) {
+    .blog-browse-tools { flex-wrap:wrap; }
+    .blog-search { flex:1 1 100%; }
+    .blog-index { width:100%; }
+    .blog-index nav { position:static; width:100%; margin-top:.5rem; }
+    .blog-index a { gap:.5rem; }
+}

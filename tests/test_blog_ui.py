@@ -1,6 +1,7 @@
 """Public blog layout, search, reading navigation and localized forms."""
 
 import pytest
+from playwright.sync_api import expect
 from test_admin_memes_ui import browser as browser_fixture
 from test_blog_translation import blog as blog_fixture
 
@@ -61,12 +62,12 @@ def test_browser_blog_search_and_reading_navigation(public_blog, browser):
     page = browser.page
     page.goto(browser.base + "/blog")
     page.get_by_role("searchbox", name="Poišči objavo").fill("cebelice")
-    assert page.locator("[data-blog-post]:visible").count() == 1
+    expect(page.locator("[data-blog-post]:visible")).to_have_count(1)
     assert "Čebelice" in page.locator("[data-blog-post]:visible").inner_text()
     page.locator("#blogSearch").fill("zzzzzzzzzz")
-    assert page.locator("#blogNoResults").is_visible()
+    expect(page.locator("#blogNoResults")).to_be_visible()
     page.get_by_role("button", name="Počisti iskanje").click()
-    assert page.locator("[data-blog-post]:visible").count() == 4
+    expect(page.locator("[data-blog-post]:visible")).to_have_count(4)
     assert page.locator("#blogSearch").evaluate(
         "(el) => el === document.activeElement"
     )
@@ -89,8 +90,8 @@ def test_browser_blog_without_javascript(public_blog, browser):
     page = context.new_page()
     try:
         page.goto(browser.base + "/blog")
-        assert page.locator("[data-blog-post]:visible").count() == 4
-        assert not page.locator(".blog-search").is_visible()
+        expect(page.locator("[data-blog-post]:visible")).to_have_count(4)
+        assert page.locator(".blog-search").is_visible()
         page.get_by_role(
             "link", name="Preberi: Javna objava", exact=True
         ).click()
@@ -98,3 +99,35 @@ def test_browser_blog_without_javascript(public_blog, browser):
         assert page.locator(".blog-content").is_visible()
     finally:
         context.close()
+
+
+def test_browser_pagination_index_and_global_search(public_blog, browser):
+    for number in range(1, 27):
+        public_blog.posts[f"page-{number}"] = dict(
+            public_blog.posts["javno"],
+            id=f"page-{number}",
+            title=f"Novejša objava {number}",
+            created_at=f"2026-09-{number:02d}T12:00:00+00:00",
+        )
+    page = browser.page
+    page.goto(browser.base + "/blog")
+    expect(page.locator("[data-blog-post]")).to_have_count(12)
+    page.get_by_role("link", name="Naslednja →", exact=True).click()
+    expect(page.locator(".blog-page-current")).to_have_text("2")
+    assert "page=2" in page.url
+    expect(page.locator("[data-blog-post]")).to_have_count(12)
+    page.go_back()
+    expect(page.locator(".blog-page-current")).to_have_text("1")
+    page.locator("#blogIndex summary").click()
+    expect(page.locator("#blogIndex a")).to_have_count(30)
+    assert page.locator("#blogIndex time").count() == 30
+    page.locator("#blogIndex summary").click()
+    page.locator("#blogSearch").fill("cebelice")
+    expect(page.locator("[data-blog-post]")).to_have_count(1)
+    assert "Čebelice" in page.locator("[data-blog-post]").inner_text()
+    assert "page=" not in page.url
+    page.get_by_role("button", name="Počisti iskanje").click()
+    expect(page.locator("[data-blog-post]")).to_have_count(12)
+    assert page.locator("#blogSearch").evaluate(
+        "el => el === document.activeElement"
+    )

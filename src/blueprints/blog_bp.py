@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import secrets
+import unicodedata
 from datetime import datetime, timezone
 from urllib.parse import quote, urlsplit
 
@@ -109,14 +110,60 @@ def blog_list():
             "%d. %m. %Y"
         )
 
-    return render_template(
-        "blog_list.html",
-        posts=sorted_posts,
+    query = request.args.get("q", "").strip()
+
+    def normalize(value):
+        return "".join(
+            char
+            for char in unicodedata.normalize("NFD", str(value))
+            if not unicodedata.combining(char)
+        ).casefold()
+
+    terms = normalize(query).split()
+    matching_posts = [
+        post
+        for post in sorted_posts
+        if all(
+            term
+            in normalize(
+                f"{post.get('title', '')} "
+                f"{post.get('seo_description') or post.get('excerpt', '')}"
+            )
+            for term in terms
+        )
+    ]
+    per_page = 12
+    total = len(matching_posts)
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    page = max(1, min(request.args.get("page", 1, type=int), total_pages))
+    start = (page - 1) * per_page
+    context = dict(
+        posts=matching_posts[start : start + per_page],
+        blog_index=sorted_posts,
+        query=query,
+        page=page,
+        total=total,
+        total_pages=total_pages,
+        page_numbers=sorted(
+            {
+                1,
+                total_pages,
+                *range(max(1, page - 2), min(total_pages, page + 2) + 1),
+            }
+        ),
+        first_result=start + 1 if total else 0,
+        last_result=min(start + per_page, total),
         pagetitle="Sončnice",
         blog_view="blog",
         blog_translation_urls=blog_translation_urls(),
         turnstile_site_key=os.getenv("TURNSTILE_SITE_KEY"),
     )
+    template = (
+        "partials/blog_results.html"
+        if request.args.get("partial") == "1"
+        else "blog_list.html"
+    )
+    return render_template(template, **context)
 
 
 @blog_bp.route("/blog/pogoji-uporabe")
@@ -278,20 +325,24 @@ def subscription_redirect(language):
 def blog_subscription_form():
     language = normalize_language(request.args.get("lang"))
     base_url = public_base_url() or request.host_url.rstrip("/")
-    response = make_response(render_template(
-        "blog_subscribe.html",
-        language=language,
-        copy=messages(language),
-        direction=BLOG_LANGUAGES[language]["direction"],
-        blog_url=translate_url(base_url + url_for("blog.blog_list"), language),
-        terms_url=translate_url(
-            base_url + url_for("blog.blog_terms"), language
-        ),
-        privacy_url=translate_url(
-            base_url + url_for("blog.blog_privacy"), language
-        ),
-        turnstile_site_key=os.getenv("TURNSTILE_SITE_KEY"),
-    ))
+    response = make_response(
+        render_template(
+            "blog_subscribe.html",
+            language=language,
+            copy=messages(language),
+            direction=BLOG_LANGUAGES[language]["direction"],
+            blog_url=translate_url(
+                base_url + url_for("blog.blog_list"), language
+            ),
+            terms_url=translate_url(
+                base_url + url_for("blog.blog_terms"), language
+            ),
+            privacy_url=translate_url(
+                base_url + url_for("blog.blog_privacy"), language
+            ),
+            turnstile_site_key=os.getenv("TURNSTILE_SITE_KEY"),
+        )
+    )
     response.headers["Cache-Control"] = "no-store"
     response.headers["Referrer-Policy"] = "no-referrer"
     return response
@@ -333,7 +384,8 @@ def blog_subscribe():
     existing = next((sub for sub in subs if sub["email"] == email), None)
     spam_domains = {"immenseignite.info", "mail.ru"}
     if (
-        existing and existing["language"] == language
+        existing
+        and existing["language"] == language
         or email.rsplit("@", 1)[-1] in spam_domains
     ):
         flash(copy["generic_success"], "success")
@@ -366,7 +418,8 @@ def blog_subscribe():
                 f"{copy['expires']}\n\n{copy['confirmation_ignore']}"
                 + (
                     f"\n\n{copy['automatic_notice']}"
-                    if language != "sl" else ""
+                    if language != "sl"
+                    else ""
                 )
             ),
             html=render_template(

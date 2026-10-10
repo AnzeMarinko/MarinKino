@@ -8,19 +8,17 @@
    <div class="blog-flower" aria-hidden="true"><img id="blog-logo" src="{{ url_for('static', filename='blog_favicon_io/android-chrome-512x512.png') }}" alt="" style="max-width: 50%;"></div>
   </header>
   <section id="blog-posts" aria-labelledby="blog-posts-title">
-   <div class="blog-section-heading"><div><p class="blog-kicker">V razmislek in navdih</p></div><div class="blog-search" hidden><label class="visually-hidden" for="blogSearch">Poišči objavo</label><i class="bi bi-search" aria-hidden="true"></i><input type="search" id="blogSearch" placeholder="Poišči naslov ali temo …"><button type="button" id="blogClearSearch" aria-label="Počisti iskanje" hidden><i class="bi bi-x-lg" aria-hidden="true"></i></button></div></div>
-   <p class="blog-search-status" id="blogSearchStatus" role="status" aria-live="polite" hidden></p>
-   <div class="blog-post-grid">
-   {% for post in posts %}
-    <article class="blog-post-card{% if loop.first %} blog-post-featured{% endif %}" data-blog-post data-post-search="{{ post.title }} {{ post.excerpt|default('', true) }}">
-     <a class="blog-post-image-link" href="{{ url_for('blog.blog_post', post_id=post.id) }}" tabindex="-1" aria-hidden="true">
-      {% if post.image %}<img src="{{ url_for('blog.blog_image_file', file_name=post.image) }}" alt="" class="blog-card-image" loading="{{ 'eager' if loop.first else 'lazy' }}" decoding="async">{% else %}<span class="blog-image-placeholder"><i class="bi bi-flower1" aria-hidden="true"></i></span>{% endif %}
-     </a>
-     <div class="blog-post-copy"><div class="blog-post-meta"><time datetime="{{ post.published_at or post.created_at }}">{{ post.created_at_display }}</time>{% if not post.published %}<span class="blog-draft">Osnutek</span>{% elif loop.first %}<span>Najnovejši zapis</span>{% endif %}</div><h3><a href="{{ url_for('blog.blog_post', post_id=post.id) }}">{{ post.title }}</a></h3><p>{{ post.excerpt|default('', true)|striptags|truncate(180 if loop.first else 140) }}</p><a class="blog-read-link" href="{{ url_for('blog.blog_post', post_id=post.id) }}" aria-label="Preberi: {{ post.title }}">Preberi zapis <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a></div>
-    </article>
-   {% else %}<p class="blog-empty">Prvi zapisi še nastajajo. Naroči se na obvestila in izvedi, ko bo objavljeno kaj novega.</p>{% endfor %}
+   <div class="blog-section-heading"><div><p class="blog-kicker" id="blog-posts-title">V razmislek in navdih</p></div>
+    <div class="blog-browse-tools">
+     <form class="blog-search" id="blogSearchForm" action="{{ url_for('blog.blog_list') }}" method="get" role="search">
+      {% if request.args.get('lang') %}<input type="hidden" name="lang" value="{{ request.args.get('lang') }}">{% endif %}
+      <label class="visually-hidden" for="blogSearch">Poišči objavo</label><i class="bi bi-search" aria-hidden="true"></i><input type="search" id="blogSearch" name="q" value="{{ query }}" placeholder="Poišči naslov ali temo …"><button type="button" id="blogClearSearch" aria-label="Počisti iskanje" {% if not query %}hidden{% endif %}><i class="bi bi-x-lg" aria-hidden="true"></i></button><button type="submit" aria-label="Išči objave"><i class="bi bi-arrow-right" aria-hidden="true"></i></button>
+     </form>
+     <details id="blogIndex" class="blog-index"><summary><i class="bi bi-list-ul" aria-hidden="true"></i> Kazalo objav</summary><nav aria-label="Kazalo vseh objav"><ul>{% for post in blog_index %}<li><a href="{{ url_for('blog.blog_post', post_id=post.id) }}"><span>{{ post.title }}{% if not post.published %} <small>(osnutek)</small>{% endif %}</span><time datetime="{{ post.published_at or post.created_at }}">{{ post.created_at_display }}</time></a></li>{% else %}<li>Objav še ni.</li>{% endfor %}</ul></nav></details>
+    </div>
    </div>
-   <p class="blog-empty" id="blogNoResults" hidden>Ni zadetkov. Poskusi drugo besedo ali počisti iskanje.</p>
+   <p id="blogSearchFeedback" class="blog-search-status" role="status" aria-live="polite"></p>
+   <div id="blog-results">{% include 'partials/blog_results.html' %}</div>
   </section>
   {% include 'partials/blog_subscribe_banner.html' %}
  </div>
