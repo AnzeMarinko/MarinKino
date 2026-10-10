@@ -251,7 +251,8 @@ def notify_admins_about_subscriber(email):
             "mail_notification.html",
             notification_title="Nov potrjen naročnik na blog",
             notification_fields=[
-                ("E-pošta", email), ("Stran", request.host_url)
+                ("E-pošta", email),
+                ("Stran", request.host_url),
             ],
             mail_base_url=public_base_url() or request.host_url.rstrip("/"),
         ),

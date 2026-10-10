@@ -96,6 +96,66 @@ def test_audio_templates(audio_site):
         assert "user-scalable=no" not in html
 
 
+@pytest.mark.parametrize("size", [(320, 568), (375, 667), (667, 375)])
+def test_browser_small_phone_lists_scroll(audio_site, browser, size):
+    page = browser.page
+    page.set_viewport_size(dict(zip(("width", "height"), size)))
+    songs = audio_site.public_albums[0]["songs"]
+    for index in range(40):
+        name = f"song-{index}.wav"
+        songs.append(name)
+        audio_site.metadata[name] = dict(
+            title=f"Dolgi naslov skladbe za preverjanje drsenja {index}",
+            artist="Izvajalec",
+            album="Za dobro voljo",
+            file_path=name,
+            duration=30,
+        )
+    audio_site.public_albums.extend(
+        dict(name=f"Album {index:02}", songs=songs)
+        for index in range(30)
+    )
+
+    def check_scroll(selector):
+        listing = page.locator(selector)
+        listing.scroll_into_view_if_needed()
+        assert listing.evaluate("el => el.clientHeight >= 100")
+        assert listing.evaluate(
+            "el => el.scrollHeight > el.clientHeight + 100"
+        )
+        listing.hover()
+        page.mouse.wheel(0, 500)
+        page.wait_for_function(
+            "selector => document.querySelector(selector).scrollTop > 0",
+            arg=selector,
+        )
+        listing.evaluate("el => el.scrollTop = el.scrollHeight")
+        assert listing.evaluate(
+            "el => Math.abs(el.scrollHeight - el.clientHeight "
+            "- el.scrollTop) < 2"
+        )
+
+    for path in ["/music", "/radio-stories"]:
+        page.goto(browser.base + path)
+        page.locator(".track-item").first.wait_for(state="attached")
+        if path == "/music":
+            page.locator('.toggle-btn[data-target="albums"]').click()
+            check_scroll("#albumList")
+            page.locator(".album-item").last.click()
+        check_scroll("#trackList")
+        assert page.evaluate(
+            "document.documentElement.scrollWidth <= innerWidth + 1"
+        )
+        page.locator("#playBtn").scroll_into_view_if_needed()
+        assert page.locator("#playBtn").evaluate(
+            "el => el.getBoundingClientRect().bottom <= innerHeight + 1"
+        )
+        page.screenshot(
+            path=f"/private/tmp/audio-small-{path[1:]}-{size[0]}.png",
+            full_page=True,
+        )
+
+
 def test_browser_audio_layout_search_keyboard_and_playback(
     audio_site, browser
 ):
