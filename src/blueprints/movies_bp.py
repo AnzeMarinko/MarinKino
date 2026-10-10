@@ -729,45 +729,28 @@ def rate_movie():
                 "emails", [os.getenv("GMAIL_USERNAME")]
             )[0]
 
-            # Pripravi povzetek ocen
-            ratings_html = "<ul>"
-            if violence:
-                ratings_html += (
-                    f"<li><strong>Nasilje:</strong> {violence}/5</li>"
-                )
-            if sexual:
-                ratings_html += (
-                    f"<li><strong>Spolnost:</strong> {sexual}/5</li>"
-                )
-            if would_watch:
-                ratings_html += (
-                    f"<li><strong>Priporočilo:</strong> {would_watch}/5</li>"
-                )
-            if video_quality:
-                ratings_html += (
-                    "<li><strong>Kvaliteta videa:</strong>"
-                    f" {video_quality}/5</li>"
-                )
-            if subtitles_quality:
-                ratings_html += (
-                    "<li><strong>Kvaliteta podnapisov:</strong>"
-                    f" {subtitles_quality}/5</li>"
-                )
+            rating_fields = [("Film", movie_title), ("Uporabnik", user_id)]
+            for label, value in [
+                ("Nasilje", violence),
+                ("Spolnost", sexual),
+                ("Priporočilo", would_watch),
+                ("Kvaliteta videa", video_quality),
+                ("Kvaliteta podnapisov", subtitles_quality),
+            ]:
+                if value:
+                    rating_fields.append((label, f"{value}/5"))
             if age_group:
-                ratings_html += (
-                    f"<li><strong>Primerna starost:</strong> +{age_group}</li>"
-                )
-            ratings_html += "</ul>"
-
-            email_html = f"""
-            <h2>Nove ocene za film: {movie_title}</h2>
-            <p><strong>Uporabnik:</strong> {user_id}</p>
-            <h3>Podane ocene:</h3>
-            {ratings_html}
-            <hr>
-            <p><a href="{os.getenv("WWW_DOMAIN")}/movies/play{movie_folder}">
-            Pojdi na film</a></p>
-            """
+                rating_fields.append(("Primerna starost", f"+{age_group}"))
+            email_html = render_template(
+                "mail_notification.html",
+                notification_title="Nove ocene filma",
+                notification_fields=rating_fields,
+                notification_action_url=(
+                    f"https://{os.getenv('WWW_DOMAIN') or request.host}"
+                    f"/movies/play{movie_folder}"
+                ),
+                notification_action_label="Pojdi na film",
+            )
 
             send_mail(
                 to=[admin_email],
@@ -1138,16 +1121,20 @@ def add_comment():
             "emails", [os.getenv("GMAIL_USERNAME")]
         )[0]
 
-        email_html = f"""
-        <h2>Nov {comment_type}: {movie_title}</h2>
-        <p><strong>Avtor:</strong> {author_name}</p>
-        <p><strong>Email:</strong> {author_email}</p>
-        <p><strong>Komentar:</strong></p>
-        <p>{comment_text}</p>
-        <hr>
-        <p><a href="{os.getenv("WWW_DOMAIN")}/admin">
-        Pojdi v admin panel</a></p>
-        """
+        email_html = render_template(
+            "mail_notification.html",
+            notification_title=f"Nov {comment_type}",
+            notification_fields=[
+                ("Film", movie_title),
+                ("Avtor", author_name),
+                ("E-pošta", author_email),
+            ],
+            notification_sections=[("Komentar", comment_text)],
+            notification_action_url=(
+                f"https://{os.getenv('WWW_DOMAIN') or request.host}/admin"
+            ),
+            notification_action_label="Odpri administracijo",
+        )
 
         try:
             send_mail(
@@ -1247,15 +1234,18 @@ def admin_comment():
 
         user_email = movie_metadata["user_notes"][comment_index]["email"]
 
-        email_html = f"""
-        <h2>Odgovor na vaš komentar</h2>
-        <p><strong>Film:</strong> {movie_title}</p>
-        <p><strong>Vaš komentar:</strong></p>
-        <p>{movie_metadata["user_notes"][comment_index]["text"]}</p>
-        <hr>
-        <p><strong>Odgovor:</strong></p>
-        <p>{admin_response}</p>
-        """
+        email_html = render_template(
+            "mail_notification.html",
+            notification_title="Odgovor na vaš komentar",
+            notification_fields=[("Film", movie_title)],
+            notification_sections=[
+                (
+                    "Vaš komentar",
+                    movie_metadata["user_notes"][comment_index]["text"],
+                ),
+                ("Odgovor", admin_response),
+            ],
+        )
 
         try:
             send_mail(

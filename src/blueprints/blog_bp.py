@@ -247,6 +247,14 @@ def notify_admins_about_subscriber(email):
         text=(
             f"Nov potrjen naročnik na blog: {email}\nStran: {request.host_url}"
         ),
+        html=render_template(
+            "mail_notification.html",
+            notification_title="Nov potrjen naročnik na blog",
+            notification_fields=[
+                ("E-pošta", email), ("Stran", request.host_url)
+            ],
+            mail_base_url=public_base_url() or request.host_url.rstrip("/"),
+        ),
         batch_id="new_subscriber",
     )
 

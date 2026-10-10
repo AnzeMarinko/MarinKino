@@ -1,107 +1,31 @@
-{% extends "base.html" %}
-
-{% block content %}
-<table width="100%" cellpadding="0" cellspacing="0" style="background: #ffffff;">
-<tr>
-<td align="center" style="padding: 8px;">
-
-<table width="100%" style="max-width:600px;background:#ffffff;border-radius:16px;padding:20px;">
-
-<!-- HEADER -->
-<tr>
-<td align="center" style="padding:20px 0;">
-    <a href="https://{{ domain }}"><div style="background:linear-gradient(135deg, #ef9918 0%, #ee4a43 100%);width:100px;height:100px;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto;margin-bottom:15px;box-shadow:none;">
-        <img src="https://{{ domain }}/static/logo.png" width="80" style="max-width:100%;height:auto;" alt="MarinKino">
-    </div></a>
-    <h2 style="margin:0 0 8px;color:#333;font-size:28px;font-weight:700;">
-    {{ mailtitle }}
-    </h2>
-
-    <div style="text-align: left;">
-    Pozdravljen <b>{{ username }}</b>, tu so filmi, ki jih priporočam
-          </div>
-
-
+{% extends "mail_base.html" %}
+{% from 'partials/mail_components.html' import button %}
+{% block mail_title %}{{ mailtitle }}{% endblock %}
+{% block mail_preheader %}Filmska priporočila za prijeten večer in še nekaj za nasmeh.{% endblock %}
+{% block mail_content %}
+<p style="margin:0 0 12px;">Pozdravljen <strong>{{ username }}</strong>,</p>
+<p style="margin:0 0 24px;">tu je izbor filmov, ki jih priporočam za naslednji filmski večer.</p>
 {% for film in film_recommendations %}
-    <tr>
-    <td style="padding:14px;border-top:1px solid #eee;">
-
-    <table width="100%" cellpadding="0" cellspacing="0">
-
-    <!-- SLIKA (mobile: full width) -->
-    <tr>
-    <td align="center">
-    <img src="https://{{ domain }}/newsletter_image/file/{{ film.cover_filename }}"
-        style="width:100%;max-width:220px;height:auto;
-                border-radius:8px;display:block;margin-bottom:10px;"
-        alt="Naslovnica: {{ film.title }}">
-    </td>
-    </tr>
-
-    <!-- VSEBINA -->
-    <tr>
-    <td>
-
-    <h3 style="margin:0 0 6px;color:#111;font-size:18px;">
-        Film {{ film.title }}
-    </h3>
-
-    <p style="margin:0 0 6px;font-size:14px;color:#555;">
-        🎬 <b>Žanr:</b> {% for genre in film.genres %} {{ genre }} · {% endfor %}<br>
-        ⏱ <b>Dolžina:</b> {{ film.duration }}
-    </p>
-
-    <p style="margin:0 0 12px;font-size:15px;color:#444;line-height:1.5;">
-        {{ film.short_description }}
-    </p>
-
-    <!-- GUMB (mobile-friendly) -->
-    <a href="https://{{ domain }}/movies/play/{{ film.path }}"
-        style="display:block;width:80%;padding:16px;
-          background:linear-gradient(135deg, #f59e0b 0%, #ff6a88 100%);color:#fff;font-size:16px;
-          font-weight:bold;text-decoration:none;
-          border-radius:10px;text-align:center;box-shadow:0 4px 12px rgba(245,158,11,0.3);margin-left: auto;margin-right: auto;">
-        ▶️ Poglej film
-    </a>
-
-    </td>
-    </tr>
-
-    </table>
-    </td>
-    </tr>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:0 0 22px;border:1px solid #dce8e1;border-radius:12px;background:#f7faf8;">
+  <tr><td style="padding:18px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+      <td class="mail-stack" width="144" valign="top" style="width:144px;padding:0 18px 0 0;vertical-align:top;">
+        <a href="https://{{ domain }}/movies/play/{{ film.path|urlencode }}" style="text-decoration:none;"><img class="mail-poster" src="https://{{ domain }}/newsletter_image/file/{{ film.cover_filename|urlencode }}" width="126" alt="Naslovnica: {{ film.title }}" style="display:block;width:126px;max-width:100%;height:auto;border:0;border-radius:8px;"></a>
+      </td>
+      <td class="mail-stack" valign="top" style="vertical-align:top;">
+        <h2 style="margin:0 0 10px;font-size:20px;line-height:1.35;color:#253e40;">{{ film.title }}</h2>
+        <p style="margin:0 0 10px;font-size:12px;line-height:1.7;color:#617570;">{% for genre in film.genres %}{{ genre }}{% if not loop.last %} · {% endif %}{% endfor %}<br><strong style="color:#415b55;">{{ film.duration }}</strong></p>
+        <p style="margin:0;font-size:14px;line-height:1.7;color:#415b55;">{{ film.short_description }}</p>
+        {{ button('https://' ~ domain ~ '/movies/play/' ~ (film.path|urlencode), 'Poglej film') }}
+      </td>
+    </tr></table>
+  </td></tr>
+</table>
 {% endfor %}
-
-<!-- ===== MEME ===== -->
-<tr>
-<td style="padding:14px;border-top:1px solid #eee;">
-<table width="100%" cellpadding="0" cellspacing="0">
-
-<tr>
-<td align="center">
-  <a href="https://{{ domain }}/memes">
-    <img src="https://{{ domain }}/newsletter_image/file/{{ meme_file }}?user={{ username }}"
-       style="width:100%;max-width:220px;height:auto;
-              border-radius:8px;display:block;margin-bottom:10px;"
-       alt="Šala"></a>
-</td>
-</tr>
-
-</table>
-<p style="text-align: right;">Lep pozdrav,<br>MarinKino sistem</p>
-</td>
-</tr>
-
-<!-- FOOTER -->
-<tr>
-<td align="center" style="padding:20px 0 0;font-size:13px;color:#999;border-top:1px solid #eee;line-height:1.8;">
-    To je samodejno sporočilo. Prejeli ste ga, ker imate ustvarjen račun na MarinKinu.<br>
-    <b style="color:#f59e0b;">© MarinKino</b> – Anže Marinko
-</td>
-</tr>
-</table>
-</td>
-</tr>
-</table>
-
+{% if meme_file %}
+<h2 style="margin:28px 0 12px;font-size:19px;line-height:1.4;color:#253e40;">Še nekaj za nasmeh</h2>
+<a href="https://{{ domain }}/memes" style="text-decoration:none;"><img src="https://{{ domain }}/newsletter_image/file/{{ meme_file|urlencode }}?user={{ username|urlencode }}" width="360" alt="Šala · za ogled odprite MarinKino" style="display:block;width:100%;max-width:360px;height:auto;border:0;border-radius:10px;"></a>
+{% endif %}
+<p style="margin:26px 0 0;">Lep filmski večer,<br>Anže Marinko</p>
 {% endblock %}
+{% block mail_footer %}To je samodejno sporočilo. Prejeli ste ga, ker imate ustvarjen račun na MarinKinu.{% endblock %}

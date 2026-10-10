@@ -1,75 +1,17 @@
-{% extends "base.html" %}
-
-{% block content %}
-<table width="100%" cellpadding="0" cellspacing="0" style="background: #ffffff;">
-<tr>
-<td align="center" style="padding: 8px;">
-
-<table width="100%" style="max-width:600px;background:#ffffff;border-radius:16px;padding:20px;">
-
-<!-- HEADER -->
-<tr>
-<td align="center" style="padding:20px 0;">
-    <a href="https://{{ domain }}"><div style="background:linear-gradient(135deg, #ef9918 0%, #ee4a43 100%);width:100px;height:100px;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto;margin-bottom:15px;box-shadow:none;">
-        <img src="https://{{ domain }}/static/logo.png" width="80" style="max-width:100%;height:auto;" alt="MarinKino">
-    </div></a>
-    <h2 style="margin:0 0 8px;color:#333;font-size:28px;font-weight:700;">
-        Dobrodošli v MarinKino
-    </h2>
-    <div style="margin:0;color:#666;font-size:15px;font-weight:500;">
-          <p>Vaš uporabniški račun je bil uspešno ustvarjen.</p>
-
-            <p><b>Uporabniško ime:</b> {{ username }}</p>
-            <p>Novo geslo nastavite prek enkratne povezave:</p>
-            <a href="{{ reset_link }}"
-             style="display:block;width:80%;padding:16px;
-                background:linear-gradient(135deg, #f59e0b 0%, #ff6a88 100%);color:#fff;font-size:16px;
-                font-weight:bold;text-decoration:none;border-radius:10px;text-align:center;margin:24px auto 16px;">
-              Nastavi geslo
-            </a>
-            <p style="font-size:14px;color:#666;">Povezava velja {{ (expiry_minutes / 60) | round }} ur in jo lahko uporabite samo enkrat.</p>
-    </div>
-
-    <div style="margin:24px 0;padding:16px;background:#f5f5f5;border-radius:12px;">
-      <h3 style="margin:0 0 8px;color:#333;font-size:20px;">Kaj je MarinKino?</h3>
-      <p style="margin:0;color:#555;font-size:15px;line-height:1.6;">MarinKino je domači kino in zbirka razvedrila, kjer lahko udobno brskate po filmih, šalah, glasbi in družabni igri Pod Krinko. Vsi filmi so na voljo s slovenskimi podnapisi ali zvokom. Stran je brezplačna in brez oglasov s poudarkom na kvalitetni vsebini (ne pa izključno). Prisotnega je manj nasilja in več filmov s krščansko vsebino. Stran je namenjena širši družini in prijateljem. Za novega uporabnika se obrnite na ustvarjalca strani, Anžeta Marinka.</p>
-    </div>
-
-    <div style="margin:0 0 16px;padding:16px;background:#f5f5f5;border-radius:12px;">
-      <h3 style="margin:0 0 8px;color:#333;font-size:20px;">Kako lahko prispevam?</h3>
-      <p style="margin:0;color:#555;font-size:15px;line-height:1.6;">Projekt je hobi brez resnih stroškov. Vesel pa sem predlogov za nove filme,
-        izboljšave strani ali opozoril o moteči vsebini (neprimernost za otroke, slaba kvaliteta podnapisov ...). Možnost za komentiranje je pod vsakim filmom ali zavihek "Predlogi". Vsa sporočila bom videl le jaz in opozorila k filmom po potrebi anonimno dodal na stran. Poleg tega vas ob koncu ogleda vsakega filma prosim tudi izpolnitev kratke ankete o filmu. Vnaprej hvala za sodelovanje!</p>
-    </div>
-
-    <div style="margin:0 0 16px;padding:16px;background:#f5f5f5;border-radius:12px;">
-      <h3 style="margin:0 0 8px;color:#333;font-size:20px;">Kako začeti?</h3>
-      <p style="margin:0;color:#555;font-size:15px;line-height:1.6;">Prijavite se na https://{{ domain }} in poiščite želene vsebine v glavnem meniju. Če imate vprašanja ali predloge, uporabite povezavo "Predlogi" v aplikaciji. Predlagam, da si stran shranite v zaznamke in v osebnem brskalniku shranite geslo za lažji dostop.</p>
-    </div>
-
-<a href="https://{{ domain }}"
-   style="display:block;width:80%;padding:16px;
-          background:linear-gradient(135deg, #f59e0b 0%, #ff6a88 100%);color:#fff;font-size:16px;
-          font-weight:bold;text-decoration:none;
-          border-radius:10px;text-align:center;box-shadow:0 4px 12px rgba(245,158,11,0.3);margin-left: auto;margin-right: auto;">
-    🚀 Pojdi na domačo stran!
-</a>
-
-          <p style="font-size:14px;color:#666;">
-          Če gumba ne vidite, obiščite: https://{{ domain }}
-          </p>
-
-          <p>Lep pozdrav,<br>MarinKino sistem</p>
-
-</td>
-</tr>
-
-<!-- FOOTER -->
-<tr>
-<td align="center" style="padding:20px 0 0;font-size:13px;color:#999;border-top:1px solid #eee;line-height:1.8;">
-    To je samodejno sporočilo. Prejeli ste ga, ker imate ustvarjen račun na MarinKinu.<br>
-    <b style="color:#f59e0b;">© MarinKino</b> – Anže Marinko
-</td>
-</tr>
-</table>
-
+{% extends "mail_base.html" %}
+{% from 'partials/mail_components.html' import button, fallback, note %}
+{% block mail_title %}Dobrodošli v MarinKino{% endblock %}
+{% block mail_preheader %}Vaš račun je pripravljen. Nastavite geslo in izberite nekaj za svoj prvi filmski večer.{% endblock %}
+{% block mail_content %}
+<p style="margin:0 0 16px;">Vaš uporabniški račun je ustvarjen. Do filmov, glasbe, šal in družabnih iger vas loči še nastavitev gesla.</p>
+{% call note() %}<strong>Uporabniško ime:</strong> {{ username }}<br>Geslo nastavite prek enkratne povezave. Velja {% if expiry_minutes >= 60 %}{{ (expiry_minutes / 60)|round|int }} ur{% else %}{{ expiry_minutes }} minut{% endif %}.{% endcall %}
+{{ button(reset_link, 'Nastavi geslo in začni') }}
+{{ fallback(reset_link, 'Če gumb ne deluje, odprite spodnjo povezavo:') }}
+<h2 style="margin:26px 0 8px;font-size:19px;line-height:1.4;color:#253e40;">Nekaj za vso družino</h2>
+<p style="margin:0 0 16px;">MarinKino je brezplačna zbirka razvedrila za širšo družino in prijatelje, brez oglasov. Filmi imajo slovenske podnapise ali zvok; v zbirki je tudi več filmov s krščansko vsebino.</p>
+<h2 style="margin:26px 0 8px;font-size:19px;line-height:1.4;color:#253e40;">Pomagajte izbrati dobro vsebino</h2>
+<p style="margin:0 0 16px;">Predloge za filme, izboljšave strani ali opozorila o vsebini pošljite prek <a href="https://{{ domain }}/suggestions" style="color:#286e75;text-decoration:underline;">Predlogov</a> ali komentarja pod filmom. Sporočila vidi le skrbnik; opozorila lahko objavi anonimno. Po ogledu lahko film tudi ocenite.</p>
+<p style="margin:22px 0 0;">Prijavite se na <a href="https://{{ domain }}" style="color:#286e75;text-decoration:underline;">MarinKino</a> in izberite svojo prvo vsebino.</p>
+<p style="margin:22px 0 0;">Lep pozdrav,<br>Anže Marinko</p>
 {% endblock %}
+{% block mail_footer %}To sporočilo ste prejeli ob ustvarjanju računa MarinKino.{% endblock %}

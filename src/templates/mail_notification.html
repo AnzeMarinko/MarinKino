@@ -1,0 +1,11 @@
+{% extends 'mail_base.html' %}
+{% from 'partials/mail_components.html' import button, note %}
+{% block mail_title %}{{ notification_title }}{% endblock %}
+{% block mail_preheader %}{{ notification_intro|default(notification_title, true) }}{% endblock %}
+{% block mail_content %}
+{% if notification_intro %}<p style="margin:0 0 18px;">{{ notification_intro }}</p>{% endif %}
+{% if notification_fields %}{% call note() %}{% for label, value in notification_fields %}<p style="margin:0 0 6px;"><strong>{{ label }}:</strong> {{ value }}</p>{% endfor %}{% endcall %}{% endif %}
+{% for label, text in notification_sections|default([]) %}<h2 style="margin:24px 0 10px;font-size:18px;line-height:1.4;color:#253e40;">{{ label }}</h2><div style="margin:0;font-size:15px;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere;">{{ text }}</div>{% endfor %}
+{% if notification_action_url %}{{ button(notification_action_url, notification_action_label) }}{% endif %}
+{% endblock %}
+{% block mail_footer %}Samodejno obvestilo MarinKina.{% endblock %}

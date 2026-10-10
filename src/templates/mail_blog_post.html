@@ -1,48 +1,14 @@
-{% extends "base.html" %}
-
-{% block content %}
-<table width="100%" cellpadding="0" cellspacing="0" style="background: #ffffff;">
-<tr>
-<td align="center" style="padding: 8px;">
-
-<table width="100%" style="max-width:600px;background:#ffffff;border-radius:16px;padding:20px;">
-<tr>
-<td align="center" style="padding:20px 0;">
-    <a href="{{ blog_url }}"><div style="background:linear-gradient(135deg, #ef9918 0%, #ffcc5c 100%);width:100px;height:100px;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto;margin-bottom:15px;box-shadow:none;">
-        <img src="{{ mail_base_url|default('https://' ~ domain) }}/static/blog_favicon_io/android-chrome-512x512.png" width="80" style="max-width:100%;height:auto;" alt="{{ mail_copy.blog_title }}">
-    </div></a>
-    <h2 style="margin:0 0 8px;color:#333;font-size:28px;font-weight:700;">{{ post.title if mail_language == 'sl' else mail_copy.new_post_title }}</h2>
-    <div style="margin:0;color:#666;font-size:15px;font-weight:500;">
-          {% if mail_language == 'sl' %}
-          {% if post.excerpt %}
-            <p>{{ post.excerpt }}</p>
-          {% elif post.subtitle %}
-            <p>{{ post.subtitle }}</p>
-          {% endif %}
-          {% else %}
-            <p>{{ mail_copy.new_post_intro }}</p>
-          {% endif %}
-
-          <p style="margin-top:12px;"><a href="{{ post_url }}" style="color:#007bff;">{{ mail_copy.read_post }}</a></p>
-          {% if mail_language != 'sl' %}
-          <p style="font-size:13px;">{{ mail_copy.automatic_notice }}</p>
-          {% endif %}
-    </div>
-
-    <div style="margin-top:18px;">
-      <p>{{ mail_copy.greeting }}<br><span dir="ltr">Anže Marinko</span></p>
-    </div>
-</td>
-</tr>
-
-<tr>
-<td align="center" style="padding:20px 0 0;font-size:13px;color:#999;border-top:1px solid #eee;line-height:1.8;">
-    {{ mail_copy.unsubscribe }}
-</td>
-</tr>
-</table>
-</td>
-</tr>
-</table>
-
+{% extends "mail_base.html" %}
+{% set mail_is_blog = true %}
+{% from 'partials/mail_components.html' import button, fallback %}
+{% block mail_title %}{{ post.title if mail_language == 'sl' else mail_copy.new_post_title }}{% endblock %}
+{% block mail_preheader %}{{ (post.seo_description or post.excerpt or post.subtitle)|default('', true) if mail_language == 'sl' else mail_copy.new_post_intro }}{% endblock %}
+{% block mail_content %}
+<p style="margin:0 0 18px;color:#617570;">{{ mail_copy.new_post_intro }}</p>
+{% if mail_language == 'sl' and (post.seo_description or post.excerpt or post.subtitle) %}<p style="margin:0 0 18px;font-size:17px;line-height:1.8;">{{ post.seo_description or post.excerpt or post.subtitle }}</p>{% endif %}
+{{ button(post_url, mail_copy.read_post) }}
+{{ fallback(post_url, mail_copy.fallback_link) }}
+{% if mail_language != 'sl' %}<p style="margin:18px 0;font-size:12px;line-height:1.7;color:#617570;">{{ mail_copy.automatic_notice }}</p>{% endif %}
+<p style="margin:26px 0 0;">{{ mail_copy.greeting }}<br><span dir="ltr">Anže Marinko</span></p>
 {% endblock %}
+{% block mail_footer %}{{ mail_copy.unsubscribe }}{% endblock %}

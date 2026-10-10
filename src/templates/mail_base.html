@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="{{ mail_language|default('sl') }}" dir="{{ mail_direction|default('ltr') }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
+  <title>{% block mail_title %}MarinKino{% endblock %}</title>
+  <style>
+    @media only screen and (max-width:620px) {
+      .mail-outer { padding:16px 10px !important; }
+      .mail-content,.mail-header,.mail-footer { padding:22px !important; }
+      .mail-title { font-size:25px !important; }
+      .mail-stack { display:block !important; width:100% !important; padding:0 0 16px !important; }
+      .mail-poster { width:150px !important; margin:0 auto !important; }
+    }
+  </style>
+</head>
+{% set email_origin = mail_base_url|default('https://' ~ domain, true) %}
+{% set email_blog = mail_is_blog|default(false) %}
+{% set email_home = blog_url if email_blog else email_origin %}
+{% set email_brand = mail_copy.blog_title if email_blog else 'MarinKino' %}
+<body style="margin:0;padding:0;background:#eef3f1;color:#253e40;font-family:Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%;">
+  <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">{% block mail_preheader %}{% endblock %}</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#eef3f1" style="width:100%;border-collapse:collapse;">
+    <tr><td class="mail-outer" align="center" style="padding:32px 16px;">
+      <!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="width:100%;max-width:600px;background:#ffffff;border:1px solid #d9e4df;border-radius:18px;border-collapse:separate;overflow:hidden;">
+        <tr><td height="5" bgcolor="{{ '#d9ad48' if email_blog else '#286e75' }}" style="height:5px;font-size:0;line-height:0;"></td></tr>
+        <tr><td class="mail-header" align="{{ 'right' if mail_direction|default('ltr') == 'rtl' else 'left' }}" style="padding:26px 32px;border-bottom:1px solid #e6eeea;">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+            <td width="58" style="width:58px;vertical-align:middle;"><a href="{{ email_home }}" style="text-decoration:none;"><img src="{{ email_origin }}/static/{{ 'blog_favicon_io/android-chrome-512x512.png' if email_blog else 'logo.png' }}" width="44" height="44" alt="{{ email_brand }}" style="display:block;border:0;width:44px;height:44px;"></a></td>
+            <td style="vertical-align:middle;"><a href="{{ email_home }}" style="font-size:20px;font-weight:bold;line-height:1.3;color:#253e40;text-decoration:none;">{{ email_brand }}</a>{% if not email_blog %}<div style="font-size:12px;line-height:1.8;color:#617570;">Čas za razvedrilo</div>{% endif %}</td>
+          </tr></table>
+        </td></tr>
+        <tr><td class="mail-content" align="{{ 'right' if mail_direction|default('ltr') == 'rtl' else 'left' }}" style="padding:30px 32px;font-size:16px;line-height:1.7;color:#253e40;overflow-wrap:anywhere;">
+          <h1 class="mail-title" style="margin:0 0 20px;font-size:28px;line-height:1.25;font-weight:bold;color:#253e40;">{{ self.mail_title() }}</h1>
+          {% block mail_content %}{% endblock %}
+        </td></tr>
+        <tr><td class="mail-footer" align="{{ 'right' if mail_direction|default('ltr') == 'rtl' else 'left' }}" bgcolor="#f7faf8" style="padding:22px 32px;background:#f7faf8;border-top:1px solid #e6eeea;font-size:12px;line-height:1.7;color:#617570;">
+          {% block mail_footer %}To je samodejno sporočilo MarinKina.{% endblock %}
+          <p style="margin:14px 0 0;font-size:12px;color:#617570;">© {{ current_year|default('') }} <a href="{{ email_home }}" style="color:#286e75;text-decoration:none;font-weight:bold;">{{ email_brand }}</a> · <span dir="ltr">Anže Marinko</span></p>
+        </td></tr>
+      </table>
+      <!--[if mso]></td></tr></table><![endif]-->
+    </td></tr>
+  </table>
+</body>
+</html>
