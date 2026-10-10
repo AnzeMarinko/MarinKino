@@ -112,8 +112,7 @@ def test_browser_small_phone_lists_scroll(audio_site, browser, size):
             duration=30,
         )
     audio_site.public_albums.extend(
-        dict(name=f"Album {index:02}", songs=songs)
-        for index in range(30)
+        dict(name=f"Album {index:02}", songs=songs) for index in range(30)
     )
 
     def check_scroll(selector):
@@ -217,6 +216,12 @@ def test_browser_audio_layout_search_keyboard_and_playback(
                 'document.querySelector("#playBtn")'
                 '.getAttribute("aria-label") === "Premor"'
             )
+            assert page.locator(".album-cover").evaluate(
+                "el => getComputedStyle(el).animationName"
+            ) == ("spin" if width <= 812 else "none")
+            assert page.locator(".album-cover > i").evaluate(
+                "el => getComputedStyle(el).animationName"
+            ) == ("none" if width <= 812 else "spin")
             assert (
                 page.locator("#nowPlayingTitle").inner_text()
                 == "Zgodba o lisici"
@@ -355,7 +360,9 @@ def test_browser_subalbums_follow_selected_branch(audio_site, browser):
     ).to_be_visible()
     expect(parent).to_have_attribute("aria-expanded", "false")
     other.click()
-    expect(page.locator(".album-item-after-separator:visible")).to_have_count(0)
+    expect(page.locator(".album-item-after-separator:visible")).to_have_count(
+        0
+    )
     expect(other).to_have_attribute("aria-expanded", "false")
     other.click()
     expect(parent).to_have_attribute("aria-expanded", "false")
@@ -371,3 +378,56 @@ def test_browser_subalbums_follow_selected_branch(audio_site, browser):
         )
         == "none"
     )
+
+
+def test_browser_all_subalbums_collapse_after_selection(audio_site, browser):
+    from playwright.sync_api import expect
+
+    audio_site.public_albums.extend(
+        [
+            dict(name="Vse", songs=["first.wav", "second.wav"]),
+            dict(name="Drugo - Prvi", songs=["first.wav"]),
+            dict(name="Drugo - Drugi", songs=["second.wav"]),
+        ]
+    )
+    audio_site.personal.append(
+        dict(
+            id="private-test",
+            name="Osebni",
+            is_private=True,
+            songs=[],
+        )
+    )
+    page = browser.page
+    page.set_viewport_size({"width": 1440, "height": 900})
+    page.goto(browser.base + "/music")
+    all_album = page.get_by_role("button", name="Vse 2", exact=True)
+    first_child = page.get_by_role("button", name="Prvi 1", exact=True)
+    other_child = page.get_by_role("button", name="Drugi 1", exact=True)
+    main_album = page.get_by_role(
+        "button", name="Za dobro voljo 2", exact=True
+    )
+    private_album = page.get_by_role(
+        "button", name="Osebni Moj album 0", exact=True
+    )
+
+    expect(main_album).to_be_visible()
+    expect(private_album).to_be_visible()
+    if all_album.get_attribute("aria-expanded") == "true":
+        all_album.click()
+    all_album.click()
+    expect(first_child).to_be_visible()
+    expect(main_album).to_be_visible()
+    expect(private_album).to_be_visible()
+    first_child.click()
+    expect(first_child).to_be_hidden()
+    expect(all_album).to_have_attribute("aria-expanded", "false")
+    expect(main_album).to_be_visible()
+    expect(private_album).to_be_visible()
+
+    all_album.click()
+    expect(first_child).to_be_visible()
+    other_child.click()
+    expect(first_child).to_be_hidden()
+    expect(other_child).to_be_hidden()
+    expect(all_album).to_have_attribute("aria-expanded", "false")

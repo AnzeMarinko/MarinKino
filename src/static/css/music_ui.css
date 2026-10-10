@@ -48,6 +48,8 @@
 #playbackStatus[data-error="true"] { color: #a33e34; }
 .music-app-container .now-playing-info { flex-direction: column; align-items: start; gap: 1rem; margin: 0; }
 .music-app-container .album-cover { width: 100%; height: 125px; background: linear-gradient(130deg, var(--music-mood-color), #4e837b); box-shadow: none; font-size: 3.5rem; color: #fff; }
+.music-app-container .album-cover > i { display: inline-block; }
+.music-app-container .album-cover.is-playing > i { animation: spin 3s linear infinite; }
 .radio-stories-page .album-cover { background: linear-gradient(130deg, #cf955b, #efd2a0); color: #73451f; }
 .music-app-container .track-title { color: #263849; font-size: 1.15rem; }
 .music-app-container .track-artist { color: #61727e; font-weight: 500; }
@@ -95,6 +97,8 @@
   .audio-player-heading { flex-direction: row; justify-content: space-between; gap: .5rem; font-size: .62rem; }
   .music-app-container .now-playing-info { flex-direction: row; align-items: center; gap: .75rem; }
   .music-app-container .album-cover { width: 48px; height: 48px; font-size: 1.5rem; border-radius: .7rem; }
+  .music-app-container .album-cover.is-playing { animation: spin 3s linear infinite; }
+  .music-app-container .album-cover.is-playing > i { animation: none; }
   .music-app-container .track-title { font-size: .92rem; }
   .music-app-container .track-artist { font-size: .75rem; }
   .music-app-container .track-album { display: none; }
@@ -153,6 +157,9 @@
 .music-app-container .album-item:not(.album-item-after-separator):not(.album-item-private):not(.active) { background: #fff; border-color: #bdcfc7; box-shadow: 0 2px 5px #294c3f0c; color: #314f46; }
 .music-app-container .album-item:not(.album-item-after-separator):not(.album-item-private) { padding: .9rem .75rem; font-size: .9rem; font-weight: 750; }
 .music-app-container .album-item:not(.album-item-after-separator):not(.album-item-private):not(.active):hover { background: #e8f2ed; border-color: #89aba0; }
+.music-app-container .album-item.album-item-vse:not(.active) { background: #e8f2f5; border-color: #b8d0d8; color: #345b68; }
+.music-app-container .album-item.album-item-vse:not(.active):hover { background: #dcecf0; border-color: #91b4bf; }
+.music-app-container .album-item.album-item-vse.active { background: #517783; border-color: #426570; color: #fff; box-shadow: 0 3px 10px #345b6833, inset 0 0 0 1px #ffffff40; }
 .music-app-container .album-item.active:not(.album-item-private) .album-item-count { color: #e8f6f1; font-weight: 700; }
 
 /* Reveal subalbums directly below their selected parent. */

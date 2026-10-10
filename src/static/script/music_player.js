@@ -788,6 +788,13 @@ function renderAlbums() {
                 parts.pop();
                 parent = publicByName.get(parts.join(' - '));
             }
+            if (
+                !parent
+                && album.name !== "Vse"
+                && album.name.split(' - ')[0] === "Drugo"
+            ) {
+                parent = publicByName.get("Vse") || null;
+            }
         }
         if (parent) {
             const key = getAlbumKey(parent);
@@ -812,6 +819,9 @@ function renderAlbums() {
             ? { displayName: album.name, hasSeparator: false }
             : getAlbumDisplayInfo(album.name);
         div.className = "album-item" + (getAlbumKey(album) === currentAlbumKey ? " active" : "");
+        if (!album.is_private && album.name === "Vse") {
+            div.classList.add("album-item-vse");
+        }
 
         if (albumNameInfo.hasSeparator) {
             div.classList.add("album-item-after-separator");
@@ -841,9 +851,12 @@ function renderAlbums() {
         }
         div.onclick = () => {
             const key = getAlbumKey(album);
-            expandedAlbumKey = children.length && expandedKeys.has(key)
-                ? getAlbumKey(parentByKey.get(key))
-                : key;
+            const parent = parentByKey.get(key);
+            expandedAlbumKey = parent?.name === "Vse"
+                ? null
+                : children.length && expandedKeys.has(key)
+                    ? getAlbumKey(parent)
+                    : key;
             div.style.transform = "scale(0.95)";
             setTimeout(() => {
                 div.style.transform = "scale(1)";
@@ -1891,11 +1904,11 @@ audio.addEventListener("seeked", () => {
 });
 
 audio.addEventListener("play", () => {
-    albumCover.style.animation = "spin 3s linear infinite";
+    albumCover.classList.add("is-playing");
 });
 
 audio.addEventListener("pause", () => {
-    albumCover.style.animation = "none";
+    albumCover.classList.remove("is-playing");
     clearEndTransitionTimer();
 });
 
@@ -2499,6 +2512,7 @@ if (currentAlbumKey) {
 }
 
 if (initialAlbum) {
+    expandedAlbumKey = getAlbumKey(initialAlbum);
     loadAlbum(initialAlbum, { preserveCurrentTrackIfMissing: true });
     if (currentSongs.length > 0) {
         const initialIndex = currentSongs.includes(currentTrack)
