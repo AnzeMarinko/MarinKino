@@ -326,12 +326,22 @@
 
     function renderScores(container, revealRoles = false) {
         container.replaceChildren();
+        const bestScore = Math.max(0, ...state.players.map(player => player.points));
         [...state.players].sort((a, b) => b.points - a.points).forEach((player, index) => {
             const row = document.createElement("div"); row.className = "pk-score-row";
-            row.innerHTML = `<span>${index + 1}</span><div><strong></strong><small></small></div><div class="pk-score-total"></div>`;
+            row.innerHTML = `<span>${index + 1}</span><div><strong></strong><small></small></div><div class="pk-score-total"></div><div class="pk-score-bar"><div class="pk-score-fill"></div></div>`;
             row.querySelector("strong").textContent = player.ime;
             row.querySelector("small").textContent = revealRoles ? `${roleNames[player.role]}${player.active ? "" : " · izločen"}` : "";
             row.querySelector(".pk-score-total").textContent = `${player.points} tč.`;
+            const bar = row.querySelector(".pk-score-bar");
+            bar.setAttribute("role", "meter");
+            bar.setAttribute("aria-label", `${player.ime}: točke glede na najboljšega`);
+            bar.setAttribute("aria-valuemin", "0");
+            bar.setAttribute("aria-valuemax", String(bestScore || 1));
+            bar.setAttribute("aria-valuenow", String(player.points));
+            bar.setAttribute("aria-valuetext", `${player.points} od ${bestScore} točk najboljšega`);
+            bar.querySelector(".pk-score-fill").style.width = `${bestScore ? player.points / bestScore * 100 : 0}%`;
+            row.classList.toggle("pk-score-leader", bestScore > 0 && player.points === bestScore);
             if (revealRoles && player.gained) {
                 const gain = document.createElement("small"); gain.textContent = `+${player.gained} v tej igri`; row.querySelector(".pk-score-total").appendChild(gain);
             }

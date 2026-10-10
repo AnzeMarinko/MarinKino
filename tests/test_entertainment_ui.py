@@ -225,6 +225,35 @@ def test_game_validation_persistence_and_team_resize(browser_page):
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
 
 
+@pytest.mark.parametrize("points", [[20, 10, 5, 20, 0], [0, 0, 0, 0, 0]])
+def test_game_score_bars_compare_to_leader(browser_page, points):
+    page = browser_page.page
+    page.goto(browser_page.base + "/pod_krinko")
+    page.evaluate("""points => localStorage.setItem('podKrinko_data', JSON.stringify({
+        nPlayers: 5, nUndercovers: 1, nWhites: 0,
+        tocke: points.map((tocke, i) => ({ime: `Igralec ${i + 1}`, tocke}))
+    }))""", points)
+    page.reload()
+    fill_names(page)
+    start_and_reveal(page)
+    page.locator("#scoresButton").click()
+    best = max(points)
+    bars = page.locator("#liveScores .pk-score-bar")
+    assert bars.count() == len(points)
+    for index, score in enumerate(sorted(points, reverse=True)):
+        bar = bars.nth(index)
+        assert bar.get_attribute("aria-valuenow") == str(score)
+        assert bar.get_attribute("aria-valuemax") == str(best or 1)
+        width = bar.locator(".pk-score-fill").evaluate("el => parseFloat(el.style.width)")
+        assert width == pytest.approx(score / best * 100 if best else 0)
+    assert page.locator("#liveScores .pk-score-leader").count() == (points.count(best) if best else 0)
+    assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    page.emulate_media(reduced_motion="reduce")
+    assert bars.first.locator(".pk-score-fill").evaluate(
+        "el => getComputedStyle(el, '::after').animationName"
+    ) == "none"
+
+
 def test_game_resident_win_and_scores_survive_reload(browser_page):
     page = browser_page.page
     page.goto(browser_page.base + "/pod_krinko")
@@ -241,6 +270,8 @@ def test_game_resident_win_and_scores_survive_reload(browser_page):
     page.locator("#continueRoundButton").click()
     assert "Prebivalci" in page.locator("#resultsTitle").inner_text()
     assert page.locator(".pk-score-total small").count() == 4
+    assert page.locator("#osebe_rezultati .pk-score-bar").count() == 5
+    assert page.locator("#osebe_rezultati .pk-score-leader").count() == 4
     saved = page.evaluate("JSON.parse(localStorage.getItem('podKrinko_data'))")
     assert sum(p["tocke"] for p in saved["tocke"]) == 8
     assert "words" not in saved

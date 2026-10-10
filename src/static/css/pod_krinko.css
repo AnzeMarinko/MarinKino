@@ -135,6 +135,13 @@
 .pk-score-row strong { overflow-wrap: anywhere; }
 .pk-score-total { text-align: right; white-space: nowrap; font-weight: 700; }
 .pk-score-total small { color: var(--pk-gold); }
+.pk-score-row > div { min-width: 0; }
+.pk-score-bar { grid-column: 2 / -1; height: 16px; overflow: hidden; border-radius: 5px; background: #0d1c18; border: 1px solid #43574a; box-shadow: inset 0 2px 4px #0005; }
+.pk-score-fill { position: relative; height: 100%; overflow: hidden; border-radius: 4px; background: linear-gradient(180deg, #fff1bd 0%, #d8ad50 35%, #a47a2e 51%, #e8c773 78%, #f9e5a6 100%); box-shadow: inset 0 1px #fff7d8aa; }
+.pk-score-fill::after { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 20%, #fff9df88 45%, #ffffffbb 50%, transparent 75%); transform: translateX(-110%); animation: pk-score-shimmer 5s ease-in-out infinite; }
+.pk-score-leader .pk-score-bar { border-color: #e6c777; box-shadow: 0 0 10px #efd68e26, inset 0 2px 4px #0005; }
+.pk-score-leader strong { color: var(--pk-gold); }
+@keyframes pk-score-shimmer { 0%, 20% { transform: translateX(-110%); } 65%, 100% { transform: translateX(110%); } }
 .game .pk-dialog { color: var(--pk-ink); background: #1b2e27; border: 1px solid #596e59; border-radius: 1.1rem; padding: 2rem; width: min(520px, calc(100% - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; box-shadow: 0 25px 100px #0007; }
 .pk-dialog::backdrop { background: #07130fe8; backdrop-filter: blur(8px); }
 .game:has(dialog[open]) { overflow: hidden; }
