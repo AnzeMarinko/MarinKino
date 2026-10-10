@@ -6,6 +6,7 @@
   {% if not is_for_mail %}
     {% include "partials/header.html" %}
   {% endif %}
+  {% block page_styles %}{% endblock %}
 </head>
 
 {% if not is_for_mail %}

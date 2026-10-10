@@ -1,8 +1,10 @@
 {% extends "base.html" %}
 
-{% block content %}
-
+{% block page_styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/music_ui.css') }}">
+{% endblock %}
+
+{% block content %}
 
 <main class="music-app-container">
     <div class="music-ambience" aria-hidden="true">

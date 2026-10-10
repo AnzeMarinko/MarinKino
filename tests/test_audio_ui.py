@@ -91,6 +91,8 @@ def audio_site(ui):
 def test_audio_templates(audio_site):
     for path in ["/music", "/radio-stories"]:
         html = audio_site.client.get(path).text
+        head = html.split("</head>", 1)[0]
+        assert 'href="/static/css/music_ui.css"' in head
         assert "Kako poslušam?" not in html
         assert 'aria-label="Položaj predvajanja"' in html
         assert "user-scalable=no" not in html
