@@ -129,7 +129,7 @@
     const traces = [
         line("temperature_2m", "Temperatura", night ? "#ff8b9b" : "#bc3154", "y"),
         line("wind_speed_10m", "Veter", night ? "#70d5b6" : "#1b806d", "y3"),
-        line("global_tilted_irradiance", "Obsevanje", night ? "#f6d178" : "#af7405", "y4"),
+        line("global_tilted_irradiance", "Obsevanje", night ? "#f6d178" : "#eea317", "y4"),
     ].filter(Boolean);
     const rain = series("precipitation");
     if (rain.length) {
