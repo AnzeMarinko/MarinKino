@@ -169,12 +169,12 @@ def view_emails():
                 base_url + url_for("blog.blog_list"), language
             ),
             "post_url": translate_url(
-                base_url + url_for(
-                    "blog.blog_post", post_id=post.get("id", "preview")
-                ),
+                base_url
+                + url_for("blog.blog_post", post_id=post.get("id", "preview")),
                 language,
             ),
-            "confirmation_url": base_url + url_for(
+            "confirmation_url": base_url
+            + url_for(
                 "blog.blog_confirm_subscription",
                 token="preview",
                 lang=language,
@@ -211,7 +211,8 @@ def send_admin_emails():
             [current_user.id] if not whole_list else list(users.keys())
         )
         list_of_emailed_users = [
-            username for username in list_of_emailed_users
+            username
+            for username in list_of_emailed_users
             if users.get(username, {}).get("emails")
         ]
         for username in list_of_emailed_users:
@@ -350,7 +351,7 @@ def weather():
                 "Iskanje krajev trenutno ni na voljo. "
                 "Prikazana je napoved za Ljubljano."
                 if search_failed
-                else f'Kraja »{query}« ni bilo mogoče najti. '
+                else f"Kraja »{query}« ni bilo mogoče najti. "
                 "Prikazana je napoved za Ljubljano. "
                 "Poskusi z bližnjim večjim krajem."
             )

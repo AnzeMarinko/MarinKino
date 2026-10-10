@@ -388,13 +388,17 @@ def reset_password(token):
     username = None
     user_data = None
     token_hash = hashlib.sha256(token.encode()).hexdigest()
+    expiry_key = None
     for u, data in users.items():
-        if token_hash in {
-            data.get("reset_token_hash"),
-            data.get("setup_token_hash"),
-        }:
+        if token_hash == data.get("reset_token_hash"):
             username = u
             user_data = data
+            expiry_key = "reset_expiry"
+            break
+        if token_hash == data.get("setup_token_hash"):
+            username = u
+            user_data = data
+            expiry_key = "setup_expiry"
             break
     if not username or not user_data:
         redis_client.incr(
@@ -405,17 +409,20 @@ def reset_password(token):
         )
         return redirect(url_for("auth.login"), code=400)
 
-    expiry_iso = user_data.get("reset_expiry") or user_data.get("setup_expiry")
+    expiry_iso = user_data.get(expiry_key)
     try:
         expiry_dt = datetime.fromisoformat(expiry_iso)
     except Exception:
         expiry_dt = datetime.now(timezone.utc) - timedelta(seconds=1)
 
     if expiry_dt < datetime.now(timezone.utc):
-        users[username].pop("reset_token_hash", None)
-        users[username].pop("reset_expiry", None)
-        users[username].pop("setup_token_hash", None)
-        users[username].pop("setup_expiry", None)
+        token_key = (
+            "reset_token_hash"
+            if expiry_key == "reset_expiry"
+            else "setup_token_hash"
+        )
+        users[username].pop(token_key, None)
+        users[username].pop(expiry_key, None)
         save_users()
         flash("Povezava za ponastavitev gesla je potekla.", "error")
         redis_client.incr(

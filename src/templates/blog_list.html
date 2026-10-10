@@ -17,7 +17,6 @@
      <details id="blogIndex" class="blog-index"><summary><i class="bi bi-list-ul" aria-hidden="true"></i> Kazalo objav</summary><nav aria-label="Kazalo vseh objav"><ul>{% for post in blog_index %}<li><a href="{{ url_for('blog.blog_post', post_id=post.id) }}"><span>{{ post.title }}{% if not post.published %} <small>(osnutek)</small>{% endif %}</span><time datetime="{{ post.published_at or post.created_at }}">{{ post.created_at_display }}</time></a></li>{% else %}<li>Objav še ni.</li>{% endfor %}</ul></nav></details>
     </div>
    </div>
-   <p id="blogSearchFeedback" class="blog-search-status" role="status" aria-live="polite"></p>
    <div id="blog-results">{% include 'partials/blog_results.html' %}</div>
   </section>
   {% include 'partials/blog_subscribe_banner.html' %}

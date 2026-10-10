@@ -1,8 +1,9 @@
 """Test browser device limits through the real authentication blueprint."""
 
+import hashlib
 import importlib.util
 import sys
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from time import time
 from types import ModuleType, SimpleNamespace
@@ -64,7 +65,11 @@ def auth(tmp_path):
     app.jinja_loader = DictLoader(
         {
             name: "{{ get_flashed_messages() | join(' ') }}"
-            for name in ("login.html", "change_password.html")
+            for name in (
+                "login.html",
+                "change_password.html",
+                "reset_password.html",
+            )
         }
     )
     manager = LoginManager(app)
@@ -97,6 +102,30 @@ def assert_logged_out(client):
         assert "_user_id" not in session
         assert "device_id" not in session
     assert client.get_cookie("remember_token") is None
+
+
+def test_setup_token_keeps_own_expiry_when_reset_token_expires(auth):
+    setup_token = "setup-token"
+    reset_token = "reset-token"
+    user = auth.users["alice"]
+    user.update(
+        setup_token_hash=hashlib.sha256(setup_token.encode()).hexdigest(),
+        setup_expiry=(
+            datetime.now(timezone.utc) + timedelta(days=1)
+        ).isoformat(),
+        reset_token_hash=hashlib.sha256(reset_token.encode()).hexdigest(),
+        reset_expiry=(
+            datetime.now(timezone.utc) - timedelta(seconds=1)
+        ).isoformat(),
+        must_set_password=True,
+    )
+    client = auth.app.test_client()
+
+    assert client.get(f"/password/reset/{setup_token}").status_code == 200
+    assert client.get(f"/password/reset/{reset_token}").status_code == 400
+    assert "setup_token_hash" in user
+    assert "setup_expiry" in user
+    assert "reset_token_hash" not in user
 
 
 def test_sixth_browser_denied_until_another_browser_logs_out(auth):
