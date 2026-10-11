@@ -811,7 +811,7 @@ def select_next_song(
     if mode == "repeat":
         return current_song
     candidates = [song for song in playlist if song.get("id") != current_id]
-    if mode in {"random", "uniform_random"} and excluded_ids:
+    if mode in {"similar", "random", "uniform_random"} and excluded_ids:
         excluded = {str(song_id) for song_id in excluded_ids}
         eligible_candidates = [
             song for song in candidates if str(song.get("id")) not in excluded

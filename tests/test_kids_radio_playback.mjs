@@ -51,7 +51,7 @@ class Element {
 function createPlayer({
     radio = true, mode = "random", nativeHls = false, apple = false,
     hidden = false, session = false, unsupportedAction = null,
-    fetchSession = null, fetchRecommendation = null,
+    fetchSession = null, fetchRecommendation = null, songIds = tracks,
 } = {}) {
     class Audio extends Element {
         paused = true;
@@ -91,10 +91,10 @@ function createPlayer({
     ].map(id => [id, new Element()]));
     elements.set("audio", audio);
     elements.get("albums-root").dataset.albums = JSON.stringify([
-        { name: "Vse", songs: tracks },
+        { name: "Vse", songs: songIds },
     ]);
     elements.get("metadata-root").dataset.music = JSON.stringify(Object.fromEntries(
-        tracks.map(id => [id, {
+        songIds.map(id => [id, {
             title: `Title ${id}`, artist: `Artist ${id}`, album: "Artist - Album",
             file_path: id, hls_path: `${id}/index.m3u8`,
         }]),
@@ -378,7 +378,7 @@ test("short sequential session continues into next chunk and duplicate ended doe
 });
 
 for (const mode of ["random", "similar"]) {
-    test(`${mode} next follows prepared order and session end resumes within native stream`, async () => {
+    test(`${mode} follows prepared order and builds a fresh stream at session end`, async () => {
         const player = createPlayer({
             ...iphone, mode,
             fetchSession: async body => ({
@@ -393,11 +393,11 @@ for (const mode of ["random", "similar"]) {
         await player.flush();
         assert.equal(player.run("currentTrack"), tracks[2]);
         assert.equal(player.requests.length, 1);
-        const src = player.audio.src;
+        const loads = player.audio.loadCount;
         player.end();
         await player.flush();
-        assert.equal(player.requests.length, 1);
-        assert.equal(player.audio.src, src);
+        assert.equal(player.requests.length, 2);
+        assert.equal(player.audio.loadCount, loads + 1);
         assert.equal(player.audio.paused, false);
         assert.equal(player.run("isHlsSessionPlayback"), true);
     });
@@ -530,11 +530,11 @@ test("similar session searches whole album without randomly dropping later candi
     assert.equal(request.track_ids[300], "song-300");
 });
 
-test("similar native loop and last-track next stay within prepared neighborhood", async () => {
+test("similar last-track next builds a new queue instead of rewinding old stream", async () => {
     const player = createPlayer({ ...iphone, mode: "similar" });
     await player.run("playTrack(0)");
     await player.flush();
-    assert.equal(player.audio.loop, true);
+    assert.equal(player.audio.loop, false);
     const loadCount = player.audio.loadCount;
     const playCount = player.audio.playCount;
     player.document.hidden = true;
@@ -544,13 +544,90 @@ test("similar native loop and last-track next stay within prepared neighborhood"
     await player.flush();
     assert.equal(player.run("currentTrack"), tracks[0]);
     assert.equal(player.audio.currentTime, 0);
-    assert.equal(player.audio.loadCount, loadCount);
-    assert.equal(player.audio.playCount, playCount);
-    assert.equal(player.requests.length, 1);
+    assert.equal(player.audio.loadCount, loadCount + 1);
+    assert.equal(player.audio.playCount, playCount + 1);
+    assert.equal(player.requests.length, 2);
     player.audio.currentTime = 3;
     player.audio.dispatch("timeupdate");
     assert.equal(player.mediaSession.position.position, 3);
 });
+
+for (const mode of ["sequential", "similar", "random"]) {
+    test(`${mode} advances through 25 songs across ten-song native sessions without repeats`, async () => {
+        const songIds = Array.from({ length: 25 }, (_, index) => `song-${index}.mp3`);
+        const player = createPlayer({
+            ...iphone, mode, songIds, hidden: true,
+            fetchSession: async body => ({
+                url: `/music/session-hls/${body.track_ids[0]}.m3u8`,
+                tracks: body.track_ids.slice(0, 10).map(id => ({ id, duration: 120 })),
+            }),
+        });
+        await player.run("playTrack(0)");
+        await player.flush();
+        const heard = [];
+        for (let index = 0; index < 25; index += 1) {
+            heard.push(player.run("currentTrack"));
+            assert.equal(player.audio.loop, false);
+            if (index === 24) break;
+            const inSession = player.run("hlsSessionTracks.findIndex(track => track.id === currentTrack)");
+            const count = player.run("hlsSessionTracks.length");
+            if (inSession + 1 < count) {
+                player.audio.currentTime = (inSession + 1) * 120 + 1;
+                player.audio.dispatch("timeupdate");
+            } else {
+                player.end();
+                player.audio.dispatch("ended");
+            }
+            await player.flush();
+        }
+        assert.equal(new Set(heard).size, 25);
+        assert.deepEqual([...heard].sort(), [...songIds].sort());
+        if (mode === "sequential") assert.deepEqual(heard, songIds);
+        assert.equal(player.requests.length, 3);
+        assert.equal(player.audio.paused, false);
+    });
+}
+
+test("native session advances in background when final timeupdate arrives without ended", async () => {
+    const player = createPlayer({
+        ...iphone, mode: "similar", hidden: true,
+        fetchSession: async body => ({
+            url: `/music/session-hls/${body.track_ids[0]}.m3u8`,
+            tracks: body.track_ids.slice(0, 2).map(id => ({ id, duration: 120 })),
+        }),
+    });
+    await player.run("playTrack(0)");
+    await player.flush();
+    player.audio.currentTime = 239.95;
+    player.audio.dispatch("timeupdate");
+    await player.flush();
+    assert.equal(player.run("currentTrack"), tracks[2]);
+    assert.equal(player.requests.length, 2);
+    assert.equal(player.audio.paused, false);
+});
+
+for (const withRecommendations of [false, true]) {
+    test(`similar plays 25 distinct songs without native HLS, recommendations=${withRecommendations}`, async () => {
+        const songIds = Array.from({ length: 25 }, (_, index) => `song-${index}.mp3`);
+        const player = createPlayer({
+            radio: false, mode: "similar", songIds,
+            fetchRecommendation: withRecommendations ? async body => ({
+                song: { id: body.playlist.find(id => !body.excluded_ids.includes(id)) },
+            }) : null,
+        });
+        await player.run("playTrack(0)");
+        await player.flush();
+        const heard = [];
+        for (let index = 0; index < 25; index += 1) {
+            heard.push(player.run("currentTrack"));
+            if (index === 24) break;
+            player.end();
+            await player.flush();
+        }
+        assert.equal(new Set(heard).size, 25);
+        assert.equal(player.audio.paused, false);
+    });
+}
 
 for (const rejected of [false, true]) {
     test(`stale recommendation ${rejected ? 'failure' : 'response'} cannot replace newer similar choice`, async () => {

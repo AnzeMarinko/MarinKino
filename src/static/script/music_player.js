@@ -86,6 +86,31 @@ let hlsSessionMode = null;
 let hlsSessionAlbumKey = null;
 let playbackIntent = false;
 let resumePlaybackRequest = null;
+const playedTracksByAlbum = new Map();
+
+function getPlayedTracks() {
+    if (!playedTracksByAlbum.has(currentAlbumKey)) {
+        playedTracksByAlbum.set(currentAlbumKey, new Set());
+    }
+    return playedTracksByAlbum.get(currentAlbumKey);
+}
+
+function markPlayedTrack(trackId) {
+    if (!isRadioStoriesPage && trackId) {
+        getPlayedTracks().add(trackId);
+        if (["similar", "random"].includes(playbackMode)) markRandomCooldown(trackId);
+    }
+}
+
+function getUnplayedTrackIds() {
+    const played = getPlayedTracks();
+    const remaining = currentSongs.filter(id => id !== currentTrack && !played.has(id));
+    if (remaining.length) return remaining;
+    // Start a new cycle only after the album's candidates have been exhausted.
+    played.clear();
+    if (currentTrack) played.add(currentTrack);
+    return currentSongs.filter(id => id !== currentTrack);
+}
 const randomCooldownMs = 60 * 60 * 1000;
 const randomCooldownStorageKey = "musicRandomCooldown";
 const playbackRandomnessWeights = {
@@ -481,12 +506,12 @@ function getRandomTrackIndex() {
     }
 
     const cooldownTracks = getRandomCooldownTracks();
-    const availableIndexes = currentSongs
-        .map((_trackId, index) => index)
-        .filter(index => index !== currentIndex && !cooldownTracks[currentSongs[index]]);
+    const unplayed = getUnplayedTrackIds();
+    const availableIndexes = unplayed.filter(id => !cooldownTracks[id])
+        .map(id => currentSongs.indexOf(id));
     const candidateIndexes = availableIndexes.length
         ? availableIndexes
-        : currentSongs.map((_trackId, index) => index).filter(index => index !== currentIndex);
+        : unplayed.map(id => currentSongs.indexOf(id));
     const nextIndex = candidateIndexes[Math.floor(Math.random() * candidateIndexes.length)];
     return nextIndex;
 }
@@ -499,9 +524,7 @@ function getUniformRandomTrackIndex() {
         return 0;
     }
 
-    const candidateIndexes = currentSongs
-        .map((_trackId, index) => index)
-        .filter(index => index !== currentIndex);
+    const candidateIndexes = getUnplayedTrackIds().map(id => currentSongs.indexOf(id));
     return candidateIndexes[Math.floor(Math.random() * candidateIndexes.length)];
 }
 
@@ -518,10 +541,11 @@ function getSimilarTrackIndex() {
             .map(tag => String(tag).trim().toLowerCase()).filter(Boolean)
     );
     const currentTags = tags(current);
+    const unplayed = new Set(getUnplayedTrackIds());
     let bestIndex = -1;
     let bestDistance = Infinity;
     currentSongs.forEach((trackId, index) => {
-        if (trackId === currentTrack) {
+        if (!unplayed.has(trackId)) {
             return;
         }
         const candidate = getTrackMetadata(trackId);
@@ -588,6 +612,7 @@ function nextRandom(token = automaticTransitionToken) {
 }
 
 async function requestRecommendedTrack(mode) {
+    getUnplayedTrackIds();
     const response = await fetch("/music/recommendation/next", {
         method: "POST",
         headers: {
@@ -599,9 +624,7 @@ async function requestRecommendedTrack(mode) {
             current_song_id: currentTrack,
             playlist: currentSongs,
             mode,
-            excluded_ids: mode === "random" || mode === "uniform_random"
-                ? Object.keys(getRandomCooldownTracks())
-                : [],
+            excluded_ids: [...getPlayedTracks()],
             randomness_weight: playbackRandomnessWeights[mode] || 1.0,
             crossfade_duration_ms: 3000,
         }),
@@ -616,9 +639,9 @@ async function requestRecommendedTrack(mode) {
 async function requestHlsSessionPlaylist(index) {
     const mode = playbackMode;
     const albumKey = currentAlbumKey;
-    const remainingTracks = currentSongs.filter(
-        (_trackId, trackIndex) => trackIndex !== index
-    );
+    const remainingTracks = mode === "sequential"
+        ? []
+        : getUnplayedTrackIds().filter(id => id !== currentSongs[index]);
     if (mode === "random") {
         for (let trackIndex = remainingTracks.length - 1; trackIndex > 0; trackIndex -= 1) {
             const randomIndex = Math.floor(Math.random() * (trackIndex + 1));
@@ -717,7 +740,7 @@ function attachHlsSessionSource(session) {
     hlsSessionTrackStart = 0;
     hlsSessionMode = session.mode;
     hlsSessionAlbumKey = session.albumKey;
-    audio.loop = session.mode === "similar";
+    audio.loop = false;
     audio.src = session.url;
     audio.load();
     return Promise.resolve();
@@ -1329,6 +1352,7 @@ async function playTrack(index, options = {}) {
 
     currentIndex = index;
     currentTrack = currentSongs[index];
+    markPlayedTrack(currentTrack);
     endTransitionTrack = null;
     const storedTrack = playbackStorage.getItem("track");
     const storedTime = parseFloat(playbackStorage.getItem("time") || 0);
@@ -1676,6 +1700,7 @@ function togglePlay() {
 function next() {
     syncHlsSessionTrack();
     const token = automaticTransitionToken;
+    let finishedSession = false;
     if (
         isHlsSessionPlayback && hlsSessionMode === playbackMode
         && hlsSessionAlbumKey === currentAlbumKey
@@ -1687,13 +1712,8 @@ function next() {
             playTrack(nextIndex, { automatic: true });
             return;
         }
-        if (playbackMode === "similar") {
-            const firstIndex = currentSongs.indexOf(hlsSessionTracks[0]?.id);
-            if (firstIndex >= 0) {
-                playTrack(firstIndex, { automatic: true });
-                return;
-            }
-        }
+        finishedSession = true;
+        hlsSessionTracks.forEach(track => getPlayedTracks().add(track.id));
     }
     if (playbackMode === "repeat") {
         playTrack(currentIndex >= 0 ? currentIndex : 0);
@@ -1715,6 +1735,7 @@ function next() {
                 }
                 playTrack(nextIndex, {
                     automatic: true,
+                    forceSource: finishedSession,
                     startTimeMs: payload.transition?.start_time_ms,
                 });
                 return;
@@ -1724,7 +1745,7 @@ function next() {
             ? getSimilarTrackIndex()
             : getRandomTrackIndex();
         if (fallbackIndex >= 0) {
-            playTrack(fallbackIndex, { automatic: true });
+            playTrack(fallbackIndex, { automatic: true, forceSource: finishedSession });
         }
         return;
     }
@@ -1812,9 +1833,7 @@ function syncHlsSessionTrack() {
         currentTrack = activeTrack.id;
         currentIndex = currentSongs.indexOf(currentTrack);
         playbackStorage.setItem("track", currentTrack);
-        if (["similar", "random"].includes(playbackMode)) {
-            markRandomCooldown(currentTrack);
-        }
+        markPlayedTrack(currentTrack);
         refreshPlaybackUi();
         if (!document.hidden) {
             scrollToActiveTrack();
@@ -1828,6 +1847,11 @@ audio.ontimeupdate = () => {
     if (syncHlsSessionTrack()) {
         updatePositionState();
         updateSeekBarBackground();
+        if (playbackIntent && !audio.paused && !isLoadingTrack
+            && Number.isFinite(audio.duration) && audio.duration > 1
+            && audio.currentTime >= audio.duration - 0.1) {
+            advanceAfterTrackEnd();
+        }
         return;
     }
     if (audio.duration) {
@@ -2512,7 +2536,9 @@ if (currentAlbumKey) {
 }
 
 if (initialAlbum) {
-    expandedAlbumKey = getAlbumKey(initialAlbum);
+    if (playbackStorage.getItem("musicAlbumKey") || playbackStorage.getItem("album")) {
+        expandedAlbumKey = getAlbumKey(initialAlbum);
+    }
     loadAlbum(initialAlbum, { preserveCurrentTrackIfMissing: true });
     if (currentSongs.length > 0) {
         const initialIndex = currentSongs.includes(currentTrack)
@@ -2520,20 +2546,20 @@ if (initialAlbum) {
             : currentIndex >= 0
                 ? currentIndex
                 : 0;
-        
+
         // Zamenjano playTrack(...) z obravnavo brez samodejnega predvajanja:
         currentIndex = initialIndex;
         currentTrack = currentSongs[initialIndex];
         const trackMetadata = getTrackMetadata(currentTrack);
         applyMusicAmbience(trackMetadata);
-        
+
         nowPlayingTitle.textContent = trackMetadata.title || currentTrack;
         nowPlayingArtist.textContent = trackMetadata.artist
             || (isRadioStoriesPage ? "Otroški radio" : "");
         nowPlayingAlbum.textContent = getAlbumDisplayInfo(
             trackMetadata.album || ""
         ).displayName;
-        
+
         // Samo pripnemo vir za audio (brez audio.play()):
         attachTrackSource(currentTrack).catch(err => console.warn("Priprava vira neuspešna:", err));
         highlightTrack();

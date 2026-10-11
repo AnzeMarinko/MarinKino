@@ -99,6 +99,26 @@ def test_session_contains_all_candidates_and_preserves_hls_maps(music, mode):
         assert f'#EXT-X-MAP:URI="{uri}",BYTERANGE="320@0"' in playlist
 
 
+@pytest.mark.parametrize("mode", ["similar", "random"])
+def test_recommendations_continue_past_ten_without_repeating(music, mode):
+    heard = [music.tracks[0]]
+    for _ in range(len(music.tracks) - 1):
+        response = music.client.post(
+            "/music/recommendation/next",
+            json={
+                "current_song_id": heard[-1],
+                "playlist": music.tracks,
+                "mode": mode,
+                "excluded_ids": heard,
+            },
+        )
+        assert response.status_code == 200
+        next_id = response.get_json()["song"]["id"]
+        assert next_id not in heard
+        heard.append(next_id)
+    assert set(heard) == set(music.tracks)
+
+
 def test_sequential_session_stops_before_file_only_track(music):
     music.module.music_metadata[music.tracks[2]] = {"file_path": "raw.mp3"}
     response = music.client.post(
