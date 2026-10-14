@@ -23,6 +23,7 @@ from flask import (
 from flask_login import current_user
 
 from blog_i18n import BLOG_LANGUAGES, messages, normalize_language
+from blog_images import post_gallery
 from blog_translation import translate_url
 from utils import (
     FLASK_ENV,
@@ -507,6 +508,12 @@ def blog_post(post_id):
     post = posts.get(post_id)
     if not post:
         abort(404)
+
+    post["images"] = post_gallery(post)
+    post["image"] = post["images"][0]["filename"] if post["images"] else None
+    post["image_desc"] = (
+        post["images"][0]["description"] if post["images"] else ""
+    )
 
     # Check if published for non-admin users
     if not current_user.is_authenticated and not post.get("published", False):

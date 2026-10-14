@@ -2,6 +2,10 @@
 <html lang="{{ language }}" dir="{{ direction }}">
 <head>
   <meta charset="UTF-8">
+  {% include "partials/admin_night_theme.html" %}
+  {% if current_user is defined and current_user.is_authenticated and current_user.is_admin %}
+  <script src="/static/js/admin_access_clock.js"></script>
+  {% endif %}
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   <meta name="google" content="notranslate">

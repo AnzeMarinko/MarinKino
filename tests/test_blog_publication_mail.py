@@ -26,8 +26,6 @@ def publication(tmp_path):
     blog_module.public_base_url = lambda: "https://blog.example.com"
     config = ModuleType("content_preparation.config")
     config.LOG_FILENAME = str(tmp_path / "unused.log")
-    imaging = ModuleType("PIL")
-    imaging.Image = Mock()
     source = Path(__file__).resolve().parents[1] / "src"
     spec = importlib.util.spec_from_file_location(
         "publication_test_admin", source / "blueprints" / "admin_bp.py"
@@ -40,7 +38,6 @@ def publication(tmp_path):
             "blueprints.blog_bp": blog_module,
             "content_preparation.config": config,
             "pandas": ModuleType("pandas"),
-            "PIL": imaging,
         },
     ):
         spec.loader.exec_module(module)

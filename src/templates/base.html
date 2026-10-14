@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {% include "partials/admin_night_theme.html" %}
+  {% if not is_for_mail and current_user.is_authenticated and current_user.is_admin %}
+  <script src="/static/js/admin_access_clock.js"></script>
+  {% endif %}
   {% if not is_for_mail %}
     {% include "partials/header.html" %}
   {% endif %}

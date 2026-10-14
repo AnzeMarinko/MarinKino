@@ -3,6 +3,7 @@ import logging
 import os
 from collections import deque
 from datetime import date, datetime, timedelta, timezone
+from io import BytesIO
 
 import pandas as pd
 from flask import (
@@ -13,14 +14,20 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_file,
     session,
     url_for,
 )
 from flask_login import current_user, login_required
-from PIL import Image
-from werkzeug.utils import secure_filename
 
 from blog_i18n import BLOG_LANGUAGES, messages
+from blog_images import (
+    ImageUploadError,
+    post_gallery,
+    prepare_image,
+    save_gallery,
+    save_image,
+)
 from blog_subscribers import group_subscribers
 from blog_translation import translate_url
 from blueprints.blog_bp import public_base_url
@@ -49,45 +56,29 @@ BLOG_IMAGES_DIR = os.path.join(
 def save_blog_image(file, crop_data=None):
     if not file:
         return None
-    filename = secure_filename(file.filename)
-    if not filename:
-        return None
-    os.makedirs(BLOG_IMAGES_DIR, exist_ok=True)
-    filepath = os.path.join(BLOG_IMAGES_DIR, filename)
+    return save_image(file, BLOG_IMAGES_DIR, crop=crop_data)
 
-    if crop_data:
-        try:
-            file.stream.seek(0)
-            img = Image.open(file.stream)
-            img.load()
-            width, height = img.size
-            left = int(
-                round(max(0, min(width - 1, crop_data.get("x", 0) * width)))
-            )
-            top = int(
-                round(max(0, min(height - 1, crop_data.get("y", 0) * height)))
-            )
-            crop_width = int(
-                round(max(1, min(width - left, crop_data.get("w", 0) * width)))
-            )
-            crop_height = int(
-                round(
-                    max(1, min(height - top, crop_data.get("h", 0) * height))
-                )
-            )
-            right = min(width, left + crop_width)
-            bottom = min(height, top + crop_height)
-            if right <= left or bottom <= top:
-                raise ValueError("Invalid crop dimensions")
-            cropped = img.crop((left, top, right, bottom))
-            cropped.save(filepath)
-            return filename
-        except Exception:
-            pass
 
-    file.stream.seek(0)
-    file.save(filepath)
-    return filename
+@admin_bp.errorhandler(ImageUploadError)
+def invalid_blog_image(error):
+    if (
+        request.endpoint == "admin.blog_image_preview"
+        or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+    ):
+        return jsonify(success=False, message=str(error)), 400
+    flash(str(error), "error")
+    return redirect(request.url)
+
+
+@admin_bp.post("/admin/blog/image-preview")
+@login_required
+def blog_image_preview():
+    if not is_current_admin_view(current_user):
+        abort(403)
+    image = prepare_image(request.files.get("image_file"), preview=True)
+    response = send_file(BytesIO(image.data), mimetype=image.mimetype)
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
 
 
 def init_admin_bp(_users):
@@ -499,7 +490,6 @@ def admin_blog_new():
         excerpt = seo_description
         image_desc = request.form.get("image_desc")
         published = request.form.get("published") == "1"
-        image_file = request.files.get("image_file")
 
         if not title or not content:
             if (
@@ -515,55 +505,11 @@ def admin_blog_new():
             flash("Naslov in vsebina sta obvezna.", "error")
             return redirect(request.url)
 
-        # Handle image upload
-        if image_file and image_file.filename:
-            try:
-                crop_x = float(request.form.get("crop_x", ""))
-                crop_y = float(request.form.get("crop_y", ""))
-                crop_w = float(request.form.get("crop_w", ""))
-                crop_h = float(request.form.get("crop_h", ""))
-            except ValueError:
-                crop_x = crop_y = crop_w = crop_h = None
-
-            if (
-                crop_x is None
-                or crop_y is None
-                or crop_w is None
-                or crop_h is None
-            ):
-                if (
-                    request.headers.get("X-Requested-With") == "XMLHttpRequest"
-                    or request.is_json
-                ):
-                    return jsonify(
-                        {
-                            "success": False,
-                            "message": (
-                                "Pri nalaganju slike morate izbrati "
-                                "del slike v razmerju 6:5."
-                            ),
-                        }
-                    )
-                flash(
-                    (
-                        "Pri nalaganju slike morate izbrati del "
-                        "slike v razmerju 6:5."
-                    ),
-                    "error",
-                )
-                return redirect(request.url)
-
-            uploaded_image = save_blog_image(
-                image_file,
-                {
-                    "x": crop_x,
-                    "y": crop_y,
-                    "w": crop_w,
-                    "h": crop_h,
-                },
-            )
-            if uploaded_image:
-                image = uploaded_image
+        images, image_uploads = save_gallery(
+            request.form, request.files, BLOG_IMAGES_DIR
+        )
+        image = images[0]["filename"] if images else None
+        image_desc = images[0]["description"] if images else image_desc
 
         posts = load_blog_posts()
         # post_id made out of title and current timestamp to avoid collisions
@@ -591,6 +537,7 @@ def admin_blog_new():
             "subtitle": subtitle,
             "content": content,
             "image": image,
+            "images": images,
             "image_desc": image_desc,
             "excerpt": excerpt,
             "keywords": keywords,
@@ -612,12 +559,16 @@ def admin_blog_new():
                     "success": True,
                     "message": "Blog objava ustvarjena.",
                     "post_id": post_id,
+                    "images": images,
+                    "image_uploads": image_uploads,
                 }
             )
 
         flash("Blog objava ustvarjena.", "success")
         return redirect(url_for("admin.admin_blog"))
-    return render_template("admin_blog_edit.html", post=None)
+    return render_template(
+        "admin_blog_edit.html", post=None, gallery_images=[]
+    )
 
 
 @admin_bp.route("/admin/blog/edit/<post_id>", methods=["GET", "POST"])
@@ -640,8 +591,6 @@ def admin_blog_edit(post_id):
         excerpt = seo_description
         image_desc = request.form.get("image_desc")
         published = request.form.get("published") == "1"
-        image_file = request.files.get("image_file")
-        remove_image = request.form.get("remove_image") == "1"
 
         if not title or not content:
             if (
@@ -657,56 +606,11 @@ def admin_blog_edit(post_id):
             flash("Naslov in vsebina sta obvezna.", "error")
             return redirect(request.url)
 
-        # Start with current image
-        image = post.get("image")
-
-        # Handle image removal and upload
-        if remove_image:
-            image = None
-        elif image_file and image_file.filename:
-            try:
-                crop_x = float(request.form.get("crop_x", ""))
-                crop_y = float(request.form.get("crop_y", ""))
-                crop_w = float(request.form.get("crop_w", ""))
-                crop_h = float(request.form.get("crop_h", ""))
-            except ValueError:
-                crop_x = crop_y = crop_w = crop_h = None
-
-            if (
-                crop_x is None
-                or crop_y is None
-                or crop_w is None
-                or crop_h is None
-            ):
-                if (
-                    request.headers.get("X-Requested-With") == "XMLHttpRequest"
-                    or request.is_json
-                ):
-                    return jsonify(
-                        {
-                            "success": False,
-                            "message": "Pri nalaganju slike morate izbrati "
-                            "del slike v razmerju 6:5.",
-                        }
-                    )
-                flash(
-                    "Pri nalaganju slike morate izbrati "
-                    "del slike v razmerju 6:5.",
-                    "error",
-                )
-                return redirect(request.url)
-
-            uploaded_image = save_blog_image(
-                image_file,
-                {
-                    "x": crop_x,
-                    "y": crop_y,
-                    "w": crop_w,
-                    "h": crop_h,
-                },
-            )
-            if uploaded_image:
-                image = uploaded_image
+        images, image_uploads = save_gallery(
+            request.form, request.files, BLOG_IMAGES_DIR, post=post
+        )
+        image = images[0]["filename"] if images else None
+        image_desc = images[0]["description"] if images else image_desc
 
         # Update published_at if just published
         published_at = post.get("published_at")
@@ -724,6 +628,7 @@ def admin_blog_edit(post_id):
             "subtitle": subtitle,
             "content": content,
             "image": image,
+            "images": images,
             "image_desc": image_desc,
             "excerpt": excerpt,
             "keywords": keywords,
@@ -744,7 +649,9 @@ def admin_blog_edit(post_id):
             or request.is_json
         ):
             return jsonify(
-                {"success": True, "message": "Blog objava posodobljena."}
+                {"success": True, "message": "Blog objava posodobljena.",
+                 "post_id": post_id, "images": images,
+                 "image_uploads": image_uploads}
             )
 
         flash("Blog objava posodobljena.", "success")
@@ -769,7 +676,9 @@ def admin_blog_edit(post_id):
             except Exception:
                 post["published_at_display"] = post.get("published_at", "")
 
-    return render_template("admin_blog_edit.html", post=post)
+    return render_template(
+        "admin_blog_edit.html", post=post, gallery_images=post_gallery(post)
+    )
 
 
 @admin_bp.route("/admin/blog/delete/<post_id>", methods=["POST"])

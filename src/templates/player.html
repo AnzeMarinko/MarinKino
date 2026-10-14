@@ -9,6 +9,11 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/movies_ui.css') }}">
 <main class="container movie-view">
 <header class="movie-view-heading"><a href="/movies">← Nazaj na filme</a><h1>{{ movie.title }} <small>{{ movie.year }}</small></h1><p>{{ movie.original_title }}</p></header>
+{% if current_user.is_authenticated and current_user.is_admin %}
+<div id="admin-movie-duration-warning" class="alert alert-warning" role="alert" hidden></div>
+<script id="admin-movie-timing" type="application/json">{{ {'collection': is_collection, 'duration_min': (movie.runtimes_by_files|default({})).get(video_file|default('', true)|replace('.mp4', ''), movie.runtimes|float), 'resume_seconds': movie.last_play_time|default(0)}|tojson }}</script>
+<script defer src="/static/js/admin_movie_clock.js"></script>
+{% endif %}
 <div class="movie-page">
     <div class="description">
         <div class="movie-watch-progress" data-movie-id="{{ movie.movie_id }}" style="--watch: {{ movie.watch_ratio|default(0) }}%;" role="progressbar" aria-label="Napredek ogleda" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ movie.watch_ratio|default(0)|round|int }}"></div>
@@ -33,6 +38,7 @@
             <div>
                 {% for video_file in video_files %}
                     <button class="video-btn" style="--watch: {{ movie.watch_info[video_file]['watch_ratio']|default(0) }}%;"
+                        data-runtime-min="{{ movie.runtimes_by_files[video_file|replace('.mp4', '')] }}" data-resume-seconds="{{ movie.watch_info[video_file]['last_play_time']|default(0) }}"
                         onclick="playVideo('/movies/file/{{ group_folder }}/{{ folder }}/{{ video_file }}', {{ movie.watch_info[video_file]['last_play_time']|default(0) }}, this)">
                         {{ video_file|replace('.mp4', '') }} ({{ movie.runtimes_by_files[video_file|replace('.mp4', '')] }} min)
                     </button>
@@ -509,7 +515,7 @@
             // Predvajalnik inicializiramo in napolnimo šele po izbiri datoteke
             player.source = {
                 type: 'video',
-                poster: document.getElementById('videoPlayer').getAttribute('poster'),
+                poster: player.media.getAttribute('poster'),
                 sources: [{ src: src, type: 'video/mp4' }]
             };
 

@@ -59,3 +59,4 @@ tmp_download
 build/
 *.egg-info
 .ruff_cache
+data/fitness.sqlite3*

@@ -21,6 +21,7 @@ from blueprints import (
     auth_bp,
     available_memes,
     blog_bp,
+    fitness_bp,
     get_movies_statistics,
     init_admin_bp,
     init_auth_bp,
@@ -34,6 +35,7 @@ from blueprints import (
 )
 from blueprints.auth_bp import load_device_user
 from device_sessions import DEVICE_IDLE_SECONDS
+from fitness_access import init_fitness_access
 from utils import FLASK_ENV, User, redis_client, users
 
 # Flask app setup
@@ -265,12 +267,14 @@ def load_user(user_id):
 # Register blueprints
 app.register_blueprint(auth_bp)
 app.register_blueprint(admin_bp)
+app.register_blueprint(fitness_bp)
 app.register_blueprint(blog_bp)
 app.register_blueprint(movies_bp)
 app.register_blueprint(memes_bp)
 app.register_blueprint(music_bp)
 app.register_blueprint(misc_bp)
 app.register_blueprint(seo_bp)
+init_fitness_access(app)
 
 # Initialize blueprints with app context
 init_auth_bp(users, User)

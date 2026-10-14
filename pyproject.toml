@@ -13,6 +13,8 @@ dependencies = [
   "huggingface-hub",
   "python-dotenv",
   "Flask",
+  "Pillow>=11.3",
+  "pillow-heif>=1.0",
   "flask-login",
   "requests",
   "beautifulsoup4",

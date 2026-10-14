@@ -77,6 +77,28 @@ document.addEventListener('DOMContentLoaded', function() {
     const cropSizeLabel = document.getElementById('crop-size-label');
     const cropXRange = document.getElementById('crop-x-range');
     const cropYRange = document.getElementById('crop-y-range');
+    const imageUploadStatus = document.getElementById('imageUploadStatus');
+    const retryImagePreview = document.getElementById('retryImagePreview');
+    const galleryEditor = window.createBlogGalleryEditor({
+        input: imageFileInput,
+        list: document.getElementById('blogGalleryEditor'),
+        empty: document.getElementById('galleryEmpty'),
+        retry: retryImagePreview,
+        coverDescription: document.getElementById('image_desc'),
+        onStatus: (message, error = false) => {
+            imageUploadStatus.textContent = message;
+            imageUploadStatus.hidden = !message;
+            imageUploadStatus.dataset.kind = error ? 'error' : 'success';
+        },
+        onChange: markDirty,
+        onSelect: entry => {
+            hideCropContainer();
+            if (entry?.file && entry.status === 'ready') {
+                imagePreview.dataset.galleryKey = entry.key;
+                showCropContainer(); imagePreview.src = entry.url;
+            }
+        }
+    });
 
     let cropState = {
         dragging: false,
@@ -96,6 +118,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function setCropBox(left, top, width, height) {
         const imgWidth = imagePreview.clientWidth;
         const imgHeight = imagePreview.clientHeight;
+        height = width * 5 / 6;
+        if (height > imgHeight) { height = imgHeight; width = height * 6 / 5; }
 
         const maxLeft = Math.max(0, imgWidth - width);
         const maxTop = Math.max(0, imgHeight - height);
@@ -127,7 +151,9 @@ document.addEventListener('DOMContentLoaded', function() {
         cropY.value = (top / imgHeight).toFixed(6);
         cropW.value = (width / imgWidth).toFixed(6);
         cropH.value = (height / imgHeight).toFixed(6);
+        galleryEditor.setCrop({ x: Number(cropX.value), y: Number(cropY.value), w: Number(cropW.value), h: Number(cropH.value) });
         cropSizeLabel.textContent = `${Math.round((width / imgWidth) * 100)}%`;
+        cropSizeRange.value = Math.round((width / imgWidth) * 100);
         cropXRange.value = imgWidth > width ? Math.round(left / (imgWidth - width) * 100) : 0;
         cropYRange.value = imgHeight > height ? Math.round(top / (imgHeight - height) * 100) : 0;
     }
@@ -158,36 +184,21 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function validateCropSelection() {
-        if (!imageFileInput.files.length) {
-            return true;
-        }
-        if (!cropX.value || !cropY.value || !cropW.value || !cropH.value) {
-            showAlert('Pri nalaganju slike morate izbrati del slike v razmerju 6:5.', 'danger');
-            return false;
-        }
+        const error = galleryEditor.validate();
+        if (error) { showAlert(error, 'danger'); return false; }
         return true;
     }
 
-    imageFileInput.addEventListener('change', function() {
-        const file = this.files[0];
-        if (!file) {
-            hideCropContainer();
-            return;
-        }
-        const reader = new FileReader();
-        reader.onerror = () => { hideCropContainer(); showAlert('Slike ni mogoče prebrati. Izberi drugo datoteko.', 'error'); };
-        reader.onload = function(e) {
-            imagePreview.src = e.target.result;
-            showCropContainer();
-            cropX.value = cropY.value = cropW.value = cropH.value = '';
-        };
-        reader.readAsDataURL(file);
+    imagePreview.addEventListener('load', () => {
+        const entry = galleryEditor.active();
+        if (!entry?.file || entry.key !== imagePreview.dataset.galleryKey || !imagePreview.naturalWidth) return;
+        const crop = entry.crop;
+        if (crop) setCropBox(crop.x * imagePreview.clientWidth, crop.y * imagePreview.clientHeight, crop.w * imagePreview.clientWidth, crop.h * imagePreview.clientHeight);
+        else initCropBox();
     });
-
-    imagePreview.addEventListener('load', function() {
-        setTimeout(initCropBox, 0);
+    imagePreview.addEventListener('error', () => {
+        if (galleryEditor.active()?.file) { hideCropContainer(); showAlert('Predogleda ni mogoče prikazati. Ponovno izberi sliko.', 'error'); }
     });
-    imagePreview.addEventListener('error', () => { hideCropContainer(); showAlert('Datoteka ni podprta slika. Izberi drugo sliko.', 'error'); });
 
     window.addEventListener('resize', function() {
         if (!imageCropContainer.classList.contains('d-none')) {
@@ -303,6 +314,7 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.textContent = "Shranjujem...";
 
         const formData = new FormData(form);
+        galleryEditor.serialize(formData);
 
         fetch(form.action || window.location.href, {
             method: 'POST',
@@ -323,9 +335,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 showAlert('Blog objava shranjena.', 'success');
                 dirty = revision !== savedRevision;
                 document.getElementById('saveStatus').textContent = dirty ? 'Nove spremembe še niso shranjene.' : 'Vse spremembe shranjene.';
+                galleryEditor.acceptSaved(data, dirty);
                 if (!dirty) { imageFileInput.value = ''; hideCropContainer(); }
-                const removeImage = document.getElementById('remove_image');
-                if (removeImage && !dirty) removeImage.checked = false;
                 if (data.post_id) {
                     const editUrl = `/admin/blog/edit/${encodeURIComponent(data.post_id)}`;
                     form.action = editUrl;

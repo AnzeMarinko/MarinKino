@@ -1,0 +1,78 @@
+/* Admin-only, device-local 22:00–05:00 palette. */
+html[data-admin-night-theme] {
+  color-scheme: dark;
+  --night-bg: #141311;
+  --night-surface: #211e1a;
+  --night-raised: #2d2822;
+  --night-text: #e4d8c5;
+  --night-muted: #bbad98;
+  --night-border: #4a4034;
+  --night-accent: #d0aa78;
+  --bs-body-bg: var(--night-bg);
+  --bs-body-color: var(--night-text);
+  --bs-secondary-color: var(--night-muted);
+  --bs-border-color: var(--night-border);
+  --bs-tertiary-bg: var(--night-raised);
+  --bs-link-color: var(--night-accent);
+  background: var(--night-bg) !important;
+}
+html[data-admin-night-theme] :is(body, .admin-page, .blog-page, .home-page, .weather-page, .suggestions-page, .auth-page, .music-app-container, .game, .movies-catalog, .movie-view) {
+  background: var(--night-bg) !important;
+  color: var(--night-text) !important;
+  --site-ink: var(--night-text); --site-muted: var(--night-muted); --site-accent: var(--night-accent); --site-border: var(--night-border);
+  --admin-ink: var(--night-text); --admin-muted: var(--night-muted); --admin-accent: var(--night-accent); --admin-border: var(--night-border);
+  --blog-ink: var(--night-text); --blog-muted: var(--night-muted); --blog-accent: var(--night-accent); --blog-border: var(--night-border);
+  --home-ink: var(--night-text); --home-muted: var(--night-muted);
+  --weather-ink: var(--night-text); --weather-muted: var(--night-muted); --weather-card: var(--night-surface); --weather-sky: var(--night-bg);
+  --weather-border: var(--night-border); --weather-accent: var(--night-accent);
+  --suggestion-ink: var(--night-text); --suggestion-muted: var(--night-muted); --suggestion-accent: var(--night-accent);
+  --film-ink: var(--night-text); --film-muted: var(--night-muted); --film-accent: var(--night-accent); --film-line: var(--night-border);
+  --audio-accent: var(--night-accent); --audio-soft: var(--night-raised); --audio-border: var(--night-border);
+  --movie-page-background: var(--night-bg); --music-background: var(--night-bg); --blog-background: var(--night-bg);
+}
+html[data-admin-night-theme] :where(.site-navbar, .site-footer, .site-account-toggle, .site-menu-toggle, .site-nav-button, .site-footer-socials a, .dropdown-menu, .modal-content, .card, .bg-light, .bg-white, .admin-panel, .admin-nav, .admin-stat, .admin-filter-bar, .admin-notice, .admin-table, .admin-card, .fitness-day, .fitness-card, .fitness-dialog, .fitness-advice, .blog-hero, .blog-post-card, .blog-post-featured, .blog-reading-shell, .blog-toc, .blog-search, .blog-subscribe-banner, .blog-image-placeholder, .blog-legal, .subscription, .language-form, .home-card, .home-hero, .home-stat, .welcome-guide, .welcome-finish, .suggestions-card, .auth-card, .movie-card, .movie-overview, .movie-card-body, .movie-view-heading, .comment-form-section, .comment-form-section textarea, .music-app-container #browser, .albums-section, .tracks-section, .track-item, .audio-search, .CodeMirror, .CodeMirror-gutters, .editor-toolbar, .editor-preview, .editor-preview-side, pre) {
+  background: var(--night-surface) !important;
+  color: var(--night-text) !important;
+  border-color: var(--night-border) !important;
+  box-shadow: none !important;
+}
+html[data-admin-night-theme] :is(h1, h2, h3, h4, h5, h6, label, legend, .nav-link, .dropdown-item, .blog-lead, .home-hero p, .home-hero h1, .subscription-intro, .terms label, .album-item, .track-item, .editor-toolbar a, .editor-preview, .editor-preview-side) { color: var(--night-text) !important; }
+html[data-admin-night-theme] :is(.text-dark, .text-body) { color: var(--night-text) !important; }
+html[data-admin-night-theme] :is(.text-muted, .text-secondary, .form-text) { color: var(--night-muted) !important; }
+html[data-admin-night-theme] input::placeholder, html[data-admin-night-theme] textarea::placeholder { color: var(--night-muted) !important; }
+html[data-admin-night-theme] :is(.blog-article, .blog-content blockquote, .blog-index summary, .blog-index nav, .blog-pagination a, .blog-post-image-link, .admin-page .card-header, .admin-shortcuts a, .admin-search, .admin-empty, .admin-editor-actions, .admin-comment p, .admin-comment-response, .admin-view-as, .admin-mail-dialog, .home-feature-film, .home-feature-game, .home-card-icon, .auth-emblem, .auth-breaks li, .auth-breaks i, .welcome-note-icon, .welcome-step, .movie-player-right-side, .rating-summary, .weather-card, .weather-panel, .weather-chart-card, code) {
+  background: var(--night-surface) !important; color: var(--night-text) !important; border-color: var(--night-border) !important;
+}
+html[data-admin-night-theme] :is(.dropdown-item, .nav-link, .blog-pagination a, .album-item):hover { background: var(--night-raised) !important; }
+html[data-admin-night-theme] :is(.cm-header, .cm-link, .cm-url) { color: var(--night-accent) !important; }
+html[data-admin-night-theme] a { color: var(--night-accent); }
+html[data-admin-night-theme] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), textarea, select) {
+  background: var(--night-bg) !important;
+  color: var(--night-text) !important;
+  border-color: var(--night-border) !important;
+}
+html[data-admin-night-theme] :is(input, progress) { accent-color: var(--night-accent); }
+html[data-admin-night-theme] :is(.btn, button, .blog-button, .fitness-tabs button, .page-link, .genre-badge) {
+  background: var(--night-raised) !important;
+  background-image: none !important;
+  color: var(--night-text) !important;
+  border-color: var(--night-border) !important;
+}
+html[data-admin-night-theme] :is(.btn-primary, .blog-button, .submit, .fitness-tabs [aria-selected="true"], .nav-link.active, .admin-nav [aria-current="page"], .album-item.active, .track-item.active, .page-item.active .page-link) { background: #674f31 !important; color: #f7e5c9 !important; border-color: #a08055 !important; }
+html[data-admin-night-theme] :is(.alert, .notice, .site-view-notice, #admin-night-warning) { background: #342c20 !important; color: #e4c59a !important; border-color: #66533b !important; }
+html[data-admin-night-theme] :is(.alert-danger, .notice.error, .btn-danger) { background: #462926 !important; color: #efc0b6 !important; border-color: #81554a !important; }
+html[data-admin-night-theme] :is(.alert-success, .btn-success) { background: #29352a !important; color: #c3d1b2 !important; border-color: #58674c !important; }
+html[data-admin-night-theme] :is(.table, .admin-table) { --bs-table-bg: var(--night-surface); --bs-table-color: var(--night-text); --bs-table-border-color: var(--night-border); --bs-table-striped-bg: var(--night-raised); --bs-table-striped-color: var(--night-text); --bs-table-hover-bg: var(--night-raised); --bs-table-hover-color: var(--night-text); }
+html[data-admin-night-theme] :is(th, td) { color: var(--night-text) !important; background-color: var(--night-surface) !important; border-color: var(--night-border) !important; }
+html[data-admin-night-theme] dialog::backdrop { background: #080706cc; }
+html[data-admin-night-theme] .fitness-chart svg text { fill: var(--night-muted) !important; }
+html[data-admin-night-theme] .js-plotly-plot .main-svg { background: var(--night-surface) !important; }
+html[data-admin-night-theme] .js-plotly-plot .bg { fill: var(--night-surface) !important; }
+html[data-admin-night-theme] .js-plotly-plot text { fill: var(--night-text) !important; }
+html[data-admin-night-theme] .js-plotly-plot .gridlayer path { stroke: var(--night-border) !important; }
+html[data-admin-night-theme] .weather-scene { opacity: .15; }
+html[data-admin-night-theme] .CodeMirror-cursor { border-left-color: var(--night-text) !important; }
+html[data-admin-night-theme] .CodeMirror-selected { background: #65513d !important; }
+html[data-admin-night-theme] :focus-visible { outline-color: var(--night-accent) !important; }
+html[data-admin-night-theme] :is(.player-section, .queue-section, .playlist-section, .album-item, .album-item-private-badge, .blog-gallery-stage, .blog-gallery-editor > article, .blog-gallery-select img, .home-primary, .home-secondary, .home-art-note, .home-art-game, .blog-subscribe-icon, .markdown-preview) { background: var(--night-surface) !important; color: var(--night-text) !important; border-color: var(--night-border) !important; }
+html[data-admin-night-theme] body { background: var(--night-bg) !important; }

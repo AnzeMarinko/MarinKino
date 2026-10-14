@@ -11,7 +11,18 @@
     {% if post.subtitle %}<p class="blog-article-subtitle" itemprop="description">{{ post.subtitle }}</p>{% endif %}
     <div class="blog-article-meta"><span itemprop="author" itemscope itemtype="https://schema.org/Person"><a href="/blog/o-meni" itemprop="url"><i class="bi bi-person-circle" aria-hidden="true"></i> <span itemprop="name">Anže Marinko</span></a></span><time itemprop="datePublished" datetime="{{ post.published_at or post.created_at }}">{{ post.created_at_display }}</time>{% if not post.published %}<span class="blog-draft">Osnutek</span>{% endif %}</div>
    </header>
-   {% if post.image %}<figure class="blog-article-image"><img src="{{ url_for('blog.blog_image_file', file_name=post.image) }}" alt="{{ post.image_desc or post.title }}" itemprop="image" decoding="async">{% if post.image_desc %}<figcaption>{{ post.image_desc }}</figcaption>{% endif %}</figure>{% endif %}
+   {% set gallery = post.get('images', []) %}
+   {% if gallery %}
+   <figure class="blog-article-image blog-gallery" data-blog-gallery role="region" aria-roledescription="galerija" aria-label="Slike objave">
+    <div class="blog-gallery-stage"><img data-gallery-main src="{{ url_for('blog.blog_image_file', file_name=gallery[0].filename) }}" alt="{{ gallery[0].description or post.title }}" itemprop="image" decoding="async"></div>
+    <figcaption data-gallery-caption {{ 'hidden' if not gallery[0].description else '' }}>{{ gallery[0].description }}</figcaption>
+    {% if gallery|length > 1 %}
+    <div class="blog-gallery-controls" data-gallery-controls hidden><button type="button" data-gallery-prev aria-label="Prejšnja slika">←</button><span data-gallery-counter>1 / {{ gallery|length }}</span><button type="button" data-gallery-next aria-label="Naslednja slika">→</button><button type="button" data-gallery-play>Ustavi menjavanje</button></div>
+    <nav class="blog-gallery-thumbnails" aria-label="Izberi sliko">{% for item in gallery %}<a href="{{ url_for('blog.blog_image_file', file_name=item.filename) }}" target="_blank" rel="noopener" data-gallery-index="{{ loop.index0 }}" data-description="{{ item.description }}" data-alt="{{ item.description or post.title }}" aria-label="Slika {{ loop.index }} od {{ gallery|length }}: {{ item.description or post.title }}" {{ 'aria-current=true' if loop.first else '' }}><img src="{{ url_for('blog.blog_image_file', file_name=item.thumbnail|default(item.filename)) }}" alt="" loading="lazy" decoding="async"></a>{% endfor %}</nav>
+    <span class="visually-hidden" data-gallery-announcement role="status" aria-live="polite"></span>
+    {% endif %}
+   </figure>
+   {% elif post.image %}<figure class="blog-article-image"><img src="{{ url_for('blog.blog_image_file', file_name=post.image) }}" alt="{{ post.image_desc or post.title }}" itemprop="image" decoding="async">{% if post.image_desc %}<figcaption>{{ post.image_desc }}</figcaption>{% endif %}</figure>{% endif %}
    <details class="blog-toc" id="blogToc" hidden><summary>V tem zapisu <i class="bi bi-list-ul" aria-hidden="true"></i></summary><nav aria-label="Kazalo zapisa" id="blogTocLinks"></nav></details>
    <div class="blog-content" itemprop="articleBody">{{ post.content_html|safe }}</div>
    <footer class="blog-article-footer"><span><i class="bi bi-flower1" aria-hidden="true"></i> Hvala, ker bereš.</span><a class="blog-text-link" href="/blog">Nazaj na vse zapise <i class="bi bi-arrow-right" aria-hidden="true"></i></a></footer>
@@ -20,6 +31,8 @@
  </div>
 </main>
 <script defer src="{{ url_for('static', filename='js/blog_ui.js') }}"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/blog_gallery.css') }}">
+<script defer src="{{ url_for('static', filename='js/blog_gallery.js') }}"></script>
 <!-- Breadcrumb Schema -->
 <script type="application/ld+json">
 {

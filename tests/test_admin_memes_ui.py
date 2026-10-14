@@ -10,12 +10,13 @@ import re
 import sys
 import threading
 from datetime import datetime
+from io import BytesIO
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from unittest.mock import Mock, patch
 
 import pytest
-from flask import Flask, jsonify, render_template, request, session
+from flask import Flask, jsonify, render_template, request, send_file, session
 from flask_login import LoginManager, UserMixin
 from werkzeug.serving import make_server
 
@@ -146,6 +147,18 @@ def ui(tmp_path):
             saves.append(dict(path=request.path, **request.form))
             return jsonify(success=True, post_id="saved")
         return render_template("admin_blog_edit.html", post=None)
+
+    @app.post("/admin/blog/image-preview")
+    def image_preview():
+        from blog_images import ImageUploadError, prepare_image
+
+        try:
+            result = prepare_image(
+                request.files.get("image_file"), preview=True
+            )
+        except ImageUploadError as error:
+            return jsonify(success=False, message=str(error)), 400
+        return send_file(BytesIO(result.data), mimetype=result.mimetype)
 
     @app.route("/admin/register")
     def register():

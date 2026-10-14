@@ -5,6 +5,7 @@ Blueprint modules for MarinKino application
 from .admin_bp import admin_bp, init_admin_bp
 from .auth_bp import auth_bp, init_auth_bp
 from .blog_bp import blog_bp, load_blog_posts
+from .fitness_bp import fitness_bp
 from .memes_bp import available_memes, memes_bp
 from .misc_bp import init_misc_bp, misc_bp
 from .movies_bp import get_movies_statistics, movies_bp
@@ -15,6 +16,7 @@ __all__ = [
     "auth_bp",
     "admin_bp",
     "blog_bp",
+    "fitness_bp",
     "movies_bp",
     "memes_bp",
     "music_bp",

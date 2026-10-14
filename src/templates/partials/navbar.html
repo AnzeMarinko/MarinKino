@@ -53,3 +53,6 @@
 {% if view_as and current_user.is_authenticated and current_user.is_admin %}
 <div id="blog-view-as-notice" class="site-view-notice {{ 'site-view-notice-static' if is_music else '' }}" role="status"><span><i class="bi bi-eye" aria-hidden="true"></i> Pregled kot: <strong>{{ 'neprijavljen uporabnik' if view_as == 'anonymous' else 'navaden uporabnik' }}</strong></span><a href="/admin/clear-view-as">Nazaj na administratorja <i class="bi bi-arrow-right" aria-hidden="true"></i></a></div>
 {% endif %}
+{% if fitness_access and request.blueprint != 'fitness' %}
+<div id="site-fitness-progress" class="alert alert-info mx-3 my-2 small" role="status"><a href="/admin/fitness">Gibanje</a> · Načrti zadnjih 7 dni: <strong>{{ fitness_access.recent_completed }} / {{ fitness_access.recent_total }} opravljenih</strong> · Izvedbe iz plana ta teden: {{ fitness_access.week_completed }}. {{ 'Dostop odprt.' if fitness_access.allowed else 'Za dostop najprej opravi eno vadbo iz plana.' }}</div>
+{% endif %}
