@@ -10,7 +10,7 @@
 .fitness-overview-grid, .fitness-template-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .fitness-overview-grid > *, .fitness-template-grid > *, .fitness-form-grid > *, .fitness-profile-form > * { min-width: 0; }
 .fitness-wellbeing-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-top: .8rem; }
-.fitness-wellbeing-grid p { margin: 0; padding: .85rem; border-radius: .6rem; background: #f5f8f75d; font-size: .85rem; line-height: 1.55; }
+.fitness-wellbeing-grid p { margin: 0; padding: .85rem; border-radius: .6rem; background: #f5f8f7ad; font-size: .85rem; line-height: 1.55; }
 .fitness-stat-heading { display: flex; align-items: center; justify-content: space-between; gap: .4rem; }
 .fitness-stat-heading span { min-width: 0; }
 .admin-page .admin-stat .fitness-info-wrap { position: relative; display: inline-flex; flex: 0 0 1.35rem; z-index: 2; }

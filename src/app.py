@@ -48,6 +48,7 @@ app.permanent_session_lifetime = timedelta(seconds=DEVICE_IDLE_SECONDS)
 app.config["REMEMBER_COOKIE_DURATION"] = timedelta(days=30)
 app.config.update(
     FITNESS_DATABASE=os.getenv("FITNESS_DATABASE", str(DEFAULT_DATABASE)),
+    MAX_CONTENT_LENGTH=40 * 1024 * 1024,
     SESSION_COOKIE_SECURE=FLASK_ENV == "production",
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",

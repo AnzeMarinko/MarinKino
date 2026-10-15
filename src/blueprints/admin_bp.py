@@ -1,9 +1,11 @@
 import json
 import logging
 import os
+import re
 from collections import deque
 from datetime import date, datetime, timedelta, timezone
 from io import BytesIO
+from uuid import uuid4
 
 import pandas as pd
 from flask import (
@@ -19,9 +21,11 @@ from flask import (
     url_for,
 )
 from flask_login import current_user, login_required
+from werkzeug.exceptions import RequestEntityTooLarge
 
 from blog_i18n import BLOG_LANGUAGES, messages
 from blog_images import (
+    MAX_GALLERY_REQUEST_BYTES,
     ImageUploadError,
     post_gallery,
     prepare_image,
@@ -70,6 +74,26 @@ def invalid_blog_image(error):
     return redirect(request.url)
 
 
+@admin_bp.errorhandler(RequestEntityTooLarge)
+def blog_request_too_large(_error):
+    request_id = _blog_save_request_id()
+    limit_mb = MAX_GALLERY_REQUEST_BYTES // (1024 * 1024)
+    log.warning(
+        "Blog save rejected request_id=%s reason=request-too-large "
+        "content_length=%s limit_bytes=%s",
+        request_id,
+        request.content_length,
+        MAX_GALLERY_REQUEST_BYTES,
+    )
+    message = (
+        f"Zahteva je prevelika. Skupna velikost objave ne sme presegati "
+        f"{limit_mb} MB."
+    )
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify(success=False, message=message), 413
+    return message, 413
+
+
 @admin_bp.post("/admin/blog/image-preview")
 @login_required
 def blog_image_preview():
@@ -98,6 +122,64 @@ def save_blog_posts(posts):
     os.makedirs(os.path.dirname(BLOG_DATA_FILE), exist_ok=True)
     with open(BLOG_DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(posts, f, ensure_ascii=False, indent=2)
+
+
+def _blog_save_request_id():
+    candidate = request.headers.get("X-Request-ID", "")
+    if re.fullmatch(r"[A-Za-z0-9_-]{1,64}", candidate):
+        return candidate
+    return uuid4().hex
+
+
+def _log_blog_save_received(request_id):
+    log.info(
+        "Blog save received request_id=%s path=%s content_length=%s "
+        "form_fields=%s file_fields=%s",
+        request_id,
+        request.path,
+        request.content_length,
+        sorted(request.form.keys()),
+        sorted(request.files.keys()),
+    )
+
+
+def _save_blog_gallery(request_id, post=None):
+    try:
+        images, image_uploads = save_gallery(
+            request.form, request.files, BLOG_IMAGES_DIR, post=post
+        )
+    except ImageUploadError as error:
+        log.warning(
+            "Blog image validation failed request_id=%s error=%s",
+            request_id,
+            error,
+        )
+        raise
+    except Exception:
+        log.exception("Blog image save failed request_id=%s", request_id)
+        raise
+    log.info(
+        "Blog gallery prepared request_id=%s images=%d uploads=%d",
+        request_id,
+        len(images),
+        len(image_uploads),
+    )
+    return images, image_uploads
+
+
+def _persist_blog_posts(posts, request_id, post_id):
+    try:
+        save_blog_posts(posts)
+    except Exception:
+        log.exception(
+            "Blog post persistence failed request_id=%s post_id=%s",
+            request_id,
+            post_id,
+        )
+        raise
+    log.info(
+        "Blog post persisted request_id=%s post_id=%s", request_id, post_id
+    )
 
 
 @admin_bp.route("/admin/logs")
@@ -481,6 +563,8 @@ def admin_blog_new():
         return redirect(url_for("home"))
 
     if request.method == "POST":
+        request_id = _blog_save_request_id()
+        _log_blog_save_received(request_id)
         title = request.form.get("title")
         subtitle = request.form.get("subtitle")
         content = request.form.get("content")
@@ -492,6 +576,11 @@ def admin_blog_new():
         published = request.form.get("published") == "1"
 
         if not title or not content:
+            log.warning(
+                "Blog save rejected request_id=%s "
+                "reason=missing-required-fields",
+                request_id,
+            )
             if (
                 request.headers.get("X-Requested-With") == "XMLHttpRequest"
                 or request.is_json
@@ -505,9 +594,7 @@ def admin_blog_new():
             flash("Naslov in vsebina sta obvezna.", "error")
             return redirect(request.url)
 
-        images, image_uploads = save_gallery(
-            request.form, request.files, BLOG_IMAGES_DIR
-        )
+        images, image_uploads = _save_blog_gallery(request_id)
         image = images[0]["filename"] if images else None
         image_desc = images[0]["description"] if images else image_desc
 
@@ -547,18 +634,26 @@ def admin_blog_new():
             "published_at": now if published else None,
             "mail_date": None,
         }
-        save_blog_posts(posts)
+        _persist_blog_posts(posts, request_id, post_id)
 
         # Vrni JSON če je AJAX zahtevek, drugače redirect
         if (
             request.headers.get("X-Requested-With") == "XMLHttpRequest"
             or request.is_json
         ):
+            log.info(
+                "Blog save response success request_id=%s post_id=%s",
+                request_id,
+                post_id,
+            )
             return jsonify(
                 {
                     "success": True,
                     "message": "Blog objava ustvarjena.",
                     "post_id": post_id,
+                    "edit_url": url_for(
+                        "admin.admin_blog_edit", post_id=post_id
+                    ),
                     "images": images,
                     "image_uploads": image_uploads,
                 }
@@ -583,6 +678,8 @@ def admin_blog_edit(post_id):
         abort(404)
 
     if request.method == "POST":
+        request_id = _blog_save_request_id()
+        _log_blog_save_received(request_id)
         title = request.form.get("title")
         subtitle = request.form.get("subtitle")
         content = request.form.get("content")
@@ -593,6 +690,12 @@ def admin_blog_edit(post_id):
         published = request.form.get("published") == "1"
 
         if not title or not content:
+            log.warning(
+                "Blog save rejected request_id=%s post_id=%s "
+                "reason=missing-required-fields",
+                request_id,
+                post_id,
+            )
             if (
                 request.headers.get("X-Requested-With") == "XMLHttpRequest"
                 or request.is_json
@@ -606,9 +709,7 @@ def admin_blog_edit(post_id):
             flash("Naslov in vsebina sta obvezna.", "error")
             return redirect(request.url)
 
-        images, image_uploads = save_gallery(
-            request.form, request.files, BLOG_IMAGES_DIR, post=post
-        )
+        images, image_uploads = _save_blog_gallery(request_id, post=post)
         image = images[0]["filename"] if images else None
         image_desc = images[0]["description"] if images else image_desc
 
@@ -641,16 +742,25 @@ def admin_blog_edit(post_id):
             "mail_date": existing_mail_date,
             "mail_languages_sent": post.get("mail_languages_sent", []),
         }
-        save_blog_posts(posts)
+        _persist_blog_posts(posts, request_id, post_id)
 
         # Vrni JSON če je AJAX zahtevek, drugače redirect
         if (
             request.headers.get("X-Requested-With") == "XMLHttpRequest"
             or request.is_json
         ):
+            log.info(
+                "Blog save response success request_id=%s post_id=%s",
+                request_id,
+                post_id,
+            )
             return jsonify(
                 {"success": True, "message": "Blog objava posodobljena.",
-                 "post_id": post_id, "images": images,
+                 "post_id": post_id,
+                 "edit_url": url_for(
+                     "admin.admin_blog_edit", post_id=post_id
+                 ),
+                 "images": images,
                  "image_uploads": image_uploads}
             )
 

@@ -432,6 +432,22 @@ def test_browser_editor_reuses_saved_post_and_preserves_failed_edits(browser):
     assert (
         page.locator("#content-editor").input_value() == "Ne izgubi besedila"
     )
+    page.unroute("**/admin/blog/edit/saved")
+    page.route(
+        "**/admin/blog/edit/saved",
+        lambda route: route.fulfill(
+            status=413,
+            content_type="text/html",
+            body="Request Entity Too Large",
+        ),
+    )
+    page.locator("#blogEditorForm button[type=submit]").click()
+    page.get_by_text(
+        "Zahteva je prevelika (HTTP 413).", exact=False
+    ).wait_for()
+    assert (
+        page.locator("#content-editor").input_value() == "Ne izgubi besedila"
+    )
 
 
 def test_browser_mail_confirmation_and_error(browser):

@@ -93,7 +93,7 @@ document.addEventListener('DOMContentLoaded', function() {
         onChange: markDirty,
         onSelect: entry => {
             hideCropContainer();
-            if (entry?.file && entry.status === 'ready') {
+            if (entry?.file && entry.isCover && entry.status === 'ready') {
                 imagePreview.dataset.galleryKey = entry.key;
                 showCropContainer(); imagePreview.src = entry.url;
             }
@@ -310,27 +310,96 @@ document.addEventListener('DOMContentLoaded', function() {
         const savedRevision = revision;
         const originalText = submitBtn.textContent;
         saving = true;
+        let savedOnServer = false;
         submitBtn.disabled = true;
         submitBtn.textContent = "Shranjujem...";
 
         const formData = new FormData(form);
         galleryEditor.serialize(formData);
+        const requestId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+        const targetUrl = form.action || window.location.href;
+        let phase = 'request-setup';
+        console.info('[blog-save] started', {
+            requestId,
+            method: 'POST',
+            targetUrl,
+            pageUrl: window.location.href,
+            formFields: [...formData.keys()].sort(),
+            uploadCount: [...formData.keys()].filter(key => key.startsWith('gallery_file_')).length,
+            byteCount: [...formData.values()].reduce((total, value) => total + (value instanceof File ? value.size : String(value).length), 0)
+        });
 
-        fetch(form.action || window.location.href, {
+        const requestBytes = [...formData.values()].reduce(
+            (total, value) => total + (
+                value instanceof File
+                    ? value.size
+                    : new Blob([String(value)]).size
+            ),
+            0
+        );
+        if (requestBytes > 39 * 1024 * 1024) {
+            showAlert(
+                'Zahteva je prevelika. Skupna velikost objave ne sme presegati 40 MB.',
+                'error'
+            );
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+            saving = false;
+            return;
+        }
+
+        phase = 'fetch';
+        fetch(targetUrl, {
             method: 'POST',
             body: formData,
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
-                "X-CSRFToken": document.querySelector('meta[name="csrf-token"]').content
+                "X-CSRFToken": document.querySelector('meta[name="csrf-token"]').content,
+                "X-Request-ID": requestId
             }
         })
         .then(async response => {
-            const data = await response.json();
+            phase = 'response-body';
+            console.info('[blog-save] response', {
+                requestId,
+                status: response.status,
+                contentType: response.headers.get('Content-Type'),
+                redirected: response.redirected,
+                responseUrl: response.url
+            });
+            const contentType = response.headers.get('Content-Type') || '';
+            let data = {};
+            if (contentType.includes('application/json')) {
+                data = await response.json();
+            } else {
+                console.error('[blog-save] invalid JSON response', {
+                    requestId,
+                    status: response.status,
+                    contentType,
+                    responseUrl: response.url
+                });
+                if (response.status === 413) {
+                    throw new Error(
+                        'Zahteva je prevelika (HTTP 413). Zmanjšaj velikost ali število slik.'
+                    );
+                }
+                throw new Error(
+                    `Strežnik je vrnil neveljaven odgovor (HTTP ${response.status}).`
+                );
+            }
             if (!response.ok) throw new Error(data.message || 'Shranjevanje ni uspelo.');
+            savedOnServer = data.success === true;
             return data;
         })
         .then(data => {
             if (data.success) {
+                phase = 'apply-response';
+                console.info('[blog-save] server accepted save', {
+                    requestId,
+                    postId: data.post_id,
+                    imageCount: data.images?.length,
+                    uploadCount: Object.keys(data.image_uploads || {}).length
+                });
                 // Prikaži sporočilo o uspehu
                 showAlert('Blog objava shranjena.', 'success');
                 dirty = revision !== savedRevision;
@@ -338,7 +407,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 galleryEditor.acceptSaved(data, dirty);
                 if (!dirty) { imageFileInput.value = ''; hideCropContainer(); }
                 if (data.post_id) {
-                    const editUrl = `/admin/blog/edit/${encodeURIComponent(data.post_id)}`;
+                    const editUrl = data.edit_url || `/admin/blog/edit/${encodeURIComponent(data.post_id)}`;
                     form.action = editUrl;
                     window.history.replaceState(null, '', editUrl);
                     const editLink = document.getElementById('editSavedLink');
@@ -346,6 +415,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     editLink.hidden = false;
                 }
             } else {
+                console.error('[blog-save] server rejected save', {
+                    requestId,
+                    message: data.message
+                });
                 showAlert(data.message || 'Napaka pri shranjevanju.', 'error');
             }
             submitBtn.disabled = false;
@@ -353,9 +426,21 @@ document.addEventListener('DOMContentLoaded', function() {
             saving = false;
         })
         .catch(error => {
-            showAlert('Napaka pri shranjevanju: ' + error.message, 'error');
+            console.error('[blog-save] failed', {
+                requestId,
+                phase,
+                targetUrl,
+                pageUrl: window.location.href,
+                savedOnServer,
+                error,
+                stack: error.stack
+            });
+            const message = savedOnServer
+                ? 'Objava je shranjena, vendar urejevalnika ni bilo mogoče posodobiti. Ponovno naloži stran.'
+                : 'Napaka pri shranjevanju: ' + error.message;
+            showAlert(message, 'error');
             submitBtn.disabled = false;
-            submitBtn.textContent = originalText;
+            submitBtn.textContent = savedOnServer ? 'Shrani spremembe' : originalText;
             saving = false;
         });
     }

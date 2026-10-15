@@ -10,7 +10,7 @@ window.createBlogGalleryEditor = ({ input, list, empty, retry, coverDescription,
         retry.hidden = !entry?.error;
         if (entry?.error) onStatus(entry.error, true);
         else if (entry?.file && entry.status === 'loading') onStatus('Pripravljam sliko in pretvarjam format …');
-        else if (entry?.file && entry.status === 'ready') onStatus(`Predogled pripravljen (${entry.format}). Izberi izrez 6:5.`);
+        else if (entry?.file && entry.status === 'ready') onStatus(entry.isCover ? `Predogled pripravljen (${entry.format}). Izberi izrez naslovne slike 6:5.` : `Predogled pripravljen (${entry.format}). Slika v galeriji bo shranjena v izvirnih dimenzijah.`);
         else onStatus('');
     }
     function button(label, action, entry, disabled = false) {
@@ -22,6 +22,7 @@ window.createBlogGalleryEditor = ({ input, list, empty, retry, coverDescription,
         const focus = list.contains(document.activeElement) && document.activeElement.dataset.captionKey ? { key: document.activeElement.dataset.captionKey, start: document.activeElement.selectionStart, end: document.activeElement.selectionEnd } : null;
         list.replaceChildren(); empty.hidden = entries.length > 0;
         entries.forEach((entry, index) => {
+            entry.isCover = index === 0;
             const card = document.createElement('article'); card.className = entry.key === selected ? 'is-selected' : ''; card.dataset.galleryKey = entry.key; card.dataset.pending = String(!!entry.file);
             const select = button('', 'select', entry); select.className = 'blog-gallery-select';
             if (entry.url) { const image = document.createElement('img'); image.src = entry.thumbnailUrl || entry.url; image.alt = entry.description || entry.name; select.append(image); }
@@ -43,6 +44,12 @@ window.createBlogGalleryEditor = ({ input, list, empty, retry, coverDescription,
     }
     function select(key) { selected = key; render(); onSelect(active()); }
     function syncCover() { coverDescription.value = entries[0]?.description || ''; }
+    function defaultCrop(entry) {
+        if (!entry.width || !entry.height) return null;
+        const width = Math.min(.8, entry.height * 1.2 / entry.width);
+        const height = width * entry.width / 1.2 / entry.height;
+        return { x: (1 - width) / 2, y: (1 - height) / 2, w: width, h: height };
+    }
     async function process(entry) {
         entry.controller?.abort();
         entry.controller = new AbortController(); entry.status = 'loading'; entry.error = '';
@@ -60,9 +67,9 @@ window.createBlogGalleryEditor = ({ input, list, empty, retry, coverDescription,
             entry.url = URL.createObjectURL(blob); entry.format = blob.type === 'image/png' ? 'PNG' : 'JPEG';
             const decoded = new Image(); decoded.src = entry.url; await decoded.decode();
             if (!entries.includes(entry)) return;
-            const width = Math.min(.8, decoded.naturalHeight * 1.2 / decoded.naturalWidth);
-            const height = width * decoded.naturalWidth / 1.2 / decoded.naturalHeight;
-            entry.crop ||= { x: (1 - width) / 2, y: (1 - height) / 2, w: width, h: height };
+            entry.width = decoded.naturalWidth;
+            entry.height = decoded.naturalHeight;
+            entry.crop = entries[0] === entry ? entry.crop || defaultCrop(entry) : null;
             entry.status = 'ready'; render(); if (entry.key === selected) onSelect(entry);
         } catch (error) {
             if (error.name === 'AbortError' || !entries.includes(entry)) return;
@@ -91,6 +98,12 @@ window.createBlogGalleryEditor = ({ input, list, empty, retry, coverDescription,
         if (action === 'select') { select(entry.key); return; }
         if (action === 'remove') { entry.controller?.abort(); if (entry.file && entry.url) URL.revokeObjectURL(entry.url); entries.splice(index, 1); if (selected === entry.key) selected = entries[Math.min(index, entries.length - 1)]?.key; }
         else { const target = action === 'cover' ? 0 : action === 'up' ? index - 1 : index + 1; entries.splice(index, 1); entries.splice(target, 0, entry); }
+        entries.forEach((item, position) => {
+            item.isCover = position === 0;
+            if (item.file && item.status === 'ready') {
+                item.crop = item.isCover ? item.crop || defaultCrop(item) : null;
+            }
+        });
         syncCover(); render(); onSelect(active()); onChange();
     });
     render();
@@ -100,11 +113,11 @@ window.createBlogGalleryEditor = ({ input, list, empty, retry, coverDescription,
         validate() {
             const pending = entries.find(entry => entry.file && entry.status !== 'ready');
             if (pending) return `Slika »${pending.name}« še ni pripravljena. Počakaj, poskusi ponovno ali jo odstrani.`;
-            return entries.some(entry => entry.file && !entry.crop) ? 'Vsaka nova slika potrebuje izrez 6:5.' : '';
+            return entries.some((entry, index) => entry.file && index === 0 && !entry.crop) ? 'Naslovna slika potrebuje izrez 6:5.' : '';
         },
         serialize(data) {
             data.delete('image_file');
-            data.set('gallery_manifest', JSON.stringify(entries.map(entry => entry.file ? { upload_id: entry.key, crop: entry.crop, description: entry.description } : { filename: entry.filename, description: entry.description })));
+            data.set('gallery_manifest', JSON.stringify(entries.map((entry, index) => entry.file ? { upload_id: entry.key, ...(index === 0 ? { crop: entry.crop } : {}), description: entry.description } : { filename: entry.filename, description: entry.description })));
             entries.filter(entry => entry.file).forEach(entry => data.append(`gallery_file_${entry.key}`, entry.file));
         },
         acceptSaved(data, changed) {

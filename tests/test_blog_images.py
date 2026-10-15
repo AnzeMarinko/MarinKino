@@ -237,6 +237,62 @@ def post_image(ui, path="/admin/blog/new", image=None, **fields):
     )
 
 
+def test_legacy_cover_crop_accepts_zero_origin(ui):
+    response = post_image(ui, crop_w="0.5", crop_h="0.5")
+
+    assert response.json["success"]
+    filename = next(iter(ui.module.load_blog_posts().values()))["image"]
+    with Image.open(ui.images / filename) as cover:
+        assert cover.size == (60, 50)
+
+
+def test_new_post_returns_encoded_edit_url_for_unicode_slug(ui):
+    response = ui.client.post(
+        "/admin/blog/new",
+        data={"title": "München", "content": "Besedilo"},
+        headers={"X-Requested-With": "XMLHttpRequest"},
+    )
+
+    assert response.json["success"]
+    assert response.json["edit_url"] == "/admin/blog/edit/m%C3%BCnchen"
+
+
+def test_blog_save_logs_request_id_and_persistence(caplog, ui):
+    caplog.set_level("INFO")
+    response = ui.client.post(
+        "/admin/blog/new",
+        data={"title": "Dnevnik", "content": "Besedilo"},
+        headers={
+            "X-Requested-With": "XMLHttpRequest",
+            "X-Request-ID": "test-save-123",
+        },
+    )
+
+    assert response.json["success"]
+    assert "Blog save received request_id=test-save-123" in caplog.text
+    assert "Blog post persisted request_id=test-save-123" in caplog.text
+    assert "Blog save response success request_id=test-save-123" in caplog.text
+
+
+def test_blog_save_returns_json_for_oversized_request(caplog, ui):
+    caplog.set_level("WARNING")
+    ui.app.config["MAX_CONTENT_LENGTH"] = 128
+
+    response = ui.client.post(
+        "/admin/blog/new",
+        data={"title": "Prevelika", "content": "x" * 256},
+        headers={
+            "X-Requested-With": "XMLHttpRequest",
+            "X-Request-ID": "large-test-123",
+        },
+    )
+
+    assert response.status_code == 413
+    assert response.json["success"] is False
+    assert "40 MB" in response.json["message"]
+    assert "request_id=large-test-123 reason=request-too-large" in caplog.text
+
+
 def test_preview_and_new_and_edit_posts_use_real_heic_conversion(ui):
     response = ui.client.post(
         "/admin/blog/image-preview",
@@ -251,6 +307,7 @@ def test_preview_and_new_and_edit_posts_use_real_heic_conversion(ui):
     response = post_image(ui)
     assert response.status_code == 200 and response.json["success"]
     post_id = response.json["post_id"]
+    assert response.json["edit_url"] == f"/admin/blog/edit/{post_id}"
     post = ui.module.load_blog_posts()[post_id]
     assert post["image"].endswith(".jpg")
     with Image.open(ui.images / post["image"]) as saved:
@@ -300,17 +357,11 @@ def gallery_post(ui, manifest, uploads=None, path="/admin/blog/new"):
 def test_gallery_upload_reorder_remove_and_cover_compatibility(ui):
     manifest = [
         {
-            "upload_id": key,
-            "description": key,
-            "crop": {
-                "x": 0,
-                "y": 0,
-                "w": 1,
-                "h": 1,
-            },
+            "upload_id": "one",
+            "description": "one",
+            "crop": {"x": 0, "y": 0, "w": 0.5, "h": 0.5},
         }
-        for key in ("one", "two")
-    ]
+    ] + [{"upload_id": "two", "description": "two"}]
     response = gallery_post(
         ui,
         manifest,
@@ -325,6 +376,10 @@ def test_gallery_upload_reorder_remove_and_cover_compatibility(ui):
     assert len(images) == 2
     assert response.json["image_uploads"]["one"] == images[0]["filename"]
     assert images[1]["filename"].endswith(".jpg")
+    with Image.open(ui.images / images[0]["filename"]) as cover:
+        assert cover.size == (60, 50)
+    with Image.open(ui.images / images[1]["filename"]) as gallery_image:
+        assert gallery_image.size == (120, 100)
     for item in images:
         with Image.open(ui.images / item["thumbnail"]) as thumbnail:
             assert thumbnail.width <= 240 and thumbnail.height <= 200
@@ -495,7 +550,7 @@ def test_browser_heic_crop_save_and_conversion_failure_preserves_draft(
     assert saved["images"][1]["filename"].endswith(".png")
 
 
-def test_browser_multiple_uploads_individual_crops_cover_and_reload(
+def test_browser_multiple_uploads_crop_only_cover_and_reload(
     ui, browser
 ):
     page = browser.page
@@ -530,13 +585,16 @@ def test_browser_multiple_uploads_individual_crops_cover_and_reload(
     page.locator("#crop-size-range").fill("40")
     page.locator("#crop-size-range").dispatch_event("input")
     page.locator("#blogGalleryEditor .blog-gallery-select").nth(1).click()
-    page.wait_for_function("document.querySelector('#crop_w').value !== ''")
-    assert page.locator("#crop-size-range").input_value() == "80"
-    page.locator("#crop-size-range").fill("60")
-    page.locator("#crop-size-range").dispatch_event("input")
+    assert page.locator("#image-crop-container").get_attribute("class").find(
+        "d-none"
+    ) >= 0
+    assert page.locator("#crop_w").input_value() == ""
     page.locator("#blogGalleryEditor article").nth(1).get_by_role(
         "button", name="Naslovna", exact=True
     ).click()
+    page.wait_for_function("document.querySelector('#crop_w').value !== ''")
+    page.locator("#crop-size-range").fill("60")
+    page.locator("#crop-size-range").dispatch_event("input")
     page.locator('#blogEditorForm button[type="submit"]').click()
     page.get_by_text("Blog objava shranjena.", exact=True).wait_for()
     post = next(iter(ui.module.load_blog_posts().values()))
@@ -548,7 +606,7 @@ def test_browser_multiple_uploads_individual_crops_cover_and_reload(
     with Image.open(ui.images / post["images"][0]["filename"]) as image:
         assert image.width == 360
     with Image.open(ui.images / post["images"][1]["filename"]) as image:
-        assert image.width == 240
+        assert image.width == 600
     page.reload()
     assert page.locator("#blogGalleryEditor article").count() == 2
     page.locator("#blogGalleryEditor article").first.get_by_role(

@@ -86,7 +86,7 @@
 
                         <div class="mb-3">
                             <label for="image_file" class="form-label">Slika objave</label>
-                            <p class="form-text">Dodaj več slik hkrati ali v več korakih. Prva je naslovna; vrstni red, opise in izreze lahko spremeniš. Največ 20 slik.</p>
+                            <p class="form-text">Dodaj več slik hkrati ali v več korakih. Prva je naslovna in edina se obreže v razmerje 6 : 5; ostale slike se shranijo v izvirnih dimenzijah. Vrstni red in opise lahko spremeniš. Največ 20 slik.</p>
                             <div id="blogGalleryEditor" class="blog-gallery-editor mb-3" aria-label="Slike v objavi"></div>
                             <p id="galleryEmpty" class="form-text">Objava še nima slik.</p>
                             <script id="blogGalleryData" type="application/json">{{ gallery_images|default([])|tojson }}</script>
@@ -97,7 +97,7 @@
                                     <div class="form-text">Tudi HEIC/HEIF, AVIF in TIFF. Fotografije se pretvorijo v JPEG, PNG in slike s prosojnostjo pa se shranijo kot PNG. Največ 30 MB.</div>
                                     <p id="imageUploadStatus" class="admin-notice" role="status" hidden></p>
                                     <button id="retryImagePreview" type="button" class="btn btn-sm btn-outline-secondary" hidden>Poskusi ponovno</button>
-                                    <div class="form-text">Nove slike se dodajo obstoječim. Izberi sličico nove slike za prilagoditev izreza 6:5.</div>
+                                    <div class="form-text">Nove slike se dodajo obstoječim. Izrez 6 : 5 lahko prilagodiš samo za naslovno sliko.</div>
                                     <input type="hidden" id="crop_x" name="crop_x" value="">
                                     <input type="hidden" id="crop_y" name="crop_y" value="">
                                     <input type="hidden" id="crop_w" name="crop_w" value="">

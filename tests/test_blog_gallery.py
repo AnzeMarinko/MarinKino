@@ -50,7 +50,9 @@ def serve_pictures(page):
     )
 
 
-def test_browser_gallery_rotates_and_manual_selection_pauses(gallery, browser):
+def test_browser_gallery_rotates_and_manual_selection_pauses(
+    gallery, browser, tmp_path
+):
     page = browser.page
     serve_pictures(page)
     page.clock.install()
@@ -65,22 +67,45 @@ def test_browser_gallery_rotates_and_manual_selection_pauses(gallery, browser):
     expect(root).to_have_attribute("data-current-index", "2")
     page.clock.run_for(10000)
     expect(root).to_have_attribute("data-current-index", "2")
-    expect(page.locator("[data-gallery-play]")).to_have_text(
-        "Zaženi menjavanje"
+    expect(page.locator("[data-gallery-play]")).to_have_attribute(
+        "aria-label", "Predvajaj menjavanje"
+    )
+    expect(page.locator("[data-gallery-play] i")).to_have_class(
+        "bi bi-play-fill"
+    )
+    expect(page.locator("[data-gallery-play]")).to_have_attribute(
+        "aria-pressed", "false"
     )
     page.locator("[data-gallery-play]").click()
-    page.mouse.move(0, 0)
     page.clock.run_for(5200)
     expect(root).to_have_attribute("data-current-index", "0")
+    expect(page.locator("[data-gallery-play]")).to_have_attribute(
+        "aria-label", "Zaustavi menjavanje"
+    )
+    expect(page.locator("[data-gallery-play] i")).to_have_class(
+        "bi bi-pause-fill"
+    )
+    expect(page.locator("[data-gallery-play]")).to_have_attribute(
+        "aria-pressed", "true"
+    )
+    page.locator("[data-gallery-play]").click()
+    page.clock.run_for(10000)
+    expect(root).to_have_attribute("data-current-index", "0")
+    expect(page.locator("[data-gallery-play] i")).to_have_class(
+        "bi bi-play-fill"
+    )
+    page.locator("[data-gallery-play]").click()
+    page.clock.run_for(5200)
+    expect(root).to_have_attribute("data-current-index", "1")
     page.locator("[data-gallery-prev]").click()
-    expect(root).to_have_attribute("data-current-index", "2")
+    expect(root).to_have_attribute("data-current-index", "0")
     for width in [320, 390, 820, 1440]:
         page.set_viewport_size({"width": width, "height": 900})
         assert page.evaluate(
             "document.documentElement.scrollWidth <= innerWidth + 1"
         )
     page.screenshot(
-        path="/private/tmp/blog-gallery-desktop.png", full_page=True
+        path=str(tmp_path / "blog-gallery-desktop.png"), full_page=True
     )
 
 
@@ -94,6 +119,6 @@ def test_browser_gallery_respects_reduced_motion(gallery, browser):
     expect(page.locator("[data-blog-gallery]")).to_have_attribute(
         "data-current-index", "0"
     )
-    expect(page.locator("[data-gallery-play]")).to_have_text(
-        "Zaženi menjavanje"
+    expect(page.locator("[data-gallery-play]")).to_have_attribute(
+        "aria-label", "Predvajaj menjavanje"
     )

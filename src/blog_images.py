@@ -15,6 +15,7 @@ from werkzeug.utils import secure_filename
 register_heif_opener(thumbnails=False)
 
 MAX_UPLOAD_BYTES = 30 * 1024 * 1024
+MAX_GALLERY_REQUEST_BYTES = 40 * 1024 * 1024
 MAX_IMAGE_PIXELS = 50_000_000
 FORMATS = ("JPEG", "PNG", "WEBP", "GIF", "BMP", "TIFF", "HEIF", "AVIF")
 
@@ -205,14 +206,17 @@ def save_gallery(form, files, directory, post=None):
                 ]
             return existing, {}
         crop = {key: form.get(f"crop_{key}") for key in ("x", "y", "w", "h")}
-        manifest = [
-            {
+        manifest = []
+        for index, _file in enumerate(incoming):
+            item = {
                 "upload_id": f"legacy-{index}",
-                "crop": crop,
                 "description": form.get("image_desc") or "",
             }
-            for index, _file in enumerate(incoming)
-        ]
+            if index == 0 and all(
+                value not in (None, "") for value in crop.values()
+            ):
+                item["crop"] = crop
+            manifest.append(item)
         upload_files = {
             f"legacy-{index}": file for index, file in enumerate(incoming)
         }
@@ -232,7 +236,7 @@ def save_gallery(form, files, directory, post=None):
     mapping = {}
     created = []
     try:
-        for item in manifest:
+        for index, item in enumerate(manifest):
             if not isinstance(item, dict):
                 raise ImageUploadError("Seznam slik ni veljaven.")
             description = item.get("description") or ""
@@ -254,11 +258,16 @@ def save_gallery(form, files, directory, post=None):
                 file = upload_files.get(upload_id) or files.get(
                     f"gallery_file_{upload_id}"
                 )
-                if not file or not isinstance(item.get("crop"), dict):
+                crop = item.get("crop")
+                if not file or (
+                    index == 0 and not isinstance(crop, dict)
+                ):
                     raise ImageUploadError(
-                        "Vsaka nova slika potrebuje datoteko in izrez."
+                        "Naslovna slika potrebuje datoteko in izrez."
                     )
-                filename = save_image(file, directory, crop=item["crop"])
+                filename = save_image(
+                    file, directory, crop=crop if index == 0 else None
+                )
                 created.append(Path(directory) / filename)
                 thumbnail = (
                     f"{Path(filename).stem}-thumb{Path(filename).suffix}"

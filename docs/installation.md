@@ -245,6 +245,13 @@ Po spremembah v `src`, `.env`, Dockerfile ali `docker-compose.yml` ponovno pregr
 docker compose up -d --build
 ```
 
+Shranjevanje blog objave sprejme zahteve do 40 MB. Na obstoječem strežniku
+nastavi `client_max_body_size 40m;` v `configuration/nginx/conf/app.conf`
+in ponovno naloži Nginx:
+```
+docker compose exec nginx nginx -s reload
+```
+
 ## Varna sinhronizacija v oblak z rclone
 
 Namesti in konfiguriraj rclone:
