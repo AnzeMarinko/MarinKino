@@ -86,56 +86,53 @@
     function card(row, collection) {
         const status = collection === "plan" ? { planned: "Načrtovano", completed: "Opravljeno", skipped: "Preskočeno" }[row.status] : "";
         const advice = row.advice || (collection === "templates" ? state.general_advice[row.kind] : "");
-        const controls = collection === "suggestions" ? `<div class="admin-actions"><button type="button" class="btn btn-sm btn-primary" data-use-suggestion="${escape(row.id)}">Dodaj v plan</button><button type="button" class="btn btn-sm btn-outline-secondary" data-save-suggestion="${escape(row.id)}">Prilagodi in shrani predlogo</button></div>` : actions(collection, row);
+        const controls = collection === "suggestions" ? `<div class="admin-actions"><button type="button" class="btn btn-sm btn-primary" data-use-suggestion="${escape(row.id)}">Dodaj v plan</button><button type="button" class="btn btn-sm btn-outline-secondary" data-save-suggestion="${escape(row.id)}">Prilagodi in shrani predlogo</button></div>` : collection === "plan" && row.status === "completed" ? "" : actions(collection, row);
         return `<article class="fitness-card${row.status ? ` is-${escape(row.status)}` : ""}" data-entry-id="${escape(row.id)}"><h3>${escape(row.title)}</h3><small>${sessionMeta(row, collection)}</small>${row.timestamp ? `<small class="d-block mt-1">${escape(timestampLabel(row.timestamp))}</small>` : ""}${status ? `<strong class="d-block small mt-2">${status}</strong>` : ""}${row.description ? `<p>${escape(row.description)}</p>` : ""}${advice ? `<details class="fitness-advice"${collection === "suggestions" ? " open" : ""}><summary>Nasvet in razporeditev</summary><p>${escape(advice)}</p></details>` : ""}${row.tutorial_url ? `<a class="small" href="${escape(row.tutorial_url)}" target="_blank" rel="noopener noreferrer">Odpri tutorial ↗</a>` : ""}${controls}${collection === "templates" ? `<button type="button" class="btn btn-sm btn-primary mt-2" data-use-template="${escape(row.id)}">Dodaj v plan</button>` : ""}${collection === "plan" && row.status !== "completed" ? `<button type="button" class="btn btn-sm btn-primary mt-2" data-complete="${escape(row.id)}">Zabeleži izvedbo</button>` : ""}</article>`;
     }
     function lastMeasurement(key) { return [...state.measurements].reverse().find(row => row[key] != null); }
     function renderSummary() {
         const weight = lastMeasurement("weight_kg"), waist = lastMeasurement("waist_cm");
-        const goalCaption = (value, target, unit) => {
+        const bmiInfo = weight?.bmi == null
+            ? "ITM = teža / višina². Za odrasle je splošni referenčni razpon 18,5–24,9. ITM ne razlikuje mišic od maščobe in ni diagnoza. Vnesi višino za izračun."
+            : `ITM ${fmt(weight.bmi)}: ${weight.bmi < 18.5 ? "pod običajnim razponom" : weight.bmi < 25 ? "v običajnem razponu" : weight.bmi < 30 ? "povišan" : "visok"}. Splošni referenčni razpon za odrasle je 18,5–24,9; ITM ne razlikuje mišic od maščobe in ni diagnoza.`;
+        const ratioInfo = waist?.waist_height_ratio == null
+            ? "Razmerje pas / višina izračunamo iz iste meritve pasu in vnesene višine. Orientacija je namenjena odraslim z ITM pod 35."
+            : weight?.bmi == null || weight.bmi >= 35
+                ? "Razmerje pas / višina je izračunano, vendar ga brez ITM pod 35 ne razvrščamo."
+                : `${waist.waist_height_ratio < 0.5 ? "Pas je manjši od polovice višine." : waist.waist_height_ratio < 0.6 ? "Razmerje 0,5 ali več je orientacija za povečano osrednjo zamaščenost." : "Razmerje 0,6 ali več je orientacija za večjo osrednjo zamaščenost."} To ni diagnoza; razlago upoštevaj skupaj z drugimi dejavniki.`;
+        const goalCaption = (value, target, unit, digits) => {
             if (target == null) return "";
             const delta = value == null ? null : target - value;
-            return `<small class="fitness-goal">Cilj: ${fmt(target)} ${unit}${delta == null ? "" : Math.abs(delta) < .05 ? " · Pri cilju" : ` · do cilja ${delta > 0 ? "+" : "−"}${fmt(Math.abs(delta))} ${unit}`}</small>`;
+            return `<small class="fitness-goal">Cilj: ${fmt(target, digits)} ${unit}${delta == null ? "" : Math.abs(delta) < .05 ? " · Pri cilju" : ` · do cilja ${delta > 0 ? "+" : "−"}${fmt(Math.abs(delta), digits)} ${unit}`}</small>`;
         };
+        const height = state.profile.height_cm;
+        const targetBmi = state.profile.target_weight_kg != null && height
+            ? state.profile.target_weight_kg / (height / 100) ** 2
+            : null;
+        const targetRatio = state.profile.target_waist_cm != null && height
+            ? state.profile.target_waist_cm / height
+            : null;
         el("fitness-summary").innerHTML = [
             ["Zadnja teža", weight?.weight_kg, "kg", weight, 1, state.profile.target_weight_kg], ["Zadnji obseg pasu", waist?.waist_cm, "cm", waist, 1, state.profile.target_waist_cm],
-            ["ITM", weight?.bmi, "", weight, 1], ["Pas / višina", waist?.waist_height_ratio, "", waist, 3]
-        ].map(([label, value, unit, row, digits, target]) => `<div class="admin-stat"><span>${label}</span><strong>${fmt(value, digits)}${value != null && unit ? ` <small class="fs-6">${unit}</small>` : ""}</strong><small class="fitness-caption">${value != null && row ? escape(timestampLabel(row.timestamp)) : "Ni podatkov"}</small>${goalCaption(value, target, unit)}</div>`).join("");
+            ["ITM", weight?.bmi, "", weight, 1, targetBmi, bmiInfo, "bmi"],
+            ["Pas / višina", waist?.waist_height_ratio, "", waist, 3, targetRatio, ratioInfo, "ratio"]
+        ].map(([label, value, unit, row, digits, target, info, infoId]) => `<div class="admin-stat"><div class="fitness-stat-heading"><span>${label}</span>${info ? `<span class="fitness-info-wrap"><button type="button" class="fitness-info" aria-describedby="fitness-info-${infoId}">i</button><span id="fitness-info-${infoId}" class="fitness-info-tooltip" role="tooltip">${escape(info)}</span></span>` : ""}</div><strong>${fmt(value, digits)}${value != null && unit ? ` <small class="fs-6">${unit}</small>` : ""}</strong><small class="fitness-caption">${value != null && row ? escape(timestampLabel(row.timestamp)) : "Ni podatkov"}</small>${goalCaption(value, target, unit, digits)}</div>`).join("");
+        const reminder = el("fitness-weigh-reminder");
+        const weighing = state.weighing_status;
+        reminder.hidden = !weighing.reminder;
+        reminder.dataset.kind = weighing.red
+            ? "error"
+            : weighing.orange
+                ? "warning"
+                : "";
+        reminder.textContent = !weighing.reminder
+            ? ""
+            : weighing.days == null
+                ? "Tehtanja še nisi zabeležil. Dodaj prvo meritev teže."
+                : `Od zadnjega tehtanja je minilo ${weighing.days} dni. Čas je za novo meritev teže.`;
         const week = state.current_week, profile = state.profile;
         el("fitness-week-label").textContent = `${dateLabel(week.date)}–${dateLabel(addDays(week.date, 6))}`;
         el("fitness-progress").innerHTML = [["Aerobna vadba", week.aerobic_equivalent, profile.aerobic_goal, "enakovrednih min"], ["Vadba za moč", week.strength_days, profile.strength_goal, "dni"]].map(([label, value, goal, unit]) => `<div class="fitness-progress-item"><div><span>${label}</span><strong>${fmt(value)} / ${fmt(goal)} ${unit}</strong></div><progress max="${goal}" value="${Math.min(value, goal)}" aria-label="${label}">${fmt(value)} / ${fmt(goal)}</progress></div>`).join("");
-        const notices = [];
-        if (week.sessions) notices.push(`${week.sessions} zabeleženih aktivnosti ta teden. Vsaka izvedba šteje k rednosti.`);
-        else notices.push("Začni z izvedljivo aktivnostjo in jo dodaj v plan. Ta teden še ni zabeležene izvedbe.");
-        if (week.aerobic_equivalent >= profile.aerobic_goal) notices.push("Tedenski aerobni cilj dosežen. Dobro opravljeno!");
-        else notices.push(`Do tvojega aerobnega cilja manjka ${fmt(profile.aerobic_goal - week.aerobic_equivalent)} enakovrednih minut.`);
-        if (week.strength_days >= profile.strength_goal) notices.push("Tudi cilj dni za moč je dosežen.");
-        else notices.push(`Za cilj moči dodaj še ${fmt(profile.strength_goal - week.strength_days)} dni vadbe.`);
-        if (week.missing_duration || week.unknown_intensity || week.unknown_strength_intensity) notices.push(`Nepopolni podatki: ${week.missing_duration} aktivnosti brez trajanja, ${week.unknown_intensity} aerobnih aktivnosti in ${week.unknown_strength_intensity} vadb za moč brez intenzivnosti. Aerobni seštevek vključuje le znane minute in intenzivnost. Cilj moči vključuje dneve z zmerno ali visoko intenzivnostjo.`);
-        el("fitness-encouragement").innerHTML = notices.map(text => `<p class="small text-muted">${escape(text)}</p>`).join("");
-        const insights = [];
-        if (!profile.height_cm) insights.push("Vnesi višino v Predloge in nastavitve za izračun ITM in razmerja pas/višina.");
-        if (weight?.bmi != null) {
-            const bmi = weight.bmi;
-            const category = bmi < 18.5 ? "pod običajnim razponom" : bmi < 25 ? "v običajnem razponu" : bmi < 30 ? "povišan" : "visok";
-            insights.push(`ITM ${fmt(bmi)}: ${category}. Splošni referenčni razpon za odrasle je 18,5–24,9; razlaga je odvisna tudi od telesne sestave in okoliščin.`);
-        }
-        if (waist?.waist_height_ratio != null) {
-            const ratio = waist.waist_height_ratio;
-            if (weight?.bmi != null && weight.bmi < 35) {
-                insights.push(ratio >= 0.6 ? "Pas/višina je 0,6 ali več: orientacija za večjo osrednjo zamaščenost. Smiselna je strokovna razlaga v kontekstu drugih dejavnikov." : ratio >= 0.5 ? "Pas/višina je 0,5 ali več: orientacija za povečano osrednjo zamaščenost. Spremljaj trend in ga po potrebi obravnavaj z zdravnikom." : "Pas je manjši od polovice višine. Spremljaj dolgoročen trend.");
-            } else insights.push("Razmerje pas/višina je izračunano. Razvrstitve ne prikazujemo brez ITM pod 35.");
-        }
-        for (const [key, label, unit] of [["weight_kg", "teže", "kg"], ["waist_cm", "obsega pasu", "cm"]]) {
-            const rows = state.measurements.filter(row => row[key] != null);
-            if (rows.length > 1) {
-                const last = rows.at(-1), previous = rows.at(-2), delta = last[key] - previous[key];
-                insights.push(`Sprememba ${label} od ${timestampLabel(previous.timestamp)}: ${delta > 0 ? "+" : ""}${fmt(delta)} ${unit}. Primerjaj meritve v podobnih pogojih.`);
-            }
-        }
-        if (!state.measurements.length) insights.push("Dodaj prvo meritev. Težo in pas lahko beležiš ločeno.");
-        else if (weight && localDateTime(weight.timestamp).date < addDays(state.today, -14)) insights.push("Zadnja teža je starejša od dveh tednov. Nova meritev bo osvežila pregled.");
-        el("fitness-insights").innerHTML = insights.map(text => `<p class="small">${escape(text)}</p>`).join("");
     }
     function renderMeasurements() {
         const rows = [...state.measurements].reverse();
@@ -163,9 +160,15 @@
     }
     function renderAccess() {
         const progress = state.plan_progress;
+        const weighing = state.weighing_status;
         el("fitness-access-status").textContent = `${parityLabel(state.today)} · ${progress.week_completed} izvedb iz plana v tekočem tednu.`;
         el("fitness-plan-progress").innerHTML = `<strong>Načrti zadnjih 7 dni: ${progress.recent_completed} / ${progress.recent_total} opravljenih</strong><p class="small text-muted">${dateLabel(progress.recent_start)}–${dateLabel(progress.recent_end)} · šteje tudi izvedba na drug dan.</p>`;
         const node = el("fitness-access-suggestions");
+        if (weighing.locked) {
+            node.hidden = false;
+            node.innerHTML = '<h3>Vsebina zaklenjena</h3><p>Od zadnjega tehtanja sta minila več kot dva meseca. Za nadaljevanje zabeleži novo meritev teže.</p><button type="button" class="btn btn-primary" data-new="measurements">Zabeleži tehtanje</button>';
+            return;
+        }
         node.hidden = progress.allowed;
         if (progress.allowed) { node.innerHTML = ""; return; }
         const due = progress.due.length ? progress.due : progress.upcoming;
@@ -202,19 +205,16 @@
         const period = el("fitness-period").value;
         const cutoff = period === "all" ? "" : addDays(state.today, -Number(period));
         const comparable = el("fitness-comparable").checked;
-        const allRows = state.measurements.filter(row => row[key] != null && (!comparable || (row.fasting === true && row.morning === true && row.after_bowel === true)));
-        const rows = allRows.filter(row => !cutoff || localDateTime(row.timestamp).date >= cutoff);
+        const hasComparableConditions = row => row.fasting === true && row.morning === true && row.after_bowel === true;
+        const periodRows = state.measurements.filter(row => row[key] != null && (!cutoff || localDateTime(row.timestamp).date >= cutoff));
+        const rows = periodRows.filter(row => !comparable || hasComparableConditions(row));
+        const comparableRows = comparable ? [] : periodRows.filter(hasComparableConditions);
         if (!rows.length) { emptyChart(id, (key === "bmi" || key === "waist_height_ratio") && !state.profile.height_cm ? "Za ta prikaz potrebujemo višino in ustrezne meritve." : "Za izbrano obdobje in pogoje ni meritev."); return; }
         const width = Math.max(320, Math.min(540, el(id).clientWidth || 540)), height = 245, left = 52, right = 20, top = 25, bottom = 35;
         const times = rows.map(row => +new Date(row.timestamp));
         let minTime = Math.min(...times), maxTime = Math.max(...times);
         if (minTime === maxTime) { minTime -= 43200000; maxTime += 43200000; }
-        const averages = key === "weight_kg" ? rows.map(row => {
-            const end = +new Date(row.timestamp), start = end - 7 * 86400000;
-            const samples = allRows.filter(sample => +new Date(sample.timestamp) > start && +new Date(sample.timestamp) <= end);
-            return samples.reduce((sum, sample) => sum + sample[key], 0) / samples.length;
-        }) : [];
-        const values = [...rows.map(row => row[key]), ...averages, ...guides.map(reference => reference.value)];
+        const values = [...rows.map(row => row[key]), ...comparableRows.map(row => row[key]), ...guides.map(reference => reference.value)];
         let minimum = Math.min(...values), maximum = Math.max(...values);
         const padding = Math.max((maximum - minimum) * .15, key === "waist_height_ratio" ? .02 : .5);
         minimum -= padding; maximum += padding;
@@ -227,13 +227,44 @@
         }
         guides.forEach(({ value, label, color }) => { contents += `<line class="fitness-chart-guide" x1="${left}" x2="${width - right}" y1="${y(value)}" y2="${y(value)}" stroke="${color}" stroke-dasharray="5 4"><title>${escape(label)}</title></line>${svgText(width - right, y(value) - 5, label, 'text-anchor="end"')}`; });
         contents += `<polyline points="${rows.map((row, index) => `${x(times[index])},${y(row[key])}`).join(" ")}" fill="none" stroke="#256b73" stroke-width="2.5"/>`;
-        if (averages.length) contents += `<polyline points="${averages.map((value, index) => `${x(times[index])},${y(value)}`).join(" ")}" fill="none" stroke="#587dcc" stroke-width="2" stroke-dasharray="5 3"><title>Povprečje meritev v preteklih 7 dneh</title></polyline>`;
+        if (comparableRows.length) contents += `<polyline class="fitness-chart-comparable" points="${comparableRows.map(row => `${x(+new Date(row.timestamp))},${y(row[key])}`).join(" ")}" fill="none" stroke="#39855f" stroke-width="2.5" stroke-dasharray="4 3"><title>Meritve zjutraj, na tešče in po veliki potrebi</title></polyline>`;
         rows.forEach((row, index) => {
-            const caption = `${timestampLabel(row.timestamp)}: ${fmt(row[key], digits)}${averages.length ? `; 7-dnevno povprečje ${fmt(averages[index])}` : ""}`;
-            contents += `<circle class="fitness-chart-point" cx="${x(times[index])}" cy="${y(row[key])}" r="4" fill="#256b73" tabindex="0" aria-label="${escape(caption)}"><title>${escape(caption)}</title></circle>`;
+            const caption = `${timestampLabel(row.timestamp)}: ${fmt(row[key], digits)}`;
+            contents += `<circle class="fitness-chart-point" cx="${x(times[index])}" cy="${y(row[key])}" r="4" fill="#256b73" tabindex="0" aria-label="${escape(caption)}" data-caption="${escape(caption)}"><title>${escape(caption)}</title></circle>`;
         });
         contents += svgText(left, height - 8, dateLabel(localDateTime(rows[0].timestamp).date)) + svgText(width - right, height - 8, dateLabel(localDateTime(rows.at(-1).timestamp).date), 'text-anchor="end"');
-        el(id).innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escape(label)}">${contents}</svg>`;
+        el(id).innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escape(label)}">${contents}<g class="fitness-chart-tooltip" visibility="hidden" pointer-events="none" role="status" aria-live="polite"><rect rx="4" fill="#fff" stroke="#256b73"/><text x="8" y="18" font-size="11" fill="#21364b"></text></g></svg>`;
+        const svg = el(id).querySelector("svg");
+        const tooltip = svg.querySelector(".fitness-chart-tooltip");
+        const tooltipText = tooltip.querySelector("text");
+        const tooltipRect = tooltip.querySelector("rect");
+        svg.querySelectorAll(".fitness-chart-point").forEach(point => {
+            const showPoint = () => {
+                const caption = point.dataset.caption;
+                tooltipText.textContent = caption;
+                const boxWidth = Math.min(width - 8, Math.max(120, caption.length * 6.2 + 16));
+                const pointX = Number(point.getAttribute("cx"));
+                const pointY = Number(point.getAttribute("cy"));
+                const tooltipX = pointX + boxWidth + 12 > width
+                    ? Math.max(4, pointX - boxWidth - 12)
+                    : pointX + 12;
+                const tooltipY = Math.max(4, Math.min(height - 32, pointY - 16));
+                tooltipRect.setAttribute("x", tooltipX);
+                tooltipRect.setAttribute("y", tooltipY);
+                tooltipRect.setAttribute("width", boxWidth);
+                tooltipRect.setAttribute("height", 26);
+                tooltipText.setAttribute("x", tooltipX + 8);
+                tooltipText.setAttribute("y", tooltipY + 17);
+                tooltip.setAttribute("visibility", "visible");
+            };
+            point.addEventListener("click", showPoint);
+            point.addEventListener("keydown", event => {
+                if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    showPoint();
+                }
+            });
+        });
     }
     function renderCharts() {
         const targetGuide = (value, unit) => value == null ? [] : [{ value, label: `Cilj ${fmt(value)} ${unit}`, color: "#a364ae" }];

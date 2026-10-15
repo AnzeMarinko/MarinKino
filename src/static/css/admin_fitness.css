@@ -9,9 +9,21 @@
 .admin-page .fitness-tabs [aria-selected="true"] { background: var(--admin-accent); color: #fff; border-color: var(--admin-accent); }
 .fitness-overview-grid, .fitness-template-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .fitness-overview-grid > *, .fitness-template-grid > *, .fitness-form-grid > *, .fitness-profile-form > * { min-width: 0; }
+.fitness-wellbeing-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-top: .8rem; }
+.fitness-wellbeing-grid p { margin: 0; padding: .85rem; border-radius: .6rem; background: #f5f8f75d; font-size: .85rem; line-height: 1.55; }
+.fitness-stat-heading { display: flex; align-items: center; justify-content: space-between; gap: .4rem; }
+.fitness-stat-heading span { min-width: 0; }
+.admin-page .admin-stat .fitness-info-wrap { position: relative; display: inline-flex; flex: 0 0 1.35rem; z-index: 2; }
+.admin-page .fitness-info { display: inline-grid; place-items: center; width: 1.35rem; height: 1.35rem; padding: 0; border: 1px solid #91a5ad; border-radius: 50%; color: #49616c; background: #f4f8f8; font-size: .75rem; font-weight: 700; line-height: 1; cursor: help; }
+.admin-page .fitness-info:hover, .admin-page .fitness-info:focus-visible { color: #fff; background: var(--admin-accent); }
+.admin-page .admin-stat .fitness-info-tooltip { display: none; position: absolute; top: calc(100% + .45rem); right: 0; z-index: 5; width: min(300px, calc(100vw - 3rem)); padding: .7rem .8rem; border: 1px solid #cddae2; border-radius: .55rem; background: #fff; color: var(--admin-ink); box-shadow: 0 5px 18px #28415b24; font-size: .78rem; font-weight: 400; line-height: 1.5; }
+.admin-page .admin-stat .fitness-info-wrap:hover .fitness-info-tooltip, .admin-page .admin-stat .fitness-info-wrap:focus-within .fitness-info-tooltip { display: block; }
+#fitness-weigh-reminder[data-kind="warning"] { background: #fff5df; border-color: #e8c56b; color: #795600; }
 .fitness-chart { min-height: 200px; margin: .75rem 0 1.5rem; }
 .fitness-chart svg { width: 100%; height: auto; overflow: visible; display: block; }
 .fitness-chart .fitness-chart-point:focus { outline: none; stroke: #172e3f; stroke-width: 3; }
+.fitness-chart .fitness-chart-point { cursor: pointer; }
+.fitness-chart .fitness-chart-tooltip { filter: drop-shadow(0 2px 3px #21364b33); }
 .fitness-chart .admin-empty { min-height: 170px; display: grid; place-items: center; }
 .fitness-chart-wide { max-width: 1000px; margin: auto; overflow-x: auto; }
 .fitness-chart-wide svg { min-width: 820px; }
@@ -44,7 +56,7 @@
 .fitness-day .fitness-card h3 { font-size: .85rem; }
 .fitness-day .fitness-card small, .fitness-day .fitness-card p { font-size: .75rem; }
 .fitness-day .btn { padding: .35rem .45rem; font-size: .7rem; min-height: 34px; }
-.fitness-day .fitness-card.is-completed { border-left: 3px solid #37836e; }
+.fitness-day .fitness-card.is-completed { border: 1px solid #b8d7c6; border-left: 3px solid #37836e; background: #eff7f1; }
 .fitness-day .fitness-card.is-skipped { opacity: .7; }
 .fitness-week-navigation { justify-content: start; }
 .fitness-week-navigation input { width: auto; max-width: 100%; }
@@ -61,7 +73,7 @@
 .fitness-value { font-variant-numeric: tabular-nums; white-space: nowrap; }
 @media (max-width: 1100px) { .fitness-week-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 650px) {
-  .fitness-overview-grid, .fitness-template-grid, .fitness-profile-form { grid-template-columns: 1fr; }
+  .fitness-overview-grid, .fitness-template-grid, .fitness-profile-form, .fitness-wellbeing-grid { grid-template-columns: 1fr; }
   .fitness-week-grid { grid-template-columns: 1fr; }
   .fitness-day { padding: .85rem; }
   .fitness-dialog { padding: 1rem; }

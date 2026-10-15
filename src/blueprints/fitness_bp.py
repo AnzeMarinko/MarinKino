@@ -96,7 +96,7 @@ def body():
 def panel():
     with storage() as connection:
         state = read_state(connection, current_user.get_id())
-    remember_progress(state["plan_progress"])
+    remember_progress(state["plan_progress"], state["measurements"])
     return render_template(
         "admin_fitness.html", pagetitle="Gibanje · MarinKino", fitness=state
     )
@@ -118,7 +118,7 @@ def data():
     )
     with storage() as connection:
         state = read_state(connection, current_user.get_id(), start)
-    remember_progress(state["plan_progress"])
+    remember_progress(state["plan_progress"], state["measurements"])
     return jsonify(state)
 
 

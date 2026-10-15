@@ -35,6 +35,7 @@ from blueprints import (
 )
 from blueprints.auth_bp import load_device_user
 from device_sessions import DEVICE_IDLE_SECONDS
+from fitness import DEFAULT_DATABASE
 from fitness_access import init_fitness_access
 from utils import FLASK_ENV, User, redis_client, users
 
@@ -46,6 +47,7 @@ if FLASK_ENV == "production" and not app.secret_key:
 app.permanent_session_lifetime = timedelta(seconds=DEVICE_IDLE_SECONDS)
 app.config["REMEMBER_COOKIE_DURATION"] = timedelta(days=30)
 app.config.update(
+    FITNESS_DATABASE=os.getenv("FITNESS_DATABASE", str(DEFAULT_DATABASE)),
     SESSION_COOKIE_SECURE=FLASK_ENV == "production",
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",

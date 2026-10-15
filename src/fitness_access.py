@@ -83,7 +83,13 @@ class AccessCache:
                 return cached[2]
             path = current_app.config.get("FITNESS_DATABASE", DEFAULT_DATABASE)
             with database(path) as connection:
-                progress = read_state(connection, user_id)["plan_progress"]
+                state = read_state(connection, user_id)
+            progress = {
+                **state["plan_progress"],
+                "weighing_status": state["weighing_status"],
+            }
+            if progress["weighing_status"]["locked"]:
+                progress["allowed"] = False
             self.remember(user_id, progress)
             return progress
 
@@ -95,9 +101,15 @@ def access_cache():
     return cache
 
 
-def remember_progress(progress):
-    access_cache().remember(current_user.get_id(), progress)
-    g.fitness_access = progress
+def remember_progress(progress, weighing):
+    access = {
+        **progress,
+        "weighing_status": fitness.weighing_status(weighing),
+    }
+    if access["weighing_status"]["locked"]:
+        access["allowed"] = False
+    access_cache().remember(current_user.get_id(), access)
+    g.fitness_access = access
 
 
 def init_fitness_access(app):
@@ -133,7 +145,8 @@ def init_fitness_access(app):
                     fitness_url=url_for("fitness.panel"),
                 ), 503
             g.fitness_access = progress
-            if progress["allowed"]:
+            weighing_locked = progress["weighing_status"]["locked"]
+            if progress["allowed"] and not weighing_locked:
                 return None
         # View-as must not bypass the condition or trap the owner in redirects.
         session.pop("view_as", None)
@@ -147,7 +160,12 @@ def init_fitness_access(app):
             response = jsonify(
                 error=NIGHT_WARNING
                 if night
-                else "Ta teden najprej opravi vsaj eno aktivnost iz plana.",
+                else (
+                    "Od zadnjega tehtanja sta minila več kot dva meseca. "
+                    "Zabeleži novo meritev teže za odklep ostalih vsebin."
+                    if weighing_locked
+                    else "Ta teden najprej opravi vsaj eno aktivnost iz plana."
+                ),
                 fitness_url=fitness_url,
                 progress=progress,
             )
@@ -157,8 +175,15 @@ def init_fitness_access(app):
                 NIGHT_WARNING
                 if night
                 else (
-                    "Ostale vsebine so zaklenjene. Ta teden najprej opravi "
-                    "vsaj eno aktivnost iz plana in zabeleži izvedbo."
+                    "Ostale vsebine so zaklenjene. "
+                    "Zabeleži novo meritev teže; od zadnjega tehtanja sta "
+                    "minila več kot dva meseca."
+                    if weighing_locked
+                    else (
+                        "Ostale vsebine so zaklenjene. Ta teden najprej "
+                        "opravi vsaj eno aktivnost iz plana in zabeleži "
+                        "izvedbo."
+                    )
                 )
             )
             if request.method == "GET" and (

@@ -5,6 +5,7 @@ import math
 import os
 import re
 import sqlite3
+from calendar import monthrange
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -15,7 +16,9 @@ from zoneinfo import ZoneInfo
 from fitness_workouts import EQUIPMENT, GENERAL_ADVICE, STYLES, SUGGESTIONS
 
 LOCAL_ZONE = ZoneInfo("Europe/Ljubljana")
-DEFAULT_DATABASE = Path(__file__).resolve().parents[1] / "data/fitness.sqlite3"
+DEFAULT_DATABASE = (
+    Path(__file__).resolve().parents[1] / "data/fitness-development.sqlite3"
+)
 COLLECTIONS = ("measurements", "activities", "templates", "plan", "schedule")
 KINDS = {
     "cycling": "Kolesarjenje",
@@ -509,6 +512,7 @@ def read_state(connection, user_id, plan_start=None):
                 "timestamp", row.get("date", row.get("title", ""))
             )
         )
+    state["weighing_status"] = weighing_status(state["measurements"])
     state["plan_progress"] = plan_progress(state)
     return enrich(state)
 
@@ -519,6 +523,40 @@ def local_date(entry):
         .astimezone(LOCAL_ZONE)
         .date()
     )
+
+
+def date_months_before(day, months):
+    month_index = day.year * 12 + day.month - 1 - months
+    year, month = divmod(month_index, 12)
+    month += 1
+    return date(year, month, min(day.day, monthrange(year, month)[1]))
+
+
+def weighing_status(measurements, today=None):
+    weighings = [
+        row for row in measurements if row.get("weight_kg") is not None
+    ]
+    if not weighings:
+        return {
+            "last_date": None,
+            "days": None,
+            "reminder": True,
+            "orange": False,
+            "red": False,
+            "locked": False,
+        }
+    latest = max(weighings, key=lambda row: row["timestamp"])
+    last_date = local_date(latest)
+    today = today or now_local().date()
+    days = max(0, (today - last_date).days)
+    return {
+        "last_date": last_date.isoformat(),
+        "days": days,
+        "reminder": days > 7,
+        "orange": days > 14 and last_date >= date_months_before(today, 1),
+        "red": last_date < date_months_before(today, 1),
+        "locked": last_date < date_months_before(today, 2),
+    }
 
 
 def week_start(day):

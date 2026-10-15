@@ -25,6 +25,7 @@ services:
       - .env
     environment:
       - FLASK_ENV=production
+      - FITNESS_DATABASE=/app/data/fitness.sqlite3
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/marinkino/gen-lang-client.json

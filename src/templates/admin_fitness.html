@@ -18,18 +18,25 @@
   <div class="admin-actions"><button type="button" class="btn btn-outline-primary" data-open-plan>Odpri dvotedenski plan</button><a id="fitness-access-home" class="btn btn-primary" href="/">Odpri ostale vsebine</a></div>
 </section>
 <div id="fitness-summary" class="admin-stats" aria-label="Zadnje meritve"></div>
+<p id="fitness-weigh-reminder" class="admin-notice" role="status" hidden></p>
+<section class="admin-panel fitness-wellbeing" aria-labelledby="fitness-wellbeing-title">
+  <h2 id="fitness-wellbeing-title">Za dobro počutje</h2>
+  <div class="fitness-wellbeing-grid">
+    <p><strong>Spanje</strong><br>Potrebuješ vsaj 7 ur spanja. Poskusi vzdrževati reden urnik odpravljanja spat, po možnosti pred 23. uro.</p>
+    <p><strong>Dnevna svetloba</strong><br>Vsak dan pojdi vsaj malo ven v času dopoldneva ali zgodnjega popoldneva. Izogibaj se močnemu soncu poleti in pij dovolj tekočine.</p>
+    <p><strong>Prehrana in porcije</strong><br>Jej raznoliko, sezonsko, svežo, lokalno, domačo in čim manj predelano hrano. Ogljikovi hidrati naj bodo čim bolj polnovredni, beljakovine in maščobe čim manj pregrete, koristi pa tudi probiotična hrana (domače kislo mleko, kefir, domač jabolčni kis).</p>
+  </div>
+  <p class="form-text mb-0">Splošna orientacija, ne osebni zdravstveni načrt.</p>
+</section>
 <nav class="fitness-tabs" role="tablist" aria-label="Razdelki gibanja">
   {% for key, label in [('overview', 'Pregled'), ('measurements', 'Meritve'), ('activities', 'Dnevnik aktivnosti'), ('plan', 'Tedenski plan'), ('templates', 'Predloge in nastavitve')] %}
   <button id="tab-{{ key }}" type="button" role="tab" aria-controls="panel-{{ key }}" aria-selected="{{ 'true' if loop.first else 'false' }}" tabindex="{{ '0' if loop.first else '-1' }}" data-tab="{{ key }}">{{ label }}</button>
   {% endfor %}
 </nav>
 <section id="panel-overview" role="tabpanel" aria-labelledby="tab-overview">
-  <div class="fitness-overview-grid">
-    <section class="admin-panel"><div class="admin-section-heading"><h2>Ta teden</h2><span id="fitness-week-label" class="small text-muted"></span></div><div id="fitness-progress"></div><p class="form-text">Cilj moči šteje dneve z zmerno ali visoko intenzivnostjo.</p><div id="fitness-encouragement" aria-live="polite"></div></section>
-    <section class="admin-panel"><h2 class="mb-3">Meritve in orientacija</h2><div id="fitness-insights"></div><p class="form-text mb-0">Indeksa sta orientacija za odrasle. ITM ne razlikuje mišic od maščobe; razlaga pas/višina je namenjena ITM pod 35. Posamezna meritev ni diagnoza. Pogoji merjenja vplivajo na primerljivost.</p></section>
-  </div>
+  <section class="admin-panel"><div class="admin-section-heading"><h2>Ta teden</h2><span id="fitness-week-label" class="small text-muted"></span></div><div id="fitness-progress"></div></section>
   <section class="admin-panel">
-    <div class="admin-section-heading"><div><h2>Trendi meritev</h2><p>Praznih vrednosti ne nadomeščamo. Modra črta pri teži prikazuje povprečje meritev v preteklih 7 dneh.</p></div></div>
+    <div class="admin-section-heading"><div><h2>Trendi meritev</h2><p>Praznih vrednosti ne nadomeščamo. Zelena črta povezuje meritve z vsemi izpolnjenimi pogoji.</p></div></div>
     <div class="admin-filter-bar"><label for="fitness-period" class="form-label mb-0">Obdobje</label><select id="fitness-period" class="form-select w-auto"><option value="30">30 dni</option><option value="90" selected>90 dni</option><option value="365">1 leto</option><option value="all">Vse meritve</option></select><label class="fitness-check"><input id="fitness-comparable" type="checkbox"> Samo zjutraj, na tešče in po veliki potrebi</label></div>
     <div class="admin-chart-grid"><div><h3>Telesna teža · kg</h3><div id="chart-weight" class="fitness-chart"></div></div><div><h3>Obseg pasu · cm</h3><div id="chart-waist" class="fitness-chart"></div></div><div><h3>ITM · kg/m²</h3><div id="chart-bmi" class="fitness-chart"></div></div><div><h3>Razmerje pas / višina</h3><div id="chart-ratio" class="fitness-chart"></div></div></div>
   </section>

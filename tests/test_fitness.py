@@ -5,7 +5,7 @@ import os
 import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from unittest.mock import patch
@@ -330,6 +330,58 @@ def test_access_counts_actual_week_and_last_seven_planned_days(gated):
     progress = state(ui)["plan_progress"]
     assert progress["allowed"]
     assert (progress["recent_completed"], progress["recent_total"]) == (2, 4)
+
+
+def test_weighing_reminder_and_lock_date_thresholds():
+    today = date(2026, 10, 15)
+
+    def status(last_date):
+        return fitness.weighing_status(
+            [
+                {
+                    "timestamp": f"{last_date}T10:00:00+00:00",
+                    "weight_kg": 80,
+                }
+            ],
+            today=today,
+        )
+
+    assert not status("2026-10-01")["orange"]  # Exactly 14 days.
+    assert status("2026-09-30")["orange"]  # More than 14 days.
+    assert not status("2026-09-15")["red"]  # Exactly one month.
+    assert status("2026-09-14")["red"]
+    assert not status("2026-08-15")["locked"]  # Exactly two months.
+    assert status("2026-08-14")["locked"]
+    assert fitness.weighing_status([], today=today)["reminder"]
+
+
+def test_stale_weighing_locks_content_until_new_measurement(gated):
+    ui = gated
+    plan = create(ui, "plan", kind="running", date="2026-10-14")
+    complete_plan(ui, plan)
+    create(
+        ui,
+        "measurements",
+        timestamp="2026-08-13T12:00",
+        weight_kg=80,
+    )
+
+    response = ui.client.get("/movies")
+    assert response.status_code == 302
+    assert "minila več kot dva meseca" in ui.client.get(response.location).text
+    assert ui.client.get("/blog").status_code == 302
+    assert ui.client.get("/admin/fitness").status_code == 200
+    response = ui.client.post("/music/rate", json={})
+    assert response.status_code == 423
+    assert "meritev teže" in response.json["error"]
+
+    create(
+        ui,
+        "measurements",
+        timestamp="2026-10-14T12:00",
+        weight_kg=79.5,
+    )
+    assert ui.client.get("/movies").status_code == 200
 
 
 def test_access_rejects_unplanned_workouts_and_blocks_content_mutation(gated):
@@ -1278,6 +1330,10 @@ def test_browser_template_plan_completion_and_failure_recovery(ui, browser):
     page.get_by_role("button", name="Shrani izvedbo").click()
     page.locator("#fitness-session-dialog").wait_for(state="hidden")
     assert state(ui)["plan"][0]["status"] == "completed"
+    completed_card = page.locator(
+        "#fitness-plan .fitness-card.is-completed"
+    ).filter(has_text=title)
+    assert completed_card.locator("button").count() == 0
     assert state(ui)["activities"][0]["duration_min"] == 45
     page.get_by_role("tab", name="Dnevnik aktivnosti").click()
     assert page.get_by_role("heading", name=title, exact=True).is_visible()
@@ -1349,29 +1405,58 @@ def test_browser_custom_template_nullable_fields_plan_edit_and_delete(
 
 
 def test_browser_graphs_with_data_and_unknown_conditions(ui, browser):
-    ui.client.put("/admin/fitness/profile", json={"height_cm": 180})
-    for index in range(3):
+    ui.client.put(
+        "/admin/fitness/profile",
+        json={
+            "height_cm": 180,
+            "target_weight_kg": 70,
+            "target_waist_cm": 80,
+        },
+    )
+    for index in range(4):
+        standard = index in (0, 2)
         create(
             ui,
             "measurements",
             timestamp=f"2026-10-{10 + index}T12:00",
             weight_kg=80 + index,
             waist_cm=90 + index,
-            fasting=True if index == 0 else None,
-            morning=True if index == 0 else False,
-            after_bowel=True if index == 0 else None,
+            fasting=True if standard else None,
+            morning=True if standard else False,
+            after_bowel=True if standard else None,
         )
     create(
         ui, "activities", kind="running", duration_min=30, intensity="vigorous"
     )
     page = browser.page
     page.goto(browser.base + "/admin/fitness")
-    assert page.locator("#chart-weight circle").count() == 3
-    assert page.locator("#chart-ratio circle").count() == 3
+    assert page.locator("#chart-weight circle").count() == 4
+    assert page.locator("#chart-ratio circle").count() == 4
     assert page.locator("#chart-weight polyline").count() == 2
+    comparable_curve = page.locator("#chart-weight .fitness-chart-comparable")
+    assert comparable_curve.count() == 1
+    assert len(comparable_curve.get_attribute("points").split()) == 2
     assert page.locator("#chart-activity rect").count() == 1
+    assert page.locator("#fitness-summary .fitness-info").count() == 2
+    assert page.locator("#fitness-insights").count() == 0
+    assert page.locator(".fitness-wellbeing").is_visible()
+    assert "Cilj: 21,6" in page.locator("#fitness-summary").text_content()
+    assert "Cilj: 0,444" in page.locator("#fitness-summary").text_content()
+    bmi_info = page.locator("#fitness-info-bmi")
+    assert bmi_info.evaluate(
+        "(element) => getComputedStyle(element).display"
+    ) == "none"
+    page.locator(".fitness-info").first.hover()
+    assert bmi_info.is_visible()
+    assert "referenčni razpon" in bmi_info.text_content()
     page.locator("#fitness-comparable").check()
-    assert page.locator("#chart-weight circle").count() == 1
+    assert page.locator("#chart-weight circle").count() == 2
+    assert page.locator("#chart-weight .fitness-chart-comparable").count() == 0
+    point = page.locator("#chart-weight .fitness-chart-point").first
+    point.click()
+    tooltip = page.locator("#chart-weight .fitness-chart-tooltip")
+    assert tooltip.get_attribute("visibility") == "visible"
+    assert "80" in tooltip.text_content()
     page.get_by_role("tab", name="Meritve", exact=True).click()
     page.locator("#fitness-measurements [data-edit]").first.click()
     assert page.locator("#measurement-morning").input_value() == "false"
@@ -1382,6 +1467,29 @@ def test_browser_graphs_with_data_and_unknown_conditions(ui, browser):
     page.locator("#fitness-measurement-dialog").wait_for(state="hidden")
     assert state(ui)["measurements"][-1]["weight_kg"] is None
     assert state(ui)["measurements"][-1]["morning"] is False
+
+
+def test_browser_reminds_to_weigh_after_a_week(ui, browser):
+    create(
+        ui,
+        "measurements",
+        timestamp="2026-10-06T08:00",
+        weight_kg=80,
+    )
+    page = browser.page
+    page.goto(browser.base + "/admin/fitness")
+    reminder = page.locator("#fitness-weigh-reminder")
+    assert reminder.is_visible()
+    assert "8 dni" in reminder.text_content()
+
+    create(
+        ui,
+        "measurements",
+        timestamp="2026-10-14T08:00",
+        weight_kg=79.5,
+    )
+    page.locator("#fitness-refresh").click()
+    assert reminder.is_hidden()
 
 
 def test_browser_targets_workout_suggestions_and_precise_running_time(

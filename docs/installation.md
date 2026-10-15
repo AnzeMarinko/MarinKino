@@ -25,6 +25,10 @@ chmod +x ./scripts/setup.sh
    cp .env.example .env
    ```
 2. Uredi `.env` in nastavi svoje vrednosti.
+   Gibanje v lokalnem razvoju uporablja ločeno bazo
+   `data/fitness-development.sqlite3`. Produkcijski Docker Compose uporablja
+   `data/fitness.sqlite3`, zato preizkušanje lokalnih sprememb ne spreminja
+   produkcijskih zapisov. Pot lahko lokalno preglasiš z `FITNESS_DATABASE`.
 3. Če uporabljaš Google AI prevajanje, dodaj `credentials/gen-lang-client.json`.
    Credential datotek ne kopiraj v Docker image; Compose jih priklopi kot
    read-only runtime mount. Če je credential že bil vgrajen v prejšnji image,
