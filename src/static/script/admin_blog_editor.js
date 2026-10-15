@@ -1,3 +1,11 @@
+function freshCsrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return fetch('/csrf-token', {credentials: 'same-origin', cache: 'no-store'})
+        .then(r => r.json())
+        .then(d => { meta.content = d.csrf_token; return d.csrf_token; })
+        .catch(() => meta.content);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const contentEditor = document.getElementById('content-editor');
     const form = document.getElementById('blogEditorForm');
@@ -349,15 +357,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         phase = 'fetch';
-        fetch(targetUrl, {
+        freshCsrfToken().then(token => fetch(targetUrl, {
             method: 'POST',
             body: formData,
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
-                "X-CSRFToken": document.querySelector('meta[name="csrf-token"]').content,
+                "X-CSRFToken": token,
                 "X-Request-ID": requestId
             }
-        })
+        }))
         .then(async response => {
             phase = 'response-body';
             console.info('[blog-save] response', {
@@ -459,13 +467,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!confirm('Ali res želite poslati e-pošto vsem naročnikom?')) return;
             sendMailBtn.disabled = true;
             sendMailBtn.textContent = 'Pošiljam...';
-            fetch(window.location.pathname.replace('/edit/', '/send_mail/'), {
+            freshCsrfToken().then(token => fetch(window.location.pathname.replace('/edit/', '/send_mail/'), {
                 method: 'POST',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content,
+                    'X-CSRFToken': token,
                 },
-            })
+            }))
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
