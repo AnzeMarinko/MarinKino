@@ -81,9 +81,16 @@ def pod_krinko():
 
 
 # Initialize pod_krinko
-pod_krinko_words = pd.read_csv("data/pod_krinko_besede.csv", sep=";").to_dict(
-    orient="split"
-)["data"]
+try:
+    pod_krinko_words = pd.read_csv(
+        "data/pod_krinko_besede.csv", sep=";"
+    ).to_dict(orient="split")["data"]
+except FileNotFoundError:
+    pod_krinko_words = [
+        ["mačka", "pes"],
+        ["morje", "jezero"],
+        ["hruška", "jabolko"],
+    ]
 
 
 @misc_bp.route("/pod_krinko/new_words")
@@ -121,8 +128,16 @@ def pod_krinko_limit():
 
 @misc_bp.route("/newsletter_image/file/<path:filename>")
 def newsletter_image(filename):
+    if os.path.splitext(filename)[1].lower() not in {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".gif",
+        ".webp",
+    }:
+        return "", 404
     try:
-        _ = safe_path("../data/newsletter_images", filename)
+        _ = safe_path("data/newsletter_images", filename)
     except ValueError:
         return "", 404
     user = (
@@ -297,7 +312,7 @@ def weather():
     requested_location = request.args.get("location")
     latitude = request.args.get("lat", type=float)
     longitude = request.args.get("lon", type=float)
-    query = (requested_location or "").strip()
+    query = (requested_location or "").strip()[:120]
     search_warning = ""
     weather_error = ""
 
@@ -310,7 +325,7 @@ def weather():
             )
             last_location = saved_locations[0]
             if isinstance(last_location, dict):
-                query = str(last_location.get("name") or "").strip()
+                query = str(last_location.get("name") or "").strip()[:120]
                 latitude = float(last_location["lat"])
                 longitude = float(last_location["lon"])
         except (
@@ -358,6 +373,7 @@ def weather():
     else:
         location_name = query
 
+    latitude, longitude = round(latitude, 2), round(longitude, 2)
     try:
         weather_data = fetch_weather_for_location(
             latitude, longitude, location_name
@@ -388,7 +404,7 @@ def weather():
 
 @misc_bp.route("/weather/current-location")
 def weather_current_location():
-    client_ip = request.headers.get("X-Real-IP", request.remote_addr)
+    client_ip = request.remote_addr
     location = fetch_ip_location(client_ip)
     if location is None:
         return jsonify(

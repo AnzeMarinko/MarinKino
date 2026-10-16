@@ -30,11 +30,11 @@
   {% include 'partials/blog_subscribe_banner.html' %}
  </div>
 </main>
-<script defer src="{{ url_for('static', filename='js/blog_ui.js') }}"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="{{ url_for('static', filename='js/blog_ui.js') }}"></script>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/blog_gallery.css') }}">
-<script defer src="{{ url_for('static', filename='js/blog_gallery.js') }}"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="{{ url_for('static', filename='js/blog_gallery.js') }}"></script>
 <!-- Breadcrumb Schema -->
-<script type="application/ld+json">
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",

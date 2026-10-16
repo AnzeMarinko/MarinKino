@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "updated_at": "2026-10-16T11:32:48.393336+00:00",
+  "packages": {
+    "bootstrap": {
+      "version": "5.3.8",
+      "integrity": "sha512-HP1SZDqaLDPwsNiqRqi5NcP0SSXciX2s9E+RyqJIIqGo+vJeN5AJVM98CXmW/Wux0nQ5L7jeWUdplCEf0Ee+tg==",
+      "tarball": "https://registry.npmjs.org/bootstrap/-/bootstrap-5.3.8.tgz"
+    },
+    "bootstrap-icons": {
+      "version": "1.13.2",
+      "integrity": "sha512-fAU1Ly3dH7hwRg+CB8EZ0Vl0fF80zgXHeUVJyfUOKzoURr+TbwISbCW5tKUoQLERaWYG2emTCybcPbD96hdD1A==",
+      "tarball": "https://registry.npmjs.org/bootstrap-icons/-/bootstrap-icons-1.13.2.tgz"
+    },
+    "hls.js": {
+      "version": "1.7.3",
+      "integrity": "sha512-MsPlx6yVW4Qv4C7mEVou4/gk/5cN2dVxOTnrNjPSmyH2f0Ln+/UkG10Ax1PE6OvrmTVPKgQYozTtBaPOuCzq7A==",
+      "tarball": "https://registry.npmjs.org/hls.js/-/hls.js-1.7.3.tgz"
+    },
+    "plyr": {
+      "version": "3.8.5",
+      "integrity": "sha512-SqGU1s76fq4lI8ABYhi1uxwrcLGYqmyiMazFAUIOQKKwt6S7FfflEMljLaM3SV8HUUb1KdZ04FY/SNFRpPZHUw==",
+      "tarball": "https://registry.npmjs.org/plyr/-/plyr-3.8.5.tgz"
+    },
+    "plotly.js-dist-min": {
+      "version": "3.7.0",
+      "integrity": "sha512-IRWNnBJZmKss3URDnicBK2nvt/VTSi/MD1GnUscAYFjwSuN6g/CTde5R1UC0RYtblehj8rkT4BL8r05e/c8j5Q==",
+      "tarball": "https://registry.npmjs.org/plotly.js-dist-min/-/plotly.js-dist-min-3.7.0.tgz"
+    },
+    "leaflet": {
+      "version": "1.9.4",
+      "integrity": "sha512-nxS1ynzJOmOlHp+iL3FyWqK89GtNL8U8rvlMOsQdTTssxZwCXh8N2NB3GDQOL+YR3XnWyZAxwQixURb+FA74PA==",
+      "tarball": "https://registry.npmjs.org/leaflet/-/leaflet-1.9.4.tgz"
+    },
+    "easymde": {
+      "version": "2.21.0",
+      "integrity": "sha512-5uE7I/DEN8gvGRwxaqAv7h1PMEK2ykNXVX5zL0dK3nCYROGja3AMbdQz8eCEELnfvCfy7tRkTmLuvyJG8uSWjQ==",
+      "tarball": "https://registry.npmjs.org/easymde/-/easymde-2.21.0.tgz"
+    },
+    "marked": {
+      "version": "16.4.2",
+      "integrity": "sha512-TI3V8YYWvkVf3KJe1dRkpnjs68JUPyEa5vjKrp1XEEJUAOaQc+Qj+L1qWbPd0SJuAdQkFU0h73sXXqwDYxsiDA==",
+      "tarball": "https://registry.npmjs.org/marked/-/marked-16.4.2.tgz"
+    },
+    "dompurify": {
+      "version": "3.4.17",
+      "integrity": "sha512-B/pSlYVHQ58kqISD/yDjuJ1yfzI34m1gF4lAod2bwSRhiN4K5Cl3H8Af7hqB2PmTL911tdEudnnXn5FnhRoz0w==",
+      "tarball": "https://registry.npmjs.org/dompurify/-/dompurify-3.4.17.tgz"
+    },
+    "font-awesome": {
+      "version": "4.7.0",
+      "integrity": "sha512-U6kGnykA/6bFmg1M/oT9EkFeIYv7JlX3bozwQJWiiLz6L0w3F5vBVPxHlwyX/vtNq1ckcpRKOB9f2Qal/VtFpg==",
+      "tarball": "https://registry.npmjs.org/font-awesome/-/font-awesome-4.7.0.tgz"
+    }
+  },
+  "sha256": {
+    "bootstrap.min.css": "d85327d99c7a3ee1f9b5d0500d1370acea3ad2db39c163c2f51f232baedbdede",
+    "bootstrap.bundle.min.js": "e4fd49181388c48ec5040bd3fe66f57c29c8e67fcd8502b3354b96ec7ab47cc7",
+    "licenses/bootstrap.txt": "8d47ffd25085696e5ad7afd1e817588732bbe905ee99c1ca2b6204290a1d5002",
+    "bootstrap-icons.min.css": "79c99c1a1e0e937f808a58165728b7ed00800f02ef5efcfcd10dfe71464e675d",
+    "fonts/bootstrap-icons.woff": "24929e8a44da027588f833d4e82240ee734bd65bf962b08b0545af58a9ce80fa",
+    "fonts/bootstrap-icons.woff2": "2b7689746f87e0beeae25338bc021dd2515c2f6f003f3d3d064d878d380b2150",
+    "licenses/bootstrap-icons.txt": "199ac0931cccf2f0ef9cf2186bf881780a17ab486bbd7deadb3fbf835bc6ace6",
+    "hls.min.js": "a12e7ee1cd64a69dcdb314157e45dafcba705bfb0b1440b7935cb265d374423e",
+    "licenses/hls.js.txt": "3a637867222f040b7a021b720851be836db99674e96276438d1d02bd0a2068cf",
+    "plyr.css": "b5b0b0d4a4042361e89378924d82120994b4f9e3193508e6c0f6d15754f80259",
+    "plyr.min.js": "3861802c6e5e46c0acc104a5ecec761c2992a7e93a685fab349004c44436410a",
+    "plyr.svg": "83469ecb0b22dfd7729d38cc2979d4be1f81deefe5aa4dae5a326a34b9ca7020",
+    "licenses/plyr.txt": "9457adaade6a83272236eb04d63e9072d844bb9a52df9993de70f9a885183c31",
+    "plotly.min.js": "8ef4c6ab1369f0019611cbcd2d5b8aafef23e5d19ef58c39d4b4249831fe2180",
+    "licenses/plotly.js-dist-min.txt": "7170d9fa18b2f098db64c9814f05d5ae7742bb82bf2b3b62a9bbda14507dea3c",
+    "leaflet.css": "a7837102824184820dfa198d1ebcd109ff6d0ff9a2672a074b9a1b4d147d04c6",
+    "leaflet.js": "db49d009c841f5ca34a888c96511ae936fd9f5533e90d8b2c4d57596f4e5641a",
+    "images/layers-2x.png": "066daca850d8ffbef007af00b06eac0015728dee279c51f3cb6c716df7c42edf",
+    "images/layers.png": "1dbbe9d028e292f36fcba8f8b3a28d5e8932754fc2215b9ac69e4cdecf5107c6",
+    "images/marker-icon-2x.png": "00179c4c1ee830d3a108412ae0d294f55776cfeb085c60129a39aa6fc4ae2528",
+    "images/marker-icon.png": "574c3a5cca85f4114085b6841596d62f00d7c892c7b03f28cbfa301deb1dc437",
+    "images/marker-shadow.png": "264f5c640339f042dd729062cfc04c17f8ea0f29882b538e3848ed8f10edb4da",
+    "licenses/leaflet.txt": "41b6286d6ac1dc8d28e958f2ac28042bcd43e0e41cf126c1a68e2dab0a4fa6ce",
+    "simplemde.min.css": "6eee36340432776d682e7372ec4a7eb29be4fdb3ffada32c0bfa5e31a5ef34a2",
+    "simplemde.min.js": "2c06bddfd0c89176db08ccf9d42e2beaa9b4f1a4ff8fb2ec0bf1bed25ce08e05",
+    "licenses/easymde.txt": "2d1856426f9bf7a1906107737ce7278c375378b6612150834334014d905c5b6e",
+    "marked.min.js": "2e20e86f0a13107ae9bf00675894bbb573716a8e5b4fde612eacaff1e404c128",
+    "licenses/marked.txt": "95717e19f1f9f0ed79d1342f7437c71f1487bc2f9b7974e171e8dc8edeaffac8",
+    "purify.min.js": "cd37898f9782adf54820c413191b5691803f0f137c799d6edcfd38523b4c2c31",
+    "licenses/dompurify.txt": "2074d93eb79d69445e1fdb4ddf13186ac670c9a5e7c75b646435801286a9da14",
+    "font-awesome.min.css": "9a21a45666b6f49e755d4531a26979916ae3860583b42a56c97b4ccd85fc0419",
+    "fonts/fontawesome-webfont.eot": "7bfcab6db99d5cfbf1705ca0536ddc78585432cc5fa41bbd7ad0f009033b2979",
+    "fonts/fontawesome-webfont.svg": "ad6157926c1622ba4e1d03d478f1541368524bfc46f51e42fe0d945f7ef323e4",
+    "fonts/fontawesome-webfont.ttf": "aa58f33f239a0fb02f5c7a6c45c043d7a9ac9a093335806694ecd6d4edc0d6a8",
+    "fonts/fontawesome-webfont.woff": "ba0c59deb5450f5cb41b3f93609ee2d0d995415877ddfa223e8a8a7533474f07",
+    "fonts/fontawesome-webfont.woff2": "2adefcbc041e7d18fcf2d417879dc5a09997aa64d675b7a3c4b6ce33da13f3fe"
+  }
+}

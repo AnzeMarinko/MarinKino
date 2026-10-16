@@ -33,6 +33,7 @@ Thumbs.db
 # 🧠 Ostalo, kar nočeš sinhronizirati
 **/node_modules/**
 node_modules/**
-configuration/certbot/conf/live/**
+# Persistent data, .env, credentials and certificate files are included.
+# --links preserves certificate symlinks without following them.
 cache/**
 tmp_download/**

@@ -30,8 +30,9 @@ chmod +x ./scripts/setup.sh
    `data/fitness.sqlite3`, zato preizkušanje lokalnih sprememb ne spreminja
    produkcijskih zapisov. Pot lahko lokalno preglasiš z `FITNESS_DATABASE`.
 3. Če uporabljaš Google AI prevajanje, dodaj `credentials/gen-lang-client.json`.
-   Credential datotek ne kopiraj v Docker image; Compose jih priklopi kot
-   read-only runtime mount. Če je credential že bil vgrajen v prejšnji image,
+   Credential datotek ne kopiraj v Docker image. Uporablja jih samo
+   ločeno okolje za pripravo vsebin (`uv sync --extra preparation`).
+   Javni spletni vsebnik teh ključev ne prejme. Če je credential že bil vgrajen v prejšnji image,
    ga po namestitvi rotiraj pri ponudniku.
 4. Za naročanje na blog ustvari Cloudflare Turnstile widget in v `.env` dodaj:
    ```
@@ -50,7 +51,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install uv
-uv install .
+uv sync --extra dev
 pre-commit install
 pre-commit run --all-files
 ```
@@ -181,68 +182,33 @@ PYTHONPATH=src python -m pytest tests/test_device_sessions.py tests/test_device_
 uv run python src/app.py
 ```
 
-Ob prvem zagonu se ustvari `data/users.json` z začetnim uporabnikom. Po prvi prijavi:
-* ročno spremeni uporabniško ime administratorja in posodobi e-naslov,
-* shrani in odstrani začetno geslo `initial_password`.
+Ob prvem zagonu se ustvari začetni skrbniški račun. Enkratno geslo je
+v `data/.initial-admin-password` (pravice `0600`); v JSON se shrani samo
+zgoščena vrednost. Prva prijava zahteva menjavo gesla. Nato datoteko z
+enkratnim geslom izbriši. Razvoj uporablja `data/test_users.json`.
 
 ### 6. Dodaj vsebine
 V mape `movies`, `memes` in `music` dodaj datoteke glede na [navodila za dodajanje datotek](docs/adding_data.md).
 
-### 7. Nastavi pravice za `data` mapo
-```
-sudo apt-get install -y acl
-sudo setfacl -R -d -m o::rx ./data
-sudo setfacl -R -m o::rx ./data
+### 7. Pravice in strežniška namestitev
+
+Pravice nastavi varnostni setup. Ne uporabljaj `chmod -R 777` ali javnih ACL
+na celotni mapi `data`, ker vsebuje gesla, naročnike in zasebne zapise.
+
+Docker Engine in Compose v2 morata biti že nameščena. Na Raspberry Pi zaženi:
+
+```sh
+sudo --preserve-env=SSH_CONNECTION bash scripts/setup.sh
 ```
 
-## Strežniška namestitev
-
-### 1. Nastavi Fail2Ban
-```
-sudo apt update && sudo apt install -y fail2ban
-```
-
-Kopiraj konfiguracijske datoteke iz repozitorija v `/etc/fail2ban`:
-```
-sudo cp configuration/fail2ban/filter.d/nginx-404.conf /etc/fail2ban/filter.d/nginx-404.conf
-sudo cp configuration/fail2ban/filter.d/marinkino-auth.conf /etc/fail2ban/filter.d/marinkino-auth.conf
-sudo cp configuration/fail2ban/jail.local /etc/fail2ban/jail.local
-```
-
-Zaženi in preveri:
-```
-sudo systemctl restart fail2ban
-sudo fail2ban-client status
-sudo fail2ban-client status marinkino-auth
-```
-
-### 2. Namesti Docker in zaženi aplikacijo
-```
-sudo apt update && sudo apt install -y curl
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-sudo systemctl enable --now docker
-```
-
-Zaženi začetni Docker setup:
-```
-sudo ./scripts/setup.sh
-sudo chmod -R 777 cache
-```
-
-Ob koncu izvajanja te skripte mora biti stran dostopna preko HTTPS in vašega URL (DuckDNS poddomena).
-
-
-Če želiš uporabljati Docker brez `sudo`, dodaj uporabnika v skupino `docker` in ponovno zaženi sejo:
-```
-sudo usermod -aG docker $USER
-newgrp docker
-```
+Setup uredi dovoljenja, vsebnike, TLS, požarni zid, Fail2Ban in cron.
+Podrobnosti posodobitev, obnovitev in šifriranih kopij:
+[varnost in vzdrževanje](security.md).
 
 ### 3. Posodabljanje aplikacije po spremembah
 Po spremembah v `src`, `.env`, Dockerfile ali `docker-compose.yml` ponovno pregradi:
 ```
-docker compose up -d --build
+sudo --preserve-env=SSH_CONNECTION bash scripts/setup.sh
 ```
 
 Shranjevanje blog objave sprejme zahteve do 40 MB. Na obstoječem strežniku
@@ -252,42 +218,127 @@ in ponovno naloži Nginx:
 docker compose exec nginx nginx -s reload
 ```
 
-## Varna sinhronizacija v oblak z rclone
+## Namestitev na obstoječem Pi in kopije na Drive
 
-Namesti in konfiguriraj rclone:
-```
-sudo curl https://rclone.org/install.sh | sudo bash
-rclone config
-```
+Postopek velja za obstoječi Pi z Docker Engine, Compose v2, delujočo domeno
+in obstoječim `.env`. Ukaze izvajaj kot običajni uporabnik Pi. Pot projekta
+prilagodi svoji namestitvi. Spremembe morajo biti najprej prenesene z Maca;
+`git pull` jih dobi šele po commit/push.
 
-Primer konfiguracije za Google Drive:
-1. `n` – New remote
-2. izberi ime, npr. `gdrive`
-3. izberi ponudnika (Google Drive)
-4. pusti `Client ID` in `Secret` prazno, razen če želiš napredno konfiguracijo
-5. izberi `Scope` = Full access
-6. `Edit advanced config` = n
-7. uporabi spletni brskalnik za avtentikacijo
+1. Namesti pripomočka in odpri trajno terminalno sejo. To omogoča nadaljevanje
+   namestitve, če nadgradnja Connect prekine povezavo:
 
-Preveri dostopnost:
-```
-rclone ls gdrive:
-```
+   ```sh
+   sudo apt update
+   sudo apt install -y tmux rclone
+   sudo loginctl enable-linger "$USER"
+   tmux new -s marinkino-setup
+   cd ~/Desktop/MarinKino
+   git pull --ff-only
+   ```
 
-Ročno poženite sinhronizacijo:
-```
-./scripts/rclone/rclone-sync-gdrive.sh
-```
+   Po prekinitvi se poveži nazaj in izvedi `tmux attach -t marinkino-setup`.
+   `.env`, podatkov in certifikatov ne prepisuj z vzorci. V `.env` preveri
+   `MAIN_DOMAIN`, `WWW_DOMAIN`, `PUBLIC_BASE_URL`, pošto in Turnstile.
 
-Za samodejno sinhronizacijo dodaj cron nalogo:
-```
-sudo crontab -e
-```
+2. Preveri obstoječi Drive remote. Če `gdrive:` že deluje, ponovne prijave
+   ne potrebuješ:
 
-Dodaj vrstico (poskrbi, da pot ustreza tvojemu okolju):
-```
-0 7 * * * /home/marinko/Desktop/MarinKino/scripts/rclone/rclone-sync-gdrive.sh
-```
+   ```sh
+   rclone lsd gdrive:
+   rclone config file
+   ```
+
+   Če remote manjka, ga ustvari z `rclone config`: ime `gdrive`, Google Drive
+   in prijava v svoj račun. Za prijavo brez brskalnika na Pi sledi navodilom
+   rclone za avtorizacijo na Macu. Pot konfiguracije pokaže `rclone config file`.
+
+3. Ustvari zasebno kopijo konfiguracije za samodejna root opravila. Če je
+   konfiguracija drugje, zamenjaj izvorno pot. Obstoječo namensko konfiguracijo
+   prepiši samo, kadar želiš posodobiti njene nastavitve/prijavo:
+
+   ```sh
+   sudo install -d -m 700 /etc/marinkino-security
+   sudo install -o root -g root -m 600 "$HOME/.config/rclone/rclone.conf" /etc/marinkino-security/rclone.conf
+   sudo rclone --config /etc/marinkino-security/rclone.conf lsd gdrive:
+   ```
+
+4. Pred prvo nadgradnjo preveri načrt prenosa, nato zaženi kopiranje:
+
+   ```sh
+   sudo bash scripts/rclone/rclone-sync-gdrive.sh --project "$PWD" --dry-run
+   sudo bash scripts/rclone/rclone-sync-gdrive.sh --project "$PWD"
+   ```
+
+   Skripta izpiše pot dnevnika. Prvi ukaz pregleda dejanja brez spreminjanja
+   Drive; pred drugim preglej izpis z `sudo less IZPISANA_POT_DNEVNIKA`.
+   V zrcalo so vključeni `.env`, zasebni podatki, credentials in certifikati.
+   Začasni cache, okolja Python, build in Git ostanejo izločeni. Če želiš
+   kopijo trenutnega stanja produkcijskih datotek pred prenosom nove kode,
+   izvedi dodatno kopiranje tudi pred `git pull`.
+
+5. Namesti zaščite, posodobitve, vsebnike, admin dnevnike in cron:
+
+   ```sh
+   sudo --preserve-env=SSH_CONNECTION bash scripts/setup.sh
+   ```
+
+   Prek Connect zadostuje `sudo bash scripts/setup.sh`. Prvo povezavo ohrani;
+   po uspehu preveri novo SSH/Connect povezavo. Setup ohrani obstoječe močne
+   ključe, podatke in certifikate. Vzdrževanje teče ob 03:17, certifikati ob
+   05:11 in 17:11, Drive ob 07:00 po času Pi. Root-owned kopije skript so v
+   `/usr/local/lib/marinkino`; ob spremembi skript ponovno zaženi setup.
+
+6. Preveri delovanje in kopiraj nove šifrirane arhive na Drive:
+
+   ```sh
+   sudo docker compose ps
+   sudo cat /var/lib/marinkino-security/status.json
+   sudo cat /etc/cron.d/marinkino-security
+   sudo fail2ban-client status
+   sudo /usr/local/lib/marinkino/rclone-sync-gdrive.sh --project "$PWD"
+   sudo rclone --config /etc/marinkino-security/rclone.conf check /var/backups/marinkino gdrive:MarinKino-backups --include '*.tar.age' --one-way
+   ```
+
+   V brskalniku preveri prijavo, predvajanje in `/admin/logs`. Na Drive so:
+   `MarinKino` (zrcalo), `MarinKino-history` (prepisi/izbrisi) in
+   `MarinKino-backups` (datirani age arhivi) in `MarinKino-redis` (datirani
+   RDB posnetki delujočega podatkovnega Redisa). Arhivi vsebujejo konsistentne
+   SQLite posnetke in kritične JSON podatke; neposredna kopija žive baze v
+   zrcalu tega ne zagotavlja. Zapis RDB za kratek čas zadrži Redisove ukaze;
+   prijavne seje se ob obnovi ustvarijo znova.
+
+7. Shrani ključ za obnovo izven Pi. Na Pi pripravi zasebno kopijo za prenos:
+
+   ```sh
+   install -d -m 700 "$HOME/.marinkino-recovery"
+   sudo install -o "$(id -u)" -g "$(id -g)" -m 600 /etc/marinkino-security/backup.agekey "$HOME/.marinkino-recovery/backup.agekey"
+   ```
+
+   Nato na Macu, z dejanskim IP in uporabniškim imenom Pi:
+
+   ```sh
+   mkdir -p "$HOME/MarinKino-recovery"
+   chmod 700 "$HOME/MarinKino-recovery"
+   scp marinko@IP_RPI:.marinkino-recovery/backup.agekey "$HOME/MarinKino-recovery/backup.agekey"
+   chmod 600 "$HOME/MarinKino-recovery/backup.agekey"
+   test -s "$HOME/MarinKino-recovery/backup.agekey"
+   ```
+
+   Ključ lahko shraniš tudi v upravitelju gesel. Ni potreben za delovanje
+   strani, potreben je za odklepanje `.tar.age`. Skripta ga ne nalaga na Drive.
+
+8. Preveri odklepanje enega arhiva, brez spreminjanja podatkov:
+
+   ```sh
+   sudo ls -lh /var/backups/marinkino
+   sudo age -d -i /etc/marinkino-security/backup.agekey /var/backups/marinkino/IZBRANA.tar.age | tar -tf -
+   ```
+
+   Zamenjaj `IZBRANA.tar.age` z dejanskim imenom. Lokalno ostane 14 dni
+   arhivov; zgodovina in arhivi na Drive se ne brišejo samodejno. Spremljaj
+   prostor in rezultat dnevnih opravil v administraciji. Novih cron vrstic
+   za ta opravila ne dodajaj ročno.
 
 ## Uporaba lastne domene
 

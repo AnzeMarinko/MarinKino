@@ -1,33 +1,34 @@
-FROM python:3.12-slim
-
+FROM python:3.12-slim AS base
+ARG SECURITY_REFRESH=initial
 WORKDIR /app
+RUN apt-get update && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends ffmpeg ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && python -m pip uninstall -y pip
+ENV PYTHONPATH=/app/src PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    ffmpeg \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
-    git \
-    && rm -rf /var/lib/apt/lists/*
-
-# Ensure Python can import modules from src
-ENV PYTHONPATH=/app/src
-
-# Create necessary directories
-RUN mkdir -p /app/cache/logs/server
-
-# Expose port
-EXPOSE 5000
-
-# Copy project files
-COPY pyproject.toml .
-
-# Install Python dependencies
-RUN pip install --default-timeout=1000 --no-cache-dir -e .
-
-# copy source code and other files
+FROM base AS builder
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+COPY pyproject.toml uv.lock README.md ./
 COPY src ./src
+ARG UPDATE_DEPENDENCIES=0
+# Optional preparation/ML tools never enter the public server image.
+RUN if [ "$UPDATE_DEPENDENCIES" = 1 ]; then uv lock --upgrade; fi \
+    && uv sync --frozen --no-dev --no-editable
 
-# Run the application with waitress
-CMD ["sh", "-c", "umask 0002 && waitress-serve --host=0.0.0.0 --port=5000 src.app:app"]
+FROM base AS runtime
+LABEL io.marinkino.security.managed="true"
+ARG APP_UID=10001
+ARG APP_GID=10001
+RUN groupadd --gid "$APP_GID" marinkino \
+    && useradd --uid "$APP_UID" --gid "$APP_GID" --no-create-home --shell /usr/sbin/nologin marinkino \
+    && mkdir -p /app/data /app/cache /run/marinkino \
+    && chown "$APP_UID:$APP_GID" /app/data /app/cache /run/marinkino \
+    && chmod 755 /run/marinkino
+COPY --from=builder /app/.venv /app/.venv
+COPY --from=builder /app/src /app/src
+COPY --from=builder /app/uv.lock /app/runtime.lock
+ENV PATH=/app/.venv/bin:/usr/local/bin:/usr/bin:/bin XDG_CACHE_HOME=/tmp/cache
+USER ${APP_UID}:${APP_GID}
+HEALTHCHECK --interval=20s --timeout=5s --start-period=60s --retries=5 CMD ["python", "-m", "healthcheck"]
+CMD ["python", "-m", "serve"]

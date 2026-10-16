@@ -95,11 +95,11 @@
 
  <p id="movies-status" role="status" aria-live="polite"></p>
  <div class="movie-grid" id="movie-grid" data-admin="{{ 'true' if current_user.is_authenticated and current_user.is_admin and view_as not in ['anonymous', 'user'] else 'false' }}"></div>
- <script id="movies-initial" type="application/json">{{ {'movies': movies, 'has_more': has_more}|tojson }}</script>
+ <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" id="movies-initial" type="application/json">{{ {'movies': movies, 'has_more': has_more}|tojson }}</script>
  <div class="movies-pagination"><button id="movies-more" type="button" hidden>Naloži več filmov</button></div>
  {% if not current_user.is_authenticated or view_as == 'anonymous' %}<div class="movies-empty"><h2>Tvoj filmski večer se začne tukaj.</h2><p>Za ogled filmske zbirke se prijavi.</p><a class="movie-play" href="/login">Prijava</a></div>{% endif %}
 
-<script defer src="/static/script/movies.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/script/movies.js"></script>
 </main>
 
 {% endblock %}

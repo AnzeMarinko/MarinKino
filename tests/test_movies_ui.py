@@ -1,7 +1,5 @@
 """Movie discovery and playback with isolated content and mocked mutations."""
 
-from pathlib import Path
-
 import pytest
 from flask import Response, jsonify, render_template, request
 from playwright.sync_api import expect
@@ -266,8 +264,25 @@ def test_browser_movie_collection_and_hls_fallback(films, browser):
     expect(page.locator(".video-btn").first).to_have_class(
         "video-btn selected"
     )
-    assert (
-        page.locator("#videoPlayer").get_attribute("src").endswith("/film.mp4")
+    # Plyr recreates its media node when changing source; inspect the live
+    # player's source rather than the initial video element's ID.
+    video = page.locator("#collectionPlayerContainer video")
+    expect(video).to_be_visible()
+    assert video.evaluate(
+        "el => (el.querySelector('source')?.src || el.src || el.currentSrc)"
+    ).endswith("/film.mp4")
+    page.locator(".video-btn").nth(1).click()
+    expect(page.locator(".video-btn").nth(1)).to_have_class(
+        "video-btn selected"
+    )
+    assert video.evaluate(
+        "el => (el.querySelector('source')?.src || el.src || el.currentSrc)"
+    ).endswith("/second.mp4")
+    # Exercise the no-HLS-library fallback explicitly. Production HLS assets
+    # are now local and load even when external network requests are blocked.
+    page.route(
+        "**/static/vendor/hls.min.js",
+        lambda route: route.fulfill(body="", content_type="text/javascript"),
     )
     page.goto(browser.base + "/movies/play/test/one?mode=hls")
     expect(page.locator("#hlsVideoPlayer")).to_be_visible()
@@ -364,41 +379,16 @@ def test_browser_compact_movie_overview_and_ratings(films, browser):
 
 
 def test_browser_plyr_controls_fit_and_progress_shines(films, browser):
-    # Optional local copies of the exact CDN assets; browser stays offline.
-    js = Path("/private/tmp/marinkino-plyr.js")
-    css = Path("/private/tmp/marinkino-plyr.css")
-    if (
-        not js.exists()
-        or not css.exists()
-        or not Path("/private/tmp/marinkino-plyr.svg").exists()
-    ):
-        pytest.skip(
-            "Local Plyr 3.7.8 assets required for library layout check"
-        )
     page = browser.page
-    page.route(
-        "https://cdn.plyr.io/3.7.8/plyr.svg",
-        lambda route: route.fulfill(
-            path="/private/tmp/marinkino-plyr.svg",
-            content_type="image/svg+xml",
-        ),
-    )
-    page.route(
-        "https://cdn.plyr.io/3.7.8/plyr.js",
-        lambda route: route.fulfill(
-            path=str(js), content_type="application/javascript"
-        ),
-    )
-    page.route(
-        "https://cdn.plyr.io/3.7.8/plyr.css",
-        lambda route: route.fulfill(path=str(css), content_type="text/css"),
-    )
     for width in [320, 390, 820, 1440]:
         page.set_viewport_size({"width": width, "height": 900})
         page.goto(browser.base + "/movies/play/test/one")
         page.wait_for_function(
             "document.getElementById('videoPlayer')?.plyr?.elements?.controls"
         )
+        download = page.locator('.plyr__controls [data-plyr="download"]')
+        expect(download).to_be_visible()
+        expect(download).to_have_attribute("href", "/movies/download/test/one")
         player = page.locator(".plyr-container").bounding_box()
         video = page.locator("#videoPlayer").bounding_box()
         assert abs(video["width"] / video["height"] - 16 / 9) < 0.05

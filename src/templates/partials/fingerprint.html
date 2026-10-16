@@ -1,3 +1,1 @@
-<!-- The default CDN URL is an ES module; classic scripts need the IIFE build. -->
-<script src="https://openfpcdn.io/fingerprintjs/v4/iife.min.js" defer></script>
-<script src="{{ url_for('static', filename='script/fingerprint.js') }}" defer></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="{{ url_for('static', filename='script/fingerprint.js') }}" defer></script>

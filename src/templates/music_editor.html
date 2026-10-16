@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="sl">
 <head>
+<meta name="csrf-token" content="{{ csrf_token() }}">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Urejanje Metapodatkov Glasbe</title>
@@ -421,8 +422,8 @@
         Skupno pesmi: <span id="totalCount">0</span> | Prikazano: <span id="visibleCount">0</span>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
-    <script>
+    <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="/static/vendor/hls.min.js"></script>
+    <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}">
         // Globalni podatki
         let allMusic = {{ music|tojson }};
         let currentlyPlaying = null;
@@ -638,7 +639,7 @@
             fetch('/api/music/update', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
                 },
                 body: JSON.stringify(data)
             })
@@ -694,7 +695,7 @@
             fetch('/api/music/delete', {
                 method: 'DELETE',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
                 },
                 body: JSON.stringify({ filename: filename })
             })
@@ -777,7 +778,7 @@
             fetch('/api/music/download-yt', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
                 },
                 body: JSON.stringify({ url: ytUrl })
             })

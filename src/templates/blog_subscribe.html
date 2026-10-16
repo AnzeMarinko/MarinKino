@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   {% include "partials/admin_night_theme.html" %}
   {% if current_user is defined and current_user.is_authenticated and current_user.is_admin %}
-  <script src="/static/js/admin_access_clock.js"></script>
+  <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="/static/js/admin_access_clock.js"></script>
   {% endif %}
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
@@ -17,7 +17,7 @@
   <main class="subscription" data-native-subscription
         data-blog-language="{{ language }}" data-blog-languages='{{ blog_languages | tojson }}'
         data-subscription-url="{{ subscription_url_encoded }}">
-    <script src="{{ url_for('static', filename='js/blog_translation.js') }}"></script>
+    <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="{{ url_for('static', filename='js/blog_translation.js') }}"></script>
     <img class="subscription-logo" src="{{ url_for('static', filename='blog_favicon_io/android-chrome-192x192.png') }}" width="56" height="56" alt="">
     <a class="brand" href="{{ blog_url }}" rel="noreferrer">{{ copy.blog_title }}</a>
     <h1>{{ copy.subscription_heading }}</h1>
@@ -57,7 +57,7 @@
       </div>
       {% if turnstile_site_key %}
       <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" data-action="blog_subscribe" data-language="{{ language|lower }}" data-size="flexible"></div>
-      <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+      <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
       {% endif %}
       <button class="submit" type="submit">{{ copy.subscribe }}</button>
     </form>

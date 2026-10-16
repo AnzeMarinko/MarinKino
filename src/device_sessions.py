@@ -3,7 +3,7 @@
 from redis import Redis
 
 DEVICE_IDLE_SECONDS = 7 * 24 * 60 * 60
-MAX_DEVICES = 10
+MAX_DEVICES = 5
 
 _REFRESH_DEVICE = """
 local key = KEYS[1]
@@ -91,3 +91,7 @@ class DeviceSessionStore:
     def release(self, user_id: str, device_id: str) -> None:
         """Free this device's slot immediately on logout."""
         self._redis.zrem(self.key(user_id), device_id)
+
+    def revoke_all(self, user_id: str) -> None:
+        """Invalidate every device after recovery or a password change."""
+        self._redis.delete(self.key(user_id))

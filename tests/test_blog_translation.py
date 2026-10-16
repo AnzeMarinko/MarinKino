@@ -43,7 +43,7 @@ class User(UserMixin):
 
 
 @pytest.fixture
-def blog(monkeypatch):
+def blog(monkeypatch, tmp_path):
     monkeypatch.setenv("WWW_DOMAIN", "blog.example.com")
     monkeypatch.delenv("PUBLIC_BASE_URL", raising=False)
     monkeypatch.delenv("TURNSTILE_SITE_KEY", raising=False)
@@ -65,6 +65,7 @@ def blog(monkeypatch):
     module = importlib.util.module_from_spec(spec)
     with patch.dict(sys.modules, {"utils": utilities, "markdown": markdown}):
         spec.loader.exec_module(module)
+    module.SUBSCRIBERS_FILE = str(tmp_path / "blog_subscribers.json")
     posts = {
         slug: {
             "id": slug,
@@ -201,7 +202,34 @@ def test_draft_preview_does_not_offer_translation(blog, username):
         session["_fresh"] = True
     response = client.get("/blog/osnutek")
     assert response.status_code == 200
-    assert not translation_links(response.get_data(as_text=True))
+    html = response.get_data(as_text=True)
+    assert "Zasebni osnutek" in html
+    assert not translation_links(html)
+
+
+@pytest.mark.parametrize("path", ["/blog", "/blog?q=osnutek"])
+def test_member_list_search_and_index_hide_accessible_drafts(blog, path):
+    client = blog.app.test_client()
+    with client.session_transaction() as session:
+        session["_user_id"] = "member"
+        session["_fresh"] = True
+    assert client.get("/blog/osnutek").status_code == 200
+    response = client.get(path)
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Zasebni osnutek" not in html
+    assert 'href="/blog/osnutek"' not in html
+    assert "Javna objava" in html  # Published posts remain in the index.
+
+
+def test_admin_list_keeps_drafts_visible(blog):
+    client = blog.app.test_client()
+    with client.session_transaction() as session:
+        session["_user_id"] = "admin"
+        session["_fresh"] = True
+    response = client.get("/blog")
+    assert response.status_code == 200
+    assert "Zasebni osnutek" in response.get_data(as_text=True)
 
 
 def test_anonymous_translation_source_contains_only_published_posts(blog):

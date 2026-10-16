@@ -16,9 +16,13 @@ from flask import (
     url_for,
 )
 from flask_login import current_user, login_required, login_user, logout_user
+from redis import Redis
+from redis.exceptions import RedisError
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from device_sessions import MAX_DEVICES, DeviceSessionStore
+from security_http import rate_limit_identity
+from security_storage import atomic_write_json, locked_path, serialized_json
 from utils import (
     find_user_by_email,
     is_current_admin_view,
@@ -34,6 +38,17 @@ WWW_DOMAIN = os.getenv("WWW_DOMAIN")
 AUTH_RATE_LIMIT = 5
 AUTH_RATE_LIMIT_TTL = 15 * 60
 PASSWORD_MIN_LENGTH = 12
+_DUMMY_PASSWORD_HASH = generate_password_hash(secrets.token_urlsafe(32))
+# Auth state has its own bounded Redis, isolated from public statistics.
+statistics_redis = redis_client
+if os.getenv("AUTH_REDIS_HOST"):
+    redis_client = Redis(
+        host=os.environ["AUTH_REDIS_HOST"],
+        port=int(os.getenv("AUTH_REDIS_PORT", "6379")),
+        decode_responses=True,
+        socket_connect_timeout=2,
+        socket_timeout=2,
+    )
 device_sessions = DeviceSessionStore(redis_client)
 
 # Shared utilities (imported from main app)
@@ -58,6 +73,8 @@ def _clear_device_session():
         "_remember_seconds",
         "device_id",
         "view_as",
+        "authenticated_at",
+        "credential_version",
     ):
         session.pop(key, None)
     # Block fallback to an older username-only remember cookie.
@@ -67,8 +84,16 @@ def _clear_device_session():
 def load_device_user(user_id):
     """Authenticate only registered devices and refresh their idle timeout."""
     device_id = session.get("device_id")
+    started = session.get("authenticated_at", 0)
+    lifetime = (
+        12 * 3600 if users.get(user_id, {}).get("is_admin") else 30 * 86400
+    )
     if (
-        user_id in users
+        isinstance(started, (int, float))
+        and 0 <= datetime.now(timezone.utc).timestamp() - started < lifetime
+        and user_id in users
+        and session.get("credential_version")
+        == users[user_id].get("credential_version", "")
         and isinstance(device_id, str)
         and device_id
         and device_sessions.touch(user_id, device_id)
@@ -89,17 +114,38 @@ def _logout_current_device():
     _clear_device_session()
 
 
-def save_users():
-    global users
-    with open(users_file, "w", encoding="utf-8") as f:
-        import json
+def _remove_bootstrap_password(username):
+    if users.get(username, {}).get("is_admin"):
+        try:
+            os.unlink(
+                os.path.join(
+                    os.path.dirname(users_file), ".initial-admin-password"
+                )
+            )
+        except FileNotFoundError:
+            pass
 
-        f.write(json.dumps(users, indent=4))
+
+def save_users():
+    for data in users.values():
+        data.pop("initial_password", None)
+    atomic_write_json(users_file, users)
+
+
+def auth_stat(event, username):
+    username = username if username in users else "<unknown>"
+    key = f"auth:{event}:{date.today().isoformat()[:7]}:{username}"
+    try:
+        pipe = statistics_redis.pipeline(transaction=False)
+        pipe.incr(key)
+        pipe.expire(key, 400 * 86400)
+        pipe.execute()
+    except RedisError:
+        log.warning("Authentication statistics unavailable")
 
 
 def auth_rate_limited(identifier, action):
-    client_ip = request.remote_addr or "unknown"
-    values = [client_ip, identifier.lower()]
+    values = [rate_limit_identity(), identifier.lower()]
     counts = []
     for value in values:
         digest = hashlib.sha256(value.encode()).hexdigest()
@@ -120,7 +166,25 @@ def public_base_url():
     return None
 
 
+def _admin_second_factor(username):
+    secret = os.getenv("ADMIN_TOTP_SECRET", "").strip()
+    if not secret or not users[username].get("is_admin"):
+        return True
+    import pyotp
+
+    code = request.form.get("otp", "").strip()
+    if not re.fullmatch(r"[0-9]{6}", code):
+        return False
+    if not pyotp.TOTP(secret).verify(code, valid_window=1):
+        return False
+    # Prevent reuse during the validity window, across devices and workers.
+    digest = hashlib.sha256(f"{username}:{code}".encode()).hexdigest()
+    return bool(redis_client.set(f"auth:otp:{digest}", "1", nx=True, ex=90))
+
+
 def password_strength_error(password, username=""):
+    if len(password) > 256:
+        return "Geslo je predolgo. Največ 256 znakov."
     if len(password) < PASSWORD_MIN_LENGTH:
         return "Geslo mora vsebovati vsaj 12 znakov."
     if username and username.lower() in password.lower():
@@ -156,16 +220,30 @@ def get_welcome_stats():
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
+@serialized_json(lambda: users_file)
 def login():
     error = None
     if request.method == "POST":
         username = request.form.get("username", "").strip()
-        password = request.form["password"]
+        password = request.form.get("password", "")
+        if len(username) > 30 or len(password) > 256:
+            return render_template("login.html", pagetitle="Prijava"), 400
         if auth_rate_limited(username, "login"):
+            log.warning(
+                "ZAVRNJENA_PRIJAVA IP: %s Uporabnik: <rate-limited>",
+                request.remote_addr,
+            )
             flash("Preveč poskusov. Poskusite znova čez nekaj minut.", "error")
             return render_template("login.html", pagetitle="Prijava"), 429
-        if username in users and check_password_hash(
-            users[username]["password_hash"], password
+        if (
+            check_password_hash(
+                users.get(username, {}).get(
+                    "password_hash", _DUMMY_PASSWORD_HASH
+                ),
+                password,
+            )
+            and username in users
+            and _admin_second_factor(username)
         ):
             previous_user_id = session.get("_user_id")
             previous_device_id = session.get("device_id")
@@ -197,21 +275,26 @@ def login():
             user = User(username)
             login_user(user, remember=False)
             session["device_id"] = device_id
-            session.permanent = True
-            redis_client.incr(
-                f"auth:login:{date.today().isoformat()[:7]}:{username}"
+            session["authenticated_at"] = datetime.now(
+                timezone.utc
+            ).timestamp()
+            session["credential_version"] = users[username].get(
+                "credential_version", ""
             )
+            session.permanent = True
+            auth_stat("login", username)
+            if users[username].get("must_change_password"):
+                return redirect(url_for("auth.change_password"))
             if users[username].get("first_login", True):
                 return redirect(url_for("auth.welcome"))
             return redirect(url_for("home"))
         else:
-            client_ip = request.headers.get("X-Real-IP", request.remote_addr)
             log.warning(
-                f"ZAVRNJENA_PRIJAVA IP: {client_ip} Uporabnik: {username}"
+                "ZAVRNJENA_PRIJAVA IP: %s Uporabnik: %s",
+                request.remote_addr,
+                username.replace("\n", "").replace("\r", "")[:30],
             )
-            redis_client.incr(
-                f"auth:reject:{date.today().isoformat()[:7]}:{username}"
-            )
+            auth_stat("reject", username)
             error = "Napačno uporabniško ime ali geslo."
             flash(error, "error")
     return render_template("login.html", pagetitle="Prijava")
@@ -219,6 +302,7 @@ def login():
 
 @auth_bp.route("/welcome", methods=["GET", "POST"])
 @login_required
+@serialized_json(lambda: users_file)
 def welcome():
     if request.method == "POST":
         users[current_user.id]["first_login"] = False
@@ -245,9 +329,9 @@ def register():
         email2 = request.form.get("email2", "").strip()
         if username in users:
             error = "Uporabniško ime zasedeno!"
-        elif find_user_by_email(email, users) is not None:
+        elif find_user_by_email(email, dict(users)) is not None:
             error = f"E-naslov {email} je že registriran!"
-        elif find_user_by_email(email2, users) is not None:
+        elif find_user_by_email(email2, dict(users)) is not None:
             error = f"E-naslov {email2} je že registriran!"
         elif (
             username is None
@@ -269,19 +353,28 @@ def register():
                 datetime.now(timezone.utc) + timedelta(hours=24)
             ).isoformat()
             emails = [email] + ([email2] if email2 else [])
-            users[username] = {
-                "password_hash": generate_password_hash(
-                    secrets.token_urlsafe(32)
-                ),
-                "setup_token_hash": hashlib.sha256(
-                    setup_token.encode()
-                ).hexdigest(),
-                "setup_expiry": setup_expiry,
-                "must_set_password": True,
-                "emails": emails,
-                "incoming_date": date.today().isoformat(),
-                "first_login": True,
-            }
+            with locked_path(users_file):
+                if (
+                    username in users
+                    or find_user_by_email(email, dict(users)) is not None
+                    or find_user_by_email(email2, dict(users)) is not None
+                ):
+                    flash("Uporabnik ali e-naslov že obstaja.", "error")
+                    return redirect(request.url)
+                users[username] = {
+                    "password_hash": generate_password_hash(
+                        secrets.token_urlsafe(32)
+                    ),
+                    "setup_token_hash": hashlib.sha256(
+                        setup_token.encode()
+                    ).hexdigest(),
+                    "setup_expiry": setup_expiry,
+                    "must_set_password": True,
+                    "emails": emails,
+                    "incoming_date": date.today().isoformat(),
+                    "first_login": True,
+                }
+                save_users()
             setup_link = (
                 f"{base_url}"
                 f"{url_for('auth.reset_password', token=setup_token)}"
@@ -299,8 +392,8 @@ def register():
                     "chat_id": os.getenv("TELEGRAM_CHAT_ID"),
                     "text": content,
                 },
+                timeout=5,
             )
-            save_users()
             send_mail(
                 to=emails,
                 subject="Dostop do MarinKino",
@@ -326,20 +419,21 @@ def register():
 def forgot_password():
     if request.method == "POST":
         email = request.form.get("email", "").strip()
-        username = find_user_by_email(email, users)
+        username = find_user_by_email(email, dict(users))
         if auth_rate_limited(email, "forgot"):
             flash("Preveč zahtev. Poskusite znova čez nekaj minut.", "info")
             return redirect(url_for("auth.login"))
         if username:
-            token = secrets.token_urlsafe(32)
-            expiry = (
-                datetime.now(timezone.utc) + timedelta(minutes=30)
-            ).isoformat()
-            users[username]["reset_token_hash"] = hashlib.sha256(
-                token.encode()
-            ).hexdigest()
-            users[username]["reset_expiry"] = expiry
-            save_users()
+            with locked_path(users_file):
+                token = secrets.token_urlsafe(32)
+                expiry = (
+                    datetime.now(timezone.utc) + timedelta(minutes=30)
+                ).isoformat()
+                users[username]["reset_token_hash"] = hashlib.sha256(
+                    token.encode()
+                ).hexdigest()
+                users[username]["reset_expiry"] = expiry
+                save_users()
             base_url = public_base_url()
             if not base_url:
                 log.error("PUBLIC_BASE_URL or WWW_DOMAIN must be configured")
@@ -347,9 +441,7 @@ def forgot_password():
             reset_link = (
                 f"{base_url}{url_for('auth.reset_password', token=token)}"
             )
-            redis_client.incr(
-                f"auth:forgot:{date.today().isoformat()[:7]}:{username}"
-            )
+            auth_stat("forgot", username)
             try:
                 send_mail(
                     to=users[username].get("emails", []),
@@ -384,6 +476,7 @@ def forgot_password():
 
 
 @auth_bp.route("/password/reset/<token>", methods=["GET", "POST"])
+@serialized_json(lambda: users_file)
 def reset_password(token):
     username = None
     user_data = None
@@ -401,9 +494,7 @@ def reset_password(token):
             expiry_key = "setup_expiry"
             break
     if not username or not user_data:
-        redis_client.incr(
-            f"auth:reset_token_invalid:{date.today().isoformat()[:7]}:{username}"
-        )
+        auth_stat("reset_token_invalid", username)
         flash(
             "Neveljavna ali potekla povezava za ponastavitev gesla.", "error"
         )
@@ -425,9 +516,7 @@ def reset_password(token):
         users[username].pop(expiry_key, None)
         save_users()
         flash("Povezava za ponastavitev gesla je potekla.", "error")
-        redis_client.incr(
-            f"auth:reset_token_expired:{date.today().isoformat()[:7]}:{username}"
-        )
+        auth_stat("reset_token_expired", username)
         return redirect(url_for("auth.login"), code=400)
 
     if request.method == "POST":
@@ -436,9 +525,7 @@ def reset_password(token):
         form_token = request.form.get("token", "")
         if form_token != token:
             flash("Neveljavna zahteva.", "error")
-            redis_client.incr(
-                f"auth:reset_token_invalid:{date.today().isoformat()[:7]}:{username}"
-            )
+            auth_stat("reset_token_invalid", username)
             return render_template(
                 "reset_password.html",
                 token=token,
@@ -447,9 +534,7 @@ def reset_password(token):
             )
         if username != input_username:
             flash("Uporabniško ime se ne ujema.", "error")
-            redis_client.incr(
-                f"auth:reset_username_invalid:{date.today().isoformat()[:7]}:{username}"
-            )
+            auth_stat("reset_username_invalid", username)
             return render_template(
                 "reset_password.html",
                 token=token,
@@ -473,16 +558,18 @@ def reset_password(token):
                 username=username,
                 is_initial_setup=bool(user_data.get("must_set_password")),
             )
+        device_sessions.revoke_all(username)
+        users[username]["credential_version"] = secrets.token_urlsafe(24)
         users[username]["password_hash"] = generate_password_hash(new_password)
         users[username].pop("reset_token_hash", None)
         users[username].pop("reset_expiry", None)
         users[username].pop("setup_token_hash", None)
         users[username].pop("setup_expiry", None)
         users[username].pop("must_set_password", None)
+        users[username].pop("must_change_password", None)
         save_users()
-        redis_client.incr(
-            f"auth:reset_successful:{date.today().isoformat()[:7]}:{username}"
-        )
+        _remove_bootstrap_password(username)
+        auth_stat("reset_successful", username)
         flash(
             "Geslo je bilo uspešno ponastavljeno. Sedaj se lahko prijavite.",
             "success",
@@ -498,7 +585,7 @@ def reset_password(token):
     )
 
 
-@auth_bp.route("/logout")
+@auth_bp.route("/logout", methods=["POST"])
 @login_required
 def logout():
     _logout_current_device()
@@ -507,6 +594,7 @@ def logout():
 
 @auth_bp.route("/password/change", methods=["GET", "POST"])
 @login_required
+@serialized_json(lambda: users_file)
 def change_password():
     if request.method == "POST":
         current_password = request.form.get("current_password", "")
@@ -525,10 +613,24 @@ def change_password():
             flash("Gesli se ne ujemata.", "error")
             return render_template("change_password.html"), 400
 
+        device_sessions.revoke_all(current_user.id)
+        for key in (
+            "reset_token_hash",
+            "reset_expiry",
+            "setup_token_hash",
+            "setup_expiry",
+            "must_change_password",
+            "must_set_password",
+        ):
+            users[current_user.id].pop(key, None)
+        users[current_user.id]["credential_version"] = secrets.token_urlsafe(
+            24
+        )
         users[current_user.id]["password_hash"] = generate_password_hash(
             new_password
         )
         save_users()
+        _remove_bootstrap_password(current_user.id)
         _logout_current_device()
         flash("Geslo je bilo spremenjeno. Ponovno se prijavite.", "success")
         return redirect(url_for("auth.login"))

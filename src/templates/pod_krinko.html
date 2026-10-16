@@ -566,6 +566,6 @@
   </div>
  </dialog>
 </main>
-<script defer="" src="/static/script/pod_krinko.js">
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer="" src="/static/script/pod_krinko.js">
 </script>
 {% endblock %}

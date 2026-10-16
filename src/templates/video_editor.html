@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="sl">
 <head>
+<meta name="csrf-token" content="{{ csrf_token() }}">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Priprava filmov | MarinKino</title>
@@ -18,11 +19,11 @@
     <aside class="panel"><h2>Neurejeni filmi</h2><div id="movie-list" class="list">Nalagam …</div></aside>
     <section class="workspace" id="workspace"><div class="empty">Izberi film na levi za začetek.</div></section>
   </main>
-  <script>
+  <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}">
     const listEl=document.getElementById('movie-list'), workspace=document.getElementById('workspace'); let movies=[], current=null, step=0, metadata={}, selectedMode='merge', selectedSubtitles=[];
     const labels=['Film','Način','Metapodatki','Podnapisi','Potrditev'];
     const esc=value=>String(value??'').replace(/[&<>"]/g, character=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[character]));
-    async function api(url, options={}){const response=await fetch(url,{headers:{'Content-Type':'application/json'},...options});const data=await response.json();if(!response.ok||data.status==='error')throw Error(data.message||'Napaka');return data}
+    async function api(url, options={}){const response=await fetch(url,{headers:{'Content-Type':'application/json','X-CSRFToken':document.querySelector('meta[name="csrf-token"]').content},...options});const data=await response.json();if(!response.ok||data.status==='error')throw Error(data.message||'Napaka');return data}
     async function loadMovies(){try{const data=await api('/api/movies/incoming');movies=data.movies;listEl.innerHTML=movies.length?movies.map((movie,index)=>`<button class="movie" onclick="selectMovie(${index})"><strong>${esc(movie.name)}</strong><small>${movie.videos.length} video · ${movie.subtitles.length} podnapisov</small></button>`).join(''):'<div class="hint">Ni neurejenih filmov.</div>'}catch(error){listEl.innerHTML=`<div class="error">${esc(error.message)}</div>`}}
     function selectMovie(index){current=movies[index];selectedMode=current.is_collection?'collection':'merge';selectedSubtitles=[...current.subtitles];metadata={title:current.name.replace(/[._-]/g,' '),original_title:'',year:'',plot:'',genres:[],players:'',imdb_id:''};step=0;document.querySelectorAll('.movie').forEach((el,i)=>el.classList.toggle('active',i===index));render()}
     function render(){if(!current)return;workspace.innerHTML=`<div class="steps">${labels.map((label,index)=>`<div class="step ${index===step?'active':''} ${index<step?'done':''}">${index+1}. ${label}</div>`).join('')}</div><div id="card" class="step-card active"></div>`;const card=document.getElementById('card');[filmStep,modeStep,metadataStep,subtitleStep,confirmStep][step](card)}

@@ -80,7 +80,7 @@ def translate(
 
     except Exception as e:
         if retry:
-            os.chmod(input_srt_file, 0o777)
+            os.chmod(input_srt_file, 0o600)
             return translate(
                 input_srt_file,
                 target_language,

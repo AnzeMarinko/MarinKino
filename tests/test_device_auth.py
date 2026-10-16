@@ -149,7 +149,7 @@ def test_sixth_browser_denied_until_another_browser_logs_out(auth):
     assert_logged_out(clients[-1])
     assert auth.redis.zcard(key) == MAX_DEVICES
 
-    assert clients[0].get("/logout").status_code == 302
+    assert clients[0].post("/logout").status_code == 302
     assert auth.redis.zcard(key) == MAX_DEVICES - 1
     assert login(clients[-1]).status_code == 302
     assert clients[-1].get("/").data == b"alice"
@@ -219,7 +219,7 @@ def test_logout_revokes_copied_session_cookie(auth):
     client = auth.app.test_client()
     assert login(client).status_code == 302
     copied_cookie = client.get_cookie("session").value
-    assert client.get("/logout").status_code == 302
+    assert client.post("/logout").status_code == 302
     client.set_cookie("session", copied_cookie)
 
     assert_logged_out(client)
@@ -310,3 +310,156 @@ def test_password_change_logs_out_and_frees_current_device_slot(auth):
     )
     assert_logged_out(client)
     assert auth.redis.zcard(auth.module.device_sessions.key("alice")) == 0
+
+
+def test_password_change_revokes_other_browsers_and_reset_links(auth):
+    first, second = auth.app.test_client(), auth.app.test_client()
+    assert login(first).status_code == login(second).status_code == 302
+    auth.users["alice"]["reset_token_hash"] = hashlib.sha256(
+        b"old-reset"
+    ).hexdigest()
+    auth.users["alice"]["reset_expiry"] = (
+        datetime.now(timezone.utc) + timedelta(minutes=30)
+    ).isoformat()
+    password = "Replacement-password-456!"
+    assert (
+        first.post(
+            "/password/change",
+            data={
+                "current_password": PASSWORD,
+                "password": password,
+                "password_confirm": password,
+            },
+        ).status_code
+        == 302
+    )
+    assert_logged_out(second)
+    assert "reset_token_hash" not in auth.users["alice"]
+    assert second.get("/password/reset/old-reset").status_code == 400
+
+
+def test_password_recovery_revokes_every_registered_device(auth):
+    clients = [auth.app.test_client(), auth.app.test_client()]
+    for client in clients:
+        assert login(client).status_code == 302
+    token = "recovery-token"
+    auth.users["alice"]["reset_token_hash"] = hashlib.sha256(
+        token.encode()
+    ).hexdigest()
+    auth.users["alice"]["reset_expiry"] = (
+        datetime.now(timezone.utc) + timedelta(minutes=30)
+    ).isoformat()
+    password = "Recovered-password-789!"
+    response = auth.app.test_client().post(
+        "/password/reset/" + token,
+        data={
+            "token": token,
+            "username": "alice",
+            "password": password,
+            "password_confirm": password,
+        },
+    )
+    assert response.status_code == 302
+    for client in clients:
+        assert_logged_out(client)
+    assert auth.redis.zcard(auth.module.device_sessions.key("alice")) == 0
+
+
+def test_session_absolute_lifetime_cannot_be_extended_by_activity(auth):
+    client = auth.app.test_client()
+    assert login(client).status_code == 302
+    with client.session_transaction() as session:
+        session["authenticated_at"] = time() - 31 * 86400
+    assert_logged_out(client)
+
+
+def test_admin_requires_second_factor_and_codes_cannot_be_reused(
+    auth, monkeypatch
+):
+    import pyotp
+
+    secret = pyotp.random_base32()
+    monkeypatch.setenv("ADMIN_TOTP_SECRET", secret)
+    auth.users["alice"]["is_admin"] = True
+    client = auth.app.test_client()
+    assert login(client).status_code == 200
+    assert_logged_out(client)
+    code = pyotp.TOTP(secret).now()
+    form = {"username": "alice", "password": PASSWORD, "otp": code}
+    assert client.post("/login", data=form).status_code == 302
+    assert auth.app.test_client().post("/login", data=form).status_code == 200
+
+
+def test_logout_cannot_be_triggered_by_get(auth):
+    client = auth.app.test_client()
+    assert login(client).status_code == 302
+    assert client.get("/logout").status_code == 405
+    assert client.get("/").data == b"alice"
+
+
+def test_statistics_outage_does_not_block_authentication(auth, monkeypatch):
+    from redis.exceptions import RedisError
+
+    failed_stats = Mock()
+    failed_stats.pipeline.side_effect = RedisError("stats unavailable")
+    monkeypatch.setattr(auth.module, "statistics_redis", failed_stats)
+    client = auth.app.test_client()
+    assert login(client).status_code == 302
+    assert client.get("/").data == b"alice"
+
+
+def test_slow_reset_email_does_not_hold_account_storage_lock(auth):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    entered, release = Event(), Event()
+    auth.module.find_user_by_email.return_value = "alice"
+    auth.module.WWW_DOMAIN = "site.example.test"
+    auth.users["alice"]["emails"] = ["alice@example.invalid"]
+    auth.app.jinja_loader.mapping["mail_reset_password.html"] = "reset link"
+
+    def slow_mail(**kwargs):
+        entered.set()
+        assert release.wait(3)
+
+    auth.module.send_mail.side_effect = slow_mail
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        recovery = pool.submit(
+            lambda: auth.app.test_client().post(
+                "/password/forgot", data={"email": "alice@example.invalid"}
+            )
+        )
+        try:
+            assert entered.wait(2)
+            # A second request must authenticate while SMTP is still waiting.
+            result = pool.submit(lambda: login(auth.app.test_client(), "bob"))
+            assert result.result(timeout=1).status_code == 302
+        finally:
+            release.set()
+        assert recovery.result(timeout=2).status_code == 302
+
+
+def test_restored_redis_devices_cannot_restore_pre_password_change_cookie(
+    auth,
+):
+    client = auth.app.test_client()
+    assert login(client).status_code == 302
+    stolen = auth.app.test_client()
+    stolen.set_cookie("session", client.get_cookie("session").value)
+    key = auth.module.device_sessions.key("alice")
+    previous = dict(auth.redis.zrange(key, 0, -1, withscores=True))
+    password = "Recovery-resistant-password-456!"
+    assert (
+        client.post(
+            "/password/change",
+            data={
+                "current_password": PASSWORD,
+                "password": password,
+                "password_confirm": password,
+            },
+        ).status_code
+        == 302
+    )
+    # Simulate old device records restored after a crash or Redis backup.
+    auth.redis.zadd(key, previous)
+    assert_logged_out(stolen)

@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from urllib.parse import quote, urlsplit
 
 import markdown
+import nh3
 import requests
 from flask import (
     Blueprint,
@@ -21,10 +22,12 @@ from flask import (
     url_for,
 )
 from flask_login import current_user
+from redis.exceptions import RedisError
 
 from blog_i18n import BLOG_LANGUAGES, messages, normalize_language
 from blog_images import post_gallery
 from blog_translation import translate_url
+from security_storage import atomic_write_json, read_json, serialized_json
 from utils import (
     FLASK_ENV,
     load_blog_subscribers,
@@ -41,6 +44,9 @@ blog_bp = Blueprint("blog", __name__)
 
 BLOG_DATA_FILE = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "blog_posts.json"
+)
+SUBSCRIBERS_FILE = os.path.join(
+    os.path.dirname(BLOG_DATA_FILE), "blog_subscribers.json"
 )
 SUBSCRIPTION_TOKEN_TTL = 24 * 60 * 60
 SUBSCRIPTION_IP_LIMIT = 5
@@ -74,16 +80,11 @@ def masked_email(email):
 
 
 def load_blog_posts():
-    if os.path.exists(BLOG_DATA_FILE):
-        with open(BLOG_DATA_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {}
+    return read_json(BLOG_DATA_FILE, {})
 
 
 def save_blog_posts(posts):
-    os.makedirs(os.path.dirname(BLOG_DATA_FILE), exist_ok=True)
-    with open(BLOG_DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(posts, f, ensure_ascii=False, indent=2)
+    atomic_write_json(BLOG_DATA_FILE, posts)
 
 
 def blog_timestamp(blog):
@@ -462,6 +463,7 @@ def blog_subscribe():
 
 
 @blog_bp.route("/blog/subscribe/confirm/<token>")
+@serialized_json(lambda: SUBSCRIBERS_FILE)
 def blog_confirm_subscription(token):
     pending = redis_client.getdel(f"blog:subscription:pending:{token}")
     language = normalize_language(request.args.get("lang"))
@@ -515,13 +517,21 @@ def blog_post(post_id):
         post["images"][0]["description"] if post["images"] else ""
     )
 
-    # Check if published for non-admin users
-    if not current_user.is_authenticated and not post.get("published", False):
+    # Members can preview drafts by URL; only admins see them in the list.
+    if not post.get("published", False) and not current_user.is_authenticated:
         abort(404)
 
     # Render Markdown content
-    post["content_html"] = markdown.markdown(
-        post.get("content", ""), extensions=["extra", "codehilite"]
+    post["content_html"] = nh3.clean(
+        markdown.markdown(
+            post.get("content", ""), extensions=["extra", "codehilite"]
+        ),
+        attributes={
+            "a": {"href", "title"},
+            "img": {"src", "alt", "title"},
+            "*": {"class"},
+        },
+        url_schemes={"http", "https", "mailto"},
     )
 
     # Format dates
@@ -532,11 +542,16 @@ def blog_post(post_id):
         or not current_user.is_admin
         or FLASK_ENV != "production"
     ):
-        client_ip = request.headers.get("X-Real-IP") or request.remote_addr
+        client_ip = request.remote_addr
         client_ip = client_ip or "unknown"
         # Increment view count
         today = datetime.now(timezone.utc).date().isoformat()
-        redis_client.hincrby(f"blog:views:{post_id}:{today}", client_ip, 1)
+        key = f"blog:views:{post_id}:{today}"
+        try:
+            redis_client.hincrby(key, client_ip, 1)
+            redis_client.expire(key, 90 * 86400)
+        except RedisError:
+            log.warning("Blog statistics unavailable")
 
     og_image = None
     if post.get("image"):
@@ -563,8 +578,15 @@ def blog_post(post_id):
 
 @blog_bp.route("/blog/image/<file_name>")
 def blog_image_file(file_name):
+    if os.path.splitext(file_name)[1].lower() not in {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp",
+    }:
+        abort(404)
     try:
-        _ = safe_path("../data/blog_images", file_name)
+        _ = safe_path("data/blog_images", file_name)
         if not os.path.exists(os.path.join("data/blog_images", file_name)):
             abort(404)
     except ValueError:

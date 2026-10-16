@@ -29,5 +29,5 @@
     {% endfor %}
   </ul>
 </div>
-<script defer src="{{ url_for('static', filename='js/blog_translation.js') }}"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="{{ url_for('static', filename='js/blog_translation.js') }}"></script>
 {% endif %}

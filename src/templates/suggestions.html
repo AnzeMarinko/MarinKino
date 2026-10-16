@@ -29,5 +29,5 @@
     </div>
   </div>
 </main>
-<script defer src="/static/js/suggestions.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/js/suggestions.js"></script>
 {% endblock %}

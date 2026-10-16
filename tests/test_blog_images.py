@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from test_admin_memes_ui import browser as browser_fixture  # noqa: E402
+from test_admin_memes_ui import fill_markdown
 
 import blog_images  # noqa: E402
 
@@ -468,7 +469,7 @@ def test_browser_heic_crop_save_and_conversion_failure_preserves_draft(
     page = browser.page
     page.goto(browser.base + "/admin/blog/new")
     page.locator("#title").fill("HEIC iz telefona")
-    page.locator("#content-editor").fill("Ohranjeno besedilo")
+    fill_markdown(page, "Ohranjeno besedilo")
     page.locator("#image_file").set_input_files(
         {
             "name": "IMG_2026.HEIC",
@@ -535,10 +536,10 @@ def test_browser_heic_crop_save_and_conversion_failure_preserves_draft(
     )
     page.unroute("**/admin/blog/image-preview")
     page.get_by_role("button", name="Poskusi ponovno", exact=True).click()
+    # A second gallery image preserves its full frame; only cover has a crop.
     page.wait_for_function(
-        "Number(document.querySelector('#crop_w').value) > 0"
+        "document.querySelector('#imageUploadStatus').textContent.includes('PNG')"
     )
-    assert "PNG" in page.locator("#imageUploadStatus").text_content()
     page.locator('#blogEditorForm button[type="submit"]').click()
     page.get_by_text("Blog objava shranjena.", exact=True).wait_for()
     page.wait_for_function(
@@ -550,13 +551,11 @@ def test_browser_heic_crop_save_and_conversion_failure_preserves_draft(
     assert saved["images"][1]["filename"].endswith(".png")
 
 
-def test_browser_multiple_uploads_crop_only_cover_and_reload(
-    ui, browser
-):
+def test_browser_multiple_uploads_crop_only_cover_and_reload(ui, browser):
     page = browser.page
     page.goto(browser.base + "/admin/blog/new")
     page.locator("#title").fill("Moja galerija")
-    page.locator("#content-editor").fill("Galerija z dvema slikama")
+    fill_markdown(page, "Galerija z dvema slikama")
     page.locator("#image_file").set_input_files(
         [
             {
@@ -585,9 +584,12 @@ def test_browser_multiple_uploads_crop_only_cover_and_reload(
     page.locator("#crop-size-range").fill("40")
     page.locator("#crop-size-range").dispatch_event("input")
     page.locator("#blogGalleryEditor .blog-gallery-select").nth(1).click()
-    assert page.locator("#image-crop-container").get_attribute("class").find(
-        "d-none"
-    ) >= 0
+    assert (
+        page.locator("#image-crop-container")
+        .get_attribute("class")
+        .find("d-none")
+        >= 0
+    )
     assert page.locator("#crop_w").input_value() == ""
     page.locator("#blogGalleryEditor article").nth(1).get_by_role(
         "button", name="Naslovna", exact=True

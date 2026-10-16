@@ -2,9 +2,9 @@ import json
 import logging
 import os
 import re
-from collections import deque
 from datetime import date, datetime, timedelta, timezone
 from io import BytesIO
+from urllib.parse import urlsplit
 from uuid import uuid4
 
 import pandas as pd
@@ -13,6 +13,7 @@ from flask import (
     abort,
     flash,
     jsonify,
+    make_response,
     redirect,
     render_template,
     request,
@@ -23,6 +24,12 @@ from flask import (
 from flask_login import current_user, login_required
 from werkzeug.exceptions import RequestEntityTooLarge
 
+from admin_log_reader import (
+    HOST_SNAPSHOT,
+    file_entry,
+    host_snapshot,
+    secret_values,
+)
 from blog_i18n import BLOG_LANGUAGES, messages
 from blog_images import (
     MAX_GALLERY_REQUEST_BYTES,
@@ -36,6 +43,7 @@ from blog_subscribers import group_subscribers
 from blog_translation import translate_url
 from blueprints.blog_bp import public_base_url
 from content_preparation.config import LOG_FILENAME
+from security_storage import atomic_write_json, read_json, serialized_json
 from utils import (
     is_current_admin_view,
     load_blog_subscribers,
@@ -112,16 +120,11 @@ def init_admin_bp(_users):
 
 
 def load_blog_posts():
-    if os.path.exists(BLOG_DATA_FILE):
-        with open(BLOG_DATA_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {}
+    return read_json(BLOG_DATA_FILE, {})
 
 
 def save_blog_posts(posts):
-    os.makedirs(os.path.dirname(BLOG_DATA_FILE), exist_ok=True)
-    with open(BLOG_DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(posts, f, ensure_ascii=False, indent=2)
+    atomic_write_json(BLOG_DATA_FILE, posts)
 
 
 def _blog_save_request_id():
@@ -187,15 +190,30 @@ def _persist_blog_posts(posts, request_id, post_id):
 def admin_logs():
     if not is_current_admin_view(current_user):
         return redirect(url_for("home"))
-    try:
-        with open(LOG_FILENAME, encoding="utf-8", errors="replace") as stream:
-            system_log = "".join(deque(stream, maxlen=200)).rstrip()
-    except OSError:
-        system_log = "Dnevnik trenutno ni na voljo."
-    return render_template(
-        "admin_logs.html", pagetitle="Sistemski dnevnik · MarinKino",
-        system_log=system_log or "Dnevnik je prazen.",
+    snapshot = host_snapshot(HOST_SNAPSHOT)
+    sources = [
+        file_entry(
+            "app", "Aplikacija", LOG_FILENAME, secret_values(os.environ)
+        ),
+        *snapshot["entries"],
+    ]
+    selected = request.args.get("source", "app")
+    source = next((item for item in sources if item["id"] == selected), None)
+    if source is None:
+        abort(400)
+    response = make_response(
+        render_template(
+            "admin_logs.html",
+            pagetitle="Sistemski dnevnik · MarinKino",
+            system_log=source["text"],
+            log_sources=sources,
+            log_source=source,
+            host_status=snapshot,
+        )
     )
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["X-Robots-Tag"] = "noindex, nofollow"
+    return response
 
 
 @admin_bp.route("/admin/gold")
@@ -492,7 +510,7 @@ def admin_panel():
     )
 
 
-@admin_bp.route("/admin/set-view-as/<view_mode>")
+@admin_bp.route("/admin/set-view-as/<view_mode>", methods=["POST"])
 @login_required
 def set_view_as(view_mode):
     """Set the view mode for admin preview (anonymous, user, admin)"""
@@ -507,7 +525,7 @@ def set_view_as(view_mode):
     return redirect(url_for("home"))
 
 
-@admin_bp.route("/admin/clear-view-as")
+@admin_bp.route("/admin/clear-view-as", methods=["POST"])
 @login_required
 def clear_view_as():
     """Clear the view as mode"""
@@ -515,7 +533,16 @@ def clear_view_as():
         return redirect(url_for("home"))
 
     session.pop("view_as", None)
-    return redirect(request.referrer or url_for("admin.admin_panel"))
+    target = url_for("admin.admin_panel")
+    previous = urlsplit(request.referrer or "")
+    if (
+        previous.scheme in {"http", "https"}
+        and previous.netloc == request.host
+    ):
+        target = previous.path or "/"
+        if previous.query:
+            target += "?" + previous.query
+    return redirect(target)
 
 
 @admin_bp.route("/admin/blog")
@@ -558,6 +585,7 @@ def admin_blog():
 
 @admin_bp.route("/admin/blog/new", methods=["GET", "POST"])
 @login_required
+@serialized_json(lambda: BLOG_DATA_FILE)
 def admin_blog_new():
     if not is_current_admin_view(current_user):
         return redirect(url_for("home"))
@@ -668,6 +696,7 @@ def admin_blog_new():
 
 @admin_bp.route("/admin/blog/edit/<post_id>", methods=["GET", "POST"])
 @login_required
+@serialized_json(lambda: BLOG_DATA_FILE)
 def admin_blog_edit(post_id):
     if not is_current_admin_view(current_user):
         return redirect(url_for("home"))
@@ -755,13 +784,16 @@ def admin_blog_edit(post_id):
                 post_id,
             )
             return jsonify(
-                {"success": True, "message": "Blog objava posodobljena.",
-                 "post_id": post_id,
-                 "edit_url": url_for(
-                     "admin.admin_blog_edit", post_id=post_id
-                 ),
-                 "images": images,
-                 "image_uploads": image_uploads}
+                {
+                    "success": True,
+                    "message": "Blog objava posodobljena.",
+                    "post_id": post_id,
+                    "edit_url": url_for(
+                        "admin.admin_blog_edit", post_id=post_id
+                    ),
+                    "images": images,
+                    "image_uploads": image_uploads,
+                }
             )
 
         flash("Blog objava posodobljena.", "success")
@@ -793,6 +825,7 @@ def admin_blog_edit(post_id):
 
 @admin_bp.route("/admin/blog/delete/<post_id>", methods=["POST"])
 @login_required
+@serialized_json(lambda: BLOG_DATA_FILE)
 def admin_blog_delete(post_id):
     if not is_current_admin_view(current_user):
         return redirect(url_for("home"))
@@ -809,6 +842,7 @@ def admin_blog_delete(post_id):
 
 @admin_bp.route("/admin/blog/send_mail/<post_id>", methods=["POST"])
 @login_required
+@serialized_json(lambda: BLOG_DATA_FILE)
 def admin_blog_send_mail(post_id):
     if not is_current_admin_view(current_user):
         return redirect(url_for("home"))
@@ -866,9 +900,7 @@ def admin_blog_send_mail(post_id):
         base_url = public_base_url()
         if not base_url:
             raise ValueError("Public blog URL is not configured")
-        source_post_url = base_url + url_for(
-            "blog.blog_post", post_id=post_id
-        )
+        source_post_url = base_url + url_for("blog.blog_post", post_id=post_id)
         source_blog_url = base_url + url_for("blog.blog_list")
         for language, recipients in groups.items():
             if language in sent_languages:

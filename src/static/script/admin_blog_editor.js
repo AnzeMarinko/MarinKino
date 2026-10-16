@@ -21,9 +21,10 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('beforeunload', event => {
         if (dirty) { event.preventDefault(); event.returnValue = ''; }
     });
-    var simplemde = window.SimpleMDE ? new SimpleMDE({
+    var simplemde = window.EasyMDE ? new EasyMDE({
         element: document.getElementById("content-editor"),
         spellChecker: false,
+        autoDownloadFontAwesome: false,
         nativeSpellcheck: true,
         status: ["lines", "words"],
         toolbar: [
@@ -33,17 +34,17 @@ document.addEventListener('DOMContentLoaded', function() {
             "link", "image", "table", "horizontal-rule", "|",
             "guide"
         ],
-        previewRender: false
+        previewRender: markdown => window.marked && window.DOMPurify ? DOMPurify.sanitize(marked.parse(markdown)) : ""
     }) : {
         value: () => contentEditor.value,
         codemirror: { on: (_event, handler) => contentEditor.addEventListener('input', handler), save: () => {}, focus: () => contentEditor.focus() }
     };
-    if (!window.SimpleMDE) showAlert('Naprednega editorja ni mogoče naložiti. Vsebino lahko normalno napišeš in shraniš v spodnjem polju.', 'info');
+    if (!window.EasyMDE) showAlert('Naprednega editorja ni mogoče naložiti. Vsebino lahko normalno napišeš in shraniš v spodnjem polju.', 'info');
 
     function updatePreview() {
         const markdown = simplemde.value();
         if (markdown) {
-            if (window.marked) document.getElementById('content-preview').innerHTML = marked.parse(markdown);
+            if (window.marked && window.DOMPurify) document.getElementById('content-preview').innerHTML = DOMPurify.sanitize(marked.parse(markdown));
             else document.getElementById('content-preview').textContent = markdown;
         } else {
             document.getElementById('content-preview').innerHTML = '<p class="text-muted">Predogled se bo prikazal tukaj</p>';

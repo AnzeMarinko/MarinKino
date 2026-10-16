@@ -17,4 +17,4 @@
 <details id="mailRecipientsResult" class="admin-panel" hidden><summary>Prejemniki zadnjega pošiljanja</summary><pre id="emails" class="small mt-3 mb-0"></pre></details>
 <dialog id="mailConfirmDialog" class="admin-mail-dialog" aria-labelledby="mailConfirmTitle"><h2 id="mailConfirmTitle">Potrditev pošiljanja</h2><p id="mailConfirmText"></p><div class="admin-actions"><button type="button" id="cancelMail" class="btn btn-outline-secondary">Prekliči</button><button type="button" id="confirmMail" class="btn btn-primary">Pošlji e-pošto</button></div></dialog>
 {% endblock %}
-{% block admin_scripts %}<script defer src="/static/script/admin_mailing.js"></script>{% endblock %}
+{% block admin_scripts %}<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/script/admin_mailing.js"></script>{% endblock %}

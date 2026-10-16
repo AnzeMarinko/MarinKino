@@ -19,5 +19,5 @@
   {% if meme_data.can_delete %}<dialog id="deleteMemeDialog" class="meme-dialog" aria-labelledby="deleteMemeTitle"><h2 id="deleteMemeTitle">Odstranim to šalo?</h2><p>Datoteka bo izbrisana iz zbirke za vse uporabnike. Dejanja ni mogoče razveljaviti.</p><div class="meme-dialog-actions"><button type="button" class="meme-control" id="cancelDeleteMeme">Prekliči</button><button type="button" class="meme-delete-confirm" id="confirmDeleteMeme">Izbriši šalo</button></div></dialog>{% endif %}
   <noscript><p class="meme-message">Za menjavo šal omogoči JavaScript ali <a href="/memes">osveži stran</a>.</p></noscript>
 </main>
-<script defer src="/static/script/memes.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/script/memes.js"></script>
 {% endblock %}

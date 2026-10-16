@@ -2,17 +2,17 @@
 
 {% block content %}
 
-<link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
-<script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
+<link rel="stylesheet" href="/static/vendor/plyr.css" />
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="/static/vendor/plyr.min.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="/static/vendor/hls.min.js"></script>
 
 <link rel="stylesheet" href="{{ url_for('static', filename='css/movies_ui.css') }}">
 <main class="container movie-view">
 <header class="movie-view-heading"><a href="/movies">← Nazaj na filme</a><h1>{{ movie.title }} <small>{{ movie.year }}</small></h1><p>{{ movie.original_title }}</p></header>
 {% if current_user.is_authenticated and current_user.is_admin %}
 <div id="admin-movie-duration-warning" class="alert alert-warning" role="alert" hidden></div>
-<script id="admin-movie-timing" type="application/json">{{ {'collection': is_collection, 'duration_min': (movie.runtimes_by_files|default({})).get(video_file|default('', true)|replace('.mp4', ''), movie.runtimes|float), 'resume_seconds': movie.last_play_time|default(0)}|tojson }}</script>
-<script defer src="/static/js/admin_movie_clock.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" id="admin-movie-timing" type="application/json">{{ {'collection': is_collection, 'duration_min': (movie.runtimes_by_files|default({})).get(video_file|default('', true)|replace('.mp4', ''), movie.runtimes|float), 'resume_seconds': movie.last_play_time|default(0)}|tojson }}</script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/js/admin_movie_clock.js"></script>
 {% endif %}
 <div class="movie-page">
     <div class="description">
@@ -260,7 +260,7 @@
         </video>
     </div>
 
-    <script>
+    <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}">
         document.addEventListener('DOMContentLoaded', () => {
 
             const video = document.getElementById('hlsVideoPlayer');
@@ -273,7 +273,7 @@
 
 
             // Inicializacija Plyr-a
-            const player = window.Plyr ? new Plyr(video, {
+            const player = window.Plyr ? new Plyr(video, { iconUrl: '/static/vendor/plyr.svg',
                 ratio: '16:9',
                 controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'captions', 'settings', 'fullscreen', 'download'],
                 urls: { download: '/movies/download/{{ group_folder }}/{{ folder }}' },
@@ -430,12 +430,12 @@
             Tvoj brskalnik ne podpira videa.
         </video>
     </div>
-    <script>
+    <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}">
         document.addEventListener('DOMContentLoaded', () => {
             const video = document.getElementById('videoPlayer');
             const lastTime = {{ movie.last_play_time|default(0) }};
 
-            const player = window.Plyr ? new Plyr(video, {
+            const player = window.Plyr ? new Plyr(video, { iconUrl: '/static/vendor/plyr.svg',
                 ratio: '16:9',
                 controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'captions', 'settings', 'fullscreen', 'download'],
                 urls: { download: '/movies/download/{{ group_folder }}/{{ folder }}' },
@@ -466,7 +466,7 @@
         </video>
     </div>
 
-    <script>
+    <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}">
     let globalPlayer = null;
 
     function ensureCollectionPlayer() {
@@ -481,7 +481,7 @@
         }
 
         if (!globalPlayer && window.Plyr) {
-            globalPlayer = new Plyr('#videoPlayer', {
+            globalPlayer = new Plyr('#videoPlayer', { iconUrl: '/static/vendor/plyr.svg',
                 ratio: '16:9',
                 controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'settings', 'fullscreen', 'download'],
                 urls: { download: '/movies/download/{{ group_folder }}/{{ folder }}' },
@@ -544,7 +544,7 @@
     </script>
 {% endif %}
 
-    <script>
+    <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}">
     document.addEventListener('DOMContentLoaded', () => {
         const hasAutoSloSubs = {{ 'true' if slosubs_file and ('auto' in slosubs_file|lower) else 'false' }};
 
@@ -601,7 +601,7 @@
 </div>
 </div>
 
-<script defer src="/static/script/movies.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/script/movies.js"></script>
 
 </main>
 

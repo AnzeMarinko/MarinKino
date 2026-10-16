@@ -3,7 +3,8 @@
 {% block admin_title %}{{ "Nova blog objava" if not post else "Uredi blog objavo" }}{% endblock %}
 {% block admin_description %}Napiši vsebino, preglej prikaz in izberi, ali objavo shraniš kot osnutek ali objaviš javno.{% endblock %}
 {% block admin_content %}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.css">
+<link rel="stylesheet" href="/static/vendor/simplemde.min.css">
+<link rel="stylesheet" href="/static/vendor/font-awesome.min.css">
 <style>
 .markdown-preview {
     padding: 10px;
@@ -89,7 +90,7 @@
                             <p class="form-text">Dodaj več slik hkrati ali v več korakih. Prva je naslovna in edina se obreže v razmerje 6 : 5; ostale slike se shranijo v izvirnih dimenzijah. Vrstni red in opise lahko spremeniš. Največ 20 slik.</p>
                             <div id="blogGalleryEditor" class="blog-gallery-editor mb-3" aria-label="Slike v objavi"></div>
                             <p id="galleryEmpty" class="form-text">Objava še nima slik.</p>
-                            <script id="blogGalleryData" type="application/json">{{ gallery_images|default([])|tojson }}</script>
+                            <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" id="blogGalleryData" type="application/json">{{ gallery_images|default([])|tojson }}</script>
                             <div class="card">
                                 <div class="card-body">
                                     <h6 class="card-title">Dodaj slike v galerijo</h6>
@@ -176,9 +177,10 @@
 </div>
 
 <link rel="stylesheet" href="/static/css/blog_gallery.css">
-<script src="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<script defer src="/static/script/admin_blog_gallery.js"></script>
-<script defer src="/static/script/admin_blog_editor.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="/static/vendor/simplemde.min.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="/static/vendor/marked.min.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="/static/vendor/purify.min.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/script/admin_blog_gallery.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/script/admin_blog_editor.js"></script>
 
 {% endblock %}

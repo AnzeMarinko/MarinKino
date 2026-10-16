@@ -8,7 +8,7 @@
 <meta name="bingbot" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
 
 <link href="/static/vendor/bootstrap.min.css" rel="stylesheet">
-<script src="/static/vendor/bootstrap.bundle.min.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="/static/vendor/bootstrap.bundle.min.js"></script>
 <link href="/static/vendor/bootstrap-icons.min.css" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/main_style.css">
 {% if is_music %}
@@ -113,7 +113,7 @@
 <link rel="alternate" hreflang="sl" href="https://{{ domain }}{{ request.path }}">
 
 <!-- Structured Data (JSON-LD) -->
-<script type="application/ld+json">
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "Organization",
@@ -142,7 +142,7 @@
 </script>
 
 <!-- Website Schema -->
-<script type="application/ld+json">
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" type="application/ld+json">
 {
     "@context": "https://schema.org",
     "@type": "WebSite",
@@ -168,7 +168,7 @@
 
 {% if blog_view == "blog" and post %}
 <!-- Article/Blog Post Schema -->
-<script type="application/ld+json">
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "BlogPosting",
@@ -195,15 +195,4 @@
   }
 }
 </script>
-{% endif %}
-
-{% if current_user.is_authenticated and current_user.is_admin %}
-<style>
-  .eruda-container {
-    right: 0 !important;
-    bottom: 0 !important;
-  }
-</style>
-<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-<script>if (window.eruda) window.eruda.init();</script>
 {% endif %}

@@ -1,8 +1,8 @@
 import logging
 import os
 import random
+from collections import OrderedDict
 from datetime import date
-from functools import lru_cache
 from urllib.parse import quote
 
 from flask import (
@@ -32,13 +32,12 @@ memes_bp = Blueprint("memes", __name__)
 
 # Global variables
 meme_id = None
-user_meme_count = {}
+user_meme_count = OrderedDict()
 user_meme_limit = 12
 
 MEMES_DIR = "data/memes"
 
 
-@lru_cache(maxsize=1)
 def available_memes():
     """Read current files so additions and deletions work across workers."""
     try:
@@ -82,6 +81,8 @@ def meme():
         if current_user.is_authenticated
         else get_guest_identity()
     )
+    if identity not in user_meme_count and len(user_meme_count) >= 4096:
+        user_meme_count.popitem(last=False)
     user_meme_count[identity] = user_meme_count.get(identity, {})
     if user_meme_count[identity].get("last_date") != str(date.today()):
         user_meme_count[identity]["last_date"] = str(date.today())
@@ -145,6 +146,15 @@ def meme():
 
 @memes_bp.route("/memes/file/<meme_file_name>")
 def meme_file(meme_file_name):
+    if os.path.splitext(meme_file_name)[1].lower() not in {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".gif",
+        ".webp",
+        ".mp4",
+    }:
+        abort(404)
     try:
         path = safe_path(MEMES_DIR, meme_file_name)
         if not os.path.isfile(path):

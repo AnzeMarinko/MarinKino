@@ -100,6 +100,6 @@
   <p class="admin-notice" data-form-error role="alert" hidden></p><div class="admin-actions mt-3"><button id="session-save" type="submit" class="btn btn-primary">Shrani</button><button type="button" class="btn btn-outline-secondary" data-close>Prekliči</button></div>
 </form></dialog>
 <dialog id="fitness-delete-dialog" class="fitness-dialog fitness-dialog-small"><h2>Izbrišem zapis?</h2><p id="fitness-delete-description" class="mt-3"></p><p class="admin-notice" data-form-error role="alert" hidden></p><div class="admin-actions"><button id="fitness-confirm-delete" type="button" class="btn btn-danger">Izbriši zapis</button><button type="button" class="btn btn-outline-secondary" data-close>Prekliči</button></div></dialog>
-<script id="fitness-data" type="application/json">{{ fitness|tojson }}</script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" id="fitness-data" type="application/json">{{ fitness|tojson }}</script>
 {% endblock %}
-{% block admin_scripts %}<script defer src="/static/script/admin_fitness.js"></script>{% endblock %}
+{% block admin_scripts %}<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/script/admin_fitness.js"></script>{% endblock %}

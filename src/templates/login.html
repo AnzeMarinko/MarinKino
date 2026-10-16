@@ -9,6 +9,7 @@
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="auth-field"><label for="username">Uporabniško ime</label><input id="username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" value="{{ request.form.get('username', '') }}" required></div>
   {{ password_field('password', 'Geslo') }}
+  {% if config.get("ADMIN_TOTP_ENABLED") %}<div class="auth-field"><label for="otp">Koda za skrbnika (2FA)</label><input id="otp" name="otp" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code"></div>{% endif %}
   <div class="auth-form-links"><a href="{{ url_for('auth.forgot_password') }}">Pozabljeno geslo?</a></div>
   <button type="submit" class="auth-primary"><i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> Prijavi se</button>
 </form>

@@ -20,6 +20,6 @@
     {% block admin_content %}{% endblock %}
   </div>
 </main>
-<script defer src="/static/script/admin.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/script/admin.js"></script>
 {% block admin_scripts %}{% endblock %}
 {% endblock %}

@@ -1,13 +1,11 @@
 import difflib
-import io
 import json
 import logging
+import math
 import os
 import random
 import re
 import shutil
-import subprocess
-import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote, unquote
@@ -15,19 +13,19 @@ from urllib.parse import quote, unquote
 from flask import (
     Blueprint,
     abort,
-    flash,
     make_response,
     redirect,
     render_template,
     request,
-    send_file,
     send_from_directory,
     session,
     url_for,
 )
 from flask_login import current_user, login_required
 
-from content_preparation import FILMS_ROOT, check_folder
+from movie_catalog import FILMS_ROOT, check_folder
+from movie_downloads import archive_response
+from security_storage import atomic_write_json, serialized_json
 from utils import (
     FLASK_ENV,
     is_current_admin_view,
@@ -138,6 +136,7 @@ def get_user_progress_data(user_id):
 
 
 def add_watch_info(movie, user_data):
+    movie = dict(movie)
     movie["watch_info"] = {}
     total_play_time = 0
     total_duration = 0
@@ -153,15 +152,18 @@ def add_watch_info(movie, user_data):
         duration = watch_inf.get(
             "duration",
             float(
-                movie["runtimes_by_files"][
+                movie["runtimes_by_files"].get(
                     video_file.replace(".mp4", "")
                     .replace("_Slo", "")
-                    .replace("_Eng", "")
-                ]
+                    .replace("_Eng", ""),
+                    0,
+                )
             )
             * 60,
         )
-        watch_ratio = round(last_play_time / duration * 100)
+        watch_ratio = (
+            round(last_play_time / duration * 100) if duration > 0 else 0
+        )
         if watch_ratio > 90 or abs(duration - last_play_time) < 30:
             watch_ratio = 100
             last_play_time = 0
@@ -172,7 +174,11 @@ def add_watch_info(movie, user_data):
             "watch_ratio": watch_ratio,
         }
         movie["last_play_time"] = last_play_time
-    movie["watch_ratio"] = int(total_play_time / total_duration * 100)
+    movie["watch_ratio"] = (
+        int(total_play_time / total_duration * 100)
+        if total_duration > 0
+        else 0
+    )
     return movie
 
 
@@ -339,7 +345,7 @@ def index():
     return render_template(
         "movies.html",
         pagetitle="MarinKino",
-        movies=movies_page,
+        movies=[public_movie(movie) for movie in movies_page],
         has_more=has_more,
         page=1,
         selected_movietype=movietype,
@@ -359,10 +365,39 @@ def index():
     )
 
 
+def public_movie(movie):
+    fields = {
+        "cover",
+        "thumbnail",
+        "title",
+        "original_title",
+        "year",
+        "folder",
+        "group_folder",
+        "description",
+        "players",
+        "runtimes",
+        "slosinh",
+        "genres",
+        "movie_id",
+        "recommendation_level",
+        "watch_ratio",
+        "watch_info",
+        "last_play_time",
+        "ratings_summary",
+    }
+    result = {key: value for key, value in movie.items() if key in fields}
+    result["is_admin"] = is_current_admin_view(current_user)
+    return result
+
+
 @movies_bp.route("/movies/page")
 @login_required
 def movies_page():
-    page = int(request.args.get("page", 1))
+    try:
+        page = max(0, min(int(request.args.get("page", 1)), 10000))
+    except ValueError:
+        abort(400)
 
     cache_key = f"cache:movies:{current_user.id}"
     start = page * MOVIES_PER_PAGE
@@ -379,7 +414,9 @@ def movies_page():
 
     return {
         "movies": [
-            {**m, "is_admin": is_current_admin_view(current_user)}
+            public_movie(
+                add_watch_info(m, get_user_progress_data(current_user.id))
+            )
             for m in movies_page
         ],
         "has_more": has_more,
@@ -436,183 +473,19 @@ def play_movie(movies_subfolder, movie_folder):
         return "", 404
 
 
-def download_m3u8_to_mp4(m3u8_path, output_mp4_path):
-    """
-    Prenese in združi HLS tok (.m3u8) v enotno MP4 datoteko.
-    Združeni MP4 NE bo fragmentiran, ampak bo optimiziran za spletni prenos
-    (vsebuje 'faststart' metapodatke na začetku datoteke).
-    """
-    output_path = Path(output_mp4_path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    cmd = [
-        "ffmpeg",
-        "-y",
-        "-i",
-        str(m3u8_path),
-        "-map",
-        "0:v",
-        "-map",
-        "0:a",
-        "-c",
-        "copy",
-        "-movflags",
-        "+faststart",
-        str(output_path),
-    ]
-
-    try:
-        log.info(f"📥 Pripravljam MP4 (faststart) iz HLS: {m3u8_path}")
-        subprocess.run(
-            cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE
-        )
-        log.info(f"🎉 MP4 uspešno ustvarjen: {output_path.name}")
-        return True
-    except subprocess.CalledProcessError as e:
-        log.error(f"❌ Napaka pri ustvarjanju MP4: {e.stderr.decode('utf-8')}")
-        return False
-    except Exception as e:
-        log.error(f"❌ Splošna napaka: {e}")
-        return False
-
-
 @movies_bp.route("/movies/download/<movies_subfolder>/<movie_folder>")
 @login_required
 def download_movie(movies_subfolder, movie_folder):
-    # TODO: če je m3u8 uporabi zgornjo funkcijo
-    # ko je v zip lahko to začasno datoteko izbrišeš
-    user_data = get_user_progress_data(current_user.id)
-
-    film_candidate = all_films.get(
-        os.path.sep + os.path.join("", movies_subfolder, movie_folder)
+    film = all_films.get("/" + movies_subfolder + "/" + movie_folder)
+    if film is None:
+        abort(404)
+    return archive_response(
+        film,
+        FILMS_ROOT,
+        movies_subfolder,
+        movie_folder,
+        FLASK_ENV == "production",
     )
-    if film_candidate is None:
-        log.error("There is no film candidates!")
-        return "", 404
-    film = add_watch_info(film_candidate, user_data)
-    video_files = film["video_files"]
-    video_files_m3u8 = film["video_files_m3u8"]
-    subtitles = film["subtitles"]
-
-    video_file_m3u8 = (
-        os.path.join(
-            FILMS_ROOT,
-            movies_subfolder,
-            movie_folder,
-            video_files_m3u8[0],
-            "master.m3u8",
-        )
-        if video_files_m3u8
-        else None
-    )
-
-    if len(video_files) > 0 or video_file_m3u8:
-        max_zip_size = 4 * 1024**3  # 4 GB
-        total_size = 0
-        file_paths = []
-
-        if video_file_m3u8:
-            tmp_folder = Path("tmp_download")
-            tmp_folder.mkdir(parents=True, exist_ok=True)
-            tmp_file = tmp_folder / f"{movie_folder}.mp4"
-            if not tmp_file.exists():
-                download_m3u8_to_mp4(video_file_m3u8, tmp_file)
-            if tmp_file.exists():
-                total_size += tmp_file.stat().st_size
-                file_paths.append((tmp_file, f"{movie_folder}.mp4"))
-
-            for f in tmp_folder.iterdir():
-                if (
-                    f.is_file()
-                    and (
-                        datetime.now(timezone.utc)
-                        - datetime.fromtimestamp(
-                            f.stat().st_mtime, timezone.utc
-                        )
-                    ).total_seconds()
-                    > 3600
-                ):
-                    f.unlink()
-        else:
-            for video_file in video_files:
-                p = os.path.join(
-                    FILMS_ROOT, movies_subfolder, movie_folder, video_file
-                )
-                if os.path.exists(p):
-                    total_size += os.path.getsize(p)
-                    file_paths.append((p, video_file))
-
-        for subtitle in subtitles:
-            p = os.path.join(
-                FILMS_ROOT, movies_subfolder, movie_folder, subtitle
-            )
-            if os.path.exists(p):
-                total_size += os.path.getsize(p)
-                file_paths.append((p, subtitle))
-
-        # add cover image
-        cover_image_path = os.path.join(
-            FILMS_ROOT, movies_subfolder, movie_folder, "cover_image.jpg"
-        )
-        if os.path.exists(cover_image_path):
-            total_size += os.path.getsize(cover_image_path)
-            file_paths.append((cover_image_path, "cover_image.jpg"))
-
-        if total_size > max_zip_size:
-            log.warning(
-                f"Download blocked: {movie_folder} is too large"
-                f" ({total_size / (1024**3):.2f} GB)"
-            )
-            flash(
-                "Ta film je prevelik za prenos (nad 4 GB). "
-                "Prosimo, oglejte si ga neposredno v predvajalniku.",
-                "warning",
-            )
-            return redirect(request.referrer or "/")
-
-        # 3. PAKIRANJE V RAM (Zgodi se le, če je pod mejo)
-        zip_filename = f"{movie_folder}.zip"
-        memory_file = io.BytesIO()
-
-        # add some selected metadata from film object
-        metadata = {
-            "source": "MarinKino",
-            "title": film["title"],
-            "original_title": film["original_title"],
-            "year": film["year"],
-            "description": film["description"],
-            "genres": film["genres"],
-            "players": film["players"],
-            "runtimes": film["runtimes"],
-            "slosinh": film["slosinh"],
-            "recommendation_level": film["recommendation_level"],
-        }
-
-        with zipfile.ZipFile(memory_file, "w", zipfile.ZIP_STORED) as zipf:
-            for full_path, archive_name in file_paths:
-                zipf.write(full_path, archive_name)
-            # add metadata.json
-            zipf.writestr(
-                "metadata.json",
-                json.dumps(metadata, ensure_ascii=False, indent=4),
-            )
-
-        memory_file.seek(0)
-
-        response = send_file(
-            memory_file,
-            as_attachment=True,
-            download_name=zip_filename,
-            mimetype="application/zip",
-        )
-        response.headers["X-Accel-Buffering"] = "no"
-        response.headers["X-Accel-Limit-Rate"] = str(
-            10 * 1024 * 1024
-        )  # 10 MB/s
-        return response
-    else:
-        log.error("No video files!")
-        return "", 404
 
 
 def _compute_ratings_summary(ratings):
@@ -651,6 +524,7 @@ def _compute_ratings_summary(ratings):
 
 @movies_bp.route("/movies/rate", methods=["POST"])
 @login_required
+@serialized_json(lambda: os.path.join(FILMS_ROOT, ".updates.json"))
 def rate_movie():
     try:
         data = json.loads(request.data)
@@ -711,8 +585,7 @@ def rate_movie():
         except Exception:
             pass
 
-        with open(metadata_file, "w", encoding="utf-8") as f:
-            json.dump(movie_metadata, f, ensure_ascii=False, indent=4)
+        atomic_write_json(metadata_file, movie_metadata)
 
         # update in-memory
         all_films[movie_folder]["ratings"] = movie_metadata.get("ratings", {})
@@ -775,6 +648,7 @@ def rate_movie():
     "/movies/remove/<movies_subfolder>/<movie_folder>", methods=["POST"]
 )
 @login_required
+@serialized_json(lambda: os.path.join(FILMS_ROOT, ".updates.json"))
 def remove_movie(movies_subfolder, movie_folder):
     global all_films
     if not is_current_admin_view(current_user):
@@ -809,6 +683,7 @@ def remove_movie(movies_subfolder, movie_folder):
 
 @movies_bp.route("/movies/recommend", methods=["POST"])
 @login_required
+@serialized_json(lambda: os.path.join(FILMS_ROOT, ".updates.json"))
 def remcommend_movie():
     global all_films
     if not is_current_admin_view(current_user):
@@ -837,8 +712,7 @@ def remcommend_movie():
     with open(recommending_metadata_file, "r", encoding="utf-8") as f:
         movie_metadata = json.loads(f.read())
     movie_metadata["recommendation_level"] = recommendation_level
-    with open(recommending_metadata_file, "w", encoding="utf-8") as f:
-        json.dump(movie_metadata, f, ensure_ascii=False, indent=4)
+    atomic_write_json(recommending_metadata_file, movie_metadata)
     log.info(
         f"Filmu {recommending_folder} nastavljen nivo priporočila:"
         f" '{recommendation_level}'"
@@ -853,10 +727,28 @@ def remcommend_movie():
 @movies_bp.route("/movies/file/<path:filename>")
 @login_required
 def movie_file(filename):
+    if Path(filename).suffix.lower() not in {
+        ".mp4",
+        ".mkv",
+        ".avi",
+        ".vob",
+        ".webm",
+        ".m3u8",
+        ".m4s",
+        ".ts",
+        ".aac",
+        ".vtt",
+        ".srt",
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp",
+    }:
+        abort(404)
     try:
         # Preverimo varnost poti (da ne more nihče z ../ uiti iz mape s filmi)
         _ = safe_path(
-            "../" + FILMS_ROOT,
+            FILMS_ROOT,
             filename,
         )
         if not os.path.exists(os.path.join(FILMS_ROOT, filename)):
@@ -956,23 +848,47 @@ def movie_file(filename):
     return response
 
 
-@movies_bp.route("/movies/video-progress", methods=["POST"])
-@login_required
-def video_progress():
-    data = json.loads(request.data)
-    filename = "/".join(
-        unquote(data["filename"])
+def _progress_key(filename):
+    return "/".join(
+        unquote(filename)
         .split("/movies/file/")[-1]
         .replace(".mp4", "")
         .replace("_Slo", "")
         .replace("_Eng", "")
         .split("/")[:3]
     )
-    if filename == "unknown":
-        return "", 404
 
-    current_time = round(data["currentTime"] - 0.49)
-    duration = round(data["duration"], 1)
+
+def _valid_progress_keys():
+    return {
+        _progress_key(os.path.join(film["folder"].lstrip("/"), video))
+        for film in all_films.values()
+        for video in film["video_files"] + film["video_files_m3u8"]
+    }
+
+
+@movies_bp.route("/movies/video-progress", methods=["POST"])
+@login_required
+def video_progress():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or not isinstance(data.get("filename"), str):
+        abort(400)
+    filename = _progress_key(data["filename"])
+    if filename not in _valid_progress_keys():
+        abort(404)
+    try:
+        position, duration = (
+            float(data["currentTime"]),
+            float(data["duration"]),
+        )
+        if not all(math.isfinite(value) for value in (position, duration)):
+            raise ValueError
+        if not 0 < duration <= 172800 or not 0 <= position <= duration + 1:
+            raise ValueError
+    except (KeyError, TypeError, ValueError):
+        abort(400)
+    current_time = int(position)
+    duration = round(duration, 1)
 
     user_key = f"prog:{current_user.id}"
 
@@ -1041,6 +957,7 @@ def video_progress_change():
 
 @movies_bp.route("/movies/add-comment", methods=["POST"])
 @login_required
+@serialized_json(lambda: os.path.join(FILMS_ROOT, ".updates.json"))
 def add_comment():
     """Dodaj komentar na film"""
     try:
@@ -1058,6 +975,8 @@ def add_comment():
             log.error(f"Neveljaven film za komentar: {movie_folder}")
             return {"status": "error", "message": "Film ne obstaja"}, 404
 
+        if len(comment_text) > 4000 or len(comment_type) > 80:
+            return {"status": "error", "message": "Komentar je predolg"}, 400
         if not comment_text or len(comment_text) < 5:
             msg = "Komentar mora biti dolg vsaj 5 znakov"
             return {"status": "error", "message": msg}, 400
@@ -1105,8 +1024,7 @@ def add_comment():
         movie_metadata["user_notes"][random_index] = comment_obj
 
         # Shranjuj metapodatke
-        with open(metadata_file, "w", encoding="utf-8") as f:
-            json.dump(movie_metadata, f, ensure_ascii=False, indent=4)
+        atomic_write_json(metadata_file, movie_metadata)
 
         # Posodobi in-memory podatke
         if not is_splosno:
@@ -1169,6 +1087,7 @@ ALERT_TYPES = {
 
 @movies_bp.route("/movies/admin-comment", methods=["POST"])
 @login_required
+@serialized_json(lambda: os.path.join(FILMS_ROOT, ".updates.json"))
 def admin_comment():
     """Dodaj admin odgovor na komentar"""
     if not is_current_admin_view(current_user):
@@ -1187,6 +1106,8 @@ def admin_comment():
             log.error(f"Neveljaven film: {movie_folder}")
             return {"status": "error", "message": "Film ne obstaja"}, 404
 
+        if len(admin_response) > 4000:
+            return {"status": "error", "message": "Odgovor je predolg"}, 400
         if admin_response is None or len(admin_response) == 0:
             return {
                 "status": "error",
@@ -1220,8 +1141,7 @@ def admin_comment():
         )
 
         # Shranjuj
-        with open(metadata_file, "w", encoding="utf-8") as f:
-            json.dump(movie_metadata, f, ensure_ascii=False, indent=4)
+        atomic_write_json(metadata_file, movie_metadata)
 
         # Posodobi in-memory podatke
         if not is_splosno:
@@ -1350,6 +1270,7 @@ def get_comments():
 
 @movies_bp.route("/movies/add-warning", methods=["POST"])
 @login_required
+@serialized_json(lambda: os.path.join(FILMS_ROOT, ".updates.json"))
 def add_warning():
     """Dodaj opozorilo na film (samo admin)"""
     if not is_current_admin_view(current_user):
@@ -1406,8 +1327,7 @@ def add_warning():
         movie_metadata["user_notes"][random_index] = warning_obj
 
         # Shranjuj
-        with open(metadata_file, "w", encoding="utf-8") as f:
-            json.dump(movie_metadata, f, ensure_ascii=False, indent=4)
+        atomic_write_json(metadata_file, movie_metadata)
 
         # Posodobi in-memory podatke
         all_films[movie_folder]["user_notes"] = movie_metadata["user_notes"]
@@ -1428,6 +1348,7 @@ def add_warning():
 
 @movies_bp.route("/movies/edit-warning", methods=["POST"])
 @login_required
+@serialized_json(lambda: os.path.join(FILMS_ROOT, ".updates.json"))
 def edit_warning():
     """Uredi opozorilo na filmu (samo admin)"""
     if not is_current_admin_view(current_user):
@@ -1479,8 +1400,7 @@ def edit_warning():
         note["edited_by"] = current_user.id
 
         # Shranjuj
-        with open(metadata_file, "w", encoding="utf-8") as f:
-            json.dump(movie_metadata, f, ensure_ascii=False, indent=4)
+        atomic_write_json(metadata_file, movie_metadata)
 
         # Posodobi in-memory
         all_films[movie_folder]["user_notes"] = movie_metadata["user_notes"]
@@ -1498,6 +1418,7 @@ def edit_warning():
 
 @movies_bp.route("/movies/delete-warning", methods=["POST"])
 @login_required
+@serialized_json(lambda: os.path.join(FILMS_ROOT, ".updates.json"))
 def delete_warning():
     """Izbriši opozorilo (samo admin)"""
     if not is_current_admin_view(current_user):
@@ -1530,8 +1451,7 @@ def delete_warning():
         deleted_note = movie_metadata["user_notes"].pop(warning_index)
 
         # Shranjuj
-        with open(metadata_file, "w", encoding="utf-8") as f:
-            json.dump(movie_metadata, f, ensure_ascii=False, indent=4)
+        atomic_write_json(metadata_file, movie_metadata)
 
         # Posodobi in-memory
         all_films[movie_folder]["user_notes"] = movie_metadata["user_notes"]

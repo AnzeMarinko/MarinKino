@@ -1,47 +1,72 @@
-#!/bin/bash
-# ============================================
-# rclone sync skripta za sinhronizacijo sprememb v Google Drive
-# ============================================
-set -e
-
-# Nastavitve poti
-LOG_DIR="/home/marinko/Desktop/MarinKino/cache/logs/rclone"
-LOG_FILE="${LOG_DIR}/rclone_sync_$(date +'%Y-%m-%d_%H-%M').log"
-IGNORE_FILE="/home/marinko/Desktop/MarinKino/scripts/rclone/rclone-ignore.txt"
-RCLONE_CONF="/home/marinko/.config/rclone/rclone.conf"
-CACHE_DIR="/home/marinko/.cache/rclone"
-LOCK_FILE="/tmp/rclone-bisync-MarinKino.lock"
-
-# Ustvari mapo za loge, če ne obstaja
-mkdir -p "$LOG_DIR"
-
-### ====== LOCK ======
-exec 9>"$LOCK_FILE"
-if ! flock -n 9; then
-  echo "❌ rclone sync že teče – exit" >> "$LOG_FILE"
-  exit 1
+#!/usr/bin/env bash
+# Mirror persistent project files, including private configuration, to Drive.
+set -Eeuo pipefail
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+umask 077
+project=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
+config=/etc/marinkino-security/rclone.conf
+dry_run=false
+while (($#)); do
+    case "$1" in
+        --project) project=$2; shift 2 ;;
+        --config) config=$2; shift 2 ;;
+        --dry-run) dry_run=true; shift ;;
+        *) echo "Unknown option: $1" >&2; exit 2 ;;
+    esac
+done
+[[ $EUID == 0 ]] || { echo 'Run with sudo so certificates and private data can be read.' >&2; exit 2; }
+project=$(realpath -- "$project")
+[[ -f "$project/.env" && -f "$project/scripts/rclone/rclone-ignore.txt" && -s "$config" ]] || {
+    echo 'Project .env, rclone filter and configured rclone.conf are required.' >&2; exit 2;
+}
+command -v rclone >/dev/null || { echo 'Install rclone first.' >&2; exit 2; }
+cache=/var/cache/marinkino-rclone
+logs="$project/cache/logs/rclone"
+install -d -m 700 "$cache" "$logs"
+exec 9>"$cache/sync.lock"
+flock -n 9 || { echo 'Rclone backup already running'; exit 0; }
+stamp=$(date -u +%Y-%m-%d_%H-%M-%S)
+log="$logs/rclone_sync_$stamp.log"
+printf 'Dnevnik: %s\n' "$log"
+exec >>"$log" 2>&1
+redis_stage=''
+finish() {
+    result=$?
+    trap - EXIT
+    if [[ -n "$redis_stage" ]]; then rm -rf -- "$redis_stage"; fi
+    printf '[%s] Rclone finished; exit=%s\n' "$(date -Is)" "$result"
+    exit "$result"
+}
+trap finish EXIT
+printf '[%s] Rclone started\n' "$(date -Is)"
+common=(--config "$config" --cache-dir "$cache" --log-file "$log"
+    --log-level NOTICE --stats 5m --stats-one-line --stats-log-level NOTICE
+    --checkers 4 --transfers 2 --drive-chunk-size 32M "--dry-run=$dry_run")
+# Publish dated archives first. Copy retains older remote archives.
+if [[ -d /var/backups/marinkino ]]; then
+    rclone copy /var/backups/marinkino gdrive:MarinKino-backups \
+        --include '*.tar.age' "${common[@]}"
 fi
-
-echo "▶️ START sync $(date)" >> "$LOG_FILE"
-
-/usr/bin/rclone --config "$RCLONE_CONF" sync "/home/marinko/Desktop/MarinKino" "gdrive:MarinKino" \
-  --exclude-from "$IGNORE_FILE" \
-  --drive-chunk-size 512M \
-  --checkers=8 \
-  --transfers=2 \
-  --metadata \
-  --cache-dir "$CACHE_DIR" \
-  --drive-acknowledge-abuse \
-  --log-file "$LOG_FILE" \
-  --max-delete 500 \
-  --verbose \
-  --use-server-modtime \
-  --fast-list --modify-window 5s
-
-### ====== CLEAN LOGS ======
-
-MAX_LOGS=5
-cd "$LOG_DIR"
-ls -t | grep -v '/$' | tail -n +$((MAX_LOGS+1)) | xargs -r rm --
-
-echo "✅ FINISHED $(date)" >> "$LOG_FILE"
+# Redis data lives in a named Docker volume, outside the project mirror.
+if [[ "$dry_run" == false ]] && command -v docker >/dev/null; then
+    running=$(docker inspect --format '{{.State.Running}}' marinkino-redis 2>/dev/null || true)
+    if [[ "$running" == true ]]; then
+        redis_stage=$(mktemp -d "$cache/redis.XXXXXXXX")
+        # SAVE completes the RDB before copying it; the Redis dataset is bounded.
+        timeout 60 docker exec marinkino-redis redis-cli -e SAVE
+        docker cp marinkino-redis:/data/dump.rdb "$redis_stage/redis.rdb"
+        rclone copyto "$redis_stage/redis.rdb" "gdrive:MarinKino-redis/$stamp.rdb" "${common[@]}"
+        rm -rf -- "$redis_stage"
+        redis_stage=''
+    else
+        echo 'Redis is not running; no new Redis snapshot was created.'
+    fi
+fi
+# Preserve replaced/deleted destination files outside the mirror itself.
+# --links stores certificate symlinks without following them.
+rclone sync "$project" gdrive:MarinKino \
+    --exclude-from "$project/scripts/rclone/rclone-ignore.txt" \
+    --links --metadata --backup-dir "gdrive:MarinKino-history/$stamp" \
+    --max-delete 500 --modify-window 5s "${common[@]}"
+find "$logs" -maxdepth 1 -type f -name 'rclone_sync_*.log' -mtime +14 -delete

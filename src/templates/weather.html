@@ -2,7 +2,7 @@
 
 {% block content %}
 <link rel="stylesheet" href="/static/css/weather.css">
-<script defer src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/vendor/plotly.min.js"></script>
 
 <main class="container py-4 py-lg-5">
   <div class="weather-page {{ 'weather-page--day' if weather.current.is_day else 'weather-page--night' }}">
@@ -150,5 +150,5 @@
 </main>
 
 <div id="weather-root" data-weather='{{ weather | tojson | safe }}'></div>
-<script defer src="/static/script/weather.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/script/weather.js"></script>
 {% endblock %}

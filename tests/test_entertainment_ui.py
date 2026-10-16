@@ -109,7 +109,7 @@ def test_weather_missing_location_explains_fallback(entertainment):
     response = entertainment.client.get("/weather?location=Neobstojec")
     assert response.status_code == 200
     assert "ni bilo mogoče najti" in response.text
-    entertainment.module.fetch_weather_for_location.assert_called_once_with(46.0569, 14.5058, "Ljubljana")
+    entertainment.module.fetch_weather_for_location.assert_called_once_with(46.06, 14.51, "Ljubljana")
 
 
 def test_weather_outage_refresh_preserves_selected_coordinates(entertainment):

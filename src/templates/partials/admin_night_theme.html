@@ -1,4 +1,4 @@
 {% if not is_for_mail and current_user is defined and current_user.is_authenticated and current_user.is_admin %}
-<script src="/static/js/admin_night_theme.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="/static/js/admin_night_theme.js"></script>
 <link rel="stylesheet" href="/static/css/admin_night_theme.css">
 {% endif %}

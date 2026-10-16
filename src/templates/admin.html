@@ -52,14 +52,14 @@
 
 <section id="admin-tools" class="admin-panel" aria-labelledby="tools-title">
   <div class="admin-section-heading"><h2 id="tools-title">Orodja</h2></div>
-  <div class="admin-view-as"><div><strong>Predogled strani kot uporabnik</strong><p class="small mb-0 mt-1">Odpre prikaz izbrane vloge. Za vrnitev uporabi povezavo v opozorilni pasici.</p></div><div class="admin-actions"><a href="/admin/set-view-as/anonymous" class="btn btn-outline-secondary">Neprijavljen</a><a href="/admin/set-view-as/user" class="btn btn-outline-secondary">Uporabnik</a><a href="/admin/clear-view-as" class="btn btn-outline-primary">Administrator</a></div></div>
+  <div class="admin-view-as"><div><strong>Predogled strani kot uporabnik</strong><p class="small mb-0 mt-1">Odpre prikaz izbrane vloge. Za vrnitev uporabi povezavo v opozorilni pasici.</p></div><div class="admin-actions">{% for mode, label in [('anonymous', 'Neprijavljen'), ('user', 'Uporabnik')] %}<form method="post" action="/admin/set-view-as/{{ mode }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-outline-secondary" type="submit">{{ label }}</button></form>{% endfor %}<form method="post" action="/admin/clear-view-as"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-outline-primary" type="submit">Administrator</button></form></div></div>
 
 </section>
 <div id="adminData" data-stats='{{ {"accessUsers": access_stats_users, "users": users, "accessMonthly": access_stats_monthly, "blogDaily": blog_views_daily, "blogSiDaily": blog_si_views_daily, "geoCities": geo_stats_cities}|tojson }}' hidden></div>
 {% endblock %}
 {% block admin_scripts %}
-<script defer src="https://cdn.plot.ly/plotly-3.3.1.min.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script defer src="/static/script/admin_dashboard.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/vendor/plotly.min.js"></script>
+<link rel="stylesheet" href="/static/vendor/leaflet.css">
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/vendor/leaflet.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/script/admin_dashboard.js"></script>
 {% endblock %}

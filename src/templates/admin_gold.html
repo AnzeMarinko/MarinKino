@@ -9,4 +9,4 @@
   <a href="https://www.bullionvault.com/gold-price-chart.do" target="_blank" rel="noopener noreferrer" class="small">Odpri graf pri BullionVault <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
 </section>
 {% endblock %}
-{% block admin_scripts %}<script defer src="/static/script/admin_gold.js"></script>{% endblock %}
+{% block admin_scripts %}<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/script/admin_gold.js"></script>{% endblock %}

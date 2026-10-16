@@ -1,4 +1,5 @@
 import glob
+import ipaddress
 import json
 import os
 import re
@@ -12,10 +13,9 @@ import yt_dlp
 from ffmpeg_normalize import FFmpegNormalize
 from flask import Flask, jsonify, render_template, request, send_from_directory
 from flask_compress import Compress
+from flask_wtf.csrf import CSRFProtect
 from mutagen.easyid3 import EasyID3
 from mutagen.mp3 import MP3, HeaderNotFoundError
-
-os.umask(0)
 
 from content_preparation.audio_preparation import convert_mp3_to_hls
 from content_preparation.get_movie_metadata import MovieMetadata
@@ -25,7 +25,38 @@ from content_preparation.video_converter import convert_to_m3u8, convert_videos
 from utils import safe_path
 
 app = Flask(__name__, static_url_path="/static", static_folder="static")
-app.secret_key = os.getenv("FLASK_KEY")
+app.secret_key = os.getenv("FLASK_KEY") or secrets.token_hex(32)
+app.config.update(
+    MAX_CONTENT_LENGTH=1024 * 1024,
+    TRUSTED_HOSTS=["localhost", "127.0.0.1", "[::1]"],
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Strict",
+)
+
+
+@app.before_request
+def require_local_request():
+    """Keep this file-management tool on the local SSH tunnel only."""
+    try:
+        local_client = ipaddress.ip_address(
+            request.remote_addr or ""
+        ).is_loopback
+    except ValueError:
+        local_client = False
+    if not local_client:
+        return jsonify({"error": "Local access required"}), 403
+
+    # A malicious website can target localhost; do not trust forwarded headers
+    # or allow a browser to invoke the editor from another origin.
+    if request.headers.get("Sec-Fetch-Site", "").lower() == "cross-site":
+        return jsonify({"error": "Cross-site access denied"}), 403
+    origin = request.headers.get("Origin")
+    if origin is not None and origin != request.host_url.rstrip("/"):
+        return jsonify({"error": "Cross-origin access denied"}), 403
+    return None
+
+
+CSRFProtect(app)
 Compress(app)
 
 MUSIC_FOLDER = "data/music"
@@ -398,7 +429,6 @@ def update_values(music_file, title, artist, album):
 
 @app.route("/")
 def index():
-    process_incoming_music_folder(INCOMING_MUSIC_FOLDER)
     return render_template(
         "music_editor.html",
         music=list_incoming_music_tracks(),
@@ -847,5 +877,7 @@ if __name__ == "__main__":
     for url in []:
         download_playlist(url)
     rename_existing_incoming_hls_dirs()
+    # Prepare existing imports once at startup; HTTP GET requests only read.
+    process_incoming_music_folder(INCOMING_MUSIC_FOLDER)
 
-    app.run(host="0.0.0.0", port=8080)
+    app.run(host="127.0.0.1", port=8080, debug=False)

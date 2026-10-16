@@ -28,6 +28,7 @@ from music.recommendations import (
     select_next_song,
     similar_candidates,
 )
+from security_storage import atomic_write_json, serialized_json
 from utils import FLASK_ENV, is_current_admin_view, safe_path
 
 log = logging.getLogger(__name__)
@@ -149,6 +150,21 @@ def _guess_media_mimetype(filename):
 
 
 def _build_internal_media_response(data_root, protected_root, filename):
+    if os.path.splitext(filename)[1].lower() not in {
+        ".mp3",
+        ".m4a",
+        ".wav",
+        ".m3u8",
+        ".m4s",
+        ".ts",
+        ".mp4",
+        ".aac",
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp",
+    }:
+        abort(404)
     try:
         _ = safe_path(data_root, filename)
         if not os.path.exists(os.path.join(data_root, filename)):
@@ -439,8 +455,7 @@ def _load_private_album_store(user_id):
 def _save_private_album_store(user_id, store):
     PRIVATE_ALBUMS_ROOT.mkdir(parents=True, exist_ok=True)
     path = _private_albums_file(user_id)
-    with open(path, "w", encoding="utf-8") as handle:
-        json.dump(store, handle, ensure_ascii=False, indent=2)
+    atomic_write_json(path, store)
 
 
 def _filter_private_album_song_ids(song_ids, visible_track_ids):
@@ -750,6 +765,8 @@ def create_hls_session_playlist():
     for token in expired_tokens:
         del hls_sessions[token]
 
+    if len(hls_sessions) >= 128:
+        return jsonify(error="Preveč aktivnih seznamov. Poskusi pozneje."), 429
     session_token = uuid4().hex
     hls_sessions[session_token] = {
         "user_id": current_user.id,
@@ -783,6 +800,7 @@ def hls_session_playlist(session_token):
 
 @music_bp.route("/music/private-albums", methods=["POST"])
 @login_required
+@serialized_json(lambda: _private_albums_file(current_user.id))
 def create_private_album():
     _, _, visible_track_ids = _normalize_music_view()
     store = _load_private_album_store(current_user.id)
@@ -819,6 +837,7 @@ def create_private_album():
     "/music/private-albums/<album_id>", methods=["PATCH", "DELETE"]
 )
 @login_required
+@serialized_json(lambda: _private_albums_file(current_user.id))
 def mutate_private_album(album_id):
     _, _, visible_track_ids = _normalize_music_view()
     store = _load_private_album_store(current_user.id)
@@ -870,6 +889,7 @@ def mutate_private_album(album_id):
     methods=["POST", "DELETE"],
 )
 @login_required
+@serialized_json(lambda: _private_albums_file(current_user.id))
 def mutate_private_album_songs(album_id):
     _, _, visible_track_ids = _normalize_music_view()
     store = _load_private_album_store(current_user.id)
@@ -928,6 +948,10 @@ def radio_stories():
 @music_bp.route("/music/file/<path:filename>")
 @login_required
 def song(filename):
+    if "Neurejena-glasba" in Path(
+        filename
+    ).parts and not is_current_admin_view(current_user):
+        abort(404)
     return _build_internal_media_response(
         str(MUSIC_ROOT), "protected_music", filename
     )
@@ -936,6 +960,10 @@ def song(filename):
 @music_bp.route("/music/hls/<path:filename>")
 @login_required
 def song_hls(filename):
+    if "Neurejena-glasba" in Path(
+        filename
+    ).parts and not is_current_admin_view(current_user):
+        abort(404)
     # Some cached clients may retain a legacy HLS directory URL.
     try:
         hls_path = Path(safe_path(MUSIC_ROOT, filename))

@@ -1,51 +1,30 @@
-#!/bin/bash
-# ========================================
-# DuckDNS IP osvežitev
-# ========================================
-
-# --- Nastavitve ---
-LOG_DIR="cache/logs/duckdns"
-ENV_FILE=".env"
-
-# Ustvari log mapo, če še ne obstaja
-mkdir -p "$LOG_DIR"
-
-LOGDATE=$(date +"%Y-%m-%d")
-LOGFILE="$LOG_DIR/duckdns_refresh_${LOGDATE}.txt"
-
-echo "===== DuckDNS posodobitev [$(date)] =====" >> "$LOGFILE"
-
-# --- Pobriši stare loge ---
-MAX_LOGS=5
-cd "$LOG_DIR"
-ls -t | grep -v '/$' | tail -n +$((MAX_LOGS+1)) | xargs -r rm --
-
-# --- Preberi .env datoteko (če obstaja) ---
-if [ -f "$ENV_FILE" ]; then
-    export $(grep -v '^#' "$ENV_FILE" | xargs)
-else
-    echo "[NAPAKA] Datoteka $ENV_FILE ne obstaja." | tee -a "$LOGFILE"
-    exit 1
-fi
-
-# --- Preveri obvezne spremenljivke ---
-if [ -z "$DUCKDNS_DOMAIN" ]; then
-    echo "[NAPAKA] DUCKDNS_DOMAIN ni definiran v .env datoteki." | tee -a "$LOGFILE"
-    exit 1
-fi
-
-if [ -z "$DUCKDNS_TOKEN" ]; then
-    echo "[NAPAKA] DUCKDNS_TOKEN ni definiran v .env datoteki." | tee -a "$LOGFILE"
-    exit 1
-fi
-
-# --- Pošlji zahtevek na DuckDNS ---
-echo "[INFO] Pošiljam zahtevek na DuckDNS..." | tee -a "$LOGFILE"
-curl -s "https://www.duckdns.org/update?domains=$DUCKDNS_DOMAIN&token=$DUCKDNS_TOKEN&ip=" >> "$LOGFILE" 2>&1
-
-echo "" >> "$LOGFILE"
-echo "[INFO] DuckDNS posodobitev zaključena." | tee -a "$LOGFILE"
-echo "===== Konec [$(date)] =====" >> "$LOGFILE"
-
-# --- Počakaj 120 sekund (če želiš podobno vedenje kot timeout) ---
-sleep 120
+#!/usr/bin/env bash
+set -Eeuo pipefail
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+trap 'logger -t marinkino-duckdns "DuckDNS update failed; check domain and token"' ERR
+project=''
+if [[ ${1:-} == --project ]]; then project=$2; else project=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd); fi
+helper_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# Read token without sourcing .env or putting it in process arguments/logs.
+python3 - "$project" "$helper_dir" <<'PY'
+import sys
+import urllib.parse
+import urllib.request
+from pathlib import Path
+sys.path.insert(0, sys.argv[2])
+from security_config import deployment_config
+values = deployment_config(Path(sys.argv[1]))
+domain, token = values.get('DUCKDNS_DOMAIN', ''), values.get('DUCKDNS_TOKEN', '')
+if domain and token:
+    if not domain.endswith('.duckdns.org'):
+        raise SystemExit('DUCKDNS_DOMAIN must end in .duckdns.org')
+    query = urllib.parse.urlencode({'domains': domain.removesuffix('.duckdns.org'), 'token': token, 'ip': ''})
+    request = urllib.request.Request('https://www.duckdns.org/update?' + query)
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            if response.read(64).strip() != b'OK':
+                raise SystemExit('DuckDNS update refused')
+    except Exception:
+        raise SystemExit('DuckDNS request failed') from None
+PY

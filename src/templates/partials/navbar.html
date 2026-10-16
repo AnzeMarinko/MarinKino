@@ -29,7 +29,7 @@
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="siteAccountToggle">
               {% if admin_view %}<li><a class="dropdown-item" href="/admin"><i class="bi bi-grid" aria-hidden="true"></i> Nadzorna plošča</a></li><li><a class="dropdown-item" href="/admin/register"><i class="bi bi-person-plus" aria-hidden="true"></i> Povabi uporabnika</a></li><li><hr class="dropdown-divider"></li>{% endif %}
               <li><a class="dropdown-item" href="/password/change"><i class="bi bi-key" aria-hidden="true"></i> Spremeni geslo</a></li>
-              <li><a class="dropdown-item site-signout" href="/logout"><i class="bi bi-box-arrow-right" aria-hidden="true"></i> Odjava</a></li>
+              <li><form method="post" action="/logout"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="dropdown-item site-signout" type="submit"><i class="bi bi-box-arrow-right" aria-hidden="true"></i> Odjava</button></form></li>
             </ul>
           </div>
           {% else %}<span class="site-guest-greeting">Bog daj <span id="greeting">dober dan</span></span><a href="/login" class="site-login"><i class="bi bi-person" aria-hidden="true"></i> Prijava</a>{% endif %}
@@ -40,8 +40,8 @@
   </nav>
   {% if has_blog_header %}<p id="translation-notice" class="site-translation-notice notranslate" translate="no" hidden><span data-translation-notice></span></p>{% endif %}
 </header>
-{% if not is_music %}<div id="blog-header-spacer" aria-hidden="true"></div><script defer src="/static/js/blog_header.js"></script>{% endif %}
-<script defer src="/static/js/site_navigation.js"></script>
+{% if not is_music %}<div id="blog-header-spacer" aria-hidden="true"></div><script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/js/blog_header.js"></script>{% endif %}
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/js/site_navigation.js"></script>
 
 <div id="flash-container" class="site-flashes" aria-label="Obvestila">
   {% with messages = get_flashed_messages(with_categories=true) %}
@@ -51,7 +51,7 @@
   {% endwith %}
 </div>
 {% if view_as and current_user.is_authenticated and current_user.is_admin %}
-<div id="blog-view-as-notice" class="site-view-notice {{ 'site-view-notice-static' if is_music else '' }}" role="status"><span><i class="bi bi-eye" aria-hidden="true"></i> Pregled kot: <strong>{{ 'neprijavljen uporabnik' if view_as == 'anonymous' else 'navaden uporabnik' }}</strong></span><a href="/admin/clear-view-as">Nazaj na administratorja <i class="bi bi-arrow-right" aria-hidden="true"></i></a></div>
+<div id="blog-view-as-notice" class="site-view-notice {{ 'site-view-notice-static' if is_music else '' }}" role="status"><span><i class="bi bi-eye" aria-hidden="true"></i> Pregled kot: <strong>{{ 'neprijavljen uporabnik' if view_as == 'anonymous' else 'navaden uporabnik' }}</strong></span><form action="/admin/clear-view-as" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn btn-link p-0">Nazaj na administratorja <i class="bi bi-arrow-right" aria-hidden="true"></i></button></form></div>
 {% endif %}
 {% if fitness_access and request.blueprint != 'fitness' %}
 <div id="site-fitness-progress" class="alert {{ 'alert-danger' if fitness_access.weighing_status.locked else 'alert-info' }} mx-3 my-2 small" role="status"><a href="/admin/fitness">Gibanje</a> · {% if fitness_access.weighing_status.locked %}Dostop zaklenjen: od zadnjega tehtanja sta minila več kot dva meseca. Zabeleži novo meritev teže.{% else %}Načrti zadnjih 7 dni: <strong>{{ fitness_access.recent_completed }} / {{ fitness_access.recent_total }} opravljenih</strong> · Izvedbe iz plana ta teden: {{ fitness_access.week_completed }}. {{ 'Dostop odprt.' if fitness_access.allowed else 'Za dostop najprej opravi eno vadbo iz plana.' }}{% endif %}</div>

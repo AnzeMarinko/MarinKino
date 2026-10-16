@@ -1,9 +1,19 @@
 {% extends "admin_base.html" %}
 {% block admin_title %}Sistemski dnevnik{% endblock %}
-{% block admin_description %}Zadnjih 200 vrstic za pregled delovanja in iskanje napak.{% endblock %}
+{% block admin_description %}Zadnji dogodki aplikacije, sinhronizacij in strežnika.{% endblock %}
 {% block admin_content %}
 <section class="admin-panel" aria-labelledby="log-title">
-  <div class="admin-section-heading"><div><h2 id="log-title">Zadnji dogodki</h2><p>Najstarejši prikazani dogodek je na vrhu, najnovejši na dnu.</p></div><a class="btn btn-outline-secondary" href="/admin/logs"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Osveži dnevnik</a></div>
-  <pre class="admin-log admin-log-full" tabindex="0" aria-label="Vsebina sistemskega dnevnika">{{ system_log }}</pre>
+  <div class="admin-section-heading"><div><h2 id="log-title">{{ log_source.title if log_source else 'Zadnji dogodki' }}</h2><p>Do 200 zadnjih vrstic. Najnovejši dogodek je na dnu.</p></div><a class="btn btn-outline-secondary" href="?source={{ log_source.id if log_source else 'app' }}"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Osveži dnevnik</a></div>
+  {% if log_sources %}
+  <form method="get" class="d-flex flex-wrap align-items-end gap-2 mb-3">
+    <div class="flex-grow-1"><label class="form-label" for="log-source">Izberi dnevnik</label><select class="form-select" id="log-source" name="source">{% for item in log_sources %}<option value="{{ item.id }}"{% if item.id == log_source.id %} selected{% endif %}>{{ item.title }}{% if not item.available %} · ni na voljo{% endif %}</option>{% endfor %}</select></div>
+    <button type="submit" class="btn btn-primary">Prikaži</button>
+  </form>
+  {% endif %}
+  {% if host_status %}
+    {% if host_status.generated_at %}<p class="small text-muted">Pregled strežnika: <time>{{ host_status.generated_at }}</time>. Osveži se vsako minuto.{% if host_status.stale %} <strong>Pregled je starejši od treh minut.</strong>{% endif %}</p>{% else %}<p class="small text-muted">Pregled strežnika še ni na voljo. Dnevnik aplikacije je na voljo ločeno.</p>{% endif %}
+  {% endif %}
+  {% if log_source and log_source.filename %}<p class="small text-muted">{{ log_source.filename }}{% if log_source.modified_at %} · zadnja sprememba: <time>{{ log_source.modified_at }}</time>{% endif %}</p>{% endif %}
+  <pre class="admin-log admin-log-full" tabindex="0" aria-label="Vsebina izbranega dnevnika">{{ system_log }}</pre>
 </section>
 {% endblock %}

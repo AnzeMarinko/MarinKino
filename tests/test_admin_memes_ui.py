@@ -372,6 +372,16 @@ def test_browser_admin_filters_comments_and_mobile_layout(browser):
     assert page.locator("[data-table-empty]").is_visible()
 
 
+def fill_markdown(page, content):
+    if page.locator(".CodeMirror").count():
+        page.evaluate(
+            "value => document.querySelector('.CodeMirror').CodeMirror.setValue(value)",
+            content,
+        )
+    else:
+        page.locator("#content-editor").fill(content)
+
+
 def test_browser_editor_reuses_saved_post_and_preserves_failed_edits(browser):
     page = browser.page
     page.goto(browser.base + "/admin/blog/new")
@@ -414,7 +424,7 @@ def test_browser_editor_reuses_saved_post_and_preserves_failed_edits(browser):
     )
     assert ratio == pytest.approx(1.2)
 
-    page.locator("#content-editor").fill("Markdown vsebina")
+    fill_markdown(page, "Markdown vsebina")
     page.locator("#content-editor").press("Control+s")
     page.wait_for_url("**/admin/blog/edit/saved")
     assert browser.ui.saves[0]["content"] == "Markdown vsebina"
@@ -426,7 +436,7 @@ def test_browser_editor_reuses_saved_post_and_preserves_failed_edits(browser):
         "**/admin/blog/edit/saved",
         lambda route: route.fulfill(status=500, json={"message": "Napaka"}),
     )
-    page.locator("#content-editor").fill("Ne izgubi besedila")
+    fill_markdown(page, "Ne izgubi besedila")
     page.locator("#blogEditorForm button[type=submit]").click()
     page.get_by_text("Napaka pri shranjevanju:", exact=False).wait_for()
     assert (
@@ -497,16 +507,7 @@ def test_browser_meme_history_and_delete(browser):
 
 
 def test_browser_real_markdown_editor_sync(browser):
-    asset = Path("/private/tmp/marinkino-simplemde.min.js")
-    if not asset.exists():
-        pytest.skip("Optional local SimpleMDE asset unavailable")
     page = browser.page
-    page.route(
-        "https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.js",
-        lambda route: route.fulfill(
-            path=str(asset), content_type="text/javascript"
-        ),
-    )
     page.goto(browser.base + "/admin/blog/new")
     page.wait_for_function(
         '!!document.querySelector(".CodeMirror")?.CodeMirror'
@@ -541,16 +542,7 @@ def test_browser_meme_quota_retains_history(browser):
 
 
 def test_browser_real_dashboard_charts(browser):
-    asset = Path("/private/tmp/marinkino-plotly.min.js")
-    if not asset.exists():
-        pytest.skip("Optional local Plotly asset unavailable")
     page = browser.page
-    page.route(
-        "https://cdn.plot.ly/**",
-        lambda route: route.fulfill(
-            path=str(asset), content_type="text/javascript"
-        ),
-    )
     page.goto(browser.base + "/admin")
     page.locator("#access-monthly-graph .main-svg").first.wait_for()
     page.locator("#access-user-graph .main-svg").first.wait_for()

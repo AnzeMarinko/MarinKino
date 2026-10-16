@@ -17,5 +17,5 @@
     </section>
   </div>
 </main>
-<script src="{{ url_for('static', filename='script/auth_forms.js') }}" defer></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="{{ url_for('static', filename='script/auth_forms.js') }}" defer></script>
 {% endblock %}

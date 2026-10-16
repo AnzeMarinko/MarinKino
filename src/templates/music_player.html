@@ -175,12 +175,12 @@
 <div id="metadata-root" data-music='{{ music_metadata | tojson | safe }}'></div>
 <div id="music-config-root" data-private-albums='{{ private_albums | tojson | safe }}' data-private-albums-max="{{ max_private_albums }}" data-private-albums-endpoint="/music/private-albums"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
-<script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="/static/vendor/hls.min.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}">
     window.MEDIA_FILE_BASE = '/music/file/';
     window.MEDIA_HLS_BASE = '/music/hls/';
     window.MEDIA_DELETE_BASE = '/music/delete/';
 </script>
-<script defer src="/static/script/music_player.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/script/music_player.js"></script>
 
 {% endblock %}

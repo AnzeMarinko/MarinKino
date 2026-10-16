@@ -1,81 +1,170 @@
+x-logging: &bounded-logs
+  driver: local
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   redis:
     image: redis:7-alpine
     container_name: marinkino-redis
-    ports:
-      - "127.0.0.1:6380:6379"
     volumes:
-      - ./data/redis_data:/data
-    command: redis-server --dir /data --dbfilename dump.rdb --appendonly no
-    networks:
-      - marinkino-network
+      - redis-data:/data
+    command: [redis-server, --dir, /data, --appendonly, "yes", --appendfsync, everysec, --maxmemory, 128mb, --maxmemory-policy, volatile-lru]
+    networks: [backend]
+    read_only: true
+    tmpfs: [/tmp:size=16m,noexec,nosuid,nodev]
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETUID, SETGID, DAC_OVERRIDE]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    pids_limit: 64
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [CMD, redis-cli, ping]
       interval: 10s
-      timeout: 5s
+      timeout: 3s
       retries: 5
+    logging: *bounded-logs
+    restart: unless-stopped
+
+  redis-auth:
+    image: redis:7-alpine
+    container_name: marinkino-redis-auth
+    volumes:
+      - auth-data:/data
+    command: [redis-server, --dir, /data, --appendonly, "yes", --appendfsync, everysec, --maxmemory, 64mb, --maxmemory-policy, noeviction]
+    networks: [backend]
+    read_only: true
+    tmpfs: [/tmp:size=16m,noexec,nosuid,nodev]
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETUID, SETGID, DAC_OVERRIDE]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    pids_limit: 64
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging: *bounded-logs
     restart: unless-stopped
 
   app:
+    image: ${MARINKINO_APP_IMAGE:-marinkino-app:current}
     build:
       context: .
-      dockerfile: Dockerfile
+      args:
+        APP_UID: ${MARINKINO_UID:-10001}
+        APP_GID: ${MARINKINO_GID:-10001}
+        UPDATE_DEPENDENCIES: ${UPDATE_DEPENDENCIES:-0}
+        SECURITY_REFRESH: ${SECURITY_REFRESH:-initial}
     container_name: marinkino-app
-    env_file:
-      - .env
     environment:
-      - FLASK_ENV=production
-      - FITNESS_DATABASE=/app/data/fitness.sqlite3
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/marinkino/gen-lang-client.json
+      FLASK_ENV: production
+      FLASK_KEY: ${FLASK_KEY:?Run scripts/setup.sh to configure FLASK_KEY}
+      MAIN_DOMAIN: ${MAIN_DOMAIN:?MAIN_DOMAIN is required}
+      WWW_DOMAIN: ${WWW_DOMAIN:?WWW_DOMAIN is required}
+      DUCKDNS_DOMAIN: ${DUCKDNS_DOMAIN:-}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://${WWW_DOMAIN}}
+      GMAIL_USERNAME: ${GMAIL_USERNAME:-}
+      GMAIL_TOKEN: ${GMAIL_TOKEN:-}
+      MAIL_SENDER: ${MAIL_SENDER:-${GMAIL_USERNAME}}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
+      TURNSTILE_HOSTNAME: ${TURNSTILE_HOSTNAME:-${WWW_DOMAIN}}
+      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
+      ADMIN_TOTP_SECRET: ${ADMIN_TOTP_SECRET:-}
+      FITNESS_DATABASE: /app/data/fitness.sqlite3
+      AUTH_REDIS_HOST: redis-auth
+      AUTH_REDIS_PORT: "6379"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
     volumes:
       - ./data:/app/data
-      - ./cache:/app/cache
-      - ./credentials:/run/secrets/marinkino:ro
+      - ./cache/logs/server:/app/cache/logs/server
+      - /var/lib/marinkino-observability:/app/cache/host-status:ro
+      - ./cache/downloads:/app/cache/downloads
+      - app-socket:/run/marinkino
     depends_on:
+      redis-auth:
+        condition: service_healthy
       redis:
         condition: service_healthy
-    networks:
-      - marinkino-network
+    networks: [backend, egress]
+    read_only: true
+    tmpfs: [/tmp:size=128m,nosuid,nodev,noexec]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: ${MARINKINO_APP_MEMORY:-1024m}
+    pids_limit: 128
+    logging: *bounded-logs
     restart: unless-stopped
 
   nginx:
-    image: nginx:alpine
+    image: nginx:stable-alpine
     container_name: marinkino-nginx
-    ports:
-      - "80:80"
-      - "443:443"
+    ports: ["80:80", "443:443"]
     volumes:
       - ./configuration/nginx/conf:/etc/nginx/conf.d:ro
       - ./configuration/certbot/www:/var/www/certbot:ro
       - ./configuration/certbot/conf:/etc/letsencrypt:ro
-      - ./data/music:/music_data
-      - ./data/radio-stories:/radio_stories_data
-      - ./data/movies:/movies_data
-      - ./data/memes:/memes_data
-      - ./data/blog_images:/blog_images_data
+      - ./data/music:/music_data:ro
+      - ./data/radio-stories:/radio_stories_data:ro
+      - ./data/movies:/movies_data:ro
+      - ./data/memes:/memes_data:ro
+      - ./data/blog_images:/blog_images_data:ro
+      - ./cache/downloads:/downloads_data:ro
       - ./cache/logs/nginx:/var/log/nginx
-    networks:
-      - marinkino-network
+      - app-socket:/run/marinkino:ro
+    networks: [edge]
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:size=96m,nosuid,nodev,noexec
+      - /var/run:size=4m,nosuid,nodev,noexec
+      - /tmp:size=8m,nosuid,nodev,noexec
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE, CHOWN, SETUID, SETGID, DAC_OVERRIDE]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 192m
+    pids_limit: 64
+    logging: *bounded-logs
     restart: unless-stopped
-    # Nginx se ponovno naloži vsakih 6 ur, da pobere nove certifikate
-    command: '/bin/sh -c ''while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g "daemon off;"'''
     depends_on:
-      - app
+      app:
+        condition: service_healthy
 
   certbot:
-    image: certbot/certbot
-    container_name: marinkino-certbot
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
+    image: certbot/certbot:latest
+    profiles: [maintenance]
+    networks: [egress]
+    entrypoint: [certbot]
+    command: [renew, --non-interactive, --webroot, -w, /var/www/certbot]
     volumes:
-      - ./configuration/certbot/www:/var/www/certbot:rw
-      - ./configuration/certbot/conf:/etc/letsencrypt:rw
-    # Ta ukaz preverja certifikate vsakih 12 ur
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+      - ./configuration/certbot/www:/var/www/certbot
+      - ./configuration/certbot/conf:/etc/letsencrypt
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    pids_limit: 64
+    logging: *bounded-logs
 
 networks:
-  marinkino-network:
-    driver: bridge
+  backend:
+    internal: true
+    driver_opts:
+      com.docker.network.bridge.name: mk-backend
+  edge:
+    driver_opts:
+      com.docker.network.bridge.name: mk-edge
+  egress:
+    driver_opts:
+      com.docker.network.bridge.name: mk-egress
+
+volumes:
+  app-socket:
+  redis-data:
+    name: ${MARINKINO_REDIS_VOLUME:-marinkino-redis-data}
+  auth-data:

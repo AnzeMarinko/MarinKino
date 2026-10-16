@@ -149,8 +149,10 @@ def save_image(file, directory, crop=None):
     filename = f"{stem}-{uuid4().hex}.{result.extension}"
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
+    directory.chmod(0o755)
     with (directory / filename).open("xb") as output:
         output.write(result.data)
+    (directory / filename).chmod(0o644)
     return filename
 
 

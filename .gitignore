@@ -60,3 +60,6 @@ build/
 *.egg-info
 .ruff_cache
 data/fitness*.sqlite3
+
+configuration/.vendor-assets.lock
+data/.*.lock

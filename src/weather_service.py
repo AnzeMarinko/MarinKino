@@ -11,6 +11,8 @@ import holidays
 import requests
 from bs4 import BeautifulSoup
 
+from security_cache import ttl_cache
+
 _SAINTS_URL = "https://svetniki.info/"
 
 _WEATHER_CODE_MAP = {
@@ -130,7 +132,7 @@ def slovene_holidays(day: date) -> list[str]:
 def saint_of_day(day: date) -> dict[str, str] | None:
     """Read current saint link from svetniki.info, once per calendar day."""
     try:
-        response = requests.get(_SAINTS_URL, timeout=5)
+        response = requests.get(_SAINTS_URL, timeout=(2, 3))
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
         for link in soup.select("h2 a, h3 a, article a"):
@@ -338,6 +340,7 @@ def build_weather_data(
     }
 
 
+@ttl_cache(ttl=600, maxsize=128)
 def geocode_location(name: str) -> list[dict[str, Any]]:
     url = "https://geocoding-api.open-meteo.com/v1/search"
     params = {
@@ -346,17 +349,18 @@ def geocode_location(name: str) -> list[dict[str, Any]]:
         "language": "en",
         "format": "json",
     }
-    response = requests.get(url, params=params, timeout=15)
+    response = requests.get(url, params=params, timeout=(2, 5))
     response.raise_for_status()
     payload = response.json()
     return payload.get("results", [])
 
 
+@ttl_cache(ttl=600, maxsize=128)
 def fetch_ip_location(ip: str | None) -> dict[str, Any] | None:
     if not ip or ip in {"127.0.0.1", "::1"}:
         return None
     try:
-        response = requests.get(f"https://ipinfo.io/{ip}/json", timeout=5)
+        response = requests.get(f"https://ipinfo.io/{ip}/json", timeout=(2, 3))
         response.raise_for_status()
         data = response.json()
         latitude, longitude = str(data.get("loc", "")).split(",", 1)
@@ -369,6 +373,7 @@ def fetch_ip_location(ip: str | None) -> dict[str, Any] | None:
         return None
 
 
+@ttl_cache(ttl=600, maxsize=128)
 def fetch_weather_for_location(
     latitude: float, longitude: float, location: str
 ) -> dict[str, Any]:
@@ -397,7 +402,7 @@ def fetch_weather_for_location(
             "global_tilted_irradiance,weather_code,is_day,snowfall"
         ),
     }
-    response = requests.get(url, params=params, timeout=15)
+    response = requests.get(url, params=params, timeout=(2, 5))
     response.raise_for_status()
     payload = response.json()
     return build_weather_data(payload, location)

@@ -1,14 +1,23 @@
 """Home, admin tab placement, log access and chart regressions."""
 
 import ast
-from collections import deque
+import os
 from pathlib import Path
 
 import pytest
-from flask import redirect, render_template, url_for
+from flask import (
+    abort,
+    make_response,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 from flask_login import current_user, login_required
 from test_admin_memes_ui import browser as browser_fixture
 from test_admin_memes_ui import ui as ui_fixture
+
+from admin_log_reader import file_entry, host_snapshot, secret_values
 
 ui = ui_fixture
 browser = browser_fixture
@@ -35,7 +44,14 @@ def sections(ui):
     log_path = ui.files / "system.log"
     log_path.write_text("".join(f"LOG-{index:03}\n" for index in range(300)))
     namespace = dict(
-        deque=deque,
+        os=os,
+        abort=abort,
+        request=request,
+        make_response=make_response,
+        file_entry=file_entry,
+        host_snapshot=host_snapshot,
+        secret_values=secret_values,
+        HOST_SNAPSHOT=ui.files / "host-status.json",
         LOG_FILENAME=str(log_path),
         current_user=current_user,
         redirect=redirect,

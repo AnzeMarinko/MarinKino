@@ -1,8 +1,7 @@
-import json
 import logging
 import os
 import pathlib
-import random
+import secrets
 import smtplib
 import ssl
 from datetime import date
@@ -10,31 +9,32 @@ from email.message import EmailMessage
 from typing import List
 
 import redis
-from flask import request, session
+from flask import session
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash
 
 from blog_subscribers import normalize_subscribers
+from security_http import guest_identity
+from security_storage import (
+    atomic_write_json,
+    locked_path,
+    read_json,
+    safe_resolved_path,
+)
 
 log = logging.getLogger(__name__)
 redis_client = redis.Redis(
     host=os.getenv("REDIS_HOST", "localhost"),
     port=int(os.getenv("REDIS_PORT", "6379")),
     decode_responses=True,
+    socket_connect_timeout=2,
+    socket_timeout=2,
+    health_check_interval=30,
 )
 
 
 def get_guest_identity() -> str:
-    """Stable id for unauthenticated visitors: fingerprint cookie, else IP."""
-    fp = request.cookies.get("fp_id")
-    if fp:
-        return f"fp:{fp}"
-    ip = (
-        request.headers.get("X-Real-IP", request.remote_addr or "unknown")
-        .split(",")[0]
-        .strip()
-    )
-    return f"ip:{ip}"
+    return guest_identity()
 
 
 SUBSCRIBERS_FILE = os.path.join(
@@ -43,34 +43,15 @@ SUBSCRIBERS_FILE = os.path.join(
 
 
 def load_blog_subscribers() -> List[dict[str, str]]:
-    path = os.path.normpath(SUBSCRIBERS_FILE)
-    if os.path.exists(path):
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                return normalize_subscribers(json.load(f))
-        except Exception:
-            return []
-    return []
+    return normalize_subscribers(read_json(SUBSCRIBERS_FILE, []))
 
 
 def save_blog_subscribers(subscribers: List[dict[str, str] | str]):
-    path = os.path.normpath(SUBSCRIBERS_FILE)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(
-            normalize_subscribers(subscribers),
-            f,
-            ensure_ascii=False,
-            indent=2,
-        )
+    atomic_write_json(SUBSCRIBERS_FILE, normalize_subscribers(subscribers))
 
 
 def safe_path(base_folder, filename):
-    path = pathlib.Path(base_folder) / filename
-    path = path.resolve()
-    if not str(path).startswith(str(pathlib.Path(base_folder).resolve())):
-        raise ValueError("Nevaren path")
-    return str(path)
+    return safe_resolved_path(base_folder, filename)
 
 
 FLASK_ENV = os.getenv("FLASK_ENV", "development")
@@ -79,27 +60,36 @@ FLASK_ENV = os.getenv("FLASK_ENV", "development")
 users_file = (
     "data/users.json" if FLASK_ENV == "production" else "data/test_users.json"
 )
-if not os.path.exists(users_file):
-    # make admin user
-    password = "".join(
-        random.choices(
-            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-+_!=?<>",
-            k=12,
-        )
-    )
-    users = {
-        "admin": {
-            "is_admin": True,
-            "initial_password": password,
-            "password_hash": generate_password_hash(password),
-            "emails": [os.getenv("GMAIL_USERNAME")],
-            "incoming_date": date.today().isoformat(),
+with locked_path(users_file):
+    users = read_json(users_file, None)
+    if users is None:
+        password = secrets.token_urlsafe(24)
+        users = {
+            "admin": {
+                "is_admin": True,
+                "must_change_password": True,
+                "password_hash": generate_password_hash(password),
+                "emails": [os.getenv("GMAIL_USERNAME")],
+                "incoming_date": date.today().isoformat(),
+            }
         }
-    }
-    with open(users_file, "w", encoding="utf-8") as f:
-        f.write(json.dumps(users, indent=4))
-with open(users_file, "r", encoding="utf-8") as f:
-    users = json.loads(f.read())
+        # One-time local bootstrap credential; never stored in the user JSON.
+        bootstrap = pathlib.Path(users_file).with_name(
+            ".initial-admin-password"
+        )
+        descriptor = os.open(
+            bootstrap,
+            os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW,
+            0o600,
+        )
+        with os.fdopen(descriptor, "w") as stream:
+            os.fchmod(stream.fileno(), 0o600)
+            stream.write(password + "\n")
+        atomic_write_json(users_file, users)
+    elif any("initial_password" in entry for entry in users.values()):
+        for entry in users.values():
+            entry.pop("initial_password", None)
+        atomic_write_json(users_file, users)
 
 
 class User(UserMixin):
@@ -107,6 +97,9 @@ class User(UserMixin):
         self.id = username
         self.is_admin = users.get(username, {}).get("is_admin", False)
         self.emails = users.get(username, {}).get("emails", [])
+        self.must_change_password = users.get(username, {}).get(
+            "must_change_password", False
+        )
 
 
 def is_current_admin_view(user):

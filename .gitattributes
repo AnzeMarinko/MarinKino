@@ -1,0 +1,2 @@
+# Preserve verified upstream bytes; do not lint vendored formatting.
+src/static/vendor/** -text -whitespace linguist-vendored

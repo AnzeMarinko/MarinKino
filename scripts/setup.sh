@@ -1,241 +1,135 @@
-#!/bin/bash
-
-set -e
-
-echo "🐳 MarinKino Docker Setup"
-echo "========================"
-
-# Nastavitve
-if [ -f .env ]; then
-    export $(grep -v '^#' .env | xargs)
-else
-    echo "❌ NAPAKA: Datoteka .env ne obstaja!"
-    exit 1
+#!/usr/bin/env bash
+# Idempotent Raspberry Pi / Debian installation. Run from the project checkout.
+# run with: sudo --preserve-env=SSH_CONNECTION bash scripts/setup.sh
+set -Eeuo pipefail
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+umask 077
+project=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+[[ $(uname -s) == Linux ]] || { echo 'setup.sh runs on the Linux server, not the development Mac.' >&2; exit 2; }
+[[ $EUID == 0 ]] || { echo 'Run: sudo bash scripts/setup.sh' >&2; exit 2; }
+[[ -f "$project/.env" ]] || { echo 'Create .env from .env.example first.' >&2; exit 2; }
+command -v docker >/dev/null && docker compose version >/dev/null || { echo 'Docker Engine + Docker Compose v2 must already be installed.' >&2; exit 2; }
+cd -- "$project"
+export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a
+apt-get -o DPkg::Lock::Timeout=300 update
+apt-get -o DPkg::Lock::Timeout=300 install -y --no-install-recommends \
+    python3 ca-certificates curl cron logrotate fail2ban nftables iptables iproute2 age rclone
+runtime_uid=$(python3 scripts/security_config.py value --project "$project" MARINKINO_UID)
+runtime_gid=$(python3 scripts/security_config.py value --project "$project" MARINKINO_GID)
+runtime_uid=${runtime_uid:-${SUDO_UID:-$(stat -c %u .env)}}
+runtime_gid=${runtime_gid:-${SUDO_GID:-$(stat -c %g .env)}}
+if [[ "$runtime_uid" == 0 || "$runtime_gid" == 0 ]]; then runtime_uid=10001; runtime_gid=10001; fi
+python3 scripts/security_config.py prepare --project "$project" --uid "$runtime_uid" --gid "$runtime_gid"
+# Cron and systemd execute root-owned snapshots, not user-writable scripts.
+install -d -o root -g root -m 755 /usr/local/lib/marinkino
+for helper in security_config.py security_runtime.py vendor_assets.py; do
+    install -o root -g root -m 644 "scripts/$helper" "/usr/local/lib/marinkino/$helper"
+done
+install -o root -g root -m 644 src/admin_log_reader.py /usr/local/lib/marinkino/admin_log_reader.py
+install -o root -g root -m 644 scripts/export_admin_logs.py /usr/local/lib/marinkino/export_admin_logs.py
+install -o root -g root -m 755 scripts/security-update.sh /usr/local/lib/marinkino/security-update.sh
+install -o root -g root -m 755 scripts/duckdns_refresh.sh /usr/local/lib/marinkino/duckdns_refresh.sh
+install -o root -g root -m 755 scripts/rclone/rclone-sync-gdrive.sh /usr/local/lib/marinkino/rclone-sync-gdrive.sh
+value() { python3 /usr/local/lib/marinkino/security_config.py value --project "$project" "$1"; }
+main=$(value MAIN_DOMAIN)
+www=$(value WWW_DOMAIN)
+email=$(value GMAIL_USERNAME)
+duck=$(value DUCKDNS_DOMAIN)
+bootstrap_id=''
+cleanup_bootstrap() {
+    if [[ -n "$bootstrap_id" ]]; then docker rm -f "$bootstrap_id" >/dev/null 2>&1 || true; fi
+}
+trap cleanup_bootstrap EXIT
+if [[ ! -s "configuration/certbot/conf/live/$main/fullchain.pem" ]]; then
+    [[ -n "$email" ]] || { echo 'GMAIL_USERNAME required for certificate registration.' >&2; exit 2; }
+    install -d -m 755 configuration/nginx/conf configuration/certbot/www configuration/certbot/conf
+    python3 scripts/security_config.py render-nginx --project "$project" --bootstrap
+    docker pull nginx:stable-alpine
+    docker compose pull certbot
+    # No app socket volume is mounted before the unprivileged app initializes it.
+    bootstrap_id=$(docker run -d --name marinkino-bootstrap --read-only \
+        --cap-drop ALL --cap-add NET_BIND_SERVICE --cap-add CHOWN --cap-add SETUID --cap-add SETGID \
+        --tmpfs /var/cache/nginx --tmpfs /var/run -p 80:80 \
+        -v "$project/configuration/nginx/conf:/etc/nginx/conf.d:ro" \
+        -v "$project/configuration/certbot/www:/var/www/certbot:ro" nginx:stable-alpine)
+    domains=(-d "$main")
+    [[ "$www" == "$main" ]] || domains+=(-d "$www")
+    if [[ -n "$duck" && "$duck" != "$main" && "$duck" != "$www" ]]; then domains+=(-d "$duck"); fi
+    if [[ -n "$duck" ]]; then /usr/local/lib/marinkino/duckdns_refresh.sh --project "$project"; fi
+    docker compose run --rm --no-deps certbot certonly --non-interactive \
+        --webroot -w /var/www/certbot --cert-name "$main" "${domains[@]}" \
+        --email "$email" --agree-tos
+    cleanup_bootstrap
+    bootstrap_id=''
 fi
-
-# Preveri spremenljivke
-if [ -z "$DUCKDNS_DOMAIN" ] || [ -z "$MAIN_DOMAIN" ] || [ -z "$GMAIL_USERNAME" ] || [ -z "$WWW_DOMAIN" ]; then
-    echo "❌ NAPAKA: V .env manjka DUCKDNS_DOMAIN, MAIN_DOMAIN, GMAIL_USERNAME ali WWW_DOMAIN!"
-    exit 1
+# Remove the old infinite Certbot loop if it exists. Renewal is now one-shot.
+if docker inspect marinkino-certbot >/dev/null 2>&1; then
+    docker stop marinkino-certbot
+    docker rm marinkino-certbot
 fi
-
-EMAIL="$GMAIL_USERNAME"
-DOMAIN="$MAIN_DOMAIN"
-WWW_DOMAIN="$WWW_DOMAIN"
-
-echo "🚀 Začenjam vzpostavitev za $DOMAIN and $WWW_DOMAIN ..."
-
-chmod +x ./scripts/duckdns_refresh.sh
-chmod +x ./scripts/rclone/rclone-sync-gdrive.sh
-
-# 1. Pridobimo trenutni crontab (če ne obstaja, ustvarimo praznega)
-crontab -l > mycron 2>/dev/null || touch mycron
-
-# 2. Dodajanje DuckDNS osveževanja (vsakih 10 min). Če že obstaja, preskoči
-if ! grep -q "duckdns" mycron; then
-    echo "*/10 * * * * cd $(pwd) && ./scripts/duckdns_refresh.sh > /dev/null" >> mycron
-    echo "✅ Dodano DuckDNS osveževanje."
-    echo "🦆 Prvič osvežujem DuckDNS IP naslov ... (To lahko traja nekaj minut)"
-    ./scripts/duckdns_refresh.sh
-fi
-
-# 1. Začasna HTTP konfiguracija za Certbot (vključuje vse poddomene)
-mkdir -p cache/logs/server
-mkdir -p configuration/nginx/conf
-mkdir -p configuration/certbot/conf
-echo "📝 Generiram začasno HTTP konfiguracijo za verifikacijo..."
-cat > configuration/nginx/conf/app.conf <<EOF
-server {
-    listen 80;
-    server_name $DOMAIN $WWW_DOMAIN *.$DOMAIN $DUCKDNS_DOMAIN;
-    location /.well-known/acme-challenge/ { root /var/www/certbot; }
-    location / { return 200 "Certbot validation mode"; }
+# Create the read-only diagnostics mount before Compose starts the new app.
+python3 /usr/local/lib/marinkino/export_admin_logs.py --project "$project"
+/usr/local/lib/marinkino/security-update.sh --project "$project"
+# Preserve SSH_CONNECTION with sudo -E if connecting through public SSH/VPN.
+python3 /usr/local/lib/marinkino/security_config.py install-host --project "$project"
+fail2ban-client -t
+systemctl enable --now cron fail2ban
+systemctl restart fail2ban
+# Write managed system cron; escape paths and cron's special percent character.
+python3 - "$project" <<'PY'
+import os
+import shlex
+import sys
+from pathlib import Path
+project = shlex.quote(sys.argv[1]).replace('%', r'\%')
+script = '/usr/local/lib/marinkino/security-update.sh --project ' + project
+lines = [
+    'SHELL=/bin/bash',
+    'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
+    '17 3 * * * root ' + script,
+    '11 5,17 * * * root ' + script + ' --certificates-only',
+    '*/5 * * * * root /usr/bin/python3 /usr/local/lib/marinkino/security_config.py firewall --project ' + project + ' --apply || /usr/bin/logger -t marinkino-security "Firewall refresh failed"',
+    '*/10 * * * * root /usr/local/lib/marinkino/duckdns_refresh.sh --project ' + project + ' >/dev/null 2>&1',
+    '* * * * * root /usr/bin/python3 /usr/local/lib/marinkino/export_admin_logs.py --project ' + project + ' >/dev/null 2>&1 || /usr/bin/logger -t marinkino-security "Admin diagnostics export failed"',
+]
+path = Path('/etc/cron.d/marinkino-security')
+if Path('/etc/marinkino-security/rclone.conf').is_file():
+    lines.append('0 7 * * * root /usr/local/lib/marinkino/rclone-sync-gdrive.sh --project ' + project + ' || /usr/bin/logger -t marinkino-security "Google Drive backup failed"')
+path.write_text('\n'.join(lines) + '\n')
+os.chown(path, 0, 0)
+path.chmod(0o644)
+PY
+cat >/etc/logrotate.d/marinkino-security <<'EOF'
+/var/log/marinkino-security.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    create 0600 root root
 }
 EOF
-
-# 2. Zaženemo Nginx v ozadju
-echo "🐳 Zaganjam Nginx..."
-docker compose up -d nginx
-
-echo "⏳ Čakam 10 sekund, da se Nginx postavi..."
-sleep 10
-
-# 2. Zahtevamo certifikat za več imen hkrati
-echo "🔑 Zahtevam certifikate..."
-docker compose run --rm --entrypoint "certbot" certbot certonly --webroot --webroot-path /var/www/certbot \
-    -d $DOMAIN -d $WWW_DOMAIN -d $DUCKDNS_DOMAIN \
-    --email $EMAIL \
-    --agree-tos \
-    --no-eff-email \
-    --force-renewal
-
-# Preverimo uspeh
-if [ ! -d "configuration/certbot/conf/live/$DOMAIN" ]; then
-    echo "❌ NAPAKA: Certifikata ni bilo mogoče pridobiti."
-    echo "Preveri, če imaš odprt port 80 na routerju in če DNS deluje."
-    exit 1
-fi
-
-# 4. Če je certifikat tu, prepišemo konfiguracijo s pravo HTTPS verzijo
-echo "✅ Certifikat pridobljen! Nameščam HTTPS konfiguracijo..."
-
-cat > configuration/nginx/conf/app.conf <<EOF
-# 1. Preusmeritev vseh HTTP na HTTPS
-server {
-    listen 80;
-    server_name $DOMAIN $WWW_DOMAIN *.$DOMAIN $DUCKDNS_DOMAIN;
-    location /.well-known/acme-challenge/ { root /var/www/certbot; }
-    location / { return 301 https://\$host\$request_uri; }
-}
-
-# 2. Preusmeritev DuckDNS na WWW
-server {
-    listen 443 ssl;
-    server_name $DUCKDNS_DOMAIN;
-
-    access_log /var/log/nginx/access.log main;
-    error_log /var/log/nginx/error.log warn;
-
-    ssl_certificate /etc/letsencrypt/live/anzemarinko.si/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/anzemarinko.si/privkey.pem;
-
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_prefer_server_ciphers on;
-
-    return 301 https://$WWW_DOMAIN\$request_uri;
-}
-
-# 3. WWW poddomena
-server {
-    listen 443 ssl;
-    server_name $WWW_DOMAIN;
-
-    access_log /var/log/nginx/access.log main;
-    error_log /var/log/nginx/error.log warn;
-    client_max_body_size 40m;
-
-    ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
-
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_prefer_server_ciphers on;
-
-    location / {
-        proxy_pass http://app:5000;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-
-    # --- Za hitro pretakanje vsebin ---
-    # Samo za interne preusmeritve, uporabnik ne more dostopati direktno (Pot ZNOTRAJ Nginx kontejnerja)
-    location /protected_music/ {
-        internal;
-        alias /music_data/;
-        types {
-            application/vnd.apple.mpegurl  m3u8;
-            video/mp2t                     ts;
-            video/iso.segment             m4s;
-            video/mp4                     mp4;
-            audio/mpeg                    mp3;
-            audio/mp4                     m4a;
-            audio/wav                     wav;
-        }
-        add_header 'Access-Control-Allow-Origin' '*' always;
-        add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
-        add_header 'Access-Control-Allow-Headers' 'Range, Content-Type' always;
-        add_header 'Access-Control-Expose-Headers' 'Content-Length, Content-Range' always;
-        add_header 'Cache-Control' 'no-cache' always;
-        add_header 'Access-Control-Allow-Origin' '*' always;
-        proxy_force_ranges on;
-        access_log off;
-    }
-    location /protected_radio_stories/ {
-        internal;
-        alias /radio_stories_data/;
-        types {
-            application/vnd.apple.mpegurl  m3u8;
-            video/mp2t                     ts;
-            video/iso.segment             m4s;
-            video/mp4                     mp4;
-            audio/mpeg                    mp3;
-            audio/mp4                     m4a;
-            audio/wav                     wav;
-        }
-        add_header 'Access-Control-Allow-Origin' '*' always;
-        add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
-        add_header 'Access-Control-Allow-Headers' 'Range, Content-Type' always;
-        add_header 'Access-Control-Expose-Headers' 'Content-Length, Content-Range' always;
-        proxy_force_ranges on;
-        access_log off;
-    }
-    location /protected_movies/ {
-        internal;
-        alias /movies_data/;
-        limit_rate_after 30m;
-        limit_rate 3750k;
-        types {
-            video/mp4 mp4;
-            application/vnd.apple.mpegurl  m3u8;
-            video/mp2t                     ts;
-        }
-        add_header 'Access-Control-Allow-Origin' '*' always;
-        add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
-        add_header 'Access-Control-Allow-Headers' 'Range, Content-Type' always;
-        add_header 'Access-Control-Expose-Headers' 'Content-Length, Content-Range' always;
-
-        proxy_force_ranges on;
-        access_log off;
-    }
-    location /protected_memes/ {internal; alias /memes_data/;}
-    location /protected_blog_images/ {internal; alias /blog_images_data/;}
-}
-
-# 4. WILDCARD preusmeritev (Vse na WWW)
-server {
-    listen 443 ssl;
-    server_name $DOMAIN *.$DOMAIN;
-
-    access_log /var/log/nginx/access.log main;
-    error_log /var/log/nginx/error.log warn;
-
-    ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
-
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_prefer_server_ciphers on;
-
-    return 301 https://$WWW_DOMAIN\$request_uri;
-}
-EOF
-
-# 5. Ponovno naložimo Nginx in zaženemo še aplikacijo
-echo "🔄 Ponovno nalagam Nginx in zaganjam aplikacijo..."
-docker compose down
-docker compose up -d --build
-
-# 2. Obnavljanje certifikata (vsakih 12 ur)
-if ! grep -q "certbot renew" mycron; then
-    # cd v mapo projekta, poskus obnove in osvežitev Nginxa
-    echo "0 */12 * * * cd $(pwd) && docker compose run --rm certbot renew && docker compose exec nginx nginx -s reload" >> mycron
-    echo "✅ Dodano: Samodejno podaljševanje certifikata."
-fi
-
-# 4. Namestitev novega crontaba in brisanje začasne datoteke
-crontab mycron
-rm mycron
-
-# ce je raspberry pi, namestimo packager-linux-arm64, sicer packager-linux-x64
-wget https://github.com/shaka-project/shaka-packager/releases/latest/download/packager-linux-arm64 -O packager
-chmod +x packager
-sudo mv packager /usr/local/bin/packager
-
-echo "📅 Cron opravila so aktivna. Preveriš jih z: crontab -l"
-
-echo "⏳ Počakajmo, da se vse zažene ..."
-sleep 5
-
-echo "✅🎉 KONČANO! Tvoja aplikacija je dostopna na https://$WWW_DOMAIN"
-echo "Poglej log-e: docker compose logs -f app"
-echo "Ustavi celotno storitev: docker compose down"
+chmod 644 /etc/logrotate.d/marinkino-security
+# Remove only legacy cron entries created by this repository's previous setup.
+python3 - "$project" "${SUDO_USER:-root}" <<'PY'
+import subprocess
+import sys
+from pathlib import Path
+for user in dict.fromkeys(['root', sys.argv[2]]):
+    result = subprocess.run(['crontab', '-u', user, '-l'], capture_output=True, text=True)
+    if result.returncode:
+        continue
+    retained = [line for line in result.stdout.splitlines() if not (
+        sys.argv[1] in line and (
+            'scripts/duckdns_refresh.sh' in line or 'docker compose run --rm certbot renew' in line
+            or (Path('/etc/marinkino-security/rclone.conf').is_file() and 'scripts/rclone/rclone-sync-gdrive.sh' in line)
+        )
+    )]
+    if retained != result.stdout.splitlines():
+        subprocess.run(['crontab', '-u', user, '-'], input='\n'.join(retained) + '\n', text=True, check=True)
+PY
+python3 /usr/local/lib/marinkino/export_admin_logs.py --project "$project"
+printf 'Ready: https://%s\nCron: /etc/cron.d/marinkino-security\nLog: /var/log/marinkino-security.log\nBackup key: /etc/marinkino-security/backup.agekey (copy off server)\n' "$www"
