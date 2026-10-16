@@ -108,10 +108,13 @@ python3 "$runtime" check-uid --project "$project" --uid "$uid" --gid "$gid"
 python3 "$config" prepare --project "$project" --uid "$uid" --gid "$gid"
 python3 "$config" firewall --project "$project" --apply
 python3 "$helper_dir/vendor_assets.py" --project "$project" --refresh
-"${compose[@]}" pull nginx redis redis-auth certbot
+"${compose[@]}" pull nginx certbot
 renew_certificates
 docker pull aquasec/trivy:latest
 candidate="marinkino-app:security-$stamp"
+redis_candidate="marinkino-redis:security-$stamp"
+docker build --pull --no-cache --tag "$redis_candidate" "$project/configuration/redis"
+export MARINKINO_REDIS_IMAGE="$redis_candidate"
 export MARINKINO_APP_IMAGE="$candidate" UPDATE_DEPENDENCIES=1 SECURITY_REFRESH="$stamp"
 "${compose[@]}" build --pull app
 python3 "$runtime" audit --image "$candidate"
@@ -119,7 +122,8 @@ python3 "$runtime" audit --image "$candidate"
 # Database downloads and layer extraction exceed a small tmpfs. Use private
 # disk scratch space, removed by cleanup on success/failure, instead of RAM.
 install -d -m 700 "$state/trivy" "$work/trivy-tmp"
-for image in "$candidate" nginx:stable-alpine redis:7-alpine certbot/certbot:latest; do
+for image in "$candidate" nginx:stable-alpine "$redis_candidate" certbot/certbot:latest; do
+    printf '\nScanning image: %s\n' "$image"
     docker image save -o "$work/image.tar" "$image"
     docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges \
         --memory 1024m --cpus 1 \
@@ -150,6 +154,7 @@ www=$(value WWW_DOMAIN)
 curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 3 --retry-delay 2 \
     --resolve "$www:443:127.0.0.1" "https://$www/healthz"
 docker tag "$candidate" marinkino-app:current
+docker tag "$redis_candidate" marinkino-redis:current
 # Persist the last successful runtime inventory and a rollback snapshot.
 python3 "$runtime" snapshot --project "$project" --output "$state/current-compose.json"
 if [[ -f "$work/previous-compose.json" ]]; then

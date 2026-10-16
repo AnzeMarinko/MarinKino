@@ -216,6 +216,10 @@ def audit(image):
     print(f"Dependency audit passed: {len(inventory)} installed packages")
 
 
+def redis_image():
+    return os.environ.get("MARINKINO_REDIS_IMAGE") or "redis:7-alpine"
+
+
 def smoke(image, uid, gid):
     name = f"mk-security-{os.getpid()}"
     network = name + "-net"
@@ -236,7 +240,7 @@ def smoke(image, uid, gid):
             "/data",
             "--tmpfs",
             "/tmp",
-            "redis:7-alpine",
+            redis_image(),
             "redis-server",
             "--save",
             "",
@@ -393,7 +397,7 @@ def migrate_redis(project):
         selected + ":/migration",
         "--entrypoint",
         "sh",
-        "redis:7-alpine",
+        redis_image(),
         "-ec",
         'test -z "$(ls -A /migration)" || { '
         'echo "Fresh Redis migration volume is not empty" >&2; '
@@ -519,7 +523,7 @@ def _migration_redis(name, volume, appendonly):
         "/tmp:size=16m",
         "-v",
         volume + ":/data",
-        "redis:7-alpine",
+        redis_image(),
         "redis-server",
         "--dir",
         "/data",
@@ -617,23 +621,28 @@ def prune(state, extra=None):
             item["Image"]
             for item in json.loads(run("docker", "inspect", *containers))
         )
-    for line in run(
-        "docker",
-        "image",
-        "ls",
-        "--no-trunc",
-        "--format",
-        "{{json .}}",
-        "marinkino-app",
-    ).splitlines():
-        image = json.loads(line)
-        if image["Tag"].startswith("security-") and image["ID"] not in keep:
-            run(
-                "docker",
-                "image",
-                "rm",
-                image["Repository"] + ":" + image["Tag"],
-            )
+    for repository in ("marinkino-app", "marinkino-redis"):
+        for line in run(
+            "docker",
+            "image",
+            "ls",
+            "--no-trunc",
+            "--format",
+            "{{json .}}",
+            repository,
+        ).splitlines():
+            image = json.loads(line)
+            if (
+                image["Repository"] == repository
+                and image["Tag"].startswith("security-")
+                and image["ID"] not in keep
+            ):
+                run(
+                    "docker",
+                    "image",
+                    "rm",
+                    image["Repository"] + ":" + image["Tag"],
+                )
     run(
         "docker",
         "image",

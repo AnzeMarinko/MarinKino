@@ -104,6 +104,24 @@ def test_empty_deployment_has_no_fake_rollback_file(tmp_path, monkeypatch):
     assert not output.exists()
 
 
+def test_smoke_runs_the_same_redis_candidate_as_deployment(monkeypatch):
+    candidate = "marinkino-redis:security-smoke-test"
+    commands = []
+    monkeypatch.setenv("MARINKINO_REDIS_IMAGE", candidate)
+
+    def fake_run(*args, **kwargs):
+        commands.append(args)
+        return "OK"
+
+    monkeypatch.setattr(runtime, "run", fake_run)
+    monkeypatch.setattr(runtime.subprocess, "run", lambda *a, **k: None)
+    runtime.smoke("marinkino-app:security-test", 1000, 1000)
+    redis_run = next(c for c in commands if c[1] == "run" and "--name" in c)
+    assert candidate in redis_run
+    assert "redis:7-alpine" not in redis_run
+    assert "--internal" in commands[0]
+
+
 @pytest.mark.parametrize("pids_limit", [None, 0, -1, 128])
 def test_snapshot_handles_unlimited_legacy_pids_limit(
     tmp_path, monkeypatch, pids_limit
@@ -127,8 +145,9 @@ def test_snapshot_handles_unlimited_legacy_pids_limit(
     assert stat.S_IMODE(output.stat().st_mode) == 0o600
 
 
+@pytest.mark.parametrize("repository", ["marinkino-app", "marinkino-redis"])
 def test_prune_only_removes_updater_candidates_outside_retained_images(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, repository
 ):
     (tmp_path / "current-compose.json").write_text(
         json.dumps({"services": {"app": {"image": "sha256:current"}}})
@@ -145,10 +164,12 @@ def test_prune_only_removes_updater_candidates_outside_retained_images(
         if args[1] == "inspect":
             return json.dumps([{"Image": "sha256:running"}])
         if args[1:3] == ("image", "ls"):
+            if args[-1] != repository:
+                return ""
             return "\n".join(
                 json.dumps(
                     {
-                        "Repository": "marinkino-app",
+                        "Repository": repository,
                         "Tag": tag,
                         "ID": "sha256:" + name,
                     }
@@ -167,7 +188,7 @@ def test_prune_only_removes_updater_candidates_outside_retained_images(
     runtime.prune(tmp_path)
     removed = [args for args in commands if args[1:3] == ("image", "rm")]
     assert removed == [
-        ("docker", "image", "rm", "marinkino-app:security-stale")
+        ("docker", "image", "rm", repository + ":security-stale")
     ]
     assert not any("volume" in args for args in commands)
 
@@ -282,8 +303,11 @@ def migration_docker(monkeypatch):
 def test_migration_loads_rdb_waits_for_aof_and_reopens_before_commit(
     tmp_path,
     migration_docker,
+    monkeypatch,
 ):
     state = migration_docker
+    candidate = "marinkino-redis:security-test"
+    monkeypatch.setenv("MARINKINO_REDIS_IMAGE", candidate)
     runtime.migrate_redis(tmp_path)
     assert state["started"] == ["no", "yes"]
     assert state["rewrites"] == 2
@@ -294,6 +318,11 @@ def test_migration_loads_rdb_waits_for_aof_and_reopens_before_commit(
     copies = [c for c in state["commands"] if "--volumes-from" in c]
     assert len(copies) == 1
     assert "old-redis:ro" in copies[0] and volume + ":/migration" in copies[0]
+    redis_runs = [c for c in state["commands"] if c[1] == "run"]
+    assert len(redis_runs) == 3
+    assert all(
+        candidate in c and "redis:7-alpine" not in c for c in redis_runs
+    )
     assert "io.marinkino.security=redis" in next(
         c for c in state["commands"] if c[1:3] == ("volume", "create")
     )

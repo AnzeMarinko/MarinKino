@@ -107,6 +107,17 @@ zavrne popravljive HIGH/CRITICAL ranljivosti slik. Nedosegljiv pregled ali
 neuspešen test prepreči namestitev kandidata. Major različice Python,
 Redis in JS se menjajo po ročnem preverjanju združljivosti.
 
+Redis za oba vsebnika dobi lastno kandidatno sliko iz `redis:7-alpine` in
+`configuration/redis/Dockerfile`. Vsak pregled ponovno izvede `apk upgrade
+--no-cache`, da zajame popravke Alpine paketov, tudi kadar uradna Redis
+slika še ni bila ponovno zgrajena. Kandidata najprej pregleda Trivy, nato
+ga uporabljajo izolirani test, migracija ter podatkovni in prijavni Redis.
+Uspešno nameščeni kandidat dobi oznako `marinkino-redis:current`, privzeti
+cilj Compose. `MARINKINO_REDIS_IMAGE` med vzdrževanjem izbere točnega
+kandidata. Čiščenje ohrani uporabljene in obnovitvene slike obeh repozitorijev.
+Če repozitorij popravka še ne ponuja ali pregled še vedno najde popravljivo
+HIGH/CRITICAL ranljivost, se namestitev še vedno ustavi.
+
 Pred namestitvijo teče izoliran test s svojim Redisom in začasnimi podatki:
 CSRF, prijava, zasebnost, osnutki, gostitelj in proxy. Po namestitvi se preveri
 zdravje, Nginx konfiguracija in lokalni HTTPS dostop. Ob neuspehu se obnovijo

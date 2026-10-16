@@ -6,7 +6,7 @@ x-logging: &bounded-logs
 
 services:
   redis:
-    image: redis:7-alpine
+    image: ${MARINKINO_REDIS_IMAGE:-marinkino-redis:current}
     container_name: marinkino-redis
     volumes:
       - redis-data:/data
@@ -28,7 +28,7 @@ services:
     restart: unless-stopped
 
   redis-auth:
-    image: redis:7-alpine
+    image: ${MARINKINO_REDIS_IMAGE:-marinkino-redis:current}
     container_name: marinkino-redis-auth
     volumes:
       - auth-data:/data
