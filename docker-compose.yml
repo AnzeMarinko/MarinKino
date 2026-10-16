@@ -138,6 +138,7 @@ services:
 
   certbot:
     image: certbot/certbot:latest
+    user: "0:0"
     profiles: [maintenance]
     networks: [egress]
     entrypoint: [certbot]
@@ -146,6 +147,9 @@ services:
       - ./configuration/certbot/www:/var/www/certbot
       - ./configuration/certbot/conf:/etc/letsencrypt
     cap_drop: [ALL]
+    # Existing certificate trees may be owned by a previous host/container UID.
+    # Certbot must lock/update those files and preserve private-key permissions.
+    cap_add: [DAC_OVERRIDE, FOWNER, CHOWN]
     security_opt: [no-new-privileges:true]
     mem_limit: 256m
     pids_limit: 64

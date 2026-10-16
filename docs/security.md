@@ -87,6 +87,13 @@ Cron izvaja root-owned kopije v `/usr/local/lib/marinkino`. Po spremembi teh
 skript v repozitoriju ponovno zaženi setup, da namesti nove kopije.
 Sočasni zagoni se preprečijo s `flock`.
 
+Certbot teče enkratno kot UID/GID 0 z odstranjenimi capabilities in dodanimi
+`DAC_OVERRIDE`, `FOWNER`, `CHOWN`. Te omogočijo zaklepanje in posodobitev
+obstoječih certifikatov, tudi če datoteke pripadajo staremu UID. Vse ostale
+capabilities ostanejo izključene; `no-new-privileges` ostane vključen.
+Zasebnim ključem zaradi napake `.certbot.lock: Permission denied` ne odpiraj
+pravic za vse uporabnike. Po spremembi Compose konfiguracije ponovi setup.
+
 Dnevni postopek naredi šifrirano kopijo, posodobi sistemske pakete in Docker
 slike, osveži kompatibilne Python/JS odvisnosti, zgradi kandidata in ga
 preveri. OSV zavrne znane ranljivosti nameščenih Python/JS paketov; Trivy
