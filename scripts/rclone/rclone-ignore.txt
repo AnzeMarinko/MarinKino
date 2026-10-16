@@ -33,7 +33,7 @@ Thumbs.db
 # 🧠 Ostalo, kar nočeš sinhronizirati
 **/node_modules/**
 node_modules/**
-# Persistent data, .env and application credentials use encrypted storage only.
+# Shared exclusions for both destinations; private paths live in rclone-sensitive.txt.
 # --links preserves certificate symlinks without following them.
 cache/**
 tmp_download/**

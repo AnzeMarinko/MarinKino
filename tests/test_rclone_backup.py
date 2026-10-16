@@ -18,6 +18,9 @@ def backup(tmp_path):
     filters = project / "scripts/rclone/rclone-ignore.txt"
     filters.parent.mkdir(parents=True)
     filters.write_text((ROOT / "scripts/rclone/rclone-ignore.txt").read_text())
+    filters.with_name("rclone-sensitive.txt").write_text(
+        (ROOT / "scripts/rclone/rclone-sensitive.txt").read_text()
+    )
     (project / ".env").write_text("PRIVATE_SETTING=not-for-logs\n")
     config = tmp_path / "private rclone.conf"
     config.write_text(
@@ -39,7 +42,13 @@ def backup(tmp_path):
     fake_rclone.write_text(
         "#!/usr/bin/env python3\n"
         "import json, os, sys\n"
+        "from pathlib import Path\n"
         "if any(k.startswith('RCLONE_') for k in os.environ): sys.exit(99)\n"
+        "if '--filter-from' in sys.argv:\n"
+        "    source = Path(sys.argv[sys.argv.index('--filter-from') + 1])\n"
+        "    target = Path(os.environ['TEST_BACKUP_CALLS'] + '.'\n"
+        "                  + source.name)\n"
+        "    target.write_text(source.read_text())\n"
         "with open(os.environ['TEST_BACKUP_CALLS'], 'a') as out:\n"
         "    out.write(json.dumps(sys.argv[1:]) + '\\n')\n"
         "sys.exit(int(os.environ.get('TEST_BACKUP_FAILURE', '0')))\n"
@@ -121,7 +130,7 @@ def test_archives_copy_first_and_mirror_preserves_history_and_symlinks(backup):
     project, run = backup
     result, calls = run()
     assert result.returncode == 0, result.stderr
-    assert [call[0] for call in calls] == ["copy", "sync"]
+    assert [call[0] for call in calls] == ["copy", "sync", "sync"]
     assert calls[0][2] == "marinkino_secure:archives"
     assert calls[0][calls[0].index("--include") + 1] == "*.tar.age"
     assert calls[1][1:3] == [str(project), "marinkino_secure:project"]
@@ -129,23 +138,28 @@ def test_archives_copy_first_and_mirror_preserves_history_and_symlinks(backup):
     assert calls[1][calls[1].index("--backup-dir") + 1].startswith(
         "marinkino_secure:history/"
     )
+    assert calls[2][1:3] == [str(project), "gdrive:MarinKino"]
+    assert calls[2][calls[2].index("--backup-dir") + 1].startswith(
+        "gdrive:MarinKino-history/"
+    )
+    assert all("--delete-excluded" not in call for call in calls)
     log = next((project / "cache/logs/rclone").glob("*.log"))
     assert "exit=0" in log.read_text()
     assert "not-for-logs" not in log.read_text()
 
 
-def test_dry_run_applies_to_both_transfers(backup):
+def test_dry_run_applies_to_all_transfers(backup):
     _, run = backup
     result, calls = run("--dry-run")
     assert result.returncode == 0
-    assert len(calls) == 2 and all("--dry-run=true" in call for call in calls)
+    assert len(calls) == 3 and all("--dry-run=true" in call for call in calls)
 
 
 def test_redis_snapshot_is_dated_uploaded_and_private_staging_removed(backup):
     _, run = backup
     result, calls = run(redis_running=True)
     assert result.returncode == 0, result.stderr
-    assert [call[0] for call in calls] == ["copy", "copyto", "sync"]
+    assert [call[0] for call in calls] == ["copy", "copyto", "sync", "sync"]
     assert calls[1][2].startswith("marinkino_secure:redis/")
     assert calls[1][2].endswith(".rdb")
     assert not Path(calls[1][1]).exists()
@@ -170,7 +184,94 @@ def test_environment_cannot_disable_encryption(backup):
         }
     )
     assert result.returncode == 0, result.stderr
-    assert len(calls) == 2
+    assert len(calls) == 3
+
+
+def test_missing_sensitive_manifest_prevents_every_upload(backup):
+    project, run = backup
+    (project / "scripts/rclone/rclone-sensitive.txt").unlink()
+    result, calls = run()
+    assert result.returncode == 2
+    assert calls == []
+
+
+def test_real_filters_keep_media_plain_and_personal_data_private(
+    backup, tmp_path
+):
+    binary = shutil.which("rclone")
+    if not binary:
+        pytest.skip("Needs local rclone executable; no network used")
+    project, run = backup
+    private = {
+        ".env",
+        "nested/.env.production",
+        "credentials/account.json",
+        "nested/credentials/key.json",
+        "data/users.json",
+        "data/test_users.json",
+        "data/blog_subscribers.json",
+        "nested/fitness.sqlite3",
+        "nested/fitness.sqlite3-wal",
+        "data/state.db",
+        "data/state.db-shm",
+        "configuration/certbot/conf/accounts/account.json",
+        "configuration/certbot/conf/archive/site/privkey.pem",
+        "data/movies/Film/readme.json",
+        "data/movies/users_comments.json",
+        "data/users-music-albums/user.json",
+        "nested/server.key",
+    }
+    ordinary = {
+        "data/movies/Film/movie.mp4",
+        "data/movies/Film/poster.jpg",
+        "data/music/album/song.flac",
+        "data/blog_posts.json",
+        "src/app.py",
+        "docs/example.md",
+        "tests/example.py",
+        "scripts/example.sh",
+    }
+    excluded = {
+        "rclone.conf",
+        "backup.agekey",
+        "cache/private.log",
+        ".git/config",
+    }
+    for relative in private | ordinary | excluded:
+        target = project / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("DISPOSABLE-TEST-DATA")
+    result, _ = run()
+    assert result.returncode == 0, result.stderr
+
+    def selected(name):
+        result = subprocess.run(
+            [
+                binary,
+                "lsf",
+                str(project),
+                "--recursive",
+                "--files-only",
+                "--links",
+                "--config",
+                os.devnull,
+                "--filter-from",
+                str(project.parent / f"calls.jsonl.{name}.filter"),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        return set(result.stdout.splitlines())
+
+    encrypted = selected("private")
+    plain = selected("ordinary")
+    assert private <= encrypted
+    assert ordinary <= plain
+    assert not encrypted & plain
+    assert not excluded & (encrypted | plain)
+    assert not list((project.parent / "cache").glob("filters.*"))
 
 
 def test_plaintext_configuration_prevents_every_upload(backup):

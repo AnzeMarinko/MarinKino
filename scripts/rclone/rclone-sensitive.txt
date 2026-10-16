@@ -1,0 +1,29 @@
+# Sensitive paths, relative to project. Used for BOTH backup destinations.
+# Add private paths here; never place real secrets in source code/docs.
+.env
+.env.*
+credentials/**
+secrets/**
+.ssh/**
+.aws/**
+.netrc
+*.key
+*.pem
+*.p12
+*.pfx
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
+*.rdb
+*.aof
+*.log
+*.log.*
+users.json
+test_users.json
+blog_subscribers.json
+users_comments.json
+/data/users-music-albums/**
+/configuration/certbot/conf/**

@@ -144,10 +144,21 @@ da namesti izvozni program, priklop in cron.
 
 ## Kopije in obnova
 
-Celotna oblačna kopija uporablja `rclone crypt`: vsebina ter imena datotek in
-map se šifrirajo že na Pi. Edini cilj je `marinkino_secure:`, ki ovija
-`gdrive:MarinKino-encrypted`. Zrcalo projekta, zgodovina, Redis in age arhivi
-vsi uporabljajo ta cilj. Surovi `gdrive:` ni več dovoljen cilj skripte.
+Oblačna kopija loči zasebne in običajne datoteke. Pravila so v
+`scripts/rclone/rclone-sensitive.txt`; ista pravila vključijo zasebne datoteke
+v šifrirano kopijo in jih izključijo iz navadne. `.env` in različice, credentials,
+ključi/certifikati, uporabniki, naročniki, SQLite/DB datoteke (tudi WAL/SHM),
+zasebni glasbeni podatki ter filmski JSON metapodatki gredo skozi `rclone crypt`
+v `marinkino_secure:project`, ki ovija `gdrive:MarinKino-encrypted`.
+Filmski JSON vsebuje tudi e-pošto, avtorje komentarjev in uporabniške ocene.
+Redis in age arhivi prav tako ostanejo šifrirani. Mediji, koda, dokumentacija
+in ostali običajni podatki gredo nešifrirano v `gdrive:MarinKino`, zgodovina
+teh datotek v `gdrive:MarinKino-history`. Obstoječi filmi na tej isti poti se
+ne prenašajo znova zaradi šifriranja; rclone še vedno preveri razlike.
+To je razvrstitev po poteh/imenih, ne pregled vsebine: skrivnosti ne sodijo v
+kodo, dokumentacijo ali poljubno poimenovane datoteke. Nove zasebne poti dodaj
+v skupni seznam pred prenosom. Cache, začasne datoteke in obnovitveni ključi
+so izločeni iz obeh kopij. Skripta zavrne prenos, če seznam manjka.
 Velikost datotek in časi sprememb ostanejo vidni ponudniku; POSIX metadata
 se ne nalagajo z `--metadata`. Pi potrebuje dostop do aktivnih skrivnosti;
 ta nastavitev ne šifrira njegovega diska in ne varuje pred napadalcem z root.
@@ -169,9 +180,8 @@ in se ne izpisujejo. Izvirni rclone.conf se med kopiranjem ne prepisuje.
 `marinkino_secure:archives` vsebuje age arhive kritičnih JSON/SQLite podatkov
 in `.env`. SQLite posnetki so konsistentni, arhivi so lokalno hranjeni 14 dni
 v `/var/backups/marinkino` in objavljeni za prenos šele po šifriranju.
-`marinkino_secure:project` vsebuje tudi medije, aplikacijske credentials,
-certifikate in `.env`. Začasne/razvojne mape, Git, cache in ključi za obnovo
-so izločeni. Živa SQLite datoteka v zrcalu ne nadomesti konsistentnega age
+`marinkino_secure:project` vsebuje samo zasebne poti. Živa SQLite datoteka
+v zrcalu ne nadomesti konsistentnega age
 posnetka. Tudi credentials dobijo lokalno 0700 za mape in 0600 za datoteke.
 
 `marinkino_secure:redis` vsebuje datirane RDB posnetke delujočega podatkovnega
@@ -194,11 +204,13 @@ Pred prehodom preveri konfiguracijo in shrani rclone.conf izven Pi. Pred
 odstranitvijo starih kopij preveri tudi prenos, odklepanje in obnovo na drugo
 mesto. Vse varne korake opisujejo [navodila](installation.md#namestitev-na-obstoječem-pi-in-kopije-na-drive).
 
-**Stare nešifrirane kopije ostanejo nešifrirane.** Nova nastavitev jih ne
-pretvori in jih ne briše samodejno. Po preverjeni obnovi preglej stare mape
+**Stare nešifrirane skrivnosti ostanejo nešifrirane.** Nova nastavitev jih ne
+pretvori in jih ne briše samodejno. Po preverjeni obnovi preglej mape
 MarinKino, MarinKino-history in MarinKino-redis ter druge izvode zasebnih
-konfiguracij. Odstrani nepotrebne nešifrirane izvode in izprazni koš. Če so
-bile skrivnosti izpostavljene, jih zamenjaj pri ponudnikih; samo izbris ne
+konfiguracij. Odstrani samo stare nešifrirane zasebne datoteke in njihove
+zgodovinske različice, nato izprazni koš. Navadne medije in projekt ohrani.
+Tudi že preneseni šifrirani mediji ostanejo; ne nalagajo se več v crypt.
+Če so bile skrivnosti izpostavljene, jih zamenjaj pri ponudnikih; samo izbris ne
 razveljavi ukradenega žetona. Za Google račun uporabi passkey ali močno 2FA.
 
 Obnovi najprej v zasebno začasno mapo, nikoli neposredno čez delujočo stran.

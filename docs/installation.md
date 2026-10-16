@@ -288,7 +288,13 @@ ročnih cron vrstic; setup upravlja načrt in zamenja stare vrstice te skripte.
    rclone.conf vsebuje dejanske ključe, čeprav jih rclone prikaže kot obscure.
    Tudi Macova mapa za obnovo mora ostati zunaj sinhronizacije z Drive.
 
-5. Preveri načrt, preglej izpisano pot dnevnika, nato prenesi prvo kopijo:
+5. Preveri razvrstitev v `scripts/rclone/rclone-sensitive.txt`: zasebne poti
+   gredo šifrirano, preostanek projekta nešifrirano v `gdrive:MarinKino`.
+   To mora biti ista lokacija, kjer že hraniš projekt in medije; drugačna
+   lokacija bi zahtevala novo kopiranje. Pred nadaljevanjem preveri tudi
+   obstoječe ročne skripte, da zasebnih datotek ne prenašajo brez filtra.
+   Prekini prejšnji prenos, če še teče, in prenesi novo kodo. Preveri načrt,
+   preglej izpisano pot dnevnika, nato prenesi kopijo:
 
    ```sh
    sudo bash scripts/rclone/rclone-sync-gdrive.sh --project "$PWD" --dry-run
@@ -296,9 +302,13 @@ ročnih cron vrstic; setup upravlja načrt in zamenja stare vrstice te skripte.
    sudo bash scripts/rclone/rclone-sync-gdrive.sh --project "$PWD"
    ```
 
-   Vse ciljne poti potekajo skozi crypt. Na Drive bo nastala nova mapa
-   `MarinKino-encrypted`, z neberljivimi imeni in vsebino. Stare nešifrirane
-   mape ostanejo. Velikosti in časi datotek ostanejo vidni ponudniku.
+   `.env`, credentials, uporabniki, naročniki, baze, certifikati/ključi,
+   zasebni glasbeni podatki in filmski JSON z ocenami/komentarji se shranijo
+   v `MarinKino-encrypted`, z neberljivimi imeni in vsebino. Filmi, glasba,
+   običajna koda, dokumentacija in ostali podatki ostanejo v `MarinKino`.
+   Medijev ni treba ponovno prenesti zaradi šifriranja. Velikosti in časi
+   šifriranih datotek ostanejo vidni ponudniku. Filtri ne pregledajo vsebine
+   poljubnih datotek: novih skrivnosti ne zapisuj v kodo ali dokumentacijo.
 
 6. Namesti zaščite, vsebnike, admin dnevnike in cron:
 
@@ -363,16 +373,21 @@ ročnih cron vrstic; setup upravlja načrt in zamenja stare vrstice te skripte.
    ```
 
    To preveri prenos in oba ključa, produkcije ne prepiše. Za polno obnovo
-   najprej uporabi `rclone copy marinkino_secure:project ZASEBNA_MAPA --links`
-   z ustrezno `--config`; podatke preglej in vrni ob ustavljeni aplikaciji.
+   najprej uporabi `rclone copy gdrive:MarinKino ZASEBNA_MAPA --links` in nato
+   `rclone copy marinkino_secure:project ZASEBNA_MAPA --links` z ustrezno
+   `--config`. Šifrirano kopijo obnovi zadnjo, da prepiše morebitne stare
+   nešifrirane zasebne datoteke. Podatke preglej in vrni ob ustavljeni aplikaciji.
    Na novem Pi namesti rclone, obnovi rclone.conf kot root 0600, poženi
    `secure_backup.py init` (uporabi shranjene ključe) in obnovi backup.agekey.
    Ne izvajaj init z na novo prazno konfiguracijo za obstoječo šifrirano kopijo.
 
-10. Šele po uspešni obnovi preglej stare navadne mape na Drive: `MarinKino`,
+10. Šele po uspešni obnovi preglej navadne mape na Drive: `MarinKino`,
     `MarinKino-history`, `MarinKino-redis` in morebitne druge kopije .env,
-    credentials ali ključev. Odstrani odvečne nešifrirane izvode in izprazni koš;
-    novo mapo `MarinKino-encrypted` ohrani. Izbris starih kopij ni avtomatiziran.
+    credentials ali ključev. Odstrani samo stare nešifrirane zasebne datoteke
+    in njihove zgodovinske različice ter izprazni koš. Medije in običajne
+    datoteke v `MarinKino` in celotno mapo `MarinKino-encrypted` ohrani.
+    Izbris starih kopij ni avtomatiziran. Že preneseni šifrirani mediji se
+    ne brišejo in ne posodabljajo več samodejno.
     Če so bile skrivnosti izpostavljene drugim, jih zamenjaj pri ponudnikih.
 
 Vzdrževanje teče ob 03:17, certifikati ob 05:11 in 17:11, Drive ob 07:00 po

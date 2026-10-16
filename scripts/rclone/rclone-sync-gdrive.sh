@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Encrypt all cloud copies, including file/directory names and Redis snapshots.
+# Encrypt private data; retain ordinary project files on the existing Drive mirror.
 set -Eeuo pipefail
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
@@ -17,8 +17,8 @@ while (($#)); do
 done
 [[ $EUID == 0 ]] || { echo 'Run with sudo so certificates and private data can be read.' >&2; exit 2; }
 project=$(realpath -- "$project")
-[[ -f "$project/.env" && -f "$project/scripts/rclone/rclone-ignore.txt" && -s "$config" ]] || {
-    echo 'Project .env, rclone filter and configured rclone.conf are required.' >&2; exit 2;
+[[ -f "$project/.env" && -f "$project/scripts/rclone/rclone-ignore.txt" && -s "$project/scripts/rclone/rclone-sensitive.txt" && -s "$config" ]] || {
+    echo 'Project .env, both rclone filters and configured rclone.conf are required.' >&2; exit 2;
 }
 config=$(realpath -- "$config")
 case "$config" in
@@ -42,11 +42,13 @@ printf 'Dnevnik: %s\n' "$log"
 exec >>"$log" 2>&1
 redis_stage=''
 config_snapshot=''
+filter_stage=''
 finish() {
     result=$?
     trap - EXIT
     if [[ -n "$redis_stage" ]]; then rm -rf -- "$redis_stage"; fi
     if [[ -n "$config_snapshot" ]]; then rm -f -- "$config_snapshot"; fi
+    if [[ -n "$filter_stage" ]]; then rm -rf -- "$filter_stage"; fi
     printf '[%s] Rclone finished; exit=%s\n' "$(date -Is)" "$result"
     exit "$result"
 }
@@ -55,6 +57,23 @@ printf '[%s] Rclone started\n' "$(date -Is)"
 config_snapshot=$(mktemp "$cache/rclone.XXXXXXXX.conf")
 python3 "$helper" snapshot --config "$config" --output "$config_snapshot"
 config="$config_snapshot"
+# One manifest selects encrypted files and excludes the SAME files from plaintext.
+# Use ordered filter rules instead of mixing include/exclude flags.
+filter_stage=$(mktemp -d "$cache/filters.XXXXXXXX")
+private_filter="$filter_stage/private.filter"
+ordinary_filter="$filter_stage/ordinary.filter"
+while IFS= read -r pattern || [[ -n "$pattern" ]]; do
+    case "$pattern" in ''|'#'*) continue ;; esac
+    printf -- '- %s\n' "$pattern" >>"$private_filter"
+    printf -- '- %s\n' "$pattern" >>"$ordinary_filter"
+done < "$project/scripts/rclone/rclone-ignore.txt"
+while IFS= read -r pattern || [[ -n "$pattern" ]]; do
+    case "$pattern" in ''|'#'*) continue ;; esac
+    printf -- '+ %s\n' "$pattern" >>"$private_filter"
+    printf -- '- %s\n' "$pattern" >>"$ordinary_filter"
+done < "$project/scripts/rclone/rclone-sensitive.txt"
+printf -- '- **\n' >>"$private_filter"
+printf -- '+ **\n' >>"$ordinary_filter"
 remote=marinkino_secure
 common=(--config "$config" --cache-dir "$cache" --log-file "$log"
     --log-level NOTICE --stats 5m --stats-one-line --stats-log-level NOTICE
@@ -82,7 +101,13 @@ fi
 # Preserve replaced/deleted destination files outside the mirror itself.
 # --links stores certificate symlinks without following them.
 rclone sync "$project" "$remote:project" \
-    --exclude-from "$project/scripts/rclone/rclone-ignore.txt" \
+    --filter-from "$private_filter" \
     --links --backup-dir "$remote:history/$stamp" \
+    --max-delete 500 --modify-window 5s "${common[@]}"
+# Excluded private files already present in the old mirror/history are NOT deleted.
+# Review and remove those old plaintext copies after verifying encrypted recovery.
+rclone sync "$project" 'gdrive:MarinKino' \
+    --filter-from "$ordinary_filter" \
+    --links --backup-dir "gdrive:MarinKino-history/$stamp" \
     --max-delete 500 --modify-window 5s "${common[@]}"
 find "$logs" -maxdepth 1 -type f -name 'rclone_sync_*.log' -mtime +14 -delete

@@ -138,7 +138,7 @@ def collect(project, values, run=command_output):
     commands = [
         (
             "cloud-encryption",
-            "Oblačne kopije · šifriranje",
+            "Oblačne kopije · šifriranje zasebnih podatkov",
             ["python3", "/usr/local/lib/marinkino/secure_backup.py", "check"],
         ),
         (
