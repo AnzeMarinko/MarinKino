@@ -597,7 +597,10 @@ def load_cached_metadata(
     if (
         cached
         and cached[0] == mtime_ns
-        and cached[1].get("analysis_backend") == requested_backend
+        and (
+            not enrich
+            or cached[1].get("analysis_backend") == requested_backend
+        )
     ):
         return _runtime_metadata(cached[1], relative_path)
 

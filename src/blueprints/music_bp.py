@@ -123,9 +123,9 @@ def _get_hls_playlist_duration(hls_path):
 
 
 def _read_hls_json_metadata(hls_dir_path: Path, relative_path: Path):
-    """Prebere metadata.json datoteko znotraj HLS mape, če obstaja."""
+    """Read prepared metadata without running analysis in the web process."""
     metadata = load_cached_metadata(
-        hls_dir_path, enrich=True, relative_path=relative_path
+        hls_dir_path, enrich=False, relative_path=relative_path
     )
     return metadata if metadata else None
 

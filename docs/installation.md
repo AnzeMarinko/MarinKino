@@ -74,8 +74,11 @@ AUDIO_ANALYZER=auto
 Možne vrednosti so `numpy`, `librosa` (zahteva namestitev) in
 `auto` (privzeto; uporabi librosa, če je na voljo, sicer NumPy/FFmpeg
 fallback).
-Analiza se izvede pri predpripravi oziroma prvem osveževanju metadata in se
-shrani v HLS `metadata.json`.
+Analizo izvaja priprava vsebin in jo shrani v HLS `metadata.json`.
+Spletna aplikacija ob zagonu in zahtevah samo prebere pripravljene metapodatke;
+ne ponavlja audio ali Gemini analize. Metapodatki iz librosa ostanejo uporabni
+tudi v spletnem vsebniku brez te knjižnice. Sprememba analiznega backenda zato
+ne sproži ponovne analize celotne zbirke med zagonom spletnega strežnika.
 
 ### 3.2. Semantična analiza naslovov z Gemini (opcijsko)
 

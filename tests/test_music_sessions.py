@@ -1,6 +1,7 @@
 """Exercise background playback playlists without application services."""
 
 import importlib.util
+import json
 import shutil
 import subprocess
 import sys
@@ -67,6 +68,45 @@ def music(tmp_path, monkeypatch):
     return SimpleNamespace(
         app=app, client=client, module=module, tracks=tracks, root=tmp_path,
     )
+
+
+def test_library_discovery_reads_librosa_metadata_without_reanalysis(
+    music, monkeypatch
+):
+    recommendations = importlib.import_module("music.recommendations")
+    track_id = music.tracks[0]
+    metadata_path = music.root / track_id / "metadata.json"
+    metadata_path.write_text(json.dumps({
+        "title": "Prepared song", "artist": "Prepared artist",
+        "analysis_backend": "librosa", "audio_features": {"tempo": 0.5},
+    }))
+    original = metadata_path.read_bytes()
+    forbidden = Mock(side_effect=AssertionError("Web startup ran analysis"))
+    monkeypatch.setattr(recommendations, "_CACHE", {})
+    monkeypatch.setattr(
+        recommendations, "_configured_backend", lambda: "numpy"
+    )
+    monkeypatch.setattr(
+        recommendations, "_audio_source", lambda _: Path("song.mp3")
+    )
+    for name in (
+        "analyze_audio_file", "analyze_song_semantics",
+        "_write_metadata_atomically",
+    ):
+        monkeypatch.setattr(recommendations, name, forbidden)
+
+    _, tracks = music.module._build_music_albums_and_metadata(music.root)
+    assert tracks[track_id]["title"] == "Prepared song"
+    assert tracks[track_id]["audio_features"]["tempo"] == 0.5
+    assert metadata_path.read_bytes() == original
+    forbidden.assert_not_called()
+    # The read-only cache remains usable with metadata from another backend.
+    monkeypatch.setattr(Path, "open", forbidden)
+    cached = music.module._read_hls_json_metadata(
+        metadata_path.parent, Path(track_id)
+    )
+    assert cached["analysis_backend"] == "librosa"
+    forbidden.assert_not_called()
 
 
 @pytest.mark.parametrize("mode", ["sequential", "random", "similar"])
