@@ -104,6 +104,29 @@ def test_empty_deployment_has_no_fake_rollback_file(tmp_path, monkeypatch):
     assert not output.exists()
 
 
+@pytest.mark.parametrize("pids_limit", [None, 0, -1, 128])
+def test_snapshot_handles_unlimited_legacy_pids_limit(
+    tmp_path, monkeypatch, pids_limit
+):
+    original = container()
+    original["HostConfig"]["PidsLimit"] = pids_limit
+
+    def fake_run(*args, **kwargs):
+        if args[1] == "compose":
+            return "container-id\n"
+        return json.dumps([original])
+
+    monkeypatch.setattr(runtime, "run", fake_run)
+    output = tmp_path / "snapshot.json"
+    assert runtime.snapshot(tmp_path, output)
+    service = json.loads(output.read_text())["services"]["app"]
+    if pids_limit is not None and pids_limit > 0:
+        assert service["pids_limit"] == pids_limit
+    else:
+        assert "pids_limit" not in service
+    assert stat.S_IMODE(output.stat().st_mode) == 0o600
+
+
 def test_prune_only_removes_updater_candidates_outside_retained_images(
     tmp_path, monkeypatch
 ):

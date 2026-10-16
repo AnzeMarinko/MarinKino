@@ -126,8 +126,9 @@ def snapshot(project, output):
                 )
         if host.get("Memory"):
             service["mem_limit"] = host["Memory"]
-        if host.get("PidsLimit", 0) > 0:
-            service["pids_limit"] = host["PidsLimit"]
+        pids_limit = host.get("PidsLimit")
+        if pids_limit is not None and pids_limit > 0:
+            service["pids_limit"] = pids_limit
         logging = host.get("LogConfig") or {}
         if logging.get("Type"):
             service["logging"] = {
