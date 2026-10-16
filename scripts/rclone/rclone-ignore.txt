@@ -33,7 +33,17 @@ Thumbs.db
 # 🧠 Ostalo, kar nočeš sinhronizirati
 **/node_modules/**
 node_modules/**
-# Persistent data, .env, credentials and certificate files are included.
+# Persistent data, .env and application credentials use encrypted storage only.
 # --links preserves certificate symlinks without following them.
 cache/**
 tmp_download/**
+
+# Decryption keys/configuration must stay outside the cloud backup source.
+**/*.agekey
+**/rclone*.conf
+*.agekey
+rclone*.conf
+/.marinkino-recovery/**
+/MarinKino-recovery/**
+**/.marinkino-recovery/**
+**/MarinKino-recovery/**

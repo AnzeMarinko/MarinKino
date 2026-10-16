@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Mirror persistent project files, including private configuration, to Drive.
+# Encrypt all cloud copies, including file/directory names and Redis snapshots.
 set -Eeuo pipefail
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
@@ -20,7 +20,17 @@ project=$(realpath -- "$project")
 [[ -f "$project/.env" && -f "$project/scripts/rclone/rclone-ignore.txt" && -s "$config" ]] || {
     echo 'Project .env, rclone filter and configured rclone.conf are required.' >&2; exit 2;
 }
+config=$(realpath -- "$config")
+case "$config" in
+    "$project"/*) echo 'Keep the decryption config outside the backup source.' >&2; exit 2 ;;
+esac
 command -v rclone >/dev/null || { echo 'Install rclone first.' >&2; exit 2; }
+helper_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+helper="$helper_dir/secure_backup.py"
+[[ -f "$helper" ]] || helper="$helper_dir/../secure_backup.py"
+[[ -f "$helper" ]] || { echo 'Encrypted backup validator is missing; run setup.sh.' >&2; exit 2; }
+# Environment overrides must never bypass the validated crypt configuration.
+for variable in ${!RCLONE_*}; do unset "$variable"; done
 cache=/var/cache/marinkino-rclone
 logs="$project/cache/logs/rclone"
 install -d -m 700 "$cache" "$logs"
@@ -31,21 +41,27 @@ log="$logs/rclone_sync_$stamp.log"
 printf 'Dnevnik: %s\n' "$log"
 exec >>"$log" 2>&1
 redis_stage=''
+config_snapshot=''
 finish() {
     result=$?
     trap - EXIT
     if [[ -n "$redis_stage" ]]; then rm -rf -- "$redis_stage"; fi
+    if [[ -n "$config_snapshot" ]]; then rm -f -- "$config_snapshot"; fi
     printf '[%s] Rclone finished; exit=%s\n' "$(date -Is)" "$result"
     exit "$result"
 }
 trap finish EXIT
 printf '[%s] Rclone started\n' "$(date -Is)"
+config_snapshot=$(mktemp "$cache/rclone.XXXXXXXX.conf")
+python3 "$helper" snapshot --config "$config" --output "$config_snapshot"
+config="$config_snapshot"
+remote=marinkino_secure
 common=(--config "$config" --cache-dir "$cache" --log-file "$log"
     --log-level NOTICE --stats 5m --stats-one-line --stats-log-level NOTICE
-    --checkers 4 --transfers 2 --drive-chunk-size 32M "--dry-run=$dry_run")
+    --checkers 4 --transfers 2 --drive-chunk-size 32M --ask-password=false "--dry-run=$dry_run")
 # Publish dated archives first. Copy retains older remote archives.
 if [[ -d /var/backups/marinkino ]]; then
-    rclone copy /var/backups/marinkino gdrive:MarinKino-backups \
+    rclone copy /var/backups/marinkino "$remote:archives" \
         --include '*.tar.age' "${common[@]}"
 fi
 # Redis data lives in a named Docker volume, outside the project mirror.
@@ -56,7 +72,7 @@ if [[ "$dry_run" == false ]] && command -v docker >/dev/null; then
         # SAVE completes the RDB before copying it; the Redis dataset is bounded.
         timeout 60 docker exec marinkino-redis redis-cli -e SAVE
         docker cp marinkino-redis:/data/dump.rdb "$redis_stage/redis.rdb"
-        rclone copyto "$redis_stage/redis.rdb" "gdrive:MarinKino-redis/$stamp.rdb" "${common[@]}"
+        rclone copyto "$redis_stage/redis.rdb" "$remote:redis/$stamp.rdb" "${common[@]}"
         rm -rf -- "$redis_stage"
         redis_stage=''
     else
@@ -65,8 +81,8 @@ if [[ "$dry_run" == false ]] && command -v docker >/dev/null; then
 fi
 # Preserve replaced/deleted destination files outside the mirror itself.
 # --links stores certificate symlinks without following them.
-rclone sync "$project" gdrive:MarinKino \
+rclone sync "$project" "$remote:project" \
     --exclude-from "$project/scripts/rclone/rclone-ignore.txt" \
-    --links --metadata --backup-dir "gdrive:MarinKino-history/$stamp" \
+    --links --backup-dir "$remote:history/$stamp" \
     --max-delete 500 --modify-window 5s "${common[@]}"
 find "$logs" -maxdepth 1 -type f -name 'rclone_sync_*.log' -mtime +14 -delete

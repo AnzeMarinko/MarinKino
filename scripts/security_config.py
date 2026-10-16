@@ -382,6 +382,13 @@ def prepare(project: Path, uid: int, gid: int) -> None:
         },
     )
     set_permissions(project / ".env", 0o600, uid, gid)
+    credentials = project / "credentials"
+    if credentials.exists():
+        ensure_directory(credentials, 0o700, uid, gid)
+        for path in walk_regular(credentials):
+            set_permissions(path, 0o600, uid, gid)
+        for directory, _, _ in os.walk(credentials, followlinks=False):
+            set_permissions(Path(directory), 0o700, uid, gid)
     for name in ("data", "cache"):
         ensure_directory(project / name, 0o755, uid, gid)
     data = project / "data"

@@ -81,7 +81,7 @@ Nginxovi dnevniki z logrotate.
 - vsakih deset minut: DuckDNS, kadar sta domena in žeton nastavljena.
 - vsako minuto: omejen pregled gostitelja za skrbniški prikaz dnevnikov.
 - ob **07:00**: prenos arhivov in zrcala projekta na Drive, če obstaja
-  `/etc/marinkino-security/rclone.conf` z nastavljenim oddaljenim mestom `gdrive`.
+  `/etc/marinkino-security/rclone.conf` z veljavnim šifriranim mestom `marinkino_secure`.
 
 Cron izvaja root-owned kopije v `/usr/local/lib/marinkino`. Po spremembi teh
 skript v repozitoriju ponovno zaženi setup, da namesti nove kopije.
@@ -144,54 +144,67 @@ da namesti izvozni program, priklop in cron.
 
 ## Kopije in obnova
 
-Kopije kritičnih JSON/SQLite podatkov in `.env` so šifrirane z age, hranjene
-14 dni v `/var/backups/marinkino`. SQLite uporablja konsistenten online
-backup. Mediji in Redisov napredek ogledov niso del teh age arhivov; medije
-prenaša projektno zrcalo, Redis pa ločen datiran RDB posnetek. Prijavne seje se ob
-obnovi ustvarijo znova. Po odločitvi lastnika rclone prenaša tudi `.env`,
-credentials, zasebne JSON/SQLite podatke in celotno konfiguracijo certifikatov
-v običajni obliki. Izločeni ostanejo razvojne in začasne mape, Git in cache.
-Žive kopije SQLite v zrcalu niso nadomestilo za konsistentne posnetke v age
-arhivih. Dockerjevi imenovani volumni ležijo zunaj projekta in niso v zrcalu.
+Celotna oblačna kopija uporablja `rclone crypt`: vsebina ter imena datotek in
+map se šifrirajo že na Pi. Edini cilj je `marinkino_secure:`, ki ovija
+`gdrive:MarinKino-encrypted`. Zrcalo projekta, zgodovina, Redis in age arhivi
+vsi uporabljajo ta cilj. Surovi `gdrive:` ni več dovoljen cilj skripte.
+Velikost datotek in časi sprememb ostanejo vidni ponudniku; POSIX metadata
+se ne nalagajo z `--metadata`. Pi potrebuje dostop do aktivnih skrivnosti;
+ta nastavitev ne šifrira njegovega diska in ne varuje pred napadalcem z root.
 
-**Kopiraj `/etc/marinkino-security/backup.agekey` in šifrirane kopije izven
-strežnika.** Ključ in kopija na istem Pi ne pomagata pri izgubi naprave.
-Zasebnega ključa ne objavljaj ali shranjuj v repozitorij.
+`scripts/secure_backup.py init` enkrat ustvari dva neodvisna naključna
+384-bitna skrivna niza. V rclone.conf sta shranjena v rclone obscure obliki,
+ki sama ni varnostno šifriranje. Datoteka zato ostane root-owned 0600 zunaj
+projekta, v `/etc/marinkino-security` (0700), in ni priklopljena aplikaciji.
+Ponovni setup ključe ohrani. Inicializacija ima zaklep; lokalni prstni odtis
+zavrne nenamerno odstranitev/zamenjavo ključev. Ne prepisuj konfiguracije z
+uporabniško kopijo po prvi nastavitvi šifriranja.
 
-Ključ odklepa arhive `.tar.age`; za zagon strani ga ne potrebuješ. Če Pi
-odpove in izgubiš edini izvod ključa, arhivov ni mogoče obnoviti. Shrani
-ločeno kopijo ključa v upravitelju gesel ali na drugem varnem mestu.
-Rclone najprej kopira dokončane arhive iz `/var/backups/marinkino` v
-`gdrive:MarinKino-backups`, za delujoči podatkovni Redis ustvari RDB v
-`gdrive:MarinKino-redis`, nato sinhronizira projekt v `gdrive:MarinKino`.
-RDB nastane z `redis-cli -e SAVE` in kopiranjem dokončanega `/data/dump.rdb`;
-SAVE za čas zapisovanja zadrži ukaze Redisa (največ 128 MiB podatkov).
-Prijavnega Redisa ne obnavljaj iz teh kopij; seje se ustvarijo znova.
-Arhivi postanejo vidni za prenos šele po uspešnem šifriranju. Stari oddaljeni
-arhivi se ne brišejo samodejno; lokalna hramba ostane 14 dni. Ključ shrani
-ločeno na Mac oziroma v upravitelja gesel; skripta ga ne nalaga na Drive.
+Pred vsakim prenosom se preverijo tip crypt, varen cilj, šifriranje vsebine
+in imen ter ujemanje ključev. Manjkajoča/spremenjena nastavitev ustavi prenos.
+RCLONE okoljske preglasitve se odstranijo; vsak zagon uporablja zasebni
+posnetek preverjene konfiguracije. Ključi ne potujejo prek argumentov ukazov
+in se ne izpisujejo. Izvirni rclone.conf se med kopiranjem ne prepisuje.
 
-`rclone-sync-gdrive.sh` prenaša prepise in izbrise iz zrcala v datirano mapo
-`gdrive:MarinKino-history`. Zgodovina se ne čisti samodejno; spremljaj prostor
-na Drive. `--links` shrani simbolne povezave certifikatov kot `.rclonelink`;
-pri obnovi prek rclone ponovno uporabi `--links`. Skripta teče kot root, da
-lahko bere zasebne datoteke, in uporablja root-owned kopijo rclone nastavitve.
-Setup pri omogočenem novem Drive opravilu odstrani stare cron vrstice te
-projektne skripte v uporabnikovem/rootovem crontabu. Druga opravila ohrani.
-Celoten postopek namestitve je v [navodilih](installation.md#namestitev-na-obstoječem-pi-in-kopije-na-drive).
+`marinkino_secure:archives` vsebuje age arhive kritičnih JSON/SQLite podatkov
+in `.env`. SQLite posnetki so konsistentni, arhivi so lokalno hranjeni 14 dni
+v `/var/backups/marinkino` in objavljeni za prenos šele po šifriranju.
+`marinkino_secure:project` vsebuje tudi medije, aplikacijske credentials,
+certifikate in `.env`. Začasne/razvojne mape, Git, cache in ključi za obnovo
+so izločeni. Živa SQLite datoteka v zrcalu ne nadomesti konsistentnega age
+posnetka. Tudi credentials dobijo lokalno 0700 za mape in 0600 za datoteke.
 
-Preverjanje vsebine brez spreminjanja produkcije:
+`marinkino_secure:redis` vsebuje datirane RDB posnetke delujočega podatkovnega
+Redisa, ki leži v Docker volumnu zunaj projekta. `redis-cli -e SAVE` pred
+kopiranjem dokonča RDB; med zapisovanjem zadrži Redisove ukaze. Prijavnih sej
+iz teh kopij ne obnavljaj. Če Redis ne deluje, se odsotnost novega posnetka
+zapiše v dnevnik. `marinkino_secure:history` ohrani prepisane/izbrisane datoteke.
+Oddaljeni arhivi in zgodovina se ne čistijo samodejno; spremljaj prostor.
+Povezave certifikatov se shranijo z `--links`; enako možnost uporabi ob obnovi.
 
-```sh
-sudo age -d -i /etc/marinkino-security/backup.agekey /var/backups/marinkino/IZBRANA.tar.age | tar -tf -
-```
+**Na Mac oziroma v upravitelja gesel shrani oba obnovitvena dokumenta:**
 
-Obnavljaj v zasebno začasno mapo in zapise vrni šele po preverjanju ter ob
-ustavljeni aplikaciji. Prejšnja Compose konfiguracija z občutljivim okoljem
-je v `/var/lib/marinkino-security/previous-compose.json` (0600), Nginx v
-`previous-app.conf`. Obnova vsebnikov zahteva ustavitev in odstranitev samo
-prizadetih vsebnikov, nato `docker compose -f ... up -d --no-build`; podatkovnih
-volumnov ne briši.
+- `/etc/marinkino-security/rclone.conf`: ključi crypt in prijava v Drive;
+- `/etc/marinkino-security/backup.agekey`: dodatni ključ za age arhive.
+
+Nobene od teh datotek ne shranjuj v projekt, Git ali isto oblačno kopijo.
+Izguba rclone.conf pomeni izgubo dostopa do celotne šifrirane oblačne kopije;
+za age arhive potrebuješ še backup.agekey. Prstni odtis ni nadomestilo ključev.
+Pred prehodom preveri konfiguracijo in shrani rclone.conf izven Pi. Pred
+odstranitvijo starih kopij preveri tudi prenos, odklepanje in obnovo na drugo
+mesto. Vse varne korake opisujejo [navodila](installation.md#namestitev-na-obstoječem-pi-in-kopije-na-drive).
+
+**Stare nešifrirane kopije ostanejo nešifrirane.** Nova nastavitev jih ne
+pretvori in jih ne briše samodejno. Po preverjeni obnovi preglej stare mape
+MarinKino, MarinKino-history in MarinKino-redis ter druge izvode zasebnih
+konfiguracij. Odstrani nepotrebne nešifrirane izvode in izprazni koš. Če so
+bile skrivnosti izpostavljene, jih zamenjaj pri ponudnikih; samo izbris ne
+razveljavi ukradenega žetona. Za Google račun uporabi passkey ali močno 2FA.
+
+Obnovi najprej v zasebno začasno mapo, nikoli neposredno čez delujočo stran.
+Prejšnja Compose konfiguracija je v `/var/lib/marinkino-security/previous-compose.json`
+(0600), Nginx v `previous-app.conf`. Sistemske posodobitve in zapisi podatkov
+niso del avtomatske povrnitve vsebnikov. Dockerjevih volumnov ne briši.
 
 ## Dostop do Pi brez zaslona
 

@@ -220,76 +220,115 @@ docker compose exec nginx nginx -s reload
 
 ## Namestitev na obstoječem Pi in kopije na Drive
 
-Postopek velja za obstoječi Pi z Docker Engine, Compose v2, delujočo domeno
-in obstoječim `.env`. Ukaze izvajaj kot običajni uporabnik Pi. Pot projekta
-prilagodi svoji namestitvi. Spremembe morajo biti najprej prenesene z Maca;
-`git pull` jih dobi šele po commit/push.
+Postopek velja za obstoječi Pi z Docker Engine, Compose v2, domeno in .env.
+Najprej prenesi vse nove datoteke z Maca prek svojega Git postopka. Ukaze
+izvajaj kot običajni uporabnik Pi, poti in uporabniško ime prilagodi namestitvi.
+Počakaj, da se trenutno vzdrževanje in stari rclone končata. Ne dodajaj novih
+ročnih cron vrstic; setup upravlja načrt in zamenja stare vrstice te skripte.
 
-1. Namesti pripomočka in odpri trajno terminalno sejo. To omogoča nadaljevanje
-   namestitve, če nadgradnja Connect prekine povezavo:
+1. Pripravi trajno terminalno sejo in posodobi kodo:
 
    ```sh
    sudo apt update
-   sudo apt install -y tmux rclone
+   sudo apt install -y tmux rclone python3
    sudo loginctl enable-linger "$USER"
    tmux new -s marinkino-setup
    cd ~/Desktop/MarinKino
    git pull --ff-only
    ```
 
-   Po prekinitvi se poveži nazaj in izvedi `tmux attach -t marinkino-setup`.
-   `.env`, podatkov in certifikatov ne prepisuj z vzorci. V `.env` preveri
-   `MAIN_DOMAIN`, `WWW_DOMAIN`, `PUBLIC_BASE_URL`, pošto in Turnstile.
+   Po prekinitvi uporabi `tmux attach -t marinkino-setup`. Obstoječih .env,
+   podatkov in certifikatov ne prepisuj z vzorci. Preveri domene, pošto in
+   Turnstile; PUBLIC_BASE_URL naj ustreza HTTPS izvoru WWW_DOMAIN.
 
-2. Preveri obstoječi Drive remote. Če `gdrive:` že deluje, ponovne prijave
-   ne potrebuješ:
+2. Preveri povezavo Drive. Če že deluje, ponovna prijava ni potrebna:
 
    ```sh
    rclone lsd gdrive:
    rclone config file
    ```
 
-   Če remote manjka, ga ustvari z `rclone config`: ime `gdrive`, Google Drive
-   in prijava v svoj račun. Za prijavo brez brskalnika na Pi sledi navodilom
-   rclone za avtorizacijo na Macu. Pot konfiguracije pokaže `rclone config file`.
+   Če manjka, jo ustvari z `rclone config`, z imenom `gdrive`. Za avtorizacijo
+   brez brskalnika na Pi sledi postopku rclone za prijavo na drugem računalniku.
 
-3. Ustvari zasebno kopijo konfiguracije za samodejna root opravila. Če je
-   konfiguracija drugje, zamenjaj izvorno pot. Obstoječo namensko konfiguracijo
-   prepiši samo, kadar želiš posodobiti njene nastavitve/prijavo:
+3. Samo ob prvi nastavitvi kopiraj konfiguracijo v zasebno mapo root.
+   Če ciljna datoteka že obstaja, je NE prepisuj; vsebuje ključe obstoječih kopij.
+   Izvorno pot prilagodi izpisu `rclone config file`:
 
    ```sh
    sudo install -d -m 700 /etc/marinkino-security
-   sudo install -o root -g root -m 600 "$HOME/.config/rclone/rclone.conf" /etc/marinkino-security/rclone.conf
-   sudo rclone --config /etc/marinkino-security/rclone.conf lsd gdrive:
+   if ! sudo test -e /etc/marinkino-security/rclone.conf; then
+       sudo install -o root -g root -m 600 "$HOME/.config/rclone/rclone.conf" /etc/marinkino-security/rclone.conf
+   fi
+   sudo python3 scripts/secure_backup.py init
+   sudo python3 scripts/secure_backup.py check
    ```
 
-4. Pred prvo nadgradnjo preveri načrt prenosa, nato zaženi kopiranje:
+   Inicializacija ustvari crypt brez izpisovanja gesel. Ponovitev ohrani ključe.
+   Ob napaki ne briši konfiguracije ali prstnega odtisa; obnovi shranjeno kopijo.
+
+4. Pred prvim prenosom shrani rclone.conf izven Pi. Na Pi pripravi kopijo:
+
+   ```sh
+   install -d -m 700 "$HOME/.marinkino-recovery"
+   sudo install -o "$(id -u)" -g "$(id -g)" -m 600 /etc/marinkino-security/rclone.conf "$HOME/.marinkino-recovery/rclone.conf"
+   ```
+
+   Na Macu v istem LAN oziroma prek nastavljenega VPN, z dejanskim IP Pi:
+
+   ```sh
+   mkdir -p "$HOME/MarinKino-recovery"
+   chmod 700 "$HOME/MarinKino-recovery"
+   scp marinko@IP_RPI:.marinkino-recovery/rclone.conf "$HOME/MarinKino-recovery/rclone.conf"
+   chmod 600 "$HOME/MarinKino-recovery/rclone.conf"
+   test -s "$HOME/MarinKino-recovery/rclone.conf"
+   ```
+
+   Kopijo zaščiti tudi na Macu, npr. v upravitelju gesel ali šifrirani shrambi.
+   rclone.conf vsebuje dejanske ključe, čeprav jih rclone prikaže kot obscure.
+   Tudi Macova mapa za obnovo mora ostati zunaj sinhronizacije z Drive.
+
+5. Preveri načrt, preglej izpisano pot dnevnika, nato prenesi prvo kopijo:
 
    ```sh
    sudo bash scripts/rclone/rclone-sync-gdrive.sh --project "$PWD" --dry-run
+   sudo less IZPISANA_POT_DNEVNIKA
    sudo bash scripts/rclone/rclone-sync-gdrive.sh --project "$PWD"
    ```
 
-   Skripta izpiše pot dnevnika. Prvi ukaz pregleda dejanja brez spreminjanja
-   Drive; pred drugim preglej izpis z `sudo less IZPISANA_POT_DNEVNIKA`.
-   V zrcalo so vključeni `.env`, zasebni podatki, credentials in certifikati.
-   Začasni cache, okolja Python, build in Git ostanejo izločeni. Če želiš
-   kopijo trenutnega stanja produkcijskih datotek pred prenosom nove kode,
-   izvedi dodatno kopiranje tudi pred `git pull`.
+   Vse ciljne poti potekajo skozi crypt. Na Drive bo nastala nova mapa
+   `MarinKino-encrypted`, z neberljivimi imeni in vsebino. Stare nešifrirane
+   mape ostanejo. Velikosti in časi datotek ostanejo vidni ponudniku.
 
-5. Namesti zaščite, posodobitve, vsebnike, admin dnevnike in cron:
+6. Namesti zaščite, vsebnike, admin dnevnike in cron:
 
    ```sh
    sudo --preserve-env=SSH_CONNECTION bash scripts/setup.sh
    ```
 
-   Prek Connect zadostuje `sudo bash scripts/setup.sh`. Prvo povezavo ohrani;
-   po uspehu preveri novo SSH/Connect povezavo. Setup ohrani obstoječe močne
-   ključe, podatke in certifikate. Vzdrževanje teče ob 03:17, certifikati ob
-   05:11 in 17:11, Drive ob 07:00 po času Pi. Root-owned kopije skript so v
-   `/usr/local/lib/marinkino`; ob spremembi skript ponovno zaženi setup.
+   Prek Connect zadostuje `sudo bash scripts/setup.sh`. Obstoječo povezavo
+   ohrani in preveri novo povezavo. Setup kriptografske ključe ohrani in namesti
+   root-owned kopije skript. Če rclone.conf še ni nastavljen, oblačni cron
+   ostane izključen; po konfiguraciji ponovno zaženi setup.
 
-6. Preveri delovanje in kopiraj nove šifrirane arhive na Drive:
+7. Shrani še ključ age, ki ga je ustvarilo vzdrževanje. Na Pi:
+
+   ```sh
+   sudo install -o "$(id -u)" -g "$(id -g)" -m 600 /etc/marinkino-security/backup.agekey "$HOME/.marinkino-recovery/backup.agekey"
+   ```
+
+   Na Macu:
+
+   ```sh
+   scp marinko@IP_RPI:.marinkino-recovery/backup.agekey "$HOME/MarinKino-recovery/backup.agekey"
+   chmod 600 "$HOME/MarinKino-recovery/backup.agekey"
+   test -s "$HOME/MarinKino-recovery/backup.agekey"
+   ```
+
+   Za obnovo oblačnih datotek potrebuješ rclone.conf; za dodatno šifrirane age
+   arhive še backup.agekey. Skripte ju ne nalagajo na Drive.
+
+8. Preveri delovanje, prenesi nove arhive in preveri njihovo integriteto:
 
    ```sh
    sudo docker compose ps
@@ -297,48 +336,50 @@ prilagodi svoji namestitvi. Spremembe morajo biti najprej prenesene z Maca;
    sudo cat /etc/cron.d/marinkino-security
    sudo fail2ban-client status
    sudo /usr/local/lib/marinkino/rclone-sync-gdrive.sh --project "$PWD"
-   sudo rclone --config /etc/marinkino-security/rclone.conf check /var/backups/marinkino gdrive:MarinKino-backups --include '*.tar.age' --one-way
+   sudo rclone --config /etc/marinkino-security/rclone.conf cryptcheck /var/backups/marinkino marinkino_secure:archives --include '*.tar.age' --one-way
    ```
 
-   V brskalniku preveri prijavo, predvajanje in `/admin/logs`. Na Drive so:
-   `MarinKino` (zrcalo), `MarinKino-history` (prepisi/izbrisi) in
-   `MarinKino-backups` (datirani age arhivi) in `MarinKino-redis` (datirani
-   RDB posnetki delujočega podatkovnega Redisa). Arhivi vsebujejo konsistentne
-   SQLite posnetke in kritične JSON podatke; neposredna kopija žive baze v
-   zrcalu tega ne zagotavlja. Zapis RDB za kratek čas zadrži Redisove ukaze;
-   prijavne seje se ob obnovi ustvarijo znova.
+   V brskalniku preveri prijavo, predvajanje, osnutke in `/admin/logs`.
+   Dnevnik vključuje stanje šifriranja oblačnih kopij. Logične poti so
+   `marinkino_secure:project`, `:history`, `:archives` in `:redis` (vse z istim
+   predponom `marinkino_secure`). Podatkovni Redis dobi datiran RDB posnetek,
+   prijavne seje se ob obnovi ustvarijo znova. SQLite v age arhivih je
+   konsistenten; živa datoteka v zrcalu tega ne zagotavlja.
 
-7. Shrani ključ za obnovo izven Pi. Na Pi pripravi zasebno kopijo za prenos:
+9. Preizkusi obnovo na ločeno mesto, preden izbrišeš stare kopije:
 
    ```sh
-   install -d -m 700 "$HOME/.marinkino-recovery"
-   sudo install -o "$(id -u)" -g "$(id -g)" -m 600 /etc/marinkino-security/backup.agekey "$HOME/.marinkino-recovery/backup.agekey"
+   sudo install -d -m 700 /var/lib/marinkino-restore-check
+   sudo rclone --config /etc/marinkino-security/rclone.conf copyto marinkino_secure:project/.env /var/lib/marinkino-restore-check/env.restored
+   sudo cmp .env /var/lib/marinkino-restore-check/env.restored
+   sudo rclone --config /etc/marinkino-security/rclone.conf lsf marinkino_secure:archives
    ```
 
-   Nato na Macu, z dejanskim IP in uporabniškim imenom Pi:
+   Izberi dejanski arhiv iz zadnjega izpisa:
 
    ```sh
-   mkdir -p "$HOME/MarinKino-recovery"
-   chmod 700 "$HOME/MarinKino-recovery"
-   scp marinko@IP_RPI:.marinkino-recovery/backup.agekey "$HOME/MarinKino-recovery/backup.agekey"
-   chmod 600 "$HOME/MarinKino-recovery/backup.agekey"
-   test -s "$HOME/MarinKino-recovery/backup.agekey"
+   sudo rclone --config /etc/marinkino-security/rclone.conf copyto marinkino_secure:archives/IZBRANA.tar.age /var/lib/marinkino-restore-check/IZBRANA.tar.age
+   sudo age -d -i /etc/marinkino-security/backup.agekey /var/lib/marinkino-restore-check/IZBRANA.tar.age | tar -tf -
    ```
 
-   Ključ lahko shraniš tudi v upravitelju gesel. Ni potreben za delovanje
-   strani, potreben je za odklepanje `.tar.age`. Skripta ga ne nalaga na Drive.
+   To preveri prenos in oba ključa, produkcije ne prepiše. Za polno obnovo
+   najprej uporabi `rclone copy marinkino_secure:project ZASEBNA_MAPA --links`
+   z ustrezno `--config`; podatke preglej in vrni ob ustavljeni aplikaciji.
+   Na novem Pi namesti rclone, obnovi rclone.conf kot root 0600, poženi
+   `secure_backup.py init` (uporabi shranjene ključe) in obnovi backup.agekey.
+   Ne izvajaj init z na novo prazno konfiguracijo za obstoječo šifrirano kopijo.
 
-8. Preveri odklepanje enega arhiva, brez spreminjanja podatkov:
+10. Šele po uspešni obnovi preglej stare navadne mape na Drive: `MarinKino`,
+    `MarinKino-history`, `MarinKino-redis` in morebitne druge kopije .env,
+    credentials ali ključev. Odstrani odvečne nešifrirane izvode in izprazni koš;
+    novo mapo `MarinKino-encrypted` ohrani. Izbris starih kopij ni avtomatiziran.
+    Če so bile skrivnosti izpostavljene drugim, jih zamenjaj pri ponudnikih.
 
-   ```sh
-   sudo ls -lh /var/backups/marinkino
-   sudo age -d -i /etc/marinkino-security/backup.agekey /var/backups/marinkino/IZBRANA.tar.age | tar -tf -
-   ```
-
-   Zamenjaj `IZBRANA.tar.age` z dejanskim imenom. Lokalno ostane 14 dni
-   arhivov; zgodovina in arhivi na Drive se ne brišejo samodejno. Spremljaj
-   prostor in rezultat dnevnih opravil v administraciji. Novih cron vrstic
-   za ta opravila ne dodajaj ročno.
+Vzdrževanje teče ob 03:17, certifikati ob 05:11 in 17:11, Drive ob 07:00 po
+času Pi. Lokalni age arhivi ostanejo 14 dni; zgodovina in arhivi na Drive se
+ne brišejo samodejno. Spremljaj prostor in rezultate v administraciji.
+Ob spremembah kode prenesi spremembe in ponovno zaženi setup. Ne ponavljaj
+kopiranja stare uporabniške rclone.conf čez konfiguracijo, ki že vsebuje crypt.
 
 ## Uporaba lastne domene
 

@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -19,7 +20,13 @@ def backup(tmp_path):
     filters.write_text((ROOT / "scripts/rclone/rclone-ignore.txt").read_text())
     (project / ".env").write_text("PRIVATE_SETTING=not-for-logs\n")
     config = tmp_path / "private rclone.conf"
-    config.write_text("[gdrive]\ntype=drive\n")
+    config.write_text(
+        "[gdrive]\ntype=drive\n\n[marinkino_secure]\ntype=crypt\n"
+        "remote=gdrive:MarinKino-encrypted\nfilename_encryption=standard\n"
+        "directory_name_encryption=true\nno_data_encryption=false\n"
+        f"password={'A' * 64}\npassword2={'B' * 64}\n"
+    )
+    config.chmod(0o600)
     archives = tmp_path / "archives"
     archives.mkdir()
     (archives / "finished.tar.age").write_bytes(b"encrypted")
@@ -32,6 +39,7 @@ def backup(tmp_path):
     fake_rclone.write_text(
         "#!/usr/bin/env python3\n"
         "import json, os, sys\n"
+        "if any(k.startswith('RCLONE_') for k in os.environ): sys.exit(99)\n"
         "with open(os.environ['TEST_BACKUP_CALLS'], 'a') as out:\n"
         "    out.write(json.dumps(sys.argv[1:]) + '\\n')\n"
         "sys.exit(int(os.environ.get('TEST_BACKUP_FAILURE', '0')))\n"
@@ -55,6 +63,19 @@ def backup(tmp_path):
     fake_timeout.write_text('#!/bin/sh\nshift\nexec "$@"\n')
     fake_timeout.chmod(0o755)
     harness = tmp_path / "backup.sh"
+    for name in ("secure_backup.py", "security_config.py"):
+        shutil.copyfile(ROOT / "scripts" / name, tmp_path / name)
+    subprocess.run(
+        [
+            "python3",
+            str(tmp_path / "secure_backup.py"),
+            "init",
+            "--config",
+            str(config),
+        ],
+        check=True,
+        capture_output=True,
+    )
     code = SOURCE.read_text()
     code = code.replace(
         "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
@@ -65,7 +86,7 @@ def backup(tmp_path):
     ).replace("/var/backups/marinkino", str(archives))
     harness.write_text(code)
 
-    def run(*extra, failure=0, redis_running=False):
+    def run(*extra, failure=0, redis_running=False, extra_env=None):
         result = subprocess.run(
             [
                 "bash",
@@ -81,14 +102,17 @@ def backup(tmp_path):
                 "TEST_BACKUP_CALLS": str(calls),
                 "TEST_BACKUP_FAILURE": str(failure),
                 "TEST_REDIS_RUNNING": str(redis_running).lower(),
+                **(extra_env or {}),
             },
             capture_output=True,
             text=True,
             timeout=5,
         )
-        return result, [
-            json.loads(line) for line in calls.read_text().splitlines()
-        ]
+        return result, (
+            [json.loads(line) for line in calls.read_text().splitlines()]
+            if calls.exists()
+            else []
+        )
 
     return project, run
 
@@ -98,12 +122,12 @@ def test_archives_copy_first_and_mirror_preserves_history_and_symlinks(backup):
     result, calls = run()
     assert result.returncode == 0, result.stderr
     assert [call[0] for call in calls] == ["copy", "sync"]
-    assert calls[0][2] == "gdrive:MarinKino-backups"
+    assert calls[0][2] == "marinkino_secure:archives"
     assert calls[0][calls[0].index("--include") + 1] == "*.tar.age"
-    assert calls[1][1:3] == [str(project), "gdrive:MarinKino"]
+    assert calls[1][1:3] == [str(project), "marinkino_secure:project"]
     assert "--links" in calls[1] and "--copy-links" not in calls[1]
     assert calls[1][calls[1].index("--backup-dir") + 1].startswith(
-        "gdrive:MarinKino-history/"
+        "marinkino_secure:history/"
     )
     log = next((project / "cache/logs/rclone").glob("*.log"))
     assert "exit=0" in log.read_text()
@@ -122,7 +146,7 @@ def test_redis_snapshot_is_dated_uploaded_and_private_staging_removed(backup):
     result, calls = run(redis_running=True)
     assert result.returncode == 0, result.stderr
     assert [call[0] for call in calls] == ["copy", "copyto", "sync"]
-    assert calls[1][2].startswith("gdrive:MarinKino-redis/")
+    assert calls[1][2].startswith("marinkino_secure:redis/")
     assert calls[1][2].endswith(".rdb")
     assert not Path(calls[1][1]).exists()
 
@@ -134,6 +158,29 @@ def test_failure_is_logged_and_stops_following_transfers(backup):
     assert len(calls) == 1 and calls[0][0] == "copy"
     log = next((project / "cache/logs/rclone").glob("*.log"))
     assert "exit=7" in log.read_text()
+
+
+def test_environment_cannot_disable_encryption(backup):
+    _, run = backup
+    result, calls = run(
+        extra_env={
+            "RCLONE_CONFIG_MARINKINO_SECURE_TYPE": "drive",
+            "RCLONE_CRYPT_NO_DATA_ENCRYPTION": "true",
+            "RCLONE_CONFIG": "/bad/config",
+        }
+    )
+    assert result.returncode == 0, result.stderr
+    assert len(calls) == 2
+
+
+def test_plaintext_configuration_prevents_every_upload(backup):
+    project, run = backup
+    config = project.parent / "private rclone.conf"
+    config.write_text("[gdrive]\ntype=drive\n")
+    result, calls = run()
+    assert result.returncode == 2
+    assert calls == []
+    assert not list((project.parent / "cache").glob("rclone.*.conf"))
 
 
 def test_full_backup_requires_privileges_before_reading_private_files():

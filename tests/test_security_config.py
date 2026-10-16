@@ -106,6 +106,9 @@ def test_prepare_rotates_placeholder_and_preserves_other_values(project):
     source = project / "app.py"
     source.write_text("unchanged")
     source.chmod(0o644)
+    credentials = project / "credentials"
+    credentials.mkdir()
+    (credentials / "service-account.json").write_text('{"private_key":"test"}')
     security.prepare(project, os.getuid(), os.getgid())
     values = security.read_env(project)
     assert len(values["FLASK_KEY"]) >= 32
@@ -119,6 +122,10 @@ def test_prepare_rotates_placeholder_and_preserves_other_values(project):
     assert (project / "cache/downloads").stat().st_mode & 0o777 == 0o755
     assert (project / "cache/logs/server").stat().st_mode & 0o777 == 0o750
     assert source.stat().st_mode & 0o777 == 0o644
+    assert credentials.stat().st_mode & 0o777 == 0o700
+    assert (
+        credentials / "service-account.json"
+    ).stat().st_mode & 0o777 == 0o600
     previous = values["FLASK_KEY"]
     security.prepare(project, os.getuid(), os.getgid())
     assert security.read_env(project)["FLASK_KEY"] == previous

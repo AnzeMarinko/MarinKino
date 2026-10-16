@@ -23,7 +23,7 @@ if [[ "$runtime_uid" == 0 || "$runtime_gid" == 0 ]]; then runtime_uid=10001; run
 python3 scripts/security_config.py prepare --project "$project" --uid "$runtime_uid" --gid "$runtime_gid"
 # Cron and systemd execute root-owned snapshots, not user-writable scripts.
 install -d -o root -g root -m 755 /usr/local/lib/marinkino
-for helper in security_config.py security_runtime.py vendor_assets.py; do
+for helper in security_config.py security_runtime.py vendor_assets.py secure_backup.py; do
     install -o root -g root -m 644 "scripts/$helper" "/usr/local/lib/marinkino/$helper"
 done
 install -o root -g root -m 644 src/admin_log_reader.py /usr/local/lib/marinkino/admin_log_reader.py
@@ -31,6 +31,9 @@ install -o root -g root -m 644 scripts/export_admin_logs.py /usr/local/lib/marin
 install -o root -g root -m 755 scripts/security-update.sh /usr/local/lib/marinkino/security-update.sh
 install -o root -g root -m 755 scripts/duckdns_refresh.sh /usr/local/lib/marinkino/duckdns_refresh.sh
 install -o root -g root -m 755 scripts/rclone/rclone-sync-gdrive.sh /usr/local/lib/marinkino/rclone-sync-gdrive.sh
+if [[ -f /etc/marinkino-security/rclone.conf ]]; then
+    python3 /usr/local/lib/marinkino/secure_backup.py init
+fi
 value() { python3 /usr/local/lib/marinkino/security_config.py value --project "$project" "$1"; }
 main=$(value MAIN_DOMAIN)
 www=$(value WWW_DOMAIN)
