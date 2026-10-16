@@ -123,7 +123,9 @@ services:
     read_only: true
     tmpfs:
       - /var/cache/nginx:size=96m,nosuid,nodev,noexec
-      - /var/run:size=4m,nosuid,nodev,noexec
+      # Alpine's /var/run points to /run. Use the canonical parent so its
+      # tmpfs is mounted before the nested app-socket volume, not over it.
+      - /run:size=4m,nosuid,nodev,noexec
       - /tmp:size=8m,nosuid,nodev,noexec
     cap_drop: [ALL]
     cap_add: [NET_BIND_SERVICE, CHOWN, SETUID, SETGID, DAC_OVERRIDE]

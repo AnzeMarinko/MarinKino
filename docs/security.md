@@ -130,6 +130,11 @@ pregled in namestitev sledita v rednem vzdrževanju. Nginxov pripravljalni
 pregled ima `DAC_OVERRIDE` za branje obstoječih zasebnih ključev, enako kot
 dejanski Nginx vsebnik.
 
+Nginxov začasni runtime priklop uporablja `/run`, ne njegove Alpine povezave
+`/var/run`. Tako priklop prek povezave ne prekrije skupnega volumna
+`/run/marinkino`, v katerem aplikacija odpre Unix socket. Po zagonu se
+iz Nginx vsebnika preveri obstoj socketa, nato še HTTPS povezava do aplikacije.
+
 Pred namestitvijo teče izoliran test s svojim Redisom in začasnimi podatki:
 CSRF, prijava, zasebnost, osnutki, gostitelj in proxy. Po namestitvi se preveri
 zdravje, Nginx konfiguracija in lokalni HTTPS dostop. Ob neuspehu se obnovijo

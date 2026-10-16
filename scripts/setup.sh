@@ -53,7 +53,7 @@ if [[ ! -s "configuration/certbot/conf/live/$main/fullchain.pem" ]]; then
     # No app socket volume is mounted before the unprivileged app initializes it.
     bootstrap_id=$(docker run -d --name marinkino-bootstrap --read-only \
         --cap-drop ALL --cap-add NET_BIND_SERVICE --cap-add CHOWN --cap-add SETUID --cap-add SETGID \
-        --tmpfs /var/cache/nginx --tmpfs /var/run -p 80:80 \
+        --tmpfs /var/cache/nginx --tmpfs /run -p 80:80 \
         -v "$project/configuration/nginx/conf:/etc/nginx/conf.d:ro" \
         -v "$project/configuration/certbot/www:/var/www/certbot:ro" nginx:stable-alpine)
     domains=(-d "$main")

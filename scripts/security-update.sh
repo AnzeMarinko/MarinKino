@@ -59,6 +59,13 @@ cleanup() {
         logger -t marinkino-security "Maintenance failed; inspect /var/log/marinkino-security.log" || true
         printf '[%s] FAILED (%s); inspect this log\n' "$(date -Is)" "$result"
         if ((deploy_started && rollback_available)); then
+            # Preserve the actual failure before rollback replaces containers.
+            echo 'Deployment diagnostics before rollback'
+            "${compose[@]}" ps -a || true
+            "${compose[@]}" logs --no-color --tail=40 app nginx || true
+            if [[ -f "$project/cache/logs/nginx/error.log" && ! -L "$project/cache/logs/nginx/error.log" ]]; then
+                tail -n 40 "$project/cache/logs/nginx/error.log" || true
+            fi
             echo 'Restoring previous running images, environment, mounts and Nginx configuration'
             if [[ -f "$work/previous-app.conf" ]]; then
                 install -m 644 "$work/previous-app.conf" "$project/configuration/nginx/conf/app.conf"
@@ -155,7 +162,7 @@ python3 "$config" render-nginx --project "$project" --output "$work/nginx/app.co
 docker run --rm --read-only --cap-drop ALL \
     --cap-add NET_BIND_SERVICE --cap-add CHOWN --cap-add SETUID --cap-add SETGID --cap-add DAC_OVERRIDE \
     --security-opt no-new-privileges \
-    --tmpfs /var/cache/nginx --tmpfs /var/run \
+    --tmpfs /var/cache/nginx --tmpfs /run \
     -v "$work/nginx:/etc/nginx/conf.d:ro" \
     -v "$project/configuration/certbot/conf:/etc/letsencrypt:ro" \
     nginx:stable-alpine nginx -t
@@ -168,6 +175,7 @@ python3 "$runtime" migrate-redis --project "$project"
 unset MARINKINO_REDIS_VOLUME
 install -m 644 "$work/nginx/app.conf" configuration/nginx/conf/app.conf
 "${compose[@]}" up -d --no-build --wait --wait-timeout 180 redis redis-auth app nginx
+"${compose[@]}" exec -T nginx sh -ec 'test -S /run/marinkino/app.sock || { echo "Nginx cannot see the shared application socket" >&2; exit 1; }'
 python3 "$runtime" expire-legacy-stats --project "$project"
 "${compose[@]}" exec -T nginx nginx -t
 "${compose[@]}" exec -T nginx nginx -s reload
