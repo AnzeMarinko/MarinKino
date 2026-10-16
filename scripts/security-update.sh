@@ -108,13 +108,15 @@ python3 "$runtime" check-uid --project "$project" --uid "$uid" --gid "$gid"
 python3 "$config" prepare --project "$project" --uid "$uid" --gid "$gid"
 python3 "$config" firewall --project "$project" --apply
 python3 "$helper_dir/vendor_assets.py" --project "$project" --refresh
-"${compose[@]}" pull nginx certbot
-renew_certificates
+"${compose[@]}" pull nginx
 docker pull aquasec/trivy:latest
 candidate="marinkino-app:security-$stamp"
 redis_candidate="marinkino-redis:security-$stamp"
+certbot_candidate="marinkino-certbot:security-$stamp"
 docker build --pull --no-cache --tag "$redis_candidate" "$project/configuration/redis"
+docker build --pull --no-cache --tag "$certbot_candidate" "$project/configuration/certbot-image"
 export MARINKINO_REDIS_IMAGE="$redis_candidate"
+export MARINKINO_CERTBOT_IMAGE="$certbot_candidate"
 export MARINKINO_APP_IMAGE="$candidate" UPDATE_DEPENDENCIES=1 SECURITY_REFRESH="$stamp"
 "${compose[@]}" build --pull app
 python3 "$runtime" audit --image "$candidate"
@@ -122,7 +124,7 @@ python3 "$runtime" audit --image "$candidate"
 # Database downloads and layer extraction exceed a small tmpfs. Use private
 # disk scratch space, removed by cleanup on success/failure, instead of RAM.
 install -d -m 700 "$state/trivy" "$work/trivy-tmp"
-for image in "$candidate" nginx:stable-alpine "$redis_candidate" certbot/certbot:latest; do
+for image in "$candidate" nginx:stable-alpine "$redis_candidate" "$certbot_candidate"; do
     printf '\nScanning image: %s\n' "$image"
     docker image save -o "$work/image.tar" "$image"
     docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges \
@@ -133,10 +135,14 @@ for image in "$candidate" nginx:stable-alpine "$redis_candidate" certbot/certbot
         --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --parallel 1 --timeout 15m
     rm -f -- "$work/image.tar"
 done
+# Verify the packaged CLI before touching the existing certificate tree.
+docker run --rm --read-only --network none --cap-drop ALL --security-opt no-new-privileges \
+    "$certbot_candidate" --version
+renew_certificates
 python3 "$runtime" smoke --image "$candidate" --uid "$uid" --gid "$gid"
 install -d -m 700 "$work/nginx"
 python3 "$config" render-nginx --project "$project" --output "$work/nginx/app.conf"
-docker run --rm --read-only --cap-drop ALL \
+docker run --rm --read-only --cap-drop ALL --cap-add DAC_OVERRIDE \
     --tmpfs /var/cache/nginx --tmpfs /var/run \
     -v "$work/nginx:/etc/nginx/conf.d:ro" \
     -v "$project/configuration/certbot/conf:/etc/letsencrypt:ro" \
@@ -155,6 +161,7 @@ curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 3 --
     --resolve "$www:443:127.0.0.1" "https://$www/healthz"
 docker tag "$candidate" marinkino-app:current
 docker tag "$redis_candidate" marinkino-redis:current
+docker tag "$certbot_candidate" marinkino-certbot:current
 # Persist the last successful runtime inventory and a rollback snapshot.
 python3 "$runtime" snapshot --project "$project" --output "$state/current-compose.json"
 if [[ -f "$work/previous-compose.json" ]]; then

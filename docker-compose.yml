@@ -137,7 +137,7 @@ services:
         condition: service_healthy
 
   certbot:
-    image: certbot/certbot:latest
+    image: ${MARINKINO_CERTBOT_IMAGE:-marinkino-certbot:current}
     user: "0:0"
     profiles: [maintenance]
     networks: [egress]

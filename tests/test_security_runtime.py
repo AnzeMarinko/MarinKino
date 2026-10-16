@@ -145,7 +145,9 @@ def test_snapshot_handles_unlimited_legacy_pids_limit(
     assert stat.S_IMODE(output.stat().st_mode) == 0o600
 
 
-@pytest.mark.parametrize("repository", ["marinkino-app", "marinkino-redis"])
+@pytest.mark.parametrize(
+    "repository", ["marinkino-app", "marinkino-redis", "marinkino-certbot"]
+)
 def test_prune_only_removes_updater_candidates_outside_retained_images(
     tmp_path, monkeypatch, repository
 ):

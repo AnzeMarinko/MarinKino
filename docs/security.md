@@ -118,6 +118,18 @@ kandidata. Čiščenje ohrani uporabljene in obnovitvene slike obeh repozitorije
 Če repozitorij popravka še ne ponuja ali pregled še vedno najde popravljivo
 HIGH/CRITICAL ranljivost, se namestitev še vedno ustavi.
 
+Certbot se prav tako gradi lokalno v `configuration/certbot-image/Dockerfile`:
+posodobljena Python 3.12 slim osnova in ločen virtualenv s svežim Certbotom
+ter njegovimi odvisnostmi. Graditelj uv in pip nista vključena v končno sliko.
+S tem vzdrževanje ni odvisno od zastarelih knjižnic v uradni sliki Certbot.
+Trivy preveri kandidata, nato se preveri CLI in izvede obnova certifikatov.
+Oznaka `marinkino-certbot:current` se premakne šele po uspešnem vzdrževanju;
+običajni certifikatni cron uporablja to preverjeno sliko. Ob prvi izdaji,
+ko certifikat še ne obstaja, setup zgradi ločeno sliko `bootstrap`; celoten
+pregled in namestitev sledita v rednem vzdrževanju. Nginxov pripravljalni
+pregled ima `DAC_OVERRIDE` za branje obstoječih zasebnih ključev, enako kot
+dejanski Nginx vsebnik.
+
 Pred namestitvijo teče izoliran test s svojim Redisom in začasnimi podatki:
 CSRF, prijava, zasebnost, osnutki, gostitelj in proxy. Po namestitvi se preveri
 zdravje, Nginx konfiguracija in lokalni HTTPS dostop. Ob neuspehu se obnovijo

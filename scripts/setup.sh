@@ -49,7 +49,7 @@ if [[ ! -s "configuration/certbot/conf/live/$main/fullchain.pem" ]]; then
     install -d -m 755 configuration/nginx/conf configuration/certbot/www configuration/certbot/conf
     python3 scripts/security_config.py render-nginx --project "$project" --bootstrap
     docker pull nginx:stable-alpine
-    docker compose pull certbot
+    docker build --pull --no-cache --tag marinkino-certbot:bootstrap "$project/configuration/certbot-image"
     # No app socket volume is mounted before the unprivileged app initializes it.
     bootstrap_id=$(docker run -d --name marinkino-bootstrap --read-only \
         --cap-drop ALL --cap-add NET_BIND_SERVICE --cap-add CHOWN --cap-add SETUID --cap-add SETGID \
@@ -60,7 +60,7 @@ if [[ ! -s "configuration/certbot/conf/live/$main/fullchain.pem" ]]; then
     [[ "$www" == "$main" ]] || domains+=(-d "$www")
     if [[ -n "$duck" && "$duck" != "$main" && "$duck" != "$www" ]]; then domains+=(-d "$duck"); fi
     if [[ -n "$duck" ]]; then /usr/local/lib/marinkino/duckdns_refresh.sh --project "$project"; fi
-    docker compose run --rm --no-deps certbot certonly --non-interactive \
+    MARINKINO_CERTBOT_IMAGE=marinkino-certbot:bootstrap docker compose run --rm --no-deps certbot certonly --non-interactive \
         --webroot -w /var/www/certbot --cert-name "$main" "${domains[@]}" \
         --email "$email" --agree-tos
     cleanup_bootstrap

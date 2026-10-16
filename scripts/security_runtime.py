@@ -621,7 +621,11 @@ def prune(state, extra=None):
             item["Image"]
             for item in json.loads(run("docker", "inspect", *containers))
         )
-    for repository in ("marinkino-app", "marinkino-redis"):
+    for repository in (
+        "marinkino-app",
+        "marinkino-redis",
+        "marinkino-certbot",
+    ):
         for line in run(
             "docker",
             "image",
