@@ -254,6 +254,19 @@ Prejšnja Compose konfiguracija je v `/var/lib/marinkino-security/previous-compo
 (0600), Nginx v `previous-app.conf`. Sistemske posodobitve in zapisi podatkov
 niso del avtomatske povrnitve vsebnikov. Dockerjevih volumnov ne briši.
 
+Pred preklopom se slike delujočih vsebnikov ohranijo pod zasebnimi lokalnimi
+oznakami `marinkino-rollback:security-*`; shranjeni Compose uporablja te
+oznake. Če prvotni manifest ni več dostopen, se poskusi `docker commit` iz
+obstoječega vsebnika. Ta lahko vsebnik kratko zaustavi; priklopljeni podatki
+niso del te slike in ostanejo v izvirnih bind mapah/volumnih. Slike lahko
+vsebujejo skrivnosti iz okolja, zato jih ne objavljaj v registrih.
+Če ohranitev ali preverjanje slike ne uspe, se namestitev ustavi pred
+preklopom. Razpoložljivost slik in veljavnost obnovitvene konfiguracije se
+preverita tudi pred odstranitvijo vsebnikov ob povrnitvi. Ob neuspešnem
+vzdrževanju se slike ne čistijo; zasebni posnetki ostanejo v `run.*` mapah.
+Snapshot zajema delujoče vsebnike; po prejšnjem izpadu lahko teh ni več,
+zato prazen snapshot ne pomeni zagotovljene povrnitve prejšnje strani.
+
 ## Dostop do Pi brez zaslona
 
 SSH ostane na konfiguriranih vratih iz dovoljenih upravljavskih omrežij.

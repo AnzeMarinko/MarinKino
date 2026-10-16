@@ -13,10 +13,10 @@ services:
     command: [redis-server, --dir, /data, --appendonly, "yes", --appendfsync, everysec, --maxmemory, 128mb, --maxmemory-policy, volatile-lru]
     networks: [backend]
     read_only: true
-    tmpfs: [/tmp:size=16m,noexec,nosuid,nodev]
+    tmpfs: ["/tmp:size=16m,noexec,nosuid,nodev"]
     cap_drop: [ALL]
     cap_add: [CHOWN, SETUID, SETGID, DAC_OVERRIDE]
-    security_opt: [no-new-privileges:true]
+    security_opt: ["no-new-privileges:true"]
     mem_limit: 256m
     pids_limit: 64
     healthcheck:
@@ -35,10 +35,10 @@ services:
     command: [redis-server, --dir, /data, --appendonly, "yes", --appendfsync, everysec, --maxmemory, 64mb, --maxmemory-policy, noeviction]
     networks: [backend]
     read_only: true
-    tmpfs: [/tmp:size=16m,noexec,nosuid,nodev]
+    tmpfs: ["/tmp:size=16m,noexec,nosuid,nodev"]
     cap_drop: [ALL]
     cap_add: [CHOWN, SETUID, SETGID, DAC_OVERRIDE]
-    security_opt: [no-new-privileges:true]
+    security_opt: ["no-new-privileges:true"]
     mem_limit: 128m
     pids_limit: 64
     healthcheck:
@@ -95,9 +95,9 @@ services:
         condition: service_healthy
     networks: [backend, egress]
     read_only: true
-    tmpfs: [/tmp:size=128m,nosuid,nodev,noexec]
+    tmpfs: ["/tmp:size=128m,nosuid,nodev,noexec"]
     cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
+    security_opt: ["no-new-privileges:true"]
     mem_limit: ${MARINKINO_APP_MEMORY:-1024m}
     pids_limit: 128
     logging: *bounded-logs
@@ -127,7 +127,7 @@ services:
       - /tmp:size=8m,nosuid,nodev,noexec
     cap_drop: [ALL]
     cap_add: [NET_BIND_SERVICE, CHOWN, SETUID, SETGID, DAC_OVERRIDE]
-    security_opt: [no-new-privileges:true]
+    security_opt: ["no-new-privileges:true"]
     mem_limit: 192m
     pids_limit: 64
     logging: *bounded-logs
@@ -150,7 +150,7 @@ services:
     # Existing certificate trees may be owned by a previous host/container UID.
     # Certbot must lock/update those files and preserve private-key permissions.
     cap_add: [DAC_OVERRIDE, FOWNER, CHOWN]
-    security_opt: [no-new-privileges:true]
+    security_opt: ["no-new-privileges:true"]
     mem_limit: 256m
     pids_limit: 64
     logging: *bounded-logs

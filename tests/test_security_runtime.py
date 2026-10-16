@@ -3,6 +3,7 @@
 import importlib.util
 import json
 import stat
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -75,6 +76,8 @@ def test_snapshot_preserves_private_runtime_and_literal_secrets(
     def fake_run(*args, **kwargs):
         if args[1] == "compose":
             return "container-id\n"
+        if args[1] == "image":
+            return ""
         assert args[:2] == ("docker", "inspect")
         return json.dumps([container()])
 
@@ -84,7 +87,7 @@ def test_snapshot_preserves_private_runtime_and_literal_secrets(
     document = json.loads(output.read_text())
     service = document["services"]["app"]
     assert service["environment"][0] == "SECRET=a$$b$${another}$$$$literal"
-    assert service["image"] == "sha256:previous"
+    assert service["image"].startswith("marinkino-rollback:security-")
     assert service["read_only"] is True and service["cap_drop"] == ["ALL"]
     assert service["healthcheck"]["interval"] == "20000000000ns"
     assert service["logging"]["options"]["max-file"] == "3"
@@ -102,6 +105,83 @@ def test_empty_deployment_has_no_fake_rollback_file(tmp_path, monkeypatch):
     output = tmp_path / "snapshot.json"
     assert not runtime.snapshot(tmp_path, output)
     assert not output.exists()
+
+
+def test_missing_old_image_is_preserved_from_container(monkeypatch):
+    commands = []
+
+    def fake_run(*args, **kwargs):
+        commands.append(args)
+        if args[1:3] == ("image", "tag"):
+            raise subprocess.CalledProcessError(1, args)
+        return ""
+
+    monkeypatch.setattr(runtime, "run", fake_run)
+    reference = runtime.pin_rollback_image(container())
+    assert commands[1] == ("docker", "commit", "/marinkino-app", reference)
+    assert commands[2] == ("docker", "image", "inspect", reference)
+
+
+def test_unrecoverable_old_image_aborts_before_snapshot_publication(
+    tmp_path, monkeypatch
+):
+    def fake_run(*args, **kwargs):
+        if args[1] == "compose":
+            assert "-q" in args and "-aq" not in args
+            return "running-id"
+        if args[1] == "inspect":
+            return json.dumps([container()])
+        raise subprocess.CalledProcessError(1, args)
+
+    monkeypatch.setattr(runtime, "run", fake_run)
+    output = tmp_path / "snapshot.json"
+    with pytest.raises(subprocess.CalledProcessError):
+        runtime.snapshot(tmp_path, output)
+    assert not output.exists()
+
+
+def test_verify_snapshot_checks_images_before_compose(tmp_path, monkeypatch):
+    output = tmp_path / "snapshot.json"
+    output.write_text(
+        json.dumps(
+            {
+                "services": {
+                    "app": {"image": "marinkino-rollback:security-saved"}
+                }
+            }
+        )
+    )
+    commands = []
+    monkeypatch.setattr(runtime, "run", lambda *args: commands.append(args))
+    runtime.verify_snapshot(output)
+    assert commands == [
+        ("docker", "image", "inspect", "marinkino-rollback:security-saved"),
+        ("docker", "compose", "-f", str(output), "config", "-q"),
+    ]
+
+
+def test_prune_retains_pinned_snapshot_reference(tmp_path, monkeypatch):
+    reference = "marinkino-rollback:security-saved"
+    (tmp_path / "previous-compose.json").write_text(
+        json.dumps({"services": {"app": {"image": reference}}})
+    )
+    commands = []
+
+    def fake_run(*args, **kwargs):
+        commands.append(args)
+        if args[1:3] == ("image", "ls") and args[-1] == "marinkino-rollback":
+            return json.dumps(
+                {
+                    "Repository": "marinkino-rollback",
+                    "Tag": "security-saved",
+                    "ID": "sha256:not-a-saved-reference",
+                }
+            )
+        return ""
+
+    monkeypatch.setattr(runtime, "run", fake_run)
+    runtime.prune(tmp_path)
+    assert not any(c[1:3] == ("image", "rm") for c in commands)
 
 
 def test_smoke_runs_the_same_redis_candidate_as_deployment(monkeypatch):
@@ -146,7 +226,13 @@ def test_snapshot_handles_unlimited_legacy_pids_limit(
 
 
 @pytest.mark.parametrize(
-    "repository", ["marinkino-app", "marinkino-redis", "marinkino-certbot"]
+    "repository",
+    [
+        "marinkino-app",
+        "marinkino-redis",
+        "marinkino-certbot",
+        "marinkino-rollback",
+    ],
 )
 def test_prune_only_removes_updater_candidates_outside_retained_images(
     tmp_path, monkeypatch, repository

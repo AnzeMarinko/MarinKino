@@ -63,12 +63,19 @@ cleanup() {
             if [[ -f "$work/previous-app.conf" ]]; then
                 install -m 644 "$work/previous-app.conf" "$project/configuration/nginx/conf/app.conf"
             fi
-            "${compose[@]}" stop app nginx redis redis-auth || true
-            "${compose[@]}" rm -f app nginx redis redis-auth || true
-            docker compose -f "$work/previous-compose.json" up -d --no-build || echo 'ROLLBACK FAILED: restore previous release manually'
+            if python3 "$runtime" verify-snapshot --input "$work/previous-compose.json"; then
+                "${compose[@]}" stop app nginx redis redis-auth || true
+                "${compose[@]}" rm -f app nginx redis redis-auth || true
+                docker compose -f "$work/previous-compose.json" up -d --no-build || echo 'ROLLBACK FAILED: restore previous release manually'
+            else
+                echo 'ROLLBACK UNAVAILABLE: retaining existing containers and recovery images'
+            fi
         fi
     fi
-    python3 "$runtime" prune --state "$state" --keep "$work/previous-compose.json" || true
+    # Retain all candidate/recovery images after a failed deployment.
+    if ((result == 0)); then
+        python3 "$runtime" prune --state "$state" --keep "$work/previous-compose.json" || true
+    fi
     rm -rf -- "$work/backup" "$work/image.tar" "$work/nginx" "$work/trivy-tmp"
     if [[ -n "$encrypted_temporary" ]]; then rm -f -- "$encrypted_temporary"; fi
     # Keep failed snapshots (contain credentials) private for manual recovery.
@@ -153,6 +160,9 @@ docker run --rm --read-only --cap-drop ALL \
     -v "$project/configuration/certbot/conf:/etc/letsencrypt:ro" \
     nginx:stable-alpine nginx -t
 # The old containers keep serving throughout all downloads, builds and tests.
+if ((rollback_available)); then
+    python3 "$runtime" verify-snapshot --input "$work/previous-compose.json"
+fi
 deploy_started=1
 python3 "$runtime" migrate-redis --project "$project"
 unset MARINKINO_REDIS_VOLUME

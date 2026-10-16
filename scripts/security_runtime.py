@@ -31,6 +31,26 @@ def escape_compose(value):
     return value
 
 
+def pin_rollback_image(container):
+    """Keep a runnable image reference even if the old tag was replaced."""
+    reference = "marinkino-rollback:security-" + secrets.token_hex(12)
+    try:
+        run("docker", "image", "tag", container["Image"], reference)
+    except subprocess.CalledProcessError:
+        # A container can outlive its removed image manifest. Commit preserves
+        # its writable layer/config, excludes volumes and pauses writes.
+        run("docker", "commit", container["Name"], reference)
+    run("docker", "image", "inspect", reference)
+    return reference
+
+
+def verify_snapshot(path):
+    document = json.loads(path.read_text())
+    for service in document["services"].values():
+        run("docker", "image", "inspect", service["image"])
+    run("docker", "compose", "-f", str(path), "config", "-q")
+
+
 def snapshot(project, output):
     ids = run(
         "docker",
@@ -38,7 +58,7 @@ def snapshot(project, output):
         "--project-directory",
         str(project),
         "ps",
-        "-aq",
+        "-q",
         "app",
         "nginx",
         "redis",
@@ -60,7 +80,7 @@ def snapshot(project, output):
         service_name = config["Labels"]["com.docker.compose.service"]
         service = {
             "container_name": container["Name"].lstrip("/"),
-            "image": container["Image"],
+            "image": pin_rollback_image(container),
             "pull_policy": "never",
             "entrypoint": config.get("Entrypoint") or [],
             "command": config.get("Cmd") or [],
@@ -625,6 +645,7 @@ def prune(state, extra=None):
         "marinkino-app",
         "marinkino-redis",
         "marinkino-certbot",
+        "marinkino-rollback",
     ):
         for line in run(
             "docker",
@@ -640,6 +661,7 @@ def prune(state, extra=None):
                 image["Repository"] == repository
                 and image["Tag"].startswith("security-")
                 and image["ID"] not in keep
+                and repository + ":" + image["Tag"] not in keep
             ):
                 run(
                     "docker",
@@ -676,6 +698,8 @@ def main():
     snap = commands.add_parser("snapshot")
     snap.add_argument("--project", type=Path, required=True)
     snap.add_argument("--output", type=Path, required=True)
+    verify = commands.add_parser("verify-snapshot")
+    verify.add_argument("--input", type=Path, required=True)
     uid_check = commands.add_parser("check-uid")
     uid_check.add_argument("--project", type=Path, required=True)
     uid_check.add_argument("--uid", type=int, required=True)
@@ -696,6 +720,8 @@ def main():
     args = parser.parse_args()
     if args.command == "snapshot":
         snapshot(args.project, args.output)
+    elif args.command == "verify-snapshot":
+        verify_snapshot(args.input)
     elif args.command == "check-uid":
         check_uid(args.project, args.uid, args.gid)
     elif args.command == "migrate-redis":
