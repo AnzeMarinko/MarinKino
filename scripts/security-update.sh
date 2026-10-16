@@ -144,7 +144,10 @@ renew_certificates
 python3 "$runtime" smoke --image "$candidate" --uid "$uid" --gid "$gid"
 install -d -m 700 "$work/nginx"
 python3 "$config" render-nginx --project "$project" --output "$work/nginx/app.conf"
-docker run --rm --read-only --cap-drop ALL --cap-add DAC_OVERRIDE \
+# nginx -t initializes/chowns its temporary paths; mirror runtime capabilities.
+docker run --rm --read-only --cap-drop ALL \
+    --cap-add NET_BIND_SERVICE --cap-add CHOWN --cap-add SETUID --cap-add SETGID --cap-add DAC_OVERRIDE \
+    --security-opt no-new-privileges \
     --tmpfs /var/cache/nginx --tmpfs /var/run \
     -v "$work/nginx:/etc/nginx/conf.d:ro" \
     -v "$project/configuration/certbot/conf:/etc/letsencrypt:ro" \
