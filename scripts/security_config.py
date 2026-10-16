@@ -442,7 +442,7 @@ def security_headers(tls: bool = False) -> str:
     headers = (
         'add_header X-Content-Type-Options "nosniff" always;',
         'add_header X-Frame-Options "SAMEORIGIN" always;',
-        'add_header Referrer-Policy "no-referrer" always;',
+        'add_header Referrer-Policy $mk_referrer_policy always;',
         'add_header Permissions-Policy "camera=(), microphone=(), '
         'geolocation=(self)" always;',
         "add_header Content-Security-Policy \"base-uri 'self'; "
@@ -472,6 +472,10 @@ client_body_timeout 30s;
 send_timeout 30s;
 reset_timedout_connection on;
 autoindex off;
+map $upstream_http_referrer_policy $mk_referrer_policy {
+    default $upstream_http_referrer_policy;
+    "" same-origin;
+}
 log_format marinkino '$remote_addr - $remote_user [$time_local] "$request" '
                      '$status $body_bytes_sent "$http_referer" '
                      '"$http_user_agent"';
@@ -496,6 +500,7 @@ proxy_send_timeout 60s;
 proxy_request_buffering on;
 proxy_buffering on;
 proxy_hide_header X-Powered-By;
+proxy_hide_header Referrer-Policy;
 proxy_set_header Host $host;
 proxy_set_header X-Real-IP $remote_addr;
 proxy_set_header X-Forwarded-For $remote_addr;

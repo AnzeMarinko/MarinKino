@@ -140,6 +140,9 @@ def test_nginx_has_scoped_aliases_proxy_and_limits(project):
     config = security.render_nginx(security.deployment_config(project))
     assert "proxy_pass http://unix:/run/marinkino/app.sock:;" in config
     assert "proxy_set_header X-Forwarded-For $remote_addr;" in config
+    assert '"" same-origin;' in config
+    assert "proxy_hide_header Referrer-Policy;" in config
+    assert "add_header Referrer-Policy $mk_referrer_policy always;" in config
     assert "$proxy_add_x_forwarded_for" not in config
     assert "ssl_protocols TLSv1.2 TLSv1.3;" in config
     assert "ssl_reject_handshake on;" in config

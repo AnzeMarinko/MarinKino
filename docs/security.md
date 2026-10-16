@@ -73,6 +73,15 @@ Nginxovi dnevniki z logrotate.
 
 ## Cron in posodobitve
 
+Privzeti `Referrer-Policy` je `same-origin`: brskalnik ohrani Referer za
+obrazce na istem izvoru, zunanjim stranem pa ga ne pošilja. HTTPS obrazci
+ohranijo Flask-WTF `WTF_CSRF_SSL_STRICT`; politika `no-referrer` na prijavni
+strani bi blokirala veljaven POST. Nginx uporabi aplikacijsko politiko, če je
+nastavljena, sicer `same-origin`, in odstrani podvojeno upstream glavo.
+Občutljive preusmeritve lahko še vedno izberejo `no-referrer`; obrazec za
+naročnine uporablja `same-origin`. Izolirani test preveri dejansko HTTPS
+prijavo ter zavrnitev veljavnega CSRF žetona brez Referer ali s tujim izvorom.
+
 `/etc/cron.d/marinkino-security` vsebuje:
 
 - vsak dan ob **03:17**: vzdrževanje in preverjena nadgradnja;

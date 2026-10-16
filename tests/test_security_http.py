@@ -7,7 +7,7 @@ import fakeredis
 import pytest
 from flask import Flask, jsonify, request
 from flask_login import LoginManager, UserMixin
-from flask_wtf.csrf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect, generate_csrf
 from redis.exceptions import RedisError
 
 import security_cache
@@ -205,6 +205,44 @@ def test_oversized_form_is_rejected_before_csrf_parses_it():
     assert response.status_code == 413
 
 
+def test_https_forms_allow_same_origin_with_strict_csrf_still_enabled():
+    app = Flask(__name__)
+    app.config.update(TESTING=True, SECRET_KEY="isolated-https-csrf-test")
+    manager = LoginManager(app)
+    manager.user_loader(User)
+    CSRFProtect(app)
+
+    @app.route("/login", methods=["GET", "POST"])
+    def form():
+        return jsonify(csrf_token=generate_csrf())
+
+    @app.after_request
+    def headers(response):
+        return security_http.add_headers(response, production=True)
+
+    client = app.test_client()
+    origin = "https://site.example"
+    response = client.get("/login", base_url=origin)
+    assert response.headers["Referrer-Policy"] == "same-origin"
+    data = {"csrf_token": response.json["csrf_token"]}
+    # A valid token does not bypass HTTPS origin validation.
+    response = client.post("/login", base_url=origin, data=data)
+    assert response.status_code == 400
+    assert b"referrer header is missing" in response.data
+    assert client.post(
+        "/login", base_url=origin, data=data,
+        headers={"Referer": "https://attacker.invalid/form"},
+    ).status_code == 400
+    assert client.post(
+        "/login", base_url=origin, data=data,
+        headers={"Referer": origin + "/login"},
+    ).status_code == 200
+    assert client.post(
+        "/login", base_url=origin, data={"csrf_token": "invalid"},
+        headers={"Referer": origin + "/login"},
+    ).status_code == 400
+
+
 def test_statistics_failure_does_not_break_public_response(http, monkeypatch):
     def unavailable(*_args, **_kwargs):
         raise RedisError("isolated statistics outage")
@@ -248,7 +286,7 @@ def test_security_headers_cover_error_responses_and_nonces_are_fresh(http):
     nonces = []
     for response in responses:
         assert response.headers["X-Content-Type-Options"] == "nosniff"
-        assert response.headers["Referrer-Policy"] == "no-referrer"
+        assert response.headers["Referrer-Policy"] == "same-origin"
         assert "max-age=" in response.headers["Strict-Transport-Security"]
         enforced = response.headers["Content-Security-Policy"]
         assert "object-src 'none'" in enforced

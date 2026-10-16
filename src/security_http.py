@@ -124,7 +124,7 @@ def add_headers(response, production=False):
     for name, value in {
         "X-Content-Type-Options": "nosniff",
         "X-Frame-Options": "SAMEORIGIN",
-        "Referrer-Policy": "no-referrer",
+        "Referrer-Policy": "same-origin",
         "Permissions-Policy": "camera=(), microphone=(), geolocation=(self)",
         "Content-Security-Policy": (
             "base-uri 'self'; object-src 'none'; frame-ancestors 'self'; "

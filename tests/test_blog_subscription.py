@@ -111,7 +111,7 @@ def test_native_form_is_localized_with_same_origin_protections(
     response = subscription.client.get(f"/blog/subscribe?lang={language}")
     assert response.status_code == 200
     assert response.headers["Cache-Control"] == "no-store"
-    assert response.headers["Referrer-Policy"] == "no-referrer"
+    assert response.headers["Referrer-Policy"] == "same-origin"
     html = response.get_data(as_text=True)
     elements = Elements(html)
     direction = "rtl" if language == "ar" else "ltr"

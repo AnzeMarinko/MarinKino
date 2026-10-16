@@ -80,9 +80,20 @@ def main():
     assert client.get("/blog/private-draft").status_code == 404
     assert client.get("/music/file/readme.json").status_code == 302
     assert client.get("/login").headers["X-Content-Type-Options"] == "nosniff"
-    token = client.get("/csrf-token").json["csrf_token"]
+    origin = "https://" + os.getenv("WWW_DOMAIN", "localhost")
+    login_page = client.get("/login", base_url=origin)
+    assert login_page.headers["Referrer-Policy"] == "same-origin"
+    token = client.get("/csrf-token", base_url=origin).json["csrf_token"]
+    for headers in ({}, {"Referer": "https://attacker.invalid/login"}):
+        assert client.post(
+            "/login", base_url=origin, headers=headers,
+            data={"username": "member", "password": password,
+                  "csrf_token": token},
+        ).status_code == 400
     response = client.post(
         "/login",
+        base_url=origin,
+        headers={"Referer": origin + "/login"},
         data={"username": "member", "password": password, "csrf_token": token},
     )
     assert response.status_code == 302, response.status_code
