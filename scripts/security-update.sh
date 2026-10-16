@@ -69,7 +69,7 @@ cleanup() {
         fi
     fi
     python3 "$runtime" prune --state "$state" --keep "$work/previous-compose.json" || true
-    rm -rf -- "$work/backup" "$work/image.tar" "$work/nginx"
+    rm -rf -- "$work/backup" "$work/image.tar" "$work/nginx" "$work/trivy-tmp"
     if [[ -n "$encrypted_temporary" ]]; then rm -f -- "$encrypted_temporary"; fi
     # Keep failed snapshots (contain credentials) private for manual recovery.
     if ((result == 0)); then
@@ -116,11 +116,14 @@ export MARINKINO_APP_IMAGE="$candidate" UPDATE_DEPENDENCIES=1 SECURITY_REFRESH="
 "${compose[@]}" build --pull app
 python3 "$runtime" audit --image "$candidate"
 # Scan images from a read-only tar file; scanner never receives Docker socket.
-install -d -m 700 "$state/trivy"
+# Database downloads and layer extraction exceed a small tmpfs. Use private
+# disk scratch space, removed by cleanup on success/failure, instead of RAM.
+install -d -m 700 "$state/trivy" "$work/trivy-tmp"
 for image in "$candidate" nginx:stable-alpine redis:7-alpine certbot/certbot:latest; do
     docker image save -o "$work/image.tar" "$image"
     docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges \
-        --memory 1024m --cpus 1 --tmpfs /tmp:size=64m,nosuid,nodev \
+        --memory 1024m --cpus 1 \
+        -v "$work/trivy-tmp:/tmp" \
         -v "$work/image.tar:/scan/image.tar:ro" -v "$state/trivy:/root/.cache/trivy" \
         aquasec/trivy:latest image --input /scan/image.tar --scanners vuln \
         --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --parallel 1 --timeout 15m

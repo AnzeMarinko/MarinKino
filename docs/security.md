@@ -87,6 +87,12 @@ Cron izvaja root-owned kopije v `/usr/local/lib/marinkino`. Po spremembi teh
 skript v repozitoriju ponovno zaženi setup, da namesti nove kopije.
 Sočasni zagoni se preprečijo s `flock`.
 
+Trivy uporablja zasebno začasno mapo na disku v
+`/var/lib/marinkino-security/run.*/trivy-tmp`, ne omejenega RAM tmpfs.
+Prenos baze ranljivosti in razpakiranje slik lahko presežeta 64 MB; začasna
+mapa se odstrani tudi ob napaki. Baza ostane v namenskem cache za ponovne
+preglede. Za pregled sta potrebna prostor za izvoz slike in začasne datoteke.
+
 Certbot teče enkratno kot UID/GID 0 z odstranjenimi capabilities in dodanimi
 `DAC_OVERRIDE`, `FOWNER`, `CHOWN`. Te omogočijo zaklepanje in posodobitev
 obstoječih certifikatov, tudi če datoteke pripadajo staremu UID. Vse ostale
