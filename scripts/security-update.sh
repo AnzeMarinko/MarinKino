@@ -136,7 +136,9 @@ for image in "$candidate" nginx:stable-alpine "$redis_candidate" "$certbot_candi
     rm -f -- "$work/image.tar"
 done
 # Verify the packaged CLI before touching the existing certificate tree.
+# Certbot initializes a temporary log even when only reporting its version.
 docker run --rm --read-only --network none --cap-drop ALL --security-opt no-new-privileges \
+    --tmpfs /tmp:size=16m,mode=1777,nosuid,nodev,noexec \
     "$certbot_candidate" --version
 renew_certificates
 python3 "$runtime" smoke --image "$candidate" --uid "$uid" --gid "$gid"
