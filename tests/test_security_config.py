@@ -160,6 +160,24 @@ def test_nginx_has_scoped_aliases_proxy_and_limits(project):
     assert "always;" in config
 
 
+@pytest.mark.parametrize("bootstrap", [False, True])
+def test_keepalive_overrides_stock_http_setting_only_in_servers(
+    project, bootstrap
+):
+    config = security.render_nginx(
+        security.deployment_config(project), bootstrap=bootstrap
+    )
+    # Stock nginx.conf sets keepalive_timeout in http before including conf.d.
+    # Each virtual host can override it, but the included http scope cannot.
+    assert "keepalive_timeout" not in config.split("server {", 1)[0]
+    servers = re.findall(r"(?m)^server \{", config)
+    overrides = re.findall(
+        r"(?m)^server \{\n    keepalive_timeout 20s;", config
+    )
+    assert len(servers) == len(overrides) > 0
+    assert config.count("keepalive_timeout") == len(servers)
+
+
 def test_bootstrap_has_acme_and_no_tls_or_backend(project):
     config = security.render_nginx(
         security.deployment_config(project),

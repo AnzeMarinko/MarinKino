@@ -470,7 +470,6 @@ client_max_body_size 64k;
 client_header_timeout 10s;
 client_body_timeout 30s;
 send_timeout 30s;
-keepalive_timeout 20s;
 reset_timedout_connection on;
 autoindex off;
 log_format marinkino '$remote_addr - $remote_user [$time_local] "$request" '
@@ -505,6 +504,7 @@ proxy_set_header Forwarded "";
 proxy_http_version 1.1;
 proxy_set_header Connection "";
 server {
+    keepalive_timeout 20s;
     listen 80 default_server;
     listen [::]:80 default_server;
     server_name _;
@@ -518,7 +518,8 @@ server {
     }
 """
     common += (
-        f"server {{\n    listen 80;\n    listen [::]:80;\n"
+        "server {\n    keepalive_timeout 20s;\n"
+        "    listen 80;\n    listen [::]:80;\n"
         f"    server_name {names};\n    {security_headers()}\n" + acme
     )
     if bootstrap:
@@ -538,6 +539,7 @@ server {
         "    ssl_session_tickets off;\n"
     )
     common += """server {
+    keepalive_timeout 20s;
     listen 443 ssl default_server;
     listen [::]:443 ssl default_server;
     server_name _;
@@ -548,14 +550,16 @@ server {
     redirects = " ".join(name for name in names.split() if name != www)
     if redirects:
         common += (
-            "server {\n    listen 443 ssl;\n    listen [::]:443 ssl;\n"
+            "server {\n    keepalive_timeout 20s;\n"
+            "    listen 443 ssl;\n    listen [::]:443 ssl;\n"
             f"    server_name {redirects};\n"
             + certificate
             + f"    {security_headers(True)}\n"
             + f"    return 301 https://{www}$request_uri;\n}}\n"
         )
     common += (
-        "server {\n    listen 443 ssl;\n    listen [::]:443 ssl;\n"
+        "server {\n    keepalive_timeout 20s;\n"
+        "    listen 443 ssl;\n    listen [::]:443 ssl;\n"
         f"    server_name {www};\n"
         + certificate
         + f"    {security_headers(True)}\n"
