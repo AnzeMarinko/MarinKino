@@ -6,7 +6,7 @@
     function update() {
         clearTimeout(timer);
         const now = new Date();
-        const hour = now.getHours(), dark = hour >= 22 || hour < 5;
+        const hour = now.getHours(), dark = hour >= 23 || hour < 5;
         root.toggleAttribute("data-admin-night-theme", dark);
         if (dark) root.setAttribute("data-bs-theme", "dark");
         else if (previousBootstrapTheme === null) root.removeAttribute("data-bs-theme");

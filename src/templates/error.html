@@ -1,0 +1,12 @@
+{% extends "auth_base.html" %}
+{% block eyebrow %}Napaka {{ code }}{% endblock %}
+{% block icon %}{{ icon }}{% endblock %}
+{% block heading %}{{ heading }}{% endblock %}
+{% block intro %}{{ intro }}{% endblock %}
+{% block tip %}<i class="bi bi-heart" aria-hidden="true"></i><span>Bog te blagoslovi!</span>{% endblock %}
+{% block form_title %}Kam naprej?{% endblock %}
+{% block description %}Izberi eno od povezav spodaj.{% endblock %}
+{% block auth_content %}
+<a href="/" class="auth-primary"><i class="bi bi-house" aria-hidden="true"></i> Na domačo stran</a>
+<a href="/blog" class="auth-primary"><i class="bi bi-flower1" aria-hidden="true"></i> Na blog</a>
+{% endblock %}

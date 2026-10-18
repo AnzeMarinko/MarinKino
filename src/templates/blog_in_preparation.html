@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/blog.css') }}">
+<meta name="robots" content="noindex, nofollow">
+<main class="blog-page blog-reading-page">
+ <div class="blog-reading-shell" style="text-align:center;padding:4rem 1rem">
+  <h1><i class="bi bi-hourglass-split" aria-hidden="true"></i> Zapis je še v pripravi</h1>
+  <p>Ta zapis žal trenutno še ni objavljen. Morda gre za napako in nas lahko obvestiš o tem. Prosimo, pošlji nam e-sporočilo na <a href="mailto:anze@anzemarinko.si">anze@anzemarinko.si</a>. Obišči stran ponovno, ko bo zapis objavljen.</p>
+  <a class="blog-text-link" href="/blog">Nazaj na vse zapise <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+ </div>
+</main>
+{% endblock %}

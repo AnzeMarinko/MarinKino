@@ -155,7 +155,7 @@ sudo systemctl enable --now redis-server
 
 ### 4.1. Prijavljene naprave
 
-Vsak uporabnik ima lahko največ **5 hkrati prijavljenih naprav**, tudi
+Vsak uporabnik ima lahko največ **10 hkrati prijavljenih naprav**, tudi
 administrator. Napravo predstavlja posamezna brskalniška seja z naključnim
 `device_id` v podpisanem sejnem piškotku. ID ni povezan s FingerprintJS.
 Šesta prijava je zavrnjena z opozorilom, naj se uporabnik odjavi na eni od

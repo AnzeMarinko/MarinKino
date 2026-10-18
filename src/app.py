@@ -6,7 +6,16 @@ import time
 from datetime import date, timedelta
 
 import requests
-from flask import Flask, jsonify, redirect, render_template, session
+from flask import (
+    Flask,
+    jsonify,
+    make_response,
+    redirect,
+    render_template,
+    request,
+    session,
+)
+from werkzeug.exceptions import HTTPException, InternalServerError
 from flask_compress import Compress
 from flask_limiter import Limiter
 from flask_login import LoginManager, current_user
@@ -196,6 +205,59 @@ app.register_blueprint(memes_bp)
 app.register_blueprint(music_bp)
 app.register_blueprint(misc_bp)
 app.register_blueprint(seo_bp)
+
+
+ERROR_PAGES = {
+    400: ("bi-exclamation-circle", "Napačna zahteva", "Zahteve ni bilo mogoče razumeti. Osveži stran in poskusi znova."),
+    401: ("bi-person-lock", "Najprej se prijavi", "Za ogled te strani je potrebna prijava."),
+    403: ("bi-shield-lock", "Dostop ni dovoljen", "Do te strani nimaš dostopa."),
+    404: ("bi-compass", "Strani ni na spletu", "Stran, ki jo iščeš, ne obstaja ali je bila premaknjena. Preveri naslov ali se vrni na začetek."),
+    405: ("bi-slash-circle", "Dejanje ni dovoljeno", "Te strani ni mogoče odpreti na ta način."),
+    408: ("bi-hourglass-split", "Zahteva je potekla", "Povezava je trajala predolgo. Poskusi znova."),
+    413: ("bi-file-earmark-x", "Vsebina je prevelika", "Poslani podatki so preveliki."),
+    414: ("bi-link-45deg", "Naslov je predolg", "Spletni naslov je predolg."),
+    429: ("bi-hourglass-split", "Prepogosto", "Preveč zahtev v kratkem času. Počakaj trenutek in poskusi znova."),
+    500: ("bi-tools", "Nekaj je šlo narobe", "Na strežniku je prišlo do napake. Poskusi znova čez nekaj trenutkov."),
+    502: ("bi-tools", "Storitev ni dosegljiva", "Strežnik trenutno ne odgovarja. Poskusi znova čez nekaj trenutkov."),
+    503: ("bi-tools", "Storitev ni na voljo", "Stran je trenutno nedosegljiva. Poskusi znova čez nekaj trenutkov."),
+    504: ("bi-tools", "Strežnik se ne odziva", "Odgovor je trajal predolgo. Poskusi znova čez nekaj trenutkov."),
+}
+
+
+@app.errorhandler(HTTPException)
+def http_error(error):
+    code = error.code or 500
+    if code < 400:
+        return error
+    wants_html = request.accept_mimetypes.best == "text/html"
+    if not wants_html:
+        return error
+    icon, heading, intro = ERROR_PAGES.get(
+        code, ERROR_PAGES[500 if code >= 500 else 400]
+    )
+    response = make_response(
+        render_template(
+            "error.html",
+            pagetitle=heading,
+            code=code,
+            icon=icon,
+            heading=heading,
+            intro=intro,
+        ),
+        code,
+    )
+    for key, value in error.get_headers():
+        if key.lower() in {"allow", "retry-after", "www-authenticate"}:
+            response.headers[key] = value
+    return response
+
+
+@app.errorhandler(Exception)
+def unhandled_error(error):
+    app.logger.exception("Unhandled exception")
+    return http_error(InternalServerError())
+
+
 init_fitness_access(app)
 
 # Initialize blueprints with app context

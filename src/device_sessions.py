@@ -3,7 +3,8 @@
 from redis import Redis
 
 DEVICE_IDLE_SECONDS = 7 * 24 * 60 * 60
-MAX_DEVICES = 5
+MAX_DEVICES = 10
+MAX_ADMIN_DEVICES = 20
 
 _REFRESH_DEVICE = """
 local key = KEYS[1]
@@ -55,6 +56,7 @@ class DeviceSessionStore:
         user_id: str,
         device_id: str,
         allow_new: bool,
+        max_devices: int = MAX_DEVICES,
         previous_device_id: str | None = None,
     ) -> bool:
         return bool(
@@ -63,7 +65,7 @@ class DeviceSessionStore:
                 args=[
                     device_id,
                     DEVICE_IDLE_SECONDS,
-                    MAX_DEVICES,
+                    max_devices,
                     int(allow_new),
                     previous_device_id or "",
                 ],
@@ -75,12 +77,14 @@ class DeviceSessionStore:
         user_id: str,
         device_id: str,
         previous_device_id: str | None = None,
+        max_devices: int = MAX_DEVICES,
     ) -> bool:
         """Admit a device or rotate its active slot, reclaiming idle slots."""
         return self._refresh(
             user_id,
             device_id,
             allow_new=True,
+            max_devices=max_devices,
             previous_device_id=previous_device_id,
         )
 

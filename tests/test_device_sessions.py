@@ -20,9 +20,9 @@ def devices():
     return redis, DeviceSessionStore(redis)
 
 
-def test_only_five_devices_allowed_and_existing_device_can_refresh(devices):
+def test_only_ten_devices_allowed_and_existing_device_can_refresh(devices):
     redis, store = devices
-    assert MAX_DEVICES == 5
+    assert MAX_DEVICES == 10
     assert all(
         store.register("alice", f"device-{i}") for i in range(MAX_DEVICES)
     )

@@ -511,6 +511,16 @@ def blog_post(post_id):
     if not post:
         abort(404)
 
+    if not post.get("published", False) and not current_user.is_authenticated:
+        return (
+            render_template(
+                "blog_in_preparation.html",
+                pagetitle="Zapis je še v pripravi",
+                blog_view="blog",
+            ),
+            200,
+        )
+
     post["images"] = post_gallery(post)
     post["image"] = post["images"][0]["filename"] if post["images"] else None
     post["image_desc"] = (
@@ -518,8 +528,6 @@ def blog_post(post_id):
     )
 
     # Members can preview drafts by URL; only admins see them in the list.
-    if not post.get("published", False) and not current_user.is_authenticated:
-        abort(404)
 
     # Render Markdown content
     post["content_html"] = nh3.clean(

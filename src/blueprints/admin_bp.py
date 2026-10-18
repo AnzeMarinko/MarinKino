@@ -418,6 +418,8 @@ def admin_panel():
     geo_stats_cities = {}
     all_geo_data = {}
     for key in redis_client.scan_iter("stats:geo:*"):
+        if key.startswith("stats:geo:seen:"):
+            continue
         date_part = key.split(":")[-1]
         geo_data = redis_client.hgetall(key)
 

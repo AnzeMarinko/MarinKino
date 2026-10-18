@@ -21,7 +21,7 @@ izključi samodejno; najprej preveri dostop s ključem.
   v HTML/JSON kataloga ali prenose arhivov.
 - Menjava in ponastavitev gesla prekličeta vse naprave in stare obnovitvene
   povezave. Različica poverilnic v zasebnem JSON prepreči ponovno uporabo
-  stare seje tudi po povrnitvi Redisovih zapisov. Največ pet naprav; sedem dni nedejavnosti, absolutno največ
+  stare seje tudi po povrnitvi Redisovih zapisov. Največ deset naprav; sedem dni nedejavnosti, absolutno največ
   30 dni oziroma 12 ur za skrbnika. Ob nadgradnji stare seje zahtevajo prijavo.
 - Odjava uporablja POST + CSRF. Vnosi, zahteve, komentarji, predpomnilniki,
   statistike in zunanje poizvedbe imajo omejitve; 404 URL-ji se agregirajo.

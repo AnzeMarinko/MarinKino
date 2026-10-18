@@ -20,7 +20,7 @@ from redis import Redis
 from redis.exceptions import RedisError
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from device_sessions import MAX_DEVICES, DeviceSessionStore
+from device_sessions import MAX_ADMIN_DEVICES, MAX_DEVICES, DeviceSessionStore
 from security_http import rate_limit_identity
 from security_storage import atomic_write_json, locked_path, serialized_json
 from utils import (
@@ -248,9 +248,15 @@ def login():
             previous_user_id = session.get("_user_id")
             previous_device_id = session.get("device_id")
             device_id = secrets.token_urlsafe(32)
+            max_devices = (
+                MAX_ADMIN_DEVICES
+                if users[username].get("is_admin")
+                else MAX_DEVICES
+            )
             if not device_sessions.register(
                 username,
                 device_id,
+                max_devices=max_devices,
                 previous_device_id=(
                     previous_device_id
                     if previous_user_id == username
@@ -258,7 +264,7 @@ def login():
                 ),
             ):
                 flash(
-                    f"Prijavljeni ste že na največ {MAX_DEVICES} napravah. "
+                    f"Prijavljeni ste že na največ {max_devices} napravah. "
                     "Pred prijavo na tej napravi se odjavite na eni od "
                     "drugih naprav.",
                     "error",

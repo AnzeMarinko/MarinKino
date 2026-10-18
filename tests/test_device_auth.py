@@ -17,7 +17,11 @@ from flask_login.utils import encode_cookie
 from jinja2 import DictLoader
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from device_sessions import DEVICE_IDLE_SECONDS, MAX_DEVICES
+from device_sessions import (
+    DEVICE_IDLE_SECONDS,
+    MAX_ADMIN_DEVICES,
+    MAX_DEVICES,
+)
 
 PASSWORD = "Correct-password-123!"
 
@@ -128,7 +132,7 @@ def test_setup_token_keeps_own_expiry_when_reset_token_expires(auth):
     assert "reset_token_hash" not in user
 
 
-def test_sixth_browser_denied_until_another_browser_logs_out(auth):
+def test_eleventh_browser_denied_until_another_browser_logs_out(auth):
     clients = [auth.app.test_client() for _ in range(MAX_DEVICES + 1)]
     for client in clients[:-1]:
         assert login(client).status_code == 302
@@ -154,6 +158,22 @@ def test_sixth_browser_denied_until_another_browser_logs_out(auth):
     assert login(clients[-1]).status_code == 302
     assert clients[-1].get("/").data == b"alice"
     assert auth.redis.zcard(key) == MAX_DEVICES
+
+
+def test_admin_can_use_twenty_devices(auth):
+    auth.users["alice"]["is_admin"] = True
+    clients = [auth.app.test_client() for _ in range(MAX_ADMIN_DEVICES + 1)]
+    for client in clients[:-1]:
+        assert login(client).status_code == 302
+
+    key = auth.module.device_sessions.key("alice")
+    assert auth.redis.zcard(key) == MAX_ADMIN_DEVICES
+
+    denied = login(clients[-1])
+
+    assert denied.status_code in (200, 403)
+    assert str(MAX_ADMIN_DEVICES) in denied.get_data(as_text=True)
+    assert auth.redis.zcard(key) == MAX_ADMIN_DEVICES
 
 
 def test_login_again_replaces_same_browser_device_even_at_limit(auth):
