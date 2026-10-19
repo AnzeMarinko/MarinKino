@@ -385,12 +385,26 @@ def test_password_recovery_revokes_every_registered_device(auth):
     assert auth.redis.zcard(auth.module.device_sessions.key("alice")) == 0
 
 
-def test_session_absolute_lifetime_cannot_be_extended_by_activity(auth):
+@pytest.mark.parametrize("is_admin", [False, True])
+def test_session_absolute_lifetime_cannot_be_extended_by_activity(
+    auth, is_admin
+):
+    auth.users["alice"]["is_admin"] = is_admin
     client = auth.app.test_client()
     assert login(client).status_code == 302
     with client.session_transaction() as session:
-        session["authenticated_at"] = time() - 31 * 86400
+        session["authenticated_at"] = time() - 31 * 24 * 60 * 60
     assert_logged_out(client)
+
+
+def test_admin_session_remains_valid_after_twelve_hours(auth):
+    auth.users["alice"]["is_admin"] = True
+    client = auth.app.test_client()
+    assert login(client).status_code == 302
+    with client.session_transaction() as session:
+        session["authenticated_at"] = time() - 13 * 3600
+
+    assert client.get("/").data == b"alice"
 
 
 def test_admin_requires_second_factor_and_codes_cannot_be_reused(

@@ -129,6 +129,13 @@ def ui(tmp_path):
             access_stats_monthly={"2026-08": {"/": 2}, "2026-09": {"/new": 3}},
             blog_views_daily={"2026-09-01": 5},
             blog_si_views_daily={},
+            blog_posts_daily={
+                "one": {
+                    "title": "Prva objava",
+                    "created_at": "2026-08-01",
+                    "views": {"2026-09-01": 3, "2026-09-03": 2},
+                }
+            },
             geo_stats_cities={},
             geo_stats={},
             referrer_stats={},
@@ -547,10 +554,26 @@ def test_browser_real_dashboard_charts(browser):
     page.locator("#access-monthly-graph .main-svg").first.wait_for()
     page.locator("#access-user-graph .main-svg").first.wait_for()
     page.locator("#blog-views-graph .main-svg").first.wait_for()
+    page.locator("#blog-growth-graph .main-svg").first.wait_for()
+    assert page.locator("#blog-growth-graph .modebar").count() == 1
+    growth = page.locator("#blog-growth-graph").evaluate(
+        "(node) => [node.data[0].x, node.data[0].y]"
+    )
+    ticks = page.locator("#blog-growth-graph").evaluate(
+        "(node) => ({ x: node.layout.xaxis.ticktext, y: node.layout.yaxis.ticktext, xType: node.layout.xaxis.type, yType: node.layout.yaxis.type })"
+    )
+    assert ticks["x"] == [str(2**index) for index in range(11)]
+    assert ticks["y"] == ["0", "1", "2", "3", "4", "5"]
+    assert ticks["xType"] == ticks["yType"] == "linear"
+    xs, ys = growth
+    assert xs[0] == 0 and abs(ys[0] - 3**0.5) < 1e-9
+    third_day = next(i for i, x in enumerate(xs) if abs(x - 1.5849625) < 1e-6)
+    assert abs(ys[third_day] - 5**0.5) < 1e-9
+    assert ys[-1] == ys[third_day]
     values = page.locator("#access-monthly-graph").evaluate(
         "(node) => node.data.map(trace => trace.y)"
     )
-    assert values == [[2, 0], [0, 3]]
+    assert values == [[0, 3], [0, 2, 0]]
 
 
 def test_mail_recipient_count_excludes_users_without_email(ui):

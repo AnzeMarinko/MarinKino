@@ -26,9 +26,11 @@ from fitness import (
     database,
     get_entry,
     insert,
+    link_template,
     now_local,
     read_state,
     sync_schedule,
+    sync_template,
     update,
     validate,
     validate_profile,
@@ -143,7 +145,9 @@ def create(collection):
     if collection == "schedule":
         payload["starts_on"] = week_start(now_local().date()).isoformat()
     with storage() as connection:
-        entry = insert(connection, current_user.get_id(), collection, payload)
+        user_id = current_user.get_id()
+        link_template(connection, user_id, collection, payload, body())
+        entry = insert(connection, user_id, collection, payload)
     return jsonify(entry=entry), 201
 
 
@@ -183,6 +187,8 @@ def edit(collection, entry_id):
                 payload.update(
                     status="completed", activity_id=original["activity_id"]
                 )
+            if original.get("template_id"):
+                payload["template_id"] = original["template_id"]
             if collection == "plan" and original.get("schedule_id"):
                 payload.update(
                     schedule_id=original["schedule_id"],
@@ -193,6 +199,8 @@ def edit(collection, entry_id):
                 payload["starts_on"] = original["starts_on"]
                 sync_schedule(connection, user_id, entry_id, payload)
             update(connection, user_id, collection, entry_id, payload)
+            if collection == "templates":
+                sync_template(connection, user_id, entry_id, payload)
     return jsonify(entry={**payload, "id": entry_id}) if payload else ("", 204)
 
 

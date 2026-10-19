@@ -161,7 +161,7 @@
     function renderAccess() {
         const progress = state.plan_progress;
         const weighing = state.weighing_status;
-        el("fitness-access-status").textContent = `${parityLabel(state.today)} · ${progress.week_completed} izvedb iz plana v tekočem tednu.`;
+        el("fitness-access-status").textContent = `${parityLabel(state.today)} · ${progress.recent_activities} aktivnosti v zadnjih 7 dneh.`;
         el("fitness-plan-progress").innerHTML = `<strong>Načrti zadnjih 7 dni: ${progress.recent_completed} / ${progress.recent_total} opravljenih</strong><p class="small text-muted">${dateLabel(progress.recent_start)}–${dateLabel(progress.recent_end)} · šteje tudi izvedba na drug dan.</p>`;
         const node = el("fitness-access-suggestions");
         if (weighing.locked) {
@@ -172,8 +172,8 @@
         node.hidden = progress.allowed;
         if (progress.allowed) { node.innerHTML = ""; return; }
         const due = progress.due.length ? progress.due : progress.upcoming;
-        const heading = progress.due.length ? "Za opraviti · načrtovano v zadnjih treh dneh" : "V zadnjih treh dneh ni neopravljene vadbe. Izberi iz plana tega tedna";
-        node.innerHTML = due.length ? `<h3>${heading}</h3><div class="fitness-template-grid">${due.map(row => `<article class="fitness-card"><h3>${escape(row.title)}</h3><small>Načrtovano: ${dateLabel(row.date)} · ${sessionMeta(row, "plan")}</small>${row.description ? `<p>${escape(row.description)}</p>` : ""}${row.advice ? `<details class="fitness-advice"><summary>Nasvet</summary><p>${escape(row.advice)}</p></details>` : ""}${row.tutorial_url ? `<a href="${escape(row.tutorial_url)}" target="_blank" rel="noopener noreferrer">Tutorial ↗</a>` : ""}<div class="admin-actions"><button class="btn btn-primary btn-sm" type="button" data-complete-due="${escape(row.id)}">Zabeleži izvedbo</button></div></article>`).join("")}</div>` : '<p>Za ta teden še nimaš neopravljene aktivnosti v planu. Razporedi predlog vadbe ali dodaj svojo aktivnost v dvotedenski plan.</p>';
+        const heading = progress.due.length ? "Za opraviti · načrtovano v zadnjih treh dneh" : "V zadnjih treh dneh ni neopravljene vadbe. Izberi iz plana tega tedna ali zabeleži drugo aktivnost";
+        node.innerHTML = due.length ? `<h3>${heading}</h3><div class="fitness-template-grid">${due.map(row => `<article class="fitness-card"><h3>${escape(row.title)}</h3><small>Načrtovano: ${dateLabel(row.date)} · ${sessionMeta(row, "plan")}</small>${row.description ? `<p>${escape(row.description)}</p>` : ""}${row.advice ? `<details class="fitness-advice"><summary>Nasvet</summary><p>${escape(row.advice)}</p></details>` : ""}${row.tutorial_url ? `<a href="${escape(row.tutorial_url)}" target="_blank" rel="noopener noreferrer">Tutorial ↗</a>` : ""}<div class="admin-actions"><button class="btn btn-primary btn-sm" type="button" data-complete-due="${escape(row.id)}">Zabeleži izvedbo</button></div></article>`).join("")}</div>` : '<p>V zadnjih 7 dneh še nimaš aktivnosti. Zabeleži katerokoli aktivnost (tudi tisto, ki ni v planu) ali razporedi predlog vadbe v dvotedenski plan.</p>';
     }
     function renderCycle() {
         el("fitness-cycle-library").innerHTML = state.suggestions.map(row => `<button type="button" class="btn btn-sm btn-outline-primary" data-schedule-suggestion="${escape(row.id)}">${escape(row.title)}</button>`).join("");
@@ -396,6 +396,7 @@
     el("fitness-session-form").addEventListener("submit", event => {
         event.preventDefault(); const form = event.currentTarget, payload = serialize(form), context = editContext;
         payload.timestamp = actualTimestamp(form); payload.date = payload.plan_date;
+        payload.template_id = state.templates.some(row => row.id === el("session-template").value) ? el("session-template").value : "";
         const recurring = ["plan", "schedule"].includes(context.collection) && !context.complete && payload.parity;
         const collection = recurring ? "schedule" : context.collection;
         save(form, context.complete ? `/plan/${context.id}/complete` : `/${collection}${context.id ? `/${context.id}` : ""}`, context.complete || !context.id ? "POST" : "PUT", payload, el("fitness-session-dialog"));

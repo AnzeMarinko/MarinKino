@@ -30,8 +30,10 @@
 
 <section id="admin-access" class="admin-panel" aria-labelledby="access-title">
   <div class="admin-section-heading"><div><h2 id="access-title">Statistika dostopa</h2><p>Mesečni dostop po poteh in dnevni dostop uporabnikov v zadnjih 30 dneh.</p></div></div>
-  <h3>Mesečni pregled</h3><div id="access-monthly-graph" class="admin-plot" aria-label="Graf mesečnega dostopa"></div>
-  <div class="admin-filter-bar"><label for="accessStatus" class="form-label mb-0">Status odgovora</label><select id="accessStatus" class="form-select w-auto">{% for status in access_stats_users %}<option value="{{ status }}">{{ status }} · {{ 'uspešno' if status.startswith('2') else 'preusmeritev' if status.startswith('3') else 'napaka zahteve' if status.startswith('4') else 'napaka strežnika' if status.startswith('5') else 'drugo' }}</option>{% endfor %}</select></div>
+  <h3>Mesečni pregled</h3>
+  <div class="admin-filter-bar"><label for="accessRoute" class="form-label mb-0">Pot</label><select id="accessRoute" class="form-select w-auto"></select></div>
+  <div id="access-monthly-graph" class="admin-plot" aria-label="Graf mesečnega dostopa"></div>
+  <div class="admin-filter-bar"><label for="accessStatus" class="form-label mb-0">Status odgovora</label><select id="accessStatus" class="form-select w-auto">{% for status in access_stats_users %}<option value="{{ status }}">{{ status }} · {{ 'uspešno' if status.startswith('2') else 'preusmeritev' if status.startswith('3') else 'napaka zahteve' if status.startswith('4') else 'napaka strežnika' if status.startswith('5') else 'drugo' }}</option>{% endfor %}</select><label for="accessUser" class="form-label mb-0">Uporabnik</label><select id="accessUser" class="form-select w-auto"></select></div>
   <div id="access-user-graph" class="admin-plot" aria-label="Graf dostopa uporabnikov"></div>
 </section>
 
@@ -39,6 +41,10 @@
   <div class="admin-section-heading"><div><h2 id="blog-stats-title">Statistika bloga</h2><p>Ogledi posameznih objav in dnevni pregled branja.</p></div><a class="btn btn-outline-secondary" href="/admin/blog">Upravljaj objave</a></div>
   <div class="table-responsive"><table class="table table-hover" data-sortable><thead><tr><th scope="col" data-sort="text">Naslov</th><th scope="col" data-sort="number">Ogledi</th><th scope="col" data-sort="number">Slovenija</th><th scope="col" data-sort="text">Datum</th></tr></thead><tbody>{% for stat in blog_stats %}<tr><td><a href="/admin/blog/edit/{{ stat.id }}">{{ stat.title }}</a></td><td>{{ stat.views }}</td><td>{{ stat.si_views }}</td><td>{{ stat.created_at }}</td></tr>{% else %}<tr><td colspan="4" class="text-muted">Ni še podatkov o objavah.</td></tr>{% endfor %}</tbody></table></div>
   <div id="blog-views-graph" class="admin-plot mt-3" aria-label="Graf dnevnih ogledov bloga"></div>
+  <h3 class="mt-4">Rast ogledov po objavah</h3>
+  <p class="small text-muted">Skupni ogledi od prvega zabeleženega ogleda. Osi sta linearni; x-os uporablja log₂ dni, y-os pa kvadratni koren ogledov. Oznake kažejo dejanske vrednosti ogledov in dni. Na x-osi 1 pomeni prvi dan, 2 drugi dan, 4 četrti dan … 1024 je 1024. dan.</p>
+  <div class="admin-filter-bar"><label for="blogPostSelect" class="form-label mb-0">Objava</label><select id="blogPostSelect" class="form-select w-auto"></select></div>
+  <div id="blog-growth-graph" class="admin-plot" aria-label="Graf rasti ogledov posameznih objav"></div>
 </section>
 
 <section id="admin-traffic" class="admin-panel" aria-labelledby="traffic-title">
@@ -55,7 +61,7 @@
   <div class="admin-view-as"><div><strong>Predogled strani kot uporabnik</strong><p class="small mb-0 mt-1">Odpre prikaz izbrane vloge. Za vrnitev uporabi povezavo v opozorilni pasici.</p></div><div class="admin-actions">{% for mode, label in [('anonymous', 'Neprijavljen'), ('user', 'Uporabnik')] %}<form method="post" action="/admin/set-view-as/{{ mode }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-outline-secondary" type="submit">{{ label }}</button></form>{% endfor %}<form method="post" action="/admin/clear-view-as"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-outline-primary" type="submit">Administrator</button></form></div></div>
 
 </section>
-<div id="adminData" data-stats='{{ {"accessUsers": access_stats_users, "users": users, "accessMonthly": access_stats_monthly, "blogDaily": blog_views_daily, "blogSiDaily": blog_si_views_daily, "geoCities": geo_stats_cities}|tojson }}' hidden></div>
+<div id="adminData" data-stats='{{ {"accessUsers": access_stats_users, "users": users, "accessMonthly": access_stats_monthly, "blogDaily": blog_views_daily, "blogSiDaily": blog_si_views_daily, "blogPosts": blog_posts_daily or {}, "geoCities": geo_stats_cities}|tojson }}' hidden></div>
 {% endblock %}
 {% block admin_scripts %}
 <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/vendor/plotly.min.js"></script>

@@ -38,6 +38,7 @@ WWW_DOMAIN = os.getenv("WWW_DOMAIN")
 AUTH_RATE_LIMIT = 5
 AUTH_RATE_LIMIT_TTL = 15 * 60
 PASSWORD_MIN_LENGTH = 12
+SESSION_ABSOLUTE_LIFETIME_SECONDS = 30 * 24 * 60 * 60
 _DUMMY_PASSWORD_HASH = generate_password_hash(secrets.token_urlsafe(32))
 # Auth state has its own bounded Redis, isolated from public statistics.
 statistics_redis = redis_client
@@ -85,12 +86,11 @@ def load_device_user(user_id):
     """Authenticate only registered devices and refresh their idle timeout."""
     device_id = session.get("device_id")
     started = session.get("authenticated_at", 0)
-    lifetime = (
-        12 * 3600 if users.get(user_id, {}).get("is_admin") else 30 * 86400
-    )
     if (
         isinstance(started, (int, float))
-        and 0 <= datetime.now(timezone.utc).timestamp() - started < lifetime
+        and 0
+        <= datetime.now(timezone.utc).timestamp() - started
+        < SESSION_ABSOLUTE_LIFETIME_SECONDS
         and user_id in users
         and session.get("credential_version")
         == users[user_id].get("credential_version", "")

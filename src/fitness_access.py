@@ -164,7 +164,7 @@ def init_fitness_access(app):
                     "Od zadnjega tehtanja sta minila več kot dva meseca. "
                     "Zabeleži novo meritev teže za odklep ostalih vsebin."
                     if weighing_locked
-                    else "Ta teden najprej opravi vsaj eno aktivnost iz plana."
+                    else "V zadnjih 7 dneh najprej opravi vsaj eno aktivnost."
                 ),
                 fitness_url=fitness_url,
                 progress=progress,
@@ -180,8 +180,8 @@ def init_fitness_access(app):
                     "minila več kot dva meseca."
                     if weighing_locked
                     else (
-                        "Ostale vsebine so zaklenjene. Ta teden najprej "
-                        "opravi vsaj eno aktivnost iz plana in zabeleži "
+                        "Ostale vsebine so zaklenjene. V zadnjih 7 dneh "
+                        "najprej opravi vsaj eno aktivnost in zabeleži "
                         "izvedbo."
                     )
                 )

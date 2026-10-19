@@ -362,6 +362,48 @@ def sync_schedule(connection, user_id, schedule_id, schedule=None):
             )
 
 
+def link_template(connection, user_id, collection, payload, data):
+    """Remember the source template of a plan item or recurring workout."""
+    template_id = data.get("template_id")
+    if (
+        collection in ("plan", "schedule")
+        and isinstance(template_id, str)
+        and get_entry(connection, user_id, "templates", template_id)
+    ):
+        payload["template_id"] = template_id
+
+
+def sync_template(connection, user_id, template_id, workout):
+    """Apply an edited template to every pending item created from it."""
+    cutoff = week_start(now_local().date()).isoformat()
+    for row in connection.execute(
+        "SELECT id, collection, payload FROM fitness_entries "
+        "WHERE user_id = ? AND collection IN ('plan', 'schedule')",
+        (user_id,),
+    ).fetchall():
+        payload = json.loads(row["payload"])
+        if payload.get("template_id") != template_id or payload.get(
+            "cancelled"
+        ):
+            continue
+        if row["collection"] == "schedule":
+            payload = {**payload, **workout}
+            update(connection, user_id, "schedule", row["id"], payload)
+            sync_schedule(connection, user_id, row["id"], payload)
+        elif (
+            not payload.get("activity_id")
+            and not payload.get("schedule_id")
+            and payload["date"] >= cutoff
+        ):
+            update(
+                connection,
+                user_id,
+                "plan",
+                row["id"],
+                {**payload, **workout},
+            )
+
+
 def materialize_schedule(connection, user_id, start=None):
     """Create dated copies once, without duplicating edited occurrences."""
     schedules = [
@@ -420,8 +462,12 @@ def plan_progress(state):
         return bool(actual and actual.get("plan_id") == plan["id"])
 
     week = [row for row in state["plan"] if first <= row["date"] <= last]
-    # Unlocking requires an actual execution this week, including a pending
-    # workout moved from a different planned day or week.
+    # Any logged activity counts, planned or not, within the last 7 days.
+    recent_activities = [
+        row
+        for row in state["activities"]
+        if (today - timedelta(days=6)) <= local_date(row) <= today
+    ]
     week_completed = [
         row
         for row in state["plan"]
@@ -445,7 +491,8 @@ def plan_progress(state):
         and row["status"] == "planned"
     ]
     return {
-        "allowed": bool(week_completed),
+        "allowed": bool(recent_activities),
+        "recent_activities": len(recent_activities),
         "week_start": first,
         "week_end": last,
         "iso_week": today.isocalendar().week,

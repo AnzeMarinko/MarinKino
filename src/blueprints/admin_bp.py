@@ -456,9 +456,11 @@ def admin_panel():
     total_si_views = 0
     blog_posts = load_blog_posts()
     blog_stats = []
+    blog_posts_daily = {}
     for post_id, post in blog_posts.items():
         views = 0
         si_views = 0
+        post_daily = {}
         for key in redis_client.scan_iter(f"blog:views:{post_id}:*"):
             part_views = 0
             part_si_views = 0
@@ -469,6 +471,7 @@ def admin_panel():
                     part_si_views += 1
             views += part_views
             si_views += part_si_views
+            post_daily[date_part] = part_views
             blog_views_daily[date_part] = (
                 blog_views_daily.get(date_part, 0) + part_views
             )
@@ -477,6 +480,11 @@ def admin_panel():
             )
         total_views += views
         total_si_views += si_views
+        blog_posts_daily[post_id] = {
+            "title": post["title"],
+            "created_at": post["created_at"][:10],
+            "views": post_daily,
+        }
         blog_stats.append(
             {
                 "id": post_id,
@@ -503,6 +511,7 @@ def admin_panel():
         access_stats_monthly=access_stats_monthly_dict,
         blog_views_daily=blog_views_daily,
         blog_si_views_daily=blog_si_views_daily,
+        blog_posts_daily=blog_posts_daily,
         blog_stats=blog_stats,
         total_blog_views=total_views,
         total_si_views=total_si_views,

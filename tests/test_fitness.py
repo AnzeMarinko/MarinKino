@@ -295,29 +295,28 @@ def test_recurring_deleted_occurrence_stays_deleted_and_is_private(ui):
     )
 
 
-def test_access_counts_actual_week_and_last_seven_planned_days(gated):
+def test_access_counts_any_activity_in_last_seven_days(gated):
     ui = gated
     plans = [
         create(ui, "plan", kind="running", date=day)
-        for day in (
-            "2026-10-07",
-            "2026-10-09",
-            "2026-10-12",
-            "2026-10-13",
-            "2026-10-14",
-        )
+        for day in ("2026-10-07", "2026-10-09", "2026-10-12", "2026-10-13")
     ]
-    complete_plan(ui, plans[1], timestamp="2026-10-11T12:00:00")
-    progress = state(ui)["plan_progress"]
-    assert not progress["allowed"]
-    assert (progress["recent_completed"], progress["recent_total"]) == (1, 4)
-    assert {row["date"] for row in progress["due"]} == {
-        "2026-10-12",
-        "2026-10-13",
-        "2026-10-14",
-    }
+    assert not state(ui)["plan_progress"]["allowed"]
     assert ui.client.get("/movies").status_code == 302
-    # A late execution of a previous week's plan also counts this week.
+    # An older execution does not unlock, even with the plan still pending.
+    create(ui, "activities", kind="running", timestamp="2026-10-07T12:00:00")
+    assert not state(ui)["plan_progress"]["allowed"]
+    # A different, unplanned activity unlocks and is counted.
+    other = create(
+        ui, "activities", kind="cycling", timestamp="2026-10-08T12:00:00"
+    )
+    progress = state(ui)["plan_progress"]
+    assert progress["allowed"]
+    assert progress["recent_activities"] == 1
+    assert ui.client.get("/music").status_code == 200
+    # The window is rolling: it expires after the seventh day.
+    ui.client.delete(f"/admin/fitness/activities/{other['id']}")
+    assert ui.client.get("/music").status_code == 302
     activity = complete_plan(ui, plans[0])
     assert ui.client.get("/music").status_code == 200
     assert state(ui)["plan_progress"]["week_completed"] == 1
@@ -326,10 +325,6 @@ def test_access_counts_actual_week_and_last_seven_planned_days(gated):
         == 204
     )
     assert ui.client.get("/music").status_code == 302
-    complete_plan(ui, plans[2], timestamp="2026-10-13T12:00:00")
-    progress = state(ui)["plan_progress"]
-    assert progress["allowed"]
-    assert (progress["recent_completed"], progress["recent_total"]) == (2, 4)
 
 
 def test_weighing_reminder_and_lock_date_thresholds():
@@ -384,9 +379,11 @@ def test_stale_weighing_locks_content_until_new_measurement(gated):
     assert ui.client.get("/movies").status_code == 200
 
 
-def test_access_rejects_unplanned_workouts_and_blocks_content_mutation(gated):
+def test_access_blocks_content_without_recent_activity(gated):
     ui = gated
-    create(ui, "activities", kind="running", duration_min=60)
+    create(
+        ui, "activities", kind="running", timestamp="2026-10-07T12:00:00"
+    )
     create(ui, "plan", kind="running", date="2026-10-14", status="skipped")
     for path in (
         "/",
@@ -541,9 +538,8 @@ def test_unknown_device_zone_keeps_fitness_condition(gated, zone):
     gated.client.set_cookie("marinkino_device_timezone", zone)
     response = gated.client.get("/movies")
     assert response.status_code == 302
-    assert (
-        "Ta teden najprej opravi" in gated.client.get(response.location).text
-    )
+    page = gated.client.get(response.location).text
+    assert "V zadnjih 7 dneh najprej opravi" in page
 
 
 def test_night_redirect_clears_preview_and_flashes_once(gated):
@@ -678,10 +674,10 @@ def test_access_progress_appears_on_other_pages(gated):
     assert response.status_code == 200
     assert 'id="site-fitness-progress"' in response.text
     assert "1 / 1 opravljenih" in response.text
-    assert "Izvedbe iz plana ta teden: 1" in response.text
+    assert "Aktivnosti v zadnjih 7 dneh: 1" in response.text
 
 
-def test_access_cache_unlocks_immediately_and_resets_on_monday(
+def test_access_cache_unlocks_immediately_and_resets_after_seven_days(
     gated, monkeypatch
 ):
     import fitness_access
@@ -701,7 +697,7 @@ def test_access_cache_unlocks_immediately_and_resets_on_monday(
         monkeypatch.setattr(
             fitness,
             "now_local",
-            lambda: datetime(2026, 10, 19, 0, 1, tzinfo=fitness.LOCAL_ZONE),
+            lambda: datetime(2026, 10, 21, 0, 1, tzinfo=fitness.LOCAL_ZONE),
         )
         assert ui.client.get("/movies").status_code == 302
         assert read.call_count == 3
@@ -1599,3 +1595,55 @@ def test_browser_distance_totals_and_precise_cycling(ui, browser):
     page.locator("#fitness-suggestions").screenshot(
         path="/private/tmp/fitness-workout-suggestions.png"
     )
+
+
+def test_template_edit_updates_pending_plan_and_schedule(ui):
+    template = create(
+        ui, "templates", kind="running", title="Tek", duration_min=20
+    )
+    tid = template["id"]
+    pending = create(
+        ui, "plan", kind="running", date="2026-10-15", template_id=tid,
+        duration_min=20,
+    )
+    done = create(
+        ui, "plan", kind="running", date="2026-10-14", template_id=tid,
+        duration_min=20,
+    )
+    complete_plan(ui, done)
+    unrelated = create(
+        ui, "plan", kind="running", date="2026-10-16", duration_min=20
+    )
+    unknown = create(
+        ui, "plan", kind="running", date="2026-10-17", template_id="nope"
+    )
+    recurring = create(
+        ui, "schedule", kind="running", parity="even", weekday=0,
+        template_id=tid, duration_min=20,
+    )
+    assert "template_id" not in unknown
+    assert ui.client.get("/admin/fitness/data").status_code == 200
+
+    response = ui.client.put(
+        f"/admin/fitness/templates/{tid}",
+        json={"kind": "running", "title": "Tek", "duration_min": 45},
+    )
+    assert response.status_code == 200
+
+    data = state(ui)
+    plans = {row["id"]: row for row in data["plan"]}
+    assert plans[pending["id"]]["duration_min"] == 45
+    assert plans[done["id"]]["duration_min"] == 20
+    assert plans[unrelated["id"]]["duration_min"] == 20
+    schedule = next(r for r in data["schedule"] if r["id"] == recurring["id"])
+    assert schedule["duration_min"] == 45
+    assert schedule["template_id"] == tid
+    copies = [r for r in data["plan"] if r.get("schedule_id")]
+    assert copies and all(r["duration_min"] == 45 for r in copies)
+
+    # Editing a linked plan item keeps the link to its template.
+    edited = ui.client.put(
+        f"/admin/fitness/plan/{pending['id']}",
+        json={"kind": "running", "date": "2026-10-15", "duration_min": 30},
+    )
+    assert edited.json["entry"]["template_id"] == tid

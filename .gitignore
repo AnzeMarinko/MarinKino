@@ -9,6 +9,7 @@ cache/logs
 credentials/*.json
 configuration/nginx
 configuration/certbot
+configuration/vendor-assets.json
 docs/TODO-plans.md
 data/blog_subscribers.json
 
