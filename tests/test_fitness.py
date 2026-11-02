@@ -49,11 +49,11 @@ def ui(tmp_path, monkeypatch):
         WTF_CSRF_ENABLED=False,
         FITNESS_DATABASE=str(tmp_path / "fitness.sqlite3"),
     )
-    monkeypatch.setattr(
-        fitness,
-        "now_local",
-        lambda: datetime(2026, 10, 14, 15, 25, tzinfo=fitness.LOCAL_ZONE),
+    fixed_now = lambda: datetime(  # noqa: E731
+        2026, 10, 14, 15, 25, tzinfo=fitness.LOCAL_ZONE
     )
+    monkeypatch.setattr(fitness, "now_local", fixed_now)
+    monkeypatch.setattr(module, "now_local", fixed_now)
 
     class User(UserMixin):
         @property

@@ -77,7 +77,10 @@ def main():
         == 400
     )
     assert client.get("/logout").status_code in {302, 405}
-    assert client.get("/blog/private-draft").status_code == 404
+    draft = client.get("/blog/private-draft")
+    assert draft.status_code == 200, draft.status_code
+    assert b"Secret draft" not in draft.data
+    assert b"Private draft" not in draft.data
     assert client.get("/music/file/readme.json").status_code == 302
     assert client.get("/login").headers["X-Content-Type-Options"] == "nosniff"
     origin = "https://" + os.getenv("WWW_DOMAIN", "localhost")

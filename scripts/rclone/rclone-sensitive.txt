@@ -27,3 +27,4 @@ blog_subscribers.json
 users_comments.json
 /data/users-music-albums/**
 /configuration/certbot/conf/**
+/data/movies/**/readme.json

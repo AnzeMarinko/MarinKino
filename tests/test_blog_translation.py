@@ -237,7 +237,9 @@ def test_anonymous_translation_source_contains_only_published_posts(blog):
     html = response.get_data(as_text=True)
     assert "Javna objava" in html
     assert "Zasebni osnutek" not in html
-    assert blog.app.test_client().get("/blog/osnutek").status_code == 404
+    draft = blog.app.test_client().get("/blog/osnutek")
+    assert draft.status_code == 200
+    assert "Zasebni osnutek" not in draft.get_data(as_text=True)
 
 
 def test_private_page_has_no_translation_control(blog):

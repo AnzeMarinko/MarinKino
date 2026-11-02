@@ -407,6 +407,8 @@ def admin_panel():
     # Referrer statistics
     referrer_stats = {}
     for key in redis_client.scan_iter("stats:referrer:*"):
+        if redis_client.type(key) != "hash":
+            continue
         date_part = key.split(":")[-1]
         referrer_data = redis_client.hgetall(key)
         for source, count in referrer_data.items():
@@ -419,6 +421,8 @@ def admin_panel():
     all_geo_data = {}
     for key in redis_client.scan_iter("stats:geo:*"):
         if key.startswith("stats:geo:seen:"):
+            continue
+        if redis_client.type(key) != "hash":
             continue
         date_part = key.split(":")[-1]
         geo_data = redis_client.hgetall(key)

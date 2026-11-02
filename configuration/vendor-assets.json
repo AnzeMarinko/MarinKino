@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "updated_at": "2026-10-19T01:17:28.005539+00:00",
+  "updated_at": "2026-11-02T15:42:58.378544+00:00",
   "packages": {
     "bootstrap": {
       "version": "5.3.8",
@@ -13,9 +13,9 @@
       "tarball": "https://registry.npmjs.org/bootstrap-icons/-/bootstrap-icons-1.13.2.tgz"
     },
     "hls.js": {
-      "version": "1.7.3",
-      "integrity": "sha512-MsPlx6yVW4Qv4C7mEVou4/gk/5cN2dVxOTnrNjPSmyH2f0Ln+/UkG10Ax1PE6OvrmTVPKgQYozTtBaPOuCzq7A==",
-      "tarball": "https://registry.npmjs.org/hls.js/-/hls.js-1.7.3.tgz"
+      "version": "1.7.4",
+      "integrity": "sha512-3GlxGdPvT2YHvQYOt+yOzT/DEior/qJVNIylHA77kgeoBTdQQqi70GwefNEUmHQeNGyjC8U62+bruqW/Tpm+tg==",
+      "tarball": "https://registry.npmjs.org/hls.js/-/hls.js-1.7.4.tgz"
     },
     "plyr": {
       "version": "3.8.5",
@@ -61,7 +61,7 @@
     "fonts/bootstrap-icons.woff": "24929e8a44da027588f833d4e82240ee734bd65bf962b08b0545af58a9ce80fa",
     "fonts/bootstrap-icons.woff2": "2b7689746f87e0beeae25338bc021dd2515c2f6f003f3d3d064d878d380b2150",
     "licenses/bootstrap-icons.txt": "199ac0931cccf2f0ef9cf2186bf881780a17ab486bbd7deadb3fbf835bc6ace6",
-    "hls.min.js": "a12e7ee1cd64a69dcdb314157e45dafcba705bfb0b1440b7935cb265d374423e",
+    "hls.min.js": "cfc70cc9e9fc63d071919e087670abc760c8fd1bc889b88588026e4d22193bbe",
     "licenses/hls.js.txt": "3a637867222f040b7a021b720851be836db99674e96276438d1d02bd0a2068cf",
     "plyr.css": "b5b0b0d4a4042361e89378924d82120994b4f9e3193508e6c0f6d15754f80259",
     "plyr.min.js": "3861802c6e5e46c0acc104a5ecec761c2992a7e93a685fab349004c44436410a",

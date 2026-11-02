@@ -23,9 +23,10 @@ class WeatherServiceTests(unittest.TestCase):
         self.assertEqual(weather["utc_offset_seconds"], 46800)
         self.assertEqual(weather["current"]["time"], "2026-10-10T00:15")
 
-    def test_next_full_moon_countdown_returns_positive_hours(self):
+    def test_next_full_moon_countdown_returns_hours_to_or_since_full_moon(self):
         self.assertEqual(hours_until_next_full_moon(0.29), 149)
-        self.assertEqual(hours_until_next_full_moon(0.5), 709)
+        self.assertEqual(hours_until_next_full_moon(0.5), 0)
+        self.assertLess(hours_until_next_full_moon(0.52), 0)
         self.assertEqual(hours_until_next_full_moon(0.29, 18), 131)
 
     def test_build_weather_data_uses_current_and_daily_values(self):

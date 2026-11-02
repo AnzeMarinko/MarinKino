@@ -122,15 +122,17 @@ python3 "$runtime" check-uid --project "$project" --uid "$uid" --gid "$gid"
 python3 "$config" prepare --project "$project" --uid "$uid" --gid "$gid"
 python3 "$config" firewall --project "$project" --apply
 python3 "$helper_dir/vendor_assets.py" --project "$project" --refresh
-"${compose[@]}" pull nginx
 docker pull aquasec/trivy:latest
 candidate="marinkino-app:security-$stamp"
 redis_candidate="marinkino-redis:security-$stamp"
 certbot_candidate="marinkino-certbot:security-$stamp"
+nginx_candidate="marinkino-nginx:security-$stamp"
+docker build --pull --no-cache --tag "$nginx_candidate" "$project/configuration/nginx-image"
 docker build --pull --no-cache --tag "$redis_candidate" "$project/configuration/redis"
 docker build --pull --no-cache --tag "$certbot_candidate" "$project/configuration/certbot-image"
 export MARINKINO_REDIS_IMAGE="$redis_candidate"
 export MARINKINO_CERTBOT_IMAGE="$certbot_candidate"
+export MARINKINO_NGINX_IMAGE="$nginx_candidate"
 export MARINKINO_APP_IMAGE="$candidate" UPDATE_DEPENDENCIES=1 SECURITY_REFRESH="$stamp"
 "${compose[@]}" build --pull app
 python3 "$runtime" audit --image "$candidate"
@@ -138,7 +140,7 @@ python3 "$runtime" audit --image "$candidate"
 # Database downloads and layer extraction exceed a small tmpfs. Use private
 # disk scratch space, removed by cleanup on success/failure, instead of RAM.
 install -d -m 700 "$state/trivy" "$work/trivy-tmp"
-for image in "$candidate" nginx:stable-alpine "$redis_candidate" "$certbot_candidate"; do
+for image in "$candidate" "$nginx_candidate" "$redis_candidate" "$certbot_candidate"; do
     printf '\nScanning image: %s\n' "$image"
     docker image save -o "$work/image.tar" "$image"
     docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges \
@@ -165,7 +167,7 @@ docker run --rm --read-only --cap-drop ALL \
     --tmpfs /var/cache/nginx --tmpfs /run \
     -v "$work/nginx:/etc/nginx/conf.d:ro" \
     -v "$project/configuration/certbot/conf:/etc/letsencrypt:ro" \
-    nginx:stable-alpine nginx -t
+    "$nginx_candidate" nginx -t
 # The old containers keep serving throughout all downloads, builds and tests.
 if ((rollback_available)); then
     python3 "$runtime" verify-snapshot --input "$work/previous-compose.json"
@@ -185,6 +187,7 @@ curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 3 --
 docker tag "$candidate" marinkino-app:current
 docker tag "$redis_candidate" marinkino-redis:current
 docker tag "$certbot_candidate" marinkino-certbot:current
+docker tag "$nginx_candidate" marinkino-nginx:current
 # Persist the last successful runtime inventory and a rollback snapshot.
 python3 "$runtime" snapshot --project "$project" --output "$state/current-compose.json"
 if [[ -f "$work/previous-compose.json" ]]; then

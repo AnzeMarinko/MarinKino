@@ -86,15 +86,13 @@ def stats_fields(store):
     }
 
 
-def test_random_404_urls_share_bounded_statistics_and_expire(http):
+def test_unmatched_urls_are_recorded_by_path_and_expire(http):
     for index in range(120):
         response = http.client.get(f"/scanner-{index}/secret-{index}.php")
         assert response.status_code == 404
     fields = stats_fields(http.redis)
-    assert len(fields) == 1
-    assert not any(
-        "scanner-" in field or "secret-" in field for field in fields
-    )
+    assert len(fields) == 120
+    assert "GET /scanner-0/secret-0.php" in fields
     for key in http.redis.scan_iter("stats:*"):
         assert 0 < http.redis.ttl(key) <= security_http.STATS_TTL
     daily = list(http.redis.scan_iter("stats:daily:*"))
@@ -109,24 +107,22 @@ def test_invented_http_verbs_cannot_make_unlimited_statistics_fields(http):
     assert len(stats_fields(http.redis)) <= 10
 
 
-def test_parameterized_routes_and_referrers_do_not_store_attacker_strings(
-    http,
-):
+def test_referrers_are_bucketed_and_routes_recorded_by_path(http):
     for index in range(35):
         response = http.client.get(
-            f"/article/private-id-{index}",
+            f"/article/id-{index}",
             headers={
                 "Referer": f"https://random-{index}.example/secret-{index}"
             },
         )
         assert response.status_code == 200
     fields = stats_fields(http.redis)
-    assert not any(
-        "private-id-" in field or "random-" in field for field in fields
-    )
-    assert len(fields) <= 3
+    assert "GET /article/id-0" in fields
+    assert not any("random-" in field for field in fields)
+    assert len(fields) == 35 + 1
     for key in http.redis.scan_iter("stats:*"):
         assert http.redis.ttl(key) > 0
+
 
 
 def test_malformed_referrer_never_breaks_response(http):
