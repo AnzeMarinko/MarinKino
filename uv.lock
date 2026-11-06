@@ -588,6 +588,18 @@ wheels = [
 ]
 
 [[package]]
+name = "colorlog"
+version = "6.7.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/78/6b/4e5481ddcdb9c255b2715f54c863629f1543e97bc8c309d1c5c131ad14f2/colorlog-6.7.0.tar.gz", hash = "sha256:bd94bd21c1e13fac7bd3153f4bc3a7dc0eb0974b8bc2fdf1a989e474f6e582e5", size = 29920, upload-time = "2022-08-29T14:51:27.945Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/58/43/a363c213224448f9e194d626221123ce00e3fb3d87c0c22aed52b620bdd1/colorlog-6.7.0-py2.py3-none-any.whl", hash = "sha256:0d33ca236784a1ba3ff9c532d4964126d8a2c44f1f0cb1d2b0728196f512f662", size = 11286, upload-time = "2022-08-29T14:51:26.426Z" },
+]
+
+[[package]]
 name = "configargparse"
 version = "1.8.0"
 source = { registry = "https://pypi.org/simple" }
@@ -891,6 +903,34 @@ wheels = [
 [package.optional-dependencies]
 lua = [
     { name = "lupa" },
+]
+
+[[package]]
+name = "ffmpeg-normalize"
+version = "1.43.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorlog" },
+    { name = "ffmpeg-progress-yield" },
+    { name = "mutagen" },
+    { name = "tqdm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a7/52/235f2990dfafe030161dcd0c8f9e1c5c9b47cd0ccbf0cad95cfbd2fb39f2/ffmpeg_normalize-1.43.0.tar.gz", hash = "sha256:6ff299430650c2b8c0a3e0d7484c44525dedf02541aef4fe0ee23c5149c2e03a", size = 46694, upload-time = "2026-10-14T10:11:22.914Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cc/31/c9ca8e2781533d0951f65ca538685898ad636155a4f29b31e9000c0ed5d5/ffmpeg_normalize-1.43.0-py3-none-any.whl", hash = "sha256:e3ed508061bc246b69c46bf7e7c68cc01b56e3ecd64fcc173b7c4a3c31667291", size = 52939, upload-time = "2026-10-14T10:11:21.529Z" },
+]
+
+[[package]]
+name = "ffmpeg-progress-yield"
+version = "1.1.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "tqdm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d1/eb/a363add886230f72e69e671470607e76d7e80c796c63fff80e45a8696d2a/ffmpeg_progress_yield-1.1.4.tar.gz", hash = "sha256:385cf688a347c4d9de598fc1345ba6c1c5b4465967e3a19fa943ce3ef9e4bb76", size = 10145, upload-time = "2026-10-11T18:29:57.251Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/62/c2/b690ae1ce94c94f3bcb3ec5ce812d7f82a8a63f63ead42b01d957d3f6600/ffmpeg_progress_yield-1.1.4-py3-none-any.whl", hash = "sha256:58b571317544ac05f36c06cf4ab8285ea469a5733ac6738e6ce709431197b5b3", size = 12750, upload-time = "2026-10-11T18:29:56.234Z" },
 ]
 
 [[package]]
@@ -1990,6 +2030,7 @@ preparation = [
     { name = "certbot" },
     { name = "chardet" },
     { name = "cinemagoer" },
+    { name = "ffmpeg-normalize" },
     { name = "gemini-srt-translator" },
     { name = "google-cloud" },
     { name = "google-cloud-translate" },
@@ -2021,6 +2062,7 @@ requires-dist = [
     { name = "chardet", marker = "extra == 'preparation'" },
     { name = "cinemagoer", marker = "extra == 'preparation'" },
     { name = "fakeredis", extras = ["lua"], marker = "extra == 'dev'", specifier = ">=2.31,<4" },
+    { name = "ffmpeg-normalize", marker = "extra == 'preparation'" },
     { name = "flask", specifier = ">=3.1.3,<4" },
     { name = "flask-compress", specifier = ">=1.25,<2" },
     { name = "flask-limiter", specifier = ">=4.1.1,<5" },

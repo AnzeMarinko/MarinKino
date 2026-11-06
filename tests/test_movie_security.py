@@ -396,6 +396,8 @@ def test_download_request_queues_without_building_on_http_thread(
     assert duplicate.json["status_url"] == status_url
     build.assert_not_called()
     job_id = status_url.rsplit("/", 1)[1]
+    assert response.json["page_url"] == f"{url}?job={job_id}"
+    assert movies.client.get(response.json["page_url"]).status_code == 200
     job = movies.app.extensions["jobs"].get(job_id)
     assert SECRET_NOTE not in json.dumps(job["payload"])
     assert SECRET_EMAIL not in json.dumps(job["payload"])

@@ -21,8 +21,8 @@ izključi samodejno; najprej preveri dostop s ključem.
   v HTML/JSON kataloga ali prenose arhivov.
 - Menjava in ponastavitev gesla prekličeta vse naprave in stare obnovitvene
   povezave. Različica poverilnic v zasebnem JSON prepreči ponovno uporabo
-  stare seje tudi po povrnitvi Redisovih zapisov. Največ deset naprav; sedem dni nedejavnosti, absolutno največ
-  30 dni oziroma 12 ur za skrbnika. Ob nadgradnji stare seje zahtevajo prijavo.
+  stare seje tudi po povrnitvi Redisovih zapisov. Največ 10 naprav za uporabnika oziroma 20 za skrbnika; sedem dni
+  nedejavnosti, absolutno največ 30 dni od prijave za oba. Ob nadgradnji stare seje zahtevajo prijavo.
 - Odjava uporablja POST + CSRF. Vnosi, zahteve, komentarji, predpomnilniki,
   statistike in zunanje poizvedbe imajo omejitve; 404 URL-ji se agregirajo.
 - JSON zapisi se zaklepajo čez celoten popravek in zapisujejo atomsko.
@@ -37,7 +37,10 @@ izključi samodejno; najprej preveri dostop s ključem.
 CSP uveljavlja `default-src`, `script-src` z naključnim nonce in
 `script-src-attr none` ter omejitve za `base`, objekte, okvirjanje in obrazce.
 Kontrole uporabljajo poslušalce dogodkov namesto inline handlerjev. HLS workerji
-lahko uporabljajo `blob:`. Turnstile ostane namenska zunanja skripta Cloudflare.
+lahko uporabljajo `blob:`. Turnstile ostane namenska zunanja skripta Cloudflare. Skrbniška stran za
+cene zlata dovoli še BullionVault skripto, slog in povezavo do podatkovnega
+strežnika; graf se naloži šele po izrecnem kliku. Ta izjema ne velja za
+ostale strani in ne omogoči inline JavaScripta ali `eval`.
 Nginx ohrani aplikacijski CSP; isti glavi ne dodaja podvojene politike.
 
 Dostopni dnevniki Nginx maskirajo obnovitvene in naročniške žetone v poteh ter izpuščajo
@@ -331,12 +334,10 @@ upravitelja gesel. Aktivacija zahteva ročno vpisovanje v TOTP aplikacijo.
 
 ## Lokalno preverjanje sprememb
 
-Preverjeni so regresijski testi za zasebnost, CSRF, seje, omejitve, varno
-pisanje in generirano konfiguracijo ter brskalniški testi urejevalnika,
-prijave in predvajalnika. Celotna zbirka vsebuje starejši neuspešen test
-`test_next_full_moon_countdown_returns_positive_hours`: pri fazi `0.5`
-pričakuje 709 ur, izvorna funkcija in trenutna različica vrneta 0. Izračun
-lune ni spremenjen z varnostnimi popravki.
+Regresijski testi pokrivajo zasebnost, CSRF, seje, omejitve, varno pisanje
+in generirano konfiguracijo. Brskalniški testi preverjajo urejevalnike,
+prijavo, navigacijo in predvajalnike. Postopek je v
+[navodilih za testiranje](installation.md#preverjanje-sprememb).
 
 Docker Engine, Nginx in nftables na razvojnem Macu niso na voljo. Njihova
 končna preverjanja in izolirani kontejnerski test se izvedejo na Pi znotraj

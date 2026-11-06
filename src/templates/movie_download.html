@@ -5,7 +5,8 @@
 {% block heading %}Prenos filma{% endblock %}
 {% block intro %}{{ movie.title }}{% endblock %}
 {% block form_title %}Pripravi za ogled brez povezave{% endblock %}
-{% block description %}Priprava lahko traja nekaj minut. Medtem lahko stran uporabljaš naprej.{% endblock %}
+{% block description %}Priprava lahko traja nekaj minut. Povezavo do te strani shrani, če se želiš vrniti pozneje.{% endblock %}
+{% block tip %}<i class="bi bi-cloud-download" aria-hidden="true"></i><span>Najprej pripravi datoteko, nato izberi »Prenesi film«. Prenos se začne šele po tvojem kliku.</span>{% endblock %}
 {% block auth_content %}
 <form id="movie-download-form" method="post" action="{{ prepare_url }}" data-status-url="{{ status_url }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

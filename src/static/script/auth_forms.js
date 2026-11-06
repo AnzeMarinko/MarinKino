@@ -16,6 +16,13 @@
       syncToggle(button);
     });
   });
+  form.querySelectorAll('.auth-password input').forEach((input) => {
+    const warning = document.getElementById(`${input.id}-caps`);
+    const showCapsLock = (event) => { warning.hidden = !event.getModifierState('CapsLock'); };
+    input.addEventListener('keydown', showCapsLock);
+    input.addEventListener('keyup', showCapsLock);
+    input.addEventListener('blur', () => { warning.hidden = true; });
+  });
   const password = form.querySelector('#password');
   const confirm = form.querySelector('#password_confirm');
   if (!password || !confirm) return;

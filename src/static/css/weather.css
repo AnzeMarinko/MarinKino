@@ -1092,3 +1092,8 @@
 @media (prefers-reduced-motion: reduce) {
     .weather-page *, .weather-page *::before, .weather-page *::after { animation: none !important; transition: none !important; }
 }
+
+.weather-jump-links { display:flex; flex-wrap:wrap; gap:.5rem .9rem; margin:0 0 1.25rem; }
+.weather-jump-links a { color:#285e72; background:#ffffffc9; border:1px solid #cbdde5; border-radius:2rem; padding:.55rem .9rem; font-size:.85rem; text-decoration:none; }
+.weather-jump-links a:hover { background:#e6f3f8; text-decoration:underline; }
+.weather-page [tabindex="-1"] { scroll-margin-top:7rem; }

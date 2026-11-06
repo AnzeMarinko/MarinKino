@@ -188,7 +188,7 @@ def test_browser_movie_catalog_filters_and_retry(films, browser):
     ui.app.config["MOVIE_PAGE_FAIL"] = True
     page.get_by_role("button", name="Naloži več filmov").click()
     expect(
-        page.get_by_text("Nalaganje ni uspelo. Poskusi znova.")
+        page.get_by_text("Nalaganje ni uspelo.", exact=False)
     ).to_be_visible()
     ui.app.config["MOVIE_PAGE_FAIL"] = False
     page.get_by_role("button", name="Naloži več filmov").click()
@@ -196,6 +196,9 @@ def test_browser_movie_catalog_filters_and_retry(films, browser):
         "() => document.querySelectorAll('.movie-card').length === 2"
     )
     assert page.locator("#movies-more").is_hidden()
+    assert page.locator(".movie-card").last.evaluate(
+        "el => el === document.activeElement"
+    )
     page.get_by_role("button", name="Poišči filme").click()
     assert "onlyunwatched=off" in page.url
     assert "onlyrecommended=off" in page.url
@@ -239,7 +242,9 @@ def test_browser_movie_keyboard_shortcuts_in_fullscreen(films, browser):
         const video = document.querySelector('#videoPlayer');
         let currentTime = 20;
         let paused = true;
-        Object.defineProperty(video, 'duration', {configurable: true, value: 100});
+        Object.defineProperty(video, 'duration', {
+            configurable: true, value: 100,
+        });
         Object.defineProperty(video, 'currentTime', {
             configurable: true,
             get: () => currentTime,
@@ -490,3 +495,43 @@ def test_browser_plyr_controls_fit_and_progress_shines(films, browser):
         )
         == "none"
     )
+
+
+def test_browser_movie_alert_dialog_and_failed_rating_keep_context(
+    films, browser
+):
+    ui, _ = films
+    ui.movie["user_notes"] = {
+        "note": dict(
+            is_admin=True,
+            text="Pomemben prizor",
+            type="opozorilo",
+            random_index="note",
+        )
+    }
+    page = browser.page
+    page.goto(browser.base + "/movies/play/test/one")
+    edit = page.locator('[data-movie-action="edit-alert"]')
+    edit.click()
+    expect(page.get_by_role("dialog", name="Uredi opozorilo")).to_be_visible()
+    assert page.locator("#edit_alert_text").input_value() == "Pomemben prizor"
+    assert page.locator("#edit_alert_text").evaluate(
+        "el => el === document.activeElement"
+    )
+    page.keyboard.press("Escape")
+    expect(page.locator("#editAlertModal")).not_to_be_visible()
+    assert edit.evaluate("el => el === document.activeElement")
+    page.locator('[data-movie-action="rate"]').click()
+    choice = page.locator('.stars[data-name="would-watch"] [data-value="4"]')
+    choice.click()
+    expect(choice).to_have_attribute("aria-pressed", "true")
+    page.route(
+        "**/movies/rate",
+        lambda route: route.fulfill(status=503, json={"error": "offline"}),
+    )
+    page.locator("#ratingSubmit").click()
+    expect(page.locator("#rating-status")).to_contain_text(
+        "Izbire so ohranjene"
+    )
+    expect(choice).to_have_attribute("aria-pressed", "true")
+    expect(page.locator("#ratingSubmit")).to_be_enabled()

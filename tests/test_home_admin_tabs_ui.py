@@ -162,6 +162,7 @@ def test_browser_home_and_admin_tabs_responsive(sections, browser):
 def test_browser_gold_failure_and_retry(sections, browser):
     page = browser.page
     page.goto(browser.base + "/admin/gold")
+    page.get_by_role("button", name="Naloži graf").click()
     page.get_by_text(
         "Grafa trenutno ni mogoče naložiti.", exact=False
     ).wait_for()

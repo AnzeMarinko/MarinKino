@@ -86,6 +86,7 @@ def test_browser_blog_search_and_reading_navigation(public_blog, browser):
     assert page.locator("#blog-section-3").evaluate(
         "(el) => el.getBoundingClientRect().top >= 0"
     )
+    expect(page.locator("#blog-section-3")).to_be_focused()
     page.locator(".blog-article-footer a").click()
     page.wait_for_url(browser.base + "/blog")
 
@@ -133,6 +134,30 @@ def test_browser_public_blog_works_with_enforced_csp(public_blog, browser):
     assert page.evaluate("window.policyViolations") == []
 
 
+def test_browser_subscription_keeps_same_origin_csrf_referrer(
+    public_blog, browser
+):
+    page = browser.page
+    captured = []
+
+    def capture(route):
+        if route.request.method == "POST":
+            captured.append(route.request.headers)
+            route.fulfill(status=200, body="Captured locally")
+        else:
+            route.continue_()
+
+    page.route("**/blog/subscribe", capture)
+    page.goto(browser.base + "/blog/subscribe?lang=sl")
+    page.locator("#subscribe-email").fill("test@example.com")
+    page.locator("#subscribe-terms").check()
+    page.locator("button.submit").click()
+    page.wait_for_load_state()
+    assert captured[0]["referer"] == (
+        browser.base + "/blog/subscribe?lang=sl"
+    )
+
+
 def test_browser_blog_without_javascript(public_blog, browser):
     context = browser.page.context.browser.new_context(
         java_script_enabled=False
@@ -164,6 +189,7 @@ def test_browser_pagination_index_and_global_search(public_blog, browser):
     expect(page.locator("[data-blog-post]")).to_have_count(12)
     page.get_by_role("link", name="Naslednja →", exact=True).click()
     expect(page.locator(".blog-page-current")).to_have_text("2")
+    expect(page.locator("#blog-posts")).to_be_focused()
     assert "page=2" in page.url
     expect(page.locator("[data-blog-post]")).to_have_count(12)
     page.go_back()

@@ -212,16 +212,38 @@ def ui(tmp_path):
     )
 
 
-def test_admin_templates_render(ui):
+@pytest.fixture
+def admin_tools(ui):
+    """Add isolated UI-only routes without shadowing real-view fixtures."""
+    @ui.app.route("/admin/logs")
+    def logs():
+        return render_template(
+            "admin_logs.html",
+            system_log=(
+                "INFO Zagon\nERROR Povezava <script>bad()</script>"
+                "\nINFO Zadnji dogodek"
+            ),
+        )
+
+    @ui.app.route("/admin/gold", endpoint="admin.admin_gold")
+    def gold():
+        return render_template("admin_gold.html")
+
+    return ui
+
+
+def test_admin_templates_render(admin_tools):
     for path in [
         "/admin",
         "/admin/blog",
         "/admin/blog/new",
         "/admin/register",
         "/admin/send_emails",
+        "/admin/logs",
+        "/admin/gold",
         "/memes",
     ]:
-        response = ui.client.get(path)
+        response = admin_tools.client.get(path)
         assert response.status_code == 200, path
         assert "csrf-token" in response.text
 
@@ -333,7 +355,9 @@ def browser(ui):
     assert not errors, errors
 
 
-def test_browser_admin_filters_comments_and_mobile_layout(browser):
+def test_browser_admin_filters_comments_and_mobile_layout(
+    admin_tools, browser,
+):
     page = browser.page
     page.goto(browser.base + "/admin")
     page.locator(".admin-comment").wait_for()
@@ -364,6 +388,8 @@ def test_browser_admin_filters_comments_and_mobile_layout(browser):
             "/admin/register",
             "/admin/send_emails",
             "/admin/blog/new",
+            "/admin/logs",
+            "/admin/gold",
             "/memes",
         ]:
             page.goto(browser.base + path)
@@ -381,12 +407,16 @@ def test_browser_admin_filters_comments_and_mobile_layout(browser):
     assert page.locator("#blogPostsTable tbody tr:visible").count() == 1
     page.locator("[data-table-search]").fill("ni take objave")
     assert page.locator("[data-table-empty]").is_visible()
+    page.get_by_role("button", name="Počisti filtre").click()
+    assert page.locator("#blogPostsTable tbody tr:visible").count() == 2
+    assert page.locator("#postStatus").input_value() == ""
 
 
 def fill_markdown(page, content):
     if page.locator(".CodeMirror").count():
         page.evaluate(
-            "value => document.querySelector('.CodeMirror').CodeMirror.setValue(value)",
+            "value => document.querySelector('.CodeMirror')"
+            ".CodeMirror.setValue(value)",
             content,
         )
     else:
@@ -396,6 +426,9 @@ def fill_markdown(page, content):
 def test_browser_editor_reuses_saved_post_and_preserves_failed_edits(browser):
     page = browser.page
     page.goto(browser.base + "/admin/blog/new")
+    assert "osnutek" in page.locator("#publicationSummary").inner_text()
+    page.locator("#published").check()
+    assert "javno dostopna" in page.locator("#publicationSummary").inner_text()
     page.locator("#title").fill("Nov naslov")
     image = page.evaluate(
         """() => { const canvas = document.createElement('canvas');
@@ -439,6 +472,10 @@ def test_browser_editor_reuses_saved_post_and_preserves_failed_edits(browser):
     page.locator("#content-editor").press("Control+s")
     page.wait_for_url("**/admin/blog/edit/saved")
     assert browser.ui.saves[0]["content"] == "Markdown vsebina"
+    assert (
+        page.locator("#postPreviewLink").get_attribute("href") == "/blog/saved"
+    )
+    assert page.locator("#blogEditorForm").get_attribute("aria-busy") is None
     page.locator("#title").fill("Spremenjen naslov")
     page.locator("#blogEditorForm button[type=submit]").click()
     page.get_by_text("Vse spremembe shranjene.", exact=True).wait_for()
@@ -566,7 +603,9 @@ def test_browser_real_dashboard_charts(browser):
         "(node) => [node.data[0].x, node.data[0].y]"
     )
     ticks = page.locator("#blog-growth-graph").evaluate(
-        "(node) => ({ x: node.layout.xaxis.ticktext, y: node.layout.yaxis.ticktext, xType: node.layout.xaxis.type, yType: node.layout.yaxis.type })"
+        "(node) => ({ x: node.layout.xaxis.ticktext,"
+        " y: node.layout.yaxis.ticktext, xType: node.layout.xaxis.type,"
+        " yType: node.layout.yaxis.type })"
     )
     assert ticks["x"] == [str(2**index) for index in range(11)]
     assert ticks["y"] == ["0", "1", "2", "3", "4", "5"]
@@ -618,3 +657,56 @@ def test_mail_recipient_count_excludes_users_without_email(ui):
     assert result["queued"] == 1
     assert result["emails"] == ["admin"]
     send.assert_called_once()
+
+
+def test_browser_log_search_preserves_text_and_latest_action(
+    admin_tools, browser,
+):
+    page = browser.page
+    page.goto(browser.base + "/admin/logs")
+    page.locator("#logSearch").fill("error")
+    assert page.locator("#logCount").inner_text() == "1 od 3 vrstic"
+    assert "<script>bad()</script>" in page.locator("#adminLog").inner_text()
+    assert page.locator("#adminLog script").count() == 0
+    page.locator("#logSearch").fill("neobstoječa vrstica")
+    assert page.locator("#logEmpty").is_visible()
+    page.locator("#logLatest").click()
+    assert page.locator("#logSearch").input_value() == ""
+    assert page.locator("#logCount").inner_text() == "3 od 3 vrstic"
+    assert page.locator("#adminLog").evaluate(
+        "node => node === document.activeElement"
+    )
+
+
+def test_browser_gold_loads_only_on_request_and_can_retry(
+    admin_tools, browser,
+):
+    page = browser.page
+    requests = []
+
+    def unavailable(route):
+        requests.append(route.request.url)
+        route.abort()
+
+    page.route(
+        "https://www.bullionvault.com/chart/bullionvaultchart.js", unavailable
+    )
+    page.goto(browser.base + "/admin/gold")
+    assert requests == []
+    assert page.locator("#goldChartViewport").is_hidden()
+    page.get_by_role("button", name="Naloži graf").click()
+    page.get_by_role("button", name="Poskusi znova").wait_for()
+    assert len(requests) == 1
+    assert page.locator("#goldMessage").get_attribute("data-kind") == "error"
+    page.route(
+        "https://www.bullionvault.com/chart/bullionvaultchart.js",
+        lambda route: route.fulfill(
+            content_type="application/javascript",
+            body="window.BullionVaultChart = function (options, id) {"
+            "document.getElementById(id).textContent = options.currency; };",
+        ),
+    )
+    page.get_by_role("button", name="Poskusi znova").click()
+    page.get_by_role("button", name="Osveži graf").wait_for()
+    assert page.locator("#gold-price-chart").inner_text() == "EUR"
+    assert page.locator("#goldChartViewport").is_visible()

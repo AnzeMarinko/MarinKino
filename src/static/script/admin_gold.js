@@ -4,6 +4,7 @@
     const message = document.getElementById('goldMessage');
     const retry = document.getElementById('retryGold');
     let loading = false;
+    let mounted = false;
     let library;
     function loadLibrary() {
         if (window.BullionVaultChart) return Promise.resolve();
@@ -18,18 +19,26 @@
     }
     async function render() {
         if (loading) return;
+        // The provider exposes no disposal API; a page reload releases its socket
+        // and timers instead of creating another instance on every refresh.
+        if (mounted) { window.location.reload(); return; }
         loading = true; retry.disabled = true; chart.setAttribute('aria-busy', 'true');
+        retry.textContent = 'Nalagam …';
         message.hidden = false; message.dataset.kind = 'success'; message.textContent = 'Nalagam graf cene zlata …';
         try {
             await loadLibrary();
             if (!window.BullionVaultChart) throw new Error('unavailable');
+            document.getElementById('goldChartViewport').hidden = false;
             chart.replaceChildren();
             new window.BullionVaultChart({ bullion: 'gold', currency: 'EUR', timeframe: '1y', chartType: 'line', miniChartModeAxis: 'kg', referrerID: null, containerDefinedSize: true, miniChartMode: false, displayLatestPriceLine: true, switchBullion: false, switchCurrency: false, switchTimeframe: true, switchChartType: false, exportButton: false }, 'gold-price-chart');
             message.hidden = true;
+            mounted = true;
         } catch (_error) {
             message.dataset.kind = 'error'; message.textContent = 'Grafa trenutno ni mogoče naložiti. Poskusi z gumbom Osveži graf ali odpri graf pri BullionVault.';
-        } finally { loading = false; retry.disabled = false; chart.setAttribute('aria-busy', 'false'); }
+        } finally {
+            loading = false; retry.disabled = false; chart.setAttribute('aria-busy', 'false');
+            retry.textContent = mounted ? 'Osveži graf' : 'Poskusi znova';
+        }
     }
     retry.addEventListener('click', render);
-    render();
 })();

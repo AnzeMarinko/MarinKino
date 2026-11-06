@@ -5,20 +5,7 @@
 {% block admin_content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='vendor/simplemde.min.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='vendor/font-awesome.min.css') }}">
-<style>
-.markdown-preview {
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    min-height: 200px;
-}
-.markdown-preview h1, .markdown-preview h2, .markdown-preview h3 {
-    margin-top: 20px;
-}
-.markdown-preview p {
-    margin: 10px 0;
-}
-</style>
+
 <div class="admin-editor">
     <div class="row justify-content-center">
         <div class="col-md-8">
@@ -27,10 +14,11 @@
                     <h5 class="mb-0">{{ "Nova objava" if not post else "Uredi objavo" }}</h5>
                 </div>
                 <div class="card-body">
-                    <div id="editorMessage" class="admin-notice" role="status" hidden></div>
+                    <nav class="admin-editor-steps" aria-label="Koraki priprave objave"><a href="#editor-details">1 · Naslov in povzetek</a><a href="#editor-images">2 · Fotografije</a><a href="#editor-content">3 · Besedilo</a><a href="#editor-publication">4 · Objava</a></nav>
                     <div id="saveStatus" class="admin-dirty" role="status">Spremembe še niso bile shranjene v tej seji.</div>
                     <form id="blogEditorForm" method="post" enctype="multipart/form-data">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <section id="editor-details" class="admin-editor-section" aria-labelledby="editor-details-title"><h2 id="editor-details-title">Naslov in povzetek</h2><p class="form-text">Naslov in vsebina sta obvezna. Ostalo lahko dopolniš pozneje.</p>
                         <div class="mb-3">
                             <label for="title" class="form-label">Naslov *</label>
                             <input type="text" class="form-control" id="title" name="title" value="{{ post.title if post else '' }}" required>
@@ -44,47 +32,19 @@
                         <div class="mb-3">
                             <label for="keywords" class="form-label">Ključne besede (SEO)</label>
                             <input type="text" class="form-control" id="keywords" name="keywords" value="{{ post.keywords if post else '' }}" placeholder="Vera, Karolina, družina ...">
-                            <div class="form-text">Ločite ključne besede z vejico. Pomagajo pri iskanju v Googlu (5-7 besed).</div>
+                            <div class="form-text">Ključne teme loči z vejico. Za povzetek na seznamu objav uporabi spodnji opis.</div>
                         </div>
 
                         <div class="mb-3">
                             <label for="seo_description" class="form-label">SEO opis</label>
-                            <textarea class="form-control" id="seo_description" name="seo_description" rows="2" maxlength="160">{{ (post.seo_description or post.excerpt)|default('', true) if post else '' }}</textarea>
-                            <div class="form-text">
+                            <textarea class="form-control" id="seo_description" name="seo_description" rows="2" maxlength="160" aria-describedby="seo-description-help">{{ (post.seo_description or post.excerpt)|default('', true) if post else '' }}</textarea>
+                            <div id="seo-description-help" class="form-text">
                                 <span id="seo-description-count">0</span>/160 znakov. Kratek opis za Google in izvleček na seznamu objav.
                             </div>
                         </div>
 
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="published" name="published" value="1" {% if post and post.get('published', False) %}checked{% endif %}>
-                                <label class="form-check-label" for="published">
-                                    Objavi javno
-                                </label>
-                                <div class="form-text">Če ni označeno, bo objava vidna samo administratorjem.</div>
-                            </div>
-                        </div>
-
-                        {% if post %}
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <div class="alert alert-info">
-                                    <strong>Ustvarjena:</strong> {{ post.created_at_display }}
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="alert alert-info">
-                                    <strong>Objavljena:</strong>
-                                    {% if post.get('published_at_display') %}
-                                        {{ post.published_at_display }}
-                                    {% else %}
-                                        <em>Še ni objavljena</em>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
-                        {% endif %}
-
+                        </section>
+                        <section id="editor-images" class="admin-editor-section" aria-labelledby="editor-images-title"><h2 id="editor-images-title">Fotografije</h2>
                         <div class="mb-3">
                             <label for="image_file" class="form-label">Slika objave</label>
                             <p class="form-text">Dodaj več slik hkrati ali v več korakih. Prva je naslovna in edina se obreže v razmerje 6 : 5; ostale slike se shranijo v izvirnih dimenzijah. Vrstni red in opise lahko spremeniš. Največ 20 slik.</p>
@@ -95,7 +55,7 @@
                                 <div class="card-body">
                                     <h6 class="card-title">Dodaj slike v galerijo</h6>
                                     <input type="file" class="form-control" id="image_file" name="image_file" multiple accept="image/*,.heic,.heif,.avif,.tif,.tiff,.bmp">
-                                    <div class="form-text">Tudi HEIC/HEIF, AVIF in TIFF. Fotografije se pretvorijo v JPEG, PNG in slike s prosojnostjo pa se shranijo kot PNG. Največ 30 MB.</div>
+                                    <div class="form-text">Tudi HEIC/HEIF, AVIF in TIFF. Fotografije se pretvorijo v JPEG, PNG in slike s prosojnostjo pa se shranijo kot PNG. Posamezna slika do 30 MB; vse slike in besedilo skupaj do 40 MB.</div>
                                     <p id="imageUploadStatus" class="admin-notice" role="status" hidden></p>
                                     <button id="retryImagePreview" type="button" class="btn btn-sm btn-outline-secondary" hidden>Poskusi ponovno</button>
                                     <div class="form-text">Nove slike se dodajo obstoječim. Izrez 6 : 5 lahko prilagodiš samo za naslovno sliko.</div>
@@ -136,6 +96,8 @@
                             <div class="form-text">Opis slike se uporablja za alt atribut in izboljša dostopnost ter SEO.</div>
                         </div>
 
+                        </section>
+                        <section id="editor-content" class="admin-editor-section" aria-labelledby="editor-content-title"><h2 id="editor-content-title">Besedilo</h2>
                         <div class="mb-3">
                             <label for="content-editor" class="form-label">Vsebina (Markdown) *</label>
                             <ul class="nav nav-tabs" id="editor-tabs" role="tablist">
@@ -159,10 +121,47 @@
                             </div>
                         </div>
 
+                        </section>
+                        <section id="editor-publication" class="admin-editor-section" aria-labelledby="editor-publication-title"><h2 id="editor-publication-title">Shranjevanje in objava</h2>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="published" name="published" value="1" {% if post and post.get('published', False) %}checked{% endif %}>
+                                <label class="form-check-label" for="published">
+                                    Objavi javno
+                                </label>
+                                <div class="form-text">Če ni označeno, bo objava vidna samo administratorjem.</div>
+                            </div>
+                        </div>
+
+                        {% if post %}
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="alert alert-info">
+                                    <strong>Ustvarjena:</strong> {{ post.created_at_display }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="alert alert-info">
+                                    <strong>Objavljena:</strong>
+                                    {% if post.get('published_at_display') %}
+                                        {{ post.published_at_display }}
+                                    {% else %}
+                                        <em>Še ni objavljena</em>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <p id="publicationSummary" class="admin-notice" role="status"></p>
+                        <p class="form-text">Shranjevanje objave ne pošlje e-pošte. Po javni objavi lahko naročnike obvestiš posebej.</p>
+                        </section>
                         <div class="d-flex gap-2 admin-editor-actions">
+                            <div id="editorMessage" class="admin-notice" role="status" hidden></div>
                             <button type="submit" class="btn btn-primary">{{ "Shrani objavo" if not post else "Shrani spremembe" }}</button>
                             <a href="/admin/blog" class="btn btn-outline-secondary">Nazaj na objave</a>
-                            <a id="editSavedLink" class="btn btn-outline-info" hidden>Odpri shranjeno objavo</a>
+                            <a id="postPreviewLink" class="btn btn-outline-info" target="_blank" rel="noopener" {% if post %}href="/blog/{{ post.id }}"{% else %}hidden{% endif %}>Ogled shranjene objave ↗</a>
+                            <a id="editSavedLink" class="btn btn-outline-secondary" hidden>Osveži možnosti objave</a>
                             {% if post and post.get('published') and not post.get('mail_date') %}
                             <button type="button" id="send-mail-btn" class="btn btn-warning">Pošlji naročnikom</button>
                             {% elif post and post.get('mail_date') %}

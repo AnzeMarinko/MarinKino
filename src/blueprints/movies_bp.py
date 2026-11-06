@@ -585,6 +585,12 @@ def prepare_download(movies_subfolder, movie_folder):
         )
     return jsonify(
         state=job["state"],
+        page_url=url_for(
+            "movies.download_movie",
+            movies_subfolder=movies_subfolder,
+            movie_folder=movie_folder,
+            job=job["id"],
+        ),
         status_url=url_for(
             "movies.download_status",
             movies_subfolder=movies_subfolder,

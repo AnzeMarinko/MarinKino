@@ -30,7 +30,12 @@
                 search.value = url.searchParams.get('q') || '';
                 clear.hidden = !search.value;
                 feedback.textContent = document.getElementById('blogSearchStatus').textContent;
-                if (scroll) document.getElementById('blog-posts').scrollIntoView({block: 'start'});
+                if (scroll) {
+                    const section = document.getElementById('blog-posts');
+                    section.setAttribute('tabindex', '-1');
+                    section.focus({preventScroll: true});
+                    section.scrollIntoView({block: 'start'});
+                }
             } catch (error) {
                 if (error.name !== 'AbortError') location.assign(url.href);
             } finally {
@@ -81,6 +86,8 @@
         const link = document.createElement('a');
         link.href = `#${encodeURIComponent(heading.id)}`;
         link.textContent = heading.textContent;
+        heading.setAttribute('tabindex', '-1');
+        link.addEventListener('click', () => heading.focus({preventScroll: true}));
         if (heading.tagName === 'H3') link.className = 'blog-toc-subheading';
         links.appendChild(link);
     });

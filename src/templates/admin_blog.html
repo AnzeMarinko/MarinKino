@@ -14,7 +14,7 @@
   {% if posts %}
   <div class="admin-filter-bar">
     <label class="admin-search"><i class="bi bi-search" aria-hidden="true"></i><input type="search" class="form-control" data-table-search="blogPostsTable" placeholder="Poišči po naslovu …" aria-label="Poišči objavo"></label>
-    <label class="visually-hidden" for="postStatus">Status objave</label><select id="postStatus" class="form-select w-auto" data-table-status="blogPostsTable"><option value="">Vsi statusi</option><option value="published">Objavljeno</option><option value="draft">Osnutek</option></select><span class="small text-muted" data-table-count="blogPostsTable" aria-live="polite"></span>
+    <label class="visually-hidden" for="postStatus">Status objave</label><select id="postStatus" class="form-select w-auto" data-table-status="blogPostsTable"><option value="">Vsi statusi</option><option value="published">Objavljeno</option><option value="draft">Osnutek</option></select><span class="small text-muted" data-table-count="blogPostsTable" aria-live="polite"></span><button type="button" class="btn btn-sm btn-outline-secondary" data-table-reset="blogPostsTable" hidden>Počisti filtre</button>
   </div>
   <div class="table-responsive"><table id="blogPostsTable" class="table table-hover" data-sortable>
     <thead><tr><th scope="col" data-sort="text">Naslov</th><th scope="col" data-sort="text">Status</th><th scope="col" data-sort="text">Ustvarjena</th><th scope="col" data-sort="text">Objavljena</th><th scope="col" data-sort="number">Ogledi</th><th scope="col">Dejanja</th></tr></thead>

@@ -9,6 +9,14 @@ function freshCsrfToken() {
 document.addEventListener('DOMContentLoaded', function() {
     const contentEditor = document.getElementById('content-editor');
     const form = document.getElementById('blogEditorForm');
+    const published = document.getElementById('published');
+    function updatePublicationSummary() {
+        document.getElementById('publicationSummary').textContent = published.checked
+            ? 'Ob shranjevanju bo ta različica javno dostopna v blogu.'
+            : 'Ob shranjevanju bo to osnutek, viden samo administratorjem.';
+    }
+    published.addEventListener('change', updatePublicationSummary);
+    updatePublicationSummary();
     let dirty = false;
     let saving = false;
     let revision = 0;
@@ -40,6 +48,7 @@ document.addEventListener('DOMContentLoaded', function() {
         codemirror: { on: (_event, handler) => contentEditor.addEventListener('input', handler), save: () => {}, focus: () => contentEditor.focus() }
     };
     if (!window.EasyMDE) showAlert('Naprednega editorja ni mogoče naložiti. Vsebino lahko normalno napišeš in shraniš v spodnjem polju.', 'info');
+    simplemde.codemirror.getInputField?.().setAttribute('aria-label', 'Vsebina objave v Markdownu');
 
     function updatePreview() {
         const markdown = simplemde.value();
@@ -319,6 +328,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const savedRevision = revision;
         const originalText = submitBtn.textContent;
         saving = true;
+        form.setAttribute('aria-busy', 'true');
         let savedOnServer = false;
         submitBtn.disabled = true;
         submitBtn.textContent = "Shranjujem...";
@@ -354,6 +364,7 @@ document.addEventListener('DOMContentLoaded', function() {
             submitBtn.disabled = false;
             submitBtn.textContent = originalText;
             saving = false;
+            form.removeAttribute('aria-busy');
             return;
         }
 
@@ -422,6 +433,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     const editLink = document.getElementById('editSavedLink');
                     editLink.href = editUrl;
                     editLink.hidden = false;
+                    const previewLink = document.getElementById('postPreviewLink');
+                    previewLink.href = `/blog/${encodeURIComponent(data.post_id)}`;
+                    previewLink.hidden = false;
                 }
             } else {
                 console.error('[blog-save] server rejected save', {
@@ -433,6 +447,7 @@ document.addEventListener('DOMContentLoaded', function() {
             submitBtn.disabled = false;
             submitBtn.textContent = data.success ? 'Shrani spremembe' : originalText;
             saving = false;
+            form.removeAttribute('aria-busy');
         })
         .catch(error => {
             console.error('[blog-save] failed', {
@@ -451,6 +466,7 @@ document.addEventListener('DOMContentLoaded', function() {
             submitBtn.disabled = false;
             submitBtn.textContent = savedOnServer ? 'Shrani spremembe' : originalText;
             saving = false;
+            form.removeAttribute('aria-busy');
         });
     }
 

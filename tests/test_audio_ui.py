@@ -466,3 +466,25 @@ def test_browser_all_subalbums_collapse_after_selection(audio_site, browser):
     expect(first_child).to_be_hidden()
     expect(other_child).to_be_hidden()
     expect(all_album).to_have_attribute("aria-expanded", "false")
+
+
+def test_browser_audio_search_recovery_and_modal_keyboard_isolation(
+    audio_site, browser
+):
+    page = browser.page
+    page.goto(browser.base + "/music")
+    page.locator('.toggle-btn[data-target="tracks"]').click()
+    page.locator("#searchInput").fill("xxxxxxxxxxx")
+    page.get_by_role("button", name="prikaži vse vsebine").click()
+    assert page.locator(".track-item").count() == 2
+    assert page.locator("#searchInput").input_value() == ""
+    page.locator(".track-item").first.click()
+    page.wait_for_function("() => !document.querySelector('#audio').paused")
+    page.locator('.toggle-btn[data-target="albums"]').click()
+    page.locator("#managePrivateAlbumsBtn").click()
+    page.locator("#newPrivateAlbumName").wait_for(state="visible")
+    page.locator("#privateAlbumsTitle").evaluate(
+        "el => {el.tabIndex = -1; el.focus();}"
+    )
+    page.keyboard.press("Space")
+    assert page.locator("#audio").evaluate("el => !el.paused")

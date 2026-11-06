@@ -68,7 +68,7 @@ def editor(tmp_path, monkeypatch):
 
     return SimpleNamespace(
         app=module.app, client=module.app.test_client(),
-        prepare=prepare, mutation=mutation,
+        prepare=prepare, mutation=mutation, module=module,
     )
 
 

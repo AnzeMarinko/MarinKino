@@ -4,9 +4,10 @@ import os
 import re
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
-from .helpers import remove
+from .media_tools import archive_original, ffmpeg_command
 
 log = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ def run_ffmpeg(command):
     """Pomožna funkcija za izvajanje FFmpeg ukazov."""
     try:
         subprocess.run(
-            command,
+            ffmpeg_command(command),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             check=True,
@@ -44,9 +45,6 @@ def vtt_to_srt(vtt_path: Path, srt_path: Path):
 
 def extract_subtitles_to_srt(video_path: Path, base_srt_path: Path):
     """Ekstrahira vse vgrajene podnapise v ločene SRT datoteke."""
-    if base_srt_path.parent.exists():
-        return True
-
     probe_cmd = [
         "ffprobe",
         "-v",
@@ -92,8 +90,10 @@ def extract_subtitles_to_srt(video_path: Path, base_srt_path: Path):
 
         # Poskusimo dobiti jezik (npr. 'sl', 'en'), sicer uporabimo indeks
         tags = stream.get("tags", {})
-        lang = tags.get("language", f"track_{i + 1}")
-        title = tags.get("title", "").replace(" ", "_")
+        lang = re.sub(
+            r"[^a-zA-Z0-9_-]", "_", tags.get("language", f"track_{i + 1}")
+        )
+        title = re.sub(r"[^a-zA-Z0-9_-]", "_", tags.get("title", ""))
 
         # Sestavimo unikatno ime za vsak podnapis
         # Primer: film.sl.srt ali film.eng.srt
@@ -105,6 +105,8 @@ def extract_subtitles_to_srt(video_path: Path, base_srt_path: Path):
         files.append(suffix)
 
         srt_output_path = base_srt_path.with_suffix(f"{suffix}.srt")
+        if srt_output_path.exists():
+            continue
 
         # FFmpeg ukaz za ekstrakcijo specifične sledi
         #  (mapira se točno določen indeks stream-a)
@@ -160,11 +162,14 @@ def convert_to_mp4(input_path: Path, output_path: Path):
         )
 
         # Popravimo avdio/video parametre znotraj obstoječega MP4 datoteke
-        ensure_aac_audio(input_path)
+        if not ensure_aac_audio(input_path):
+            return False
 
         # Če se ciljna pot razlikuje od trenutne,
         # datoteko varno prestavimo/preimenujemo
         if input_path != output_path:
+            if output_path.exists():
+                raise FileExistsError(f"Cilj že obstaja: {output_path}")
             try:
                 # Ustvarimo ciljno mapo, če slučajno še ne obstaja
                 output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -178,13 +183,18 @@ def convert_to_mp4(input_path: Path, output_path: Path):
                 return False
         return True
 
+    destination = output_path
+    if destination.exists():
+        raise FileExistsError(f"Cilj že obstaja: {destination}")
+    output_path = destination.with_name(f".{destination.stem}.converting.mp4")
+
     # --- SCENARIJ 2: Datoteka NI MP4 (MKV, AVI, MOV...) ---
     log.info(
         f"🎬 Pretvarjam vsebnik v MP4: {input_path.name} -> {output_path.name}"
     )
 
     # Ekstrakcija podnapisov zraven novega videa (preden se karkoli pobriše)
-    srt_output_path = output_path.with_suffix("") / "subtitles.srt"
+    srt_output_path = destination.with_suffix(".srt")
     extract_subtitles_to_srt(input_path, srt_output_path)
 
     # Preverimo video kodek in barvni profil izvorne datoteke s ffprobe
@@ -251,7 +261,8 @@ def convert_to_mp4(input_path: Path, output_path: Path):
 
         if run_ffmpeg(fast_command):
             log.info("✅ Hitro kopiranje uspešno končano!")
-            remove(str(input_path))
+            output_path.replace(destination)
+            archive_original(input_path)
             return True
         else:
             log.warning(
@@ -287,9 +298,11 @@ def convert_to_mp4(input_path: Path, output_path: Path):
 
     if run_ffmpeg(full_command):
         log.info("✅ Uspešna polna pretvorba v varen MP4.")
-        remove(str(input_path))
+        output_path.replace(destination)
+        archive_original(input_path)
         return True
 
+    output_path.unlink(missing_ok=True)
     return False
 
 
@@ -352,7 +365,7 @@ def ensure_aac_audio(filepath):
 
     except Exception as e:
         log.error(f"❌ Napaka pri analizi MP4 datoteke {filepath.name}: {e}")
-        return
+        return False
 
     # Če je vse že popolno optimizirano, končamo
     if video_ok and audio_is_aac and is_faststart:
@@ -360,7 +373,7 @@ def ensure_aac_audio(filepath):
             f"ℹ️ MP4 datoteka je že optimalna za splet "
             f"(vključno s faststart): {filepath.name}"
         )
-        return
+        return True
 
     # Če video NI kompatibilen, polna pretvorba (ta že vključuje +faststart)
     if not video_ok:
@@ -395,9 +408,12 @@ def ensure_aac_audio(filepath):
             str(temp_file),
         ]
         if run_ffmpeg(command):
+            archive_original(filepath)
             temp_file.replace(filepath)
             log.info("✅ MP4 uspešno polno pretvorjen v združljiv format.")
-        return
+            return True
+        temp_file.unlink(missing_ok=True)
+        return False
 
     # Če je video OK, a zvok NI AAC ALI pa manjka samo faststart
     # Tukaj uporabimo hitro kopiranje videa (-c:v copy)
@@ -436,39 +452,12 @@ def ensure_aac_audio(filepath):
         command.extend(["-movflags", "+faststart", str(temp_file)])
 
         if run_ffmpeg(command):
+            archive_original(filepath)
             temp_file.replace(filepath)
             log.info("✅ Hitra optimizacija uspešno zaključena.")
-
-    # Če je video OK, a zvok NI AAC (npr. MP4 z DTS ali AC3 zvokom),
-    # prekodiramo SAMO zvok
-    if not audio_is_aac:
-        log.info(f"🔊 Popravljam samo zvok (AAC) za MP4: {filepath.name}")
-        temp_file = filepath.with_suffix(".tmp.mp4")
-
-        # Shranimo podnapise pred spremembo
-        extract_subtitles_to_srt(filepath, filepath)
-
-        command = [
-            "ffmpeg",
-            "-y",
-            "-i",
-            str(filepath),
-            "-c:v",
-            "copy",  # Video samo kopiramo (brez izgub, instantno)
-            "-c:a",
-            "aac",  # Zvok pretvorimo v AAC
-            "-ac",
-            "2",
-            "-b:a",
-            "128k",
-            "-movflags",
-            "+faststart",
-            str(temp_file),
-        ]
-
-        if run_ffmpeg(command):
-            temp_file.replace(filepath)
-            log.info("✅ Zvok uspešno popravljen.")
+            return True
+        temp_file.unlink(missing_ok=True)
+        return False
 
 
 def get_videos_list(folder):
@@ -477,7 +466,10 @@ def get_videos_list(folder):
     return [
         f
         for f in p.iterdir()
-        if f.is_file() and f.suffix.lower() in SUPPORTED_EXTENSIONS
+        if f.is_file()
+        and not f.name.startswith(".")
+        and f.suffix.lower() in SUPPORTED_EXTENSIONS
+        and not f.name.endswith((".tmp.mp4", ".temp_conv.mp4"))
     ]
 
 
@@ -488,56 +480,66 @@ def convert_videos(folder, merge=False, collection=False):
     if not videos:
         return []
 
-    for video in videos:
-        if video.suffix.lower() == ".mp4":
-            ensure_aac_audio(video)
-
     final_output = folder_path / f"{folder_path.name}.mp4"
 
     if collection or ".collection" in folder_path.name.lower():
         for video in videos:
-            if video.suffix.lower() != ".mp4":
-                convert_to_mp4(video, video.with_suffix(".mp4"))
+            if not convert_to_mp4(video, video.with_suffix(".mp4")):
+                raise RuntimeError(f"Pretvorba ni uspela: {video.name}")
 
     elif (
         merge and len(videos) > 1 and "series" not in str(folder_path).lower()
     ):
-        log.info(f"🔄 Združujem {len(videos)} videov v {final_output.name}...")
-        temp_mp4s = []
-        for video in videos:
-            target = video.with_suffix(".temp_conv.mp4")
-            if convert_to_mp4(video, target):
-                temp_mp4s.append(target)
-
-        list_file = folder_path / "temp_list.txt"
-        with list_file.open("w", encoding="utf-8") as file:
-            for temporary_file in temp_mp4s:
-                file.write(f"file '{temporary_file.name}'\n")
-
-        concat_cmd = [
-            "ffmpeg",
-            "-y",
-            "-f",
-            "concat",
-            "-safe",
-            "0",
-            "-i",
-            str(list_file),
-            "-c",
-            "copy",
-            str(final_output),
-        ]
-        if run_ffmpeg(concat_cmd):
-            for temporary_file in temp_mp4s:
-                remove(str(temporary_file))
-            remove(str(list_file))
+        log.info(f"Združujem {len(videos)} delov v {final_output.name} …")
+        # Stage links, not source renames: a failed part leaves every input
+        # available for the next run and never publishes a partial movie.
+        with tempfile.TemporaryDirectory(
+            prefix=".merge-", dir=folder_path
+        ) as temporary:
+            staging = Path(temporary)
+            parts = []
+            for index, video in enumerate(videos):
+                extract_subtitles_to_srt(video, video.with_suffix(".srt"))
+                linked = staging / f"source-{index}{video.suffix}"
+                os.link(video, linked)
+                target = staging / f"part-{index}.mp4"
+                if not convert_to_mp4(linked, target):
+                    raise RuntimeError(
+                        f"Pretvorba dela ni uspela: {video.name}"
+                    )
+                parts.append(target)
+            list_file = staging / "concat.txt"
+            list_file.write_text(
+                "".join(f"file '{part.name}'\n" for part in parts),
+                encoding="utf-8",
+            )
+            merged = staging / "merged.mp4"
+            if not run_ffmpeg(
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-f",
+                    "concat",
+                    "-safe",
+                    "0",
+                    "-i",
+                    str(list_file),
+                    "-c",
+                    "copy",
+                    str(merged),
+                ]
+            ):
+                raise RuntimeError(
+                    "Združevanje ni uspelo; vsi izvori so ohranjeni."
+                )
+            for video in videos:
+                archive_original(video)
+            merged.replace(final_output)
 
     elif len(videos) == 1:
         video = videos[0]
-        if video.suffix.lower() != ".mp4":
-            convert_to_mp4(video, final_output)
-        elif video != final_output:
-            video.rename(final_output)
+        if not convert_to_mp4(video, final_output):
+            raise RuntimeError(f"Pretvorba ni uspela: {video.name}")
 
     return get_videos_list(folder)
 
@@ -558,6 +560,16 @@ def convert_to_m3u8(video_path):
     # Ustvarimo mapo z imenom brez .mp4
     mapa = Path(os.path.abspath(original.with_suffix("")))
     mapa.mkdir(parents=True, exist_ok=True)
+
+    destination = mapa
+    if all(
+        (destination / name).is_file() and (destination / name).stat().st_size
+        for name in ("master.m3u8", "video.ts", "audio.ts")
+    ):
+        log.info("HLS že obstaja: %s", destination)
+        return True
+    temporary = tempfile.TemporaryDirectory(prefix=".hls-", dir=destination)
+    mapa = Path(temporary.name)
 
     # Začasne datoteke (fragmentirane)
     tmp_video = mapa / "tmp_raw_video.mp4"
@@ -621,10 +633,12 @@ def convert_to_m3u8(video_path):
         # ==========================================
         # 2a. Primarni video (Originalna ločljivost)
         subprocess.run(
-            ["ffmpeg", "-y", "-i", abs_original, "-an"]
-            + video_transcode_args
-            + frag_opts
-            + [str(tmp_video)],
+            ffmpeg_command(
+                ["ffmpeg", "-y", "-i", abs_original, "-an"]
+                + video_transcode_args
+                + frag_opts
+                + [str(tmp_video)]
+            ),
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -633,19 +647,21 @@ def convert_to_m3u8(video_path):
         # 2b. avdio del
         log.info("🎵 Kopiram zvočni tok...")
         subprocess.run(
-            [
-                "ffmpeg",
-                "-y",
-                "-i",
-                abs_original,
-                "-vn",
-                "-c:a",
-                "copy",
-                "-map",
-                "0:a:0",
-            ]
-            + frag_opts
-            + [str(tmp_audio)],
+            ffmpeg_command(
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-i",
+                    abs_original,
+                    "-vn",
+                    "-c:a",
+                    "copy",
+                    "-map",
+                    "0:a:0",
+                ]
+                + frag_opts
+                + [str(tmp_audio)]
+            ),
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -727,7 +743,20 @@ def convert_to_m3u8(video_path):
         master_dash.unlink(missing_ok=True)
         tmp_video.unlink(missing_ok=True)
         tmp_audio.unlink(missing_ok=True)
-        original.unlink(missing_ok=True)
+        if (
+            not master_hls.is_file()
+            or not out_video.is_file()
+            or not out_audio.is_file()
+        ):
+            raise RuntimeError(
+                "HLS izhod ni popoln; izvorni video ostane ohranjen."
+            )
+        # Publish segments and child playlists before the master playlist.
+        for output in sorted(
+            mapa.iterdir(), key=lambda path: path.name == "master.m3u8"
+        ):
+            output.replace(destination / output.name)
+        archive_original(original)
         (original.parent / ".detected-voice-activity.pkl").unlink(
             missing_ok=True
         )
@@ -752,3 +781,5 @@ def convert_to_m3u8(video_path):
         if mapa.exists():
             shutil.rmtree(mapa, ignore_errors=True)
         return False
+    finally:
+        temporary.cleanup()

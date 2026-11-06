@@ -4,6 +4,7 @@
     let target = "false";
     let sending = false;
     const buttons = [...document.querySelectorAll("[data-send-mail]")];
+    const enabledButtons = buttons.filter(button => !button.disabled);
     buttons.forEach(button => button.addEventListener("click", () => {
         if (sending) return;
         target = button.dataset.sendMail;
@@ -15,8 +16,10 @@
     document.getElementById("cancelMail").addEventListener("click", () => dialog.close());
     document.getElementById("confirmMail").addEventListener("click", async () => {
         if (sending) return;
-        dialog.close(); sending = true; buttons.forEach(button => { button.disabled = true; });
-        const status = document.getElementById("results"); status.hidden = false; status.dataset.kind = "success"; status.textContent = "Pošiljam e-pošto. Počakaj na rezultat; strani ne osvežuj.";
+        dialog.close(); sending = true; enabledButtons.forEach(button => { button.disabled = true; });
+        document.getElementById("mailActions").setAttribute("aria-busy", "true");
+        const status = document.getElementById("results"); status.hidden = false; status.dataset.kind = "success"; status.textContent = "Dodajam sporočila v vrsto za pošiljanje. Počakaj na potrditev.";
+        status.scrollIntoView({block: "nearest"});
         document.getElementById("mailRecipientsResult").hidden = true;
         try {
             const response = await fetch("/admin/send_emails", { method: "POST", headers: { "Content-Type": "application/json", "X-CSRFToken": document.querySelector('meta[name="csrf-token"]').content }, body: JSON.stringify({ whole_list: target }) });
@@ -28,6 +31,10 @@
         } catch (_error) {
             status.dataset.kind = "error";
             status.textContent = "Pošiljanja ni bilo mogoče potrditi. Pred ponovitvijo preveri poštni predal ali sistemski dnevnik, da ne pošlješ podvojenih sporočil.";
-        } finally { sending = false; buttons.forEach(button => { button.disabled = false; }); }
+        } finally {
+            sending = false;
+            enabledButtons.forEach(button => { button.disabled = false; });
+            document.getElementById("mailActions").removeAttribute("aria-busy");
+        }
     });
 })();

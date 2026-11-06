@@ -8,7 +8,7 @@
    <div class="blog-flower" aria-hidden="true"><img id="blog-logo" src="{{ url_for('static', filename='blog_favicon_io/logo-240.webp') }}" srcset="{{ url_for('static', filename='blog_favicon_io/logo-240.webp') }} 240w, {{ url_for('static', filename='blog_favicon_io/logo-480.webp') }} 480w" sizes="240px" width="240" height="240" alt=""></div>
   </header>
   <section id="blog-posts" aria-labelledby="blog-posts-title">
-   <div class="blog-section-heading"><div><p class="blog-kicker" id="blog-posts-title">V razmislek in navdih</p></div>
+   <div class="blog-section-heading"><div><h2 class="blog-kicker" id="blog-posts-title">V razmislek in navdih</h2></div>
     <div class="blog-browse-tools">
      <form class="blog-search" id="blogSearchForm" action="{{ url_for('blog.blog_list') }}" method="get" role="search">
       {% if request.args.get('lang') %}<input type="hidden" name="lang" value="{{ request.args.get('lang') }}">{% endif %}

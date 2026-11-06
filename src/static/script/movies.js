@@ -76,6 +76,7 @@ function renderMovieCard(movie) {
     const id = String(movie.movie_id);
     wrapper.className = `movie-card ${recommendation}`;
     wrapper.dataset.movieId = id;
+    wrapper.tabIndex = -1;
     wrapper.style.setProperty('--watch', `${watched}%`);
     const link = '/movies/play' + moviePath(movie.folder);
     wrapper.innerHTML = `
@@ -107,6 +108,7 @@ function appendMovies(movies, initial = false) {
 async function loadNextPage() {
     if (loading || !hasMore) return;
     loading = true;
+    const moveFocus = document.activeElement === moreMovies;
     moreMovies.disabled = true;
     moreMovies.textContent = 'Nalagam …';
     grid.setAttribute('aria-busy', 'true');
@@ -115,12 +117,16 @@ async function loadNextPage() {
         if (!response.ok) throw new Error();
         const data = await response.json();
         if (!Array.isArray(data.movies)) throw new Error();
+        const firstNewIndex = grid.children.length;
         appendMovies(data.movies);
         hasMore = data.has_more;
         currentPage++;
+        if (moveFocus && [document.body, moreMovies].includes(document.activeElement)) {
+            (grid.children[firstNewIndex] || movieStatus).focus();
+        }
         moreMovies.hidden = !hasMore;
         movieFeedback(`Prikazanih filmov: ${grid.children.length}${hasMore ? '' : ' · Vsi filmi so naloženi.'}`);
-    } catch { movieFeedback('Nalaganje ni uspelo. Poskusi znova.'); }
+    } catch { movieFeedback('Nalaganje ni uspelo. Že prikazani filmi ostanejo na voljo. Poskusi znova z gumbom Naloži več filmov.'); }
     finally {
         loading = false;
         moreMovies.disabled = false;
@@ -361,11 +367,12 @@ function editAlertOnPage(button, movieFolder, index) {
 
     document.getElementById('edit_alert_text').value = alertText;
     document.getElementById('edit_alert_type').value = alertType;
-    document.getElementById('editAlertModal').style.display = 'block';
+    document.getElementById('editAlertModal').showModal();
+    document.getElementById('edit_alert_text').focus();
 }
 
 function closeEditAlertModal() {
-    document.getElementById('editAlertModal').style.display = 'none';
+    document.getElementById('editAlertModal').close();
     editingAlertData = {};
 }
 
@@ -415,12 +422,12 @@ function saveEditedAlert() {
     });
 }
 
-window.onclick = function(event) {
+document.getElementById('editAlertModal')?.addEventListener('click', function(event) {
     const modal = document.getElementById('editAlertModal');
     if (event.target === modal) {
         closeEditAlertModal();
     }
-}
+});
 
 function deleteAlertOnPage(button, movieFolder, index) {
     if (!confirm('Ali si prepričan, da želiš izbrisati to opozorilo?')) {
@@ -478,6 +485,7 @@ function deleteAlertOnPage(button, movieFolder, index) {
                 <div class="rating-row"><label>Primerno starostni skupini:</label> <span class="age-options" data-name="age_group">${[3,6,10,14,18].map(v=>`<button type="button" class="age-option" data-value="${v}">+${v}</button>`).join('')}</span></div>
                 <div class="rating-row"><label>Kvaliteta videa:</label> <span class="stars" data-name="video_quality">${[1,2,3,4,5].map(i=>`<button type="button" class="star" aria-label="${i} od 5" data-value="${i}"><i class="bi bi-film"></i></button>`).join('')}</span></div>
                 <div class="rating-row"><label>Kvaliteta podnapisov:</label> <span class="stars" data-name="subtitles_quality">${[1,2,3,4,5].map(i=>`<button type="button" class="star" aria-label="${i} od 5" data-value="${i}"><i class="bi bi-chat-dots-fill"></i></button>`).join('')}</span></div>
+                <p id="rating-status" class="status-message" role="status"></p>
                 <div class="rating-actions">
                     <button id="ratingSkip">Preskoči</button>
                     <button id="ratingSubmit">Pošlji oceno</button>
@@ -498,11 +506,30 @@ function deleteAlertOnPage(button, movieFolder, index) {
             if (intendedNav) window.location = intendedNav;
         });
 
-        document.getElementById('ratingSubmit').addEventListener('click', () => {
-            submitRating().then(() => {
+        document.getElementById('ratingSubmit').addEventListener('click', async event => {
+            const button = event.currentTarget;
+            const status = document.getElementById('rating-status');
+            if (button.disabled) return;
+            button.disabled = true;
+            modal.setAttribute('aria-busy', 'true');
+            status.textContent = 'Shranjujem oceno …';
+            try {
+                await submitRating();
                 hideRatingModal();
                 if (intendedNav) window.location = intendedNav;
-            }).catch(() => { alert('Napaka pri pošiljanju ocene'); });
+            } catch {
+                status.textContent = 'Ocene ni bilo mogoče shraniti. Izbire so ohranjene; poskusi znova.';
+            } finally {
+                button.disabled = false;
+                modal.setAttribute('aria-busy', 'false');
+            }
+        });
+
+        modal.querySelectorAll('.rating-row').forEach(row => {
+            const group = row.querySelector('.stars, .age-options');
+            group.setAttribute('role', 'group');
+            group.setAttribute('aria-label', row.querySelector('label').textContent);
+            group.querySelectorAll('button').forEach(button => button.setAttribute('aria-pressed', 'false'));
         });
 
         // wire up stars
@@ -513,6 +540,7 @@ function deleteAlertOnPage(button, movieFolder, index) {
                     box.querySelectorAll('.star').forEach(ei => {
                         const sv = parseInt(ei.getAttribute('data-value'));
                         if (sv <= v) ei.classList.add('selected'); else ei.classList.remove('selected');
+                        ei.setAttribute('aria-pressed', String(sv === v));
                     });
                     box.setAttribute('data-selected', v);
                 });
@@ -523,7 +551,8 @@ function deleteAlertOnPage(button, movieFolder, index) {
         modal.querySelectorAll('.age-options').forEach(box => {
             box.querySelectorAll('.age-option').forEach(opt => {
                 opt.addEventListener('click', () => {
-                    box.querySelectorAll('.age-option').forEach(o => o.classList.remove('selected'));
+                    box.querySelectorAll('.age-option').forEach(o => { o.classList.remove('selected'); o.setAttribute('aria-pressed', 'false'); });
+                    opt.setAttribute('aria-pressed', 'true');
                     opt.classList.add('selected');
                     box.setAttribute('data-selected', opt.getAttribute('data-value'));
                 });

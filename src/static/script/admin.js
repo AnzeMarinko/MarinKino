@@ -1,6 +1,13 @@
 (() => {
     const root = document.querySelector(".admin-page");
     if (!root) return;
+    // Wide statistics tables remain reachable with a keyboard on small screens.
+    root.querySelectorAll(".table-responsive").forEach(region => {
+        region.tabIndex = 0;
+        region.setAttribute("role", "region");
+        const heading = region.closest("section")?.querySelector("h2");
+        region.setAttribute("aria-label", heading ? `${heading.textContent.trim()} · tabela, premik levo in desno` : "Tabela · premik levo in desno");
+    });
     root.querySelectorAll("form[data-confirm-delete]").forEach(form => {
         form.addEventListener("submit", event => {
             if (!window.confirm(`Izbrišem objavo »${form.dataset.confirmDelete}«? Izbrisa ni mogoče razveljaviti.`)) event.preventDefault();
@@ -38,6 +45,7 @@
         const statusFilter = root.querySelector(`[data-table-status="${table.id}"]`);
         const notice = root.querySelector(`[data-table-empty="${table.id}"]`);
         const counter = root.querySelector(`[data-table-count="${table.id}"]`);
+        const reset = root.querySelector(`[data-table-reset="${table.id}"]`);
         function filter() {
             const query = input.value.trim().toLocaleLowerCase("sl");
             let visible = 0;
@@ -47,9 +55,16 @@
             });
             if (notice) notice.hidden = visible !== 0;
             if (counter) counter.textContent = `${visible} od ${table.tBodies[0].rows.length}`;
+            if (reset) reset.hidden = !query && !statusFilter?.value;
         }
         input.addEventListener("input", filter);
         statusFilter?.addEventListener("change", filter);
+        reset?.addEventListener("click", () => {
+            input.value = "";
+            if (statusFilter) statusFilter.value = "";
+            filter();
+            input.focus();
+        });
         filter();
     });
 })();

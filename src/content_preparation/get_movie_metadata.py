@@ -394,7 +394,8 @@ def get_movie_metadata(folder, film, video_files, hls_dirs=None):
             title = r.get("title", r.get("name", "?"))
             date = r.get("release_date", r.get("first_air_date", ""))
             print(
-                f"  {i}. {title} ({date[:4] if date else '?'}) - ujemanje {s:.0%}"
+                f"  {i}. {title} ({date[:4] if date else '?'}) "
+                f"- ujemanje {s:.0%}"
             )  # noqa: E501
         while movie_match is None:
             choice = (
@@ -636,3 +637,32 @@ class MovieMetadata:
         self.user_notes = metadata.get("user_notes", {})
 
         self.ratings = metadata.get("ratings", {})
+
+
+def lookup_movie_metadata(folder, imdb_id):
+    """Fetch the user's exact IMDb selection without a terminal prompt."""
+    candidate = tmdb_get_by_imdb_id(imdb_id)
+    if not candidate:
+        raise ValueError(
+            "Za ta IMDb ID ni podatkov. Podatke lahko vneseš ročno."
+        )
+    media_type = candidate.get("media_type", "movie")
+    details = tmdb_movie_details(candidate["id"], media_type=media_type)
+    cover_url = tmdb_poster_url(details.get("poster_path"))
+    if cover_url:
+        response = requests.get(cover_url, timeout=15)
+        response.raise_for_status()
+        (Path(folder) / "cover_image.jpg").write_bytes(response.content)
+    return {
+        "title": details.get("title", details.get("name", "")),
+        "original_title": details.get(
+            "original_title", details.get("original_name", "")
+        ),
+        "year": details.get("release_date", details.get("first_air_date", ""))[
+            :4
+        ],
+        "plot": details.get("overview", ""),
+        "genres": [item["name"] for item in details.get("genres", [])],
+        "players": tmdb_cast(candidate["id"], media_type=media_type),
+        "imdb_id": imdb_id,
+    }

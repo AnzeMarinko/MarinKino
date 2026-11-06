@@ -57,6 +57,7 @@ preparation = [
   "certbot",
   "opensubtitlescom",
   "yt-dlp",
+  "ffmpeg-normalize",
   "librosa",
 ]
 dev = [

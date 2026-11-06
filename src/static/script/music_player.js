@@ -2315,7 +2315,8 @@ function filterSongs() {
     filteredSongs = rankedSongs.map(result => result.songId);
 
     if (!filteredSongs.length) {
-        trackListEl.innerHTML = '<div class="audio-empty">Ni zadetkov. Poskusi drug naslov ali počisti iskanje.</div>';
+        trackListEl.innerHTML = '<div class="audio-empty">Ni zadetkov. Poskusi drug naslov ali <button type="button" class="audio-inline-action" data-clear-audio-search>prikaži vse vsebine</button>.</div>';
+        trackListEl.querySelector('[data-clear-audio-search]').addEventListener('click', () => document.getElementById('clearSearchBtn').click());
         updateSearchStatus(0);
         updateTrackSelectionControls();
         scrollToSearchResults();
@@ -2588,6 +2589,7 @@ audio.addEventListener('error', () => {
 });
 document.addEventListener('keydown', event => {
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (document.querySelector('dialog[open], .modal.show, [role="dialog"][aria-modal="true"]')) return;
 
     const target = event.target;
     if (target instanceof Element && target.closest(

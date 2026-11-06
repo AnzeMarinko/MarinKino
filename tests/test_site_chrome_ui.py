@@ -103,7 +103,8 @@ def test_browser_mobile_menu_layout_and_keyboard(site, browser):
         page.set_viewport_size({"width": width, "height": 844})
         page.goto(browser.base + "/suggestions")
         page.wait_for_function(
-            'document.querySelector("#blog-header-spacer").style.height !== ""'
+            '() => document.querySelector("#blog-header-spacer")'
+            '.style.height !== ""'
         )
         assert (
             page.locator(".nav-link[aria-current=page]").inner_text()
@@ -117,7 +118,8 @@ def test_browser_mobile_menu_layout_and_keyboard(site, browser):
             toggle.click()
             page.locator("#mainNavbar.show").wait_for()
             page.wait_for_function(
-                'document.querySelector("#main-content").getBoundingClientRect()'
+                '() => document.querySelector("#main-content")'
+                '.getBoundingClientRect()'
                 '.top >= document.querySelector(".site-header")'
                 ".getBoundingClientRect().bottom - 1"
             )
@@ -128,12 +130,12 @@ def test_browser_mobile_menu_layout_and_keyboard(site, browser):
             page.keyboard.press("Escape")
             page.keyboard.press("Escape")
             page.wait_for_function(
-                'document.querySelector(".site-menu-toggle")'
+                '() => document.querySelector(".site-menu-toggle")'
                 '.getAttribute("aria-expanded") === "false"'
             )
             assert toggle.evaluate("(el) => el === document.activeElement")
             page.wait_for_function(
-                '!document.querySelector("#mainNavbar")'
+                '() => !document.querySelector("#mainNavbar")'
                 '.classList.contains("collapsing")'
             )
         page.screenshot(
@@ -206,7 +208,7 @@ def test_browser_suggestion_trim_validation_and_duplicate_submit(
     page.route("**/movies/add-comment", lambda route: pending.append(route))
     page.locator("#sendSuggestion").click()
     page.wait_for_function(
-        'document.querySelector("#sendSuggestion").disabled'
+        '() => document.querySelector("#sendSuggestion").disabled'
     )
     page.evaluate(
         'document.querySelector("#suggestionForm")'
@@ -230,7 +232,8 @@ def test_browser_translation_toolbar_and_preview_role(site, browser):
     )
     page.keyboard.press("Escape")
     page.wait_for_function(
-        'document.querySelector(".site-header").getBoundingClientRect().top'
+        '() => document.querySelector(".site-header")'
+        '.getBoundingClientRect().top'
         ' >= document.querySelector("#blog-view-as-notice")'
         ".getBoundingClientRect().bottom - 1"
     )
@@ -242,7 +245,8 @@ def test_browser_translation_toolbar_and_preview_role(site, browser):
         document.querySelector('#blog-view-as-notice').style.top = '40px'; }"""
     )
     page.wait_for_function(
-        'document.querySelector(".site-header").getBoundingClientRect().top'
+        '() => document.querySelector(".site-header")'
+        '.getBoundingClientRect().top'
         ' >= document.querySelector("#blog-view-as-notice")'
         ".getBoundingClientRect().bottom - 1"
     )

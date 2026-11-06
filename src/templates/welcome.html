@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% macro continue_button(label='Začni raziskovati') %}
-<form method="post" class="welcome-continue">
+<form method="post" class="welcome-continue" data-submit-feedback>
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <button type="submit" class="home-primary">{{ label }} <i class="bi bi-arrow-right" aria-hidden="true"></i></button>
 </form>
@@ -15,6 +15,7 @@
         <p class="home-eyebrow"><i class="bi bi-sun" aria-hidden="true"></i> Tvoj prvi obisk</p>
         <h1>Bog daj,<br><span>{{ current_user.id }}!</span></h1>
         <p>Dobrodošel v MarinKino. Filmi, glasba, šale in druge vsebine za družino in prijatelje. Naj ti bodo v razvedrilo, sprostitev in navdih.</p>
+        <div class="home-actions">{{ continue_button() }}<a class="home-secondary" href="#welcome-explore">Najprej kratek ogled <i class="bi bi-arrow-down" aria-hidden="true"></i></a></div>
       </div>
       <aside class="welcome-hero-note" aria-labelledby="welcome-note-title">
         <span class="welcome-note-icon"><i class="bi bi-compass" aria-hidden="true"></i></span>
@@ -33,7 +34,7 @@
       </ol>
     </section>
 
-    <section id="welcome-explore" aria-labelledby="welcome-explore-title">
+    <section id="welcome-explore" tabindex="-1" aria-labelledby="welcome-explore-title">
       <div class="home-section-heading"><div><p class="home-eyebrow">Kratek zemljevid strani</p><h2 id="welcome-explore-title">Najdi nekaj zase.</h2></div><span>Odpri vsebino s klikom na kartico.</span></div>
       <div class="home-featured-grid">
         <a class="home-feature home-feature-film" href="/movies?onlyrecommended=on"><div class="home-feature-top"><span class="home-card-icon"><i class="bi bi-film" aria-hidden="true"></i></span><span class="home-feature-tag">Za filmski večer</span></div><h3>Filmi</h3><p>Opisi, ocene in slovenski podnapisi. Za prvi ogled pobrskaj med priporočenimi filmi.</p><div class="home-feature-bottom"><span>{{ stats.movies_count }} filmov · {{ stats.movies_duration|round(0, 'common')|int }} ur zgodb</span><span class="home-card-arrow"><i class="bi bi-arrow-up-right" aria-hidden="true"></i></span></div></a>

@@ -4,7 +4,7 @@
 {% block admin_content %}
 <section class="admin-panel admin-register" aria-labelledby="register-title">
   <div class="admin-section-heading"><div><h2 id="register-title">Podatki uporabnika</h2><p>Obvezna sta uporabniško ime in glavni e-naslov.</p></div></div>
-  <form method="post" autocomplete="on">
+  <form method="post" autocomplete="on" data-submit-feedback>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="mb-4"><label for="username" class="form-label">Uporabniško ime <span class="text-danger">*</span></label><input id="username" name="username" type="text" class="form-control" value="{{ request.form.get('username', '') }}" placeholder="Na primer: janez.novak" required minlength="3" maxlength="30" pattern="[a-zA-Z0-9_.\-]+" autocomplete="off" aria-describedby="usernameHelp"><div id="usernameHelp" class="form-text">Vsaj 3 znaki. Črke brez šumnikov, številke, pika, podčrtaj ali vezaj.</div></div>
     <div class="mb-4"><label for="email" class="form-label">Glavni e-naslov <span class="text-danger">*</span></label><input id="email" name="email" type="email" class="form-control" value="{{ request.form.get('email', '') }}" placeholder="janez@primer.si" autocomplete="email" required><div class="form-text">Na ta naslov bo poslana povezava za nastavitev gesla.</div></div>

@@ -1,11 +1,13 @@
 {% extends "admin_base.html" %}
 {% block admin_title %}Cene zlata{% endblock %}
-{% block admin_description %}Gibanje cene zlata v evrih. Obdobje izberi neposredno na grafu.{% endblock %}
+{% block admin_description %}Gibanje cene zlata v evrih. Odpri graf in primerjaj različna obdobja.{% endblock %}
 {% block admin_content %}
 <section class="admin-panel" aria-labelledby="gold-title">
-  <div class="admin-section-heading"><div><h2 id="gold-title">Zlato · EUR</h2><p>Podatki in graf: BullionVault.</p></div><button type="button" class="btn btn-outline-secondary" id="retryGold"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Osveži graf</button></div>
-  <div id="goldMessage" class="admin-notice" role="status">Nalagam graf cene zlata …</div>
-  <div id="gold-price-chart" class="admin-gold-chart" aria-label="Graf cene zlata v evrih" aria-busy="true"></div>
+  <div class="admin-section-heading"><div><h2 id="gold-title">Zlato · EUR</h2><p>Podatki in graf: BullionVault. Začetno obdobje: eno leto.</p></div><button type="button" class="btn btn-primary" id="retryGold"><i class="bi bi-graph-up" aria-hidden="true"></i> Naloži graf</button></div>
+  <p id="goldMessage" class="admin-notice" role="status">Graf se poveže z BullionVault šele, ko izbereš »Naloži graf«.</p>
+  <noscript><p class="admin-notice">Za vgrajeni graf omogoči JavaScript ali uporabi spodnjo povezavo.</p></noscript>
+  <div id="goldChartViewport" class="admin-gold-viewport" role="region" tabindex="0" aria-label="Graf cene zlata, premik levo in desno" hidden><div id="gold-price-chart" class="admin-gold-chart" aria-label="Graf cene zlata v evrih"></div></div>
+  <p class="form-text">Obdobje spremeni na grafu. Na ozkem zaslonu se po grafu premikaj tudi vodoravno. Če podatkov ni, odpri stran ponudnika.</p>
   <a href="https://www.bullionvault.com/gold-price-chart.do" target="_blank" rel="noopener noreferrer" class="small">Odpri graf pri BullionVault <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
 </section>
 {% endblock %}

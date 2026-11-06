@@ -39,6 +39,8 @@
             }
         } catch (_error) { draftStatus.textContent = 'Brskalnik ne omogoča shranjevanja osnutka. Besedilo ostane v odprtem obrazcu.'; }
     }
+    const suggestedType = {film: 'predlog za film', music: 'predlog za glasbo', problem: 'napaka'}[new URLSearchParams(location.search).get('type')];
+    if (suggestedType) type.value = suggestedType;
     try {
         const draft = JSON.parse(localStorage.getItem(root.dataset.draftKey) || 'null');
         if (draft && typeof draft.text === 'string' && typeof draft.type === 'string') {

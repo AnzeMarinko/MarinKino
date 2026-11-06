@@ -14,6 +14,14 @@
     {% if host_status.generated_at %}<p class="small text-muted">Pregled strežnika: <time>{{ host_status.generated_at }}</time>. Osveži se vsako minuto.{% if host_status.stale %} <strong>Pregled je starejši od treh minut.</strong>{% endif %}</p>{% else %}<p class="small text-muted">Pregled strežnika še ni na voljo. Dnevnik aplikacije je na voljo ločeno.</p>{% endif %}
   {% endif %}
   {% if log_source and log_source.filename %}<p class="small text-muted">{{ log_source.filename }}{% if log_source.modified_at %} · zadnja sprememba: <time>{{ log_source.modified_at }}</time>{% endif %}</p>{% endif %}
-  <pre class="admin-log admin-log-full" tabindex="0" aria-label="Vsebina izbranega dnevnika">{{ system_log }}</pre>
+  <div class="admin-filter-bar" id="logControls" hidden>
+    <label class="admin-search"><i class="bi bi-search" aria-hidden="true"></i><input id="logSearch" type="search" class="form-control" aria-label="Poišči vrstico v prikazanem dnevniku" placeholder="Poišči dogodek ali napako …"></label>
+    <span id="logCount" class="small text-muted" role="status"></span>
+    <button id="logClear" type="button" class="btn btn-sm btn-outline-secondary" hidden>Počisti iskanje</button>
+    <button id="logLatest" type="button" class="btn btn-sm btn-outline-secondary">Na zadnji dogodek ↓</button>
+  </div>
+  <p id="logEmpty" class="admin-empty" role="status" hidden>Nobena prikazana vrstica ne ustreza iskanju.</p>
+  <pre id="adminLog" class="admin-log admin-log-full" tabindex="0" aria-label="Vsebina izbranega dnevnika">{{ system_log }}</pre>
 </section>
 {% endblock %}
+{% block admin_scripts %}<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="{{ url_for('static', filename='script/admin_logs.js') }}"></script>{% endblock %}

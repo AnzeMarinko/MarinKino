@@ -31,9 +31,9 @@
                 <div class="movie-synopsis"><h2>Opis filma</h2><p>{{ movie.description }}</p></div>
             </div>
         </div>
-    {% if subtitle_buttons %}</br>
+    {% if subtitle_buttons %}<br>
         <hr>Podnapisi (izberete v predvajalniku med možnostmi): {% for subtitle in subtitle_buttons %}<span class="subtitles">{{ subtitle }}</span> {% endfor %}
-        {% endif %}</br>
+        {% endif %}<br>
         <hr>{% if is_collection %}
             <div>
                 {% for video_file in video_files %}
@@ -43,11 +43,11 @@
                         {{ video_file|replace('.mp4', '') }} ({{ movie.runtimes_by_files[video_file|replace('.mp4', '')] }} min)
                     </button>
                 {% endfor %}
-                </div></br>
+                </div><br>
         <hr>
         {% else %}
 
-            <div class="selectors izbira" movie-id="{{ movie.movie_id }}">
+            <div class="selectors izbira" role="group" aria-label="Stanje ogleda" movie-id="{{ movie.movie_id }}">
                 <input type="radio" id="opcija1-{{ movie.movie_id }}" name="izbor-{{ movie.movie_id }}" value="0" {% if movie.watch_ratio|default(0) == 0 %}checked{% endif %}>
                 <label for="opcija1-{{ movie.movie_id }}">Nepogledano</label>
 
@@ -58,7 +58,7 @@
             {% if view_as != "anonymous" and view_as != "user" and current_user.is_authenticated and current_user.is_admin %}
             <div class="buttons">
                 <hr>
-                <div class="selectors priporocilo" movie-folder="{{ movie.folder }}">
+                <div class="selectors priporocilo" role="group" aria-label="Priporočilo skrbnika" movie-folder="{{ movie.folder }}">
                     <input type="radio" id="priporocilo1-{{ movie.movie_id }}" name="priporocaj-{{ movie.movie_id }}" value="" {% if not movie.recommendation_level %}checked{% endif %}>
                     <label for="priporocilo1-{{ movie.movie_id }}">Odstrani priporočilo</label>
                     <input type="radio" id="priporocilo2-{{ movie.movie_id }}" name="priporocaj-{{ movie.movie_id }}" value="recommend" {% if movie.recommendation_level == "recommend" %}checked{% endif %}>
@@ -77,7 +77,7 @@
 
     <div class="movie-player-right-side">
         <div id="rating-summary" data-movie-folder="{{ movie.folder }}" data-is-collection="{{ 'true' if is_collection else 'false' }}">
-            <h4>Ocene filma</h4>
+            <h2 class="h5">Ocene filma</h2>
             <div>
                 <strong>Priporočilo uporabnikov:</strong>
                 <small>(<span id="would-watch-again-count">{{ movie.ratings_summary.would_watch_again.count if movie.ratings_summary and movie.ratings_summary.would_watch_again else 0 }}</span>)</small>
@@ -195,19 +195,19 @@
     {% endif %}
 
     <!-- Modal za urejanje opozorila -->
-    <div id="editAlertModal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
-        <div style="background-color: #fefefe; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 90%; max-width: 500px; border-radius: 8px;">
-            <span style="color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer;" data-movie-action="close-alert">&times;</span>
-            <h2>Uredi opozorilo</h2>
+    <dialog id="editAlertModal" class="movie-alert-dialog" aria-labelledby="edit-alert-title">
+        <div class="movie-alert-dialog-content">
+            <button type="button" class="movie-dialog-close" aria-label="Zapri urejanje opozorila" data-movie-action="close-alert">×</button>
+            <h2 id="edit-alert-title">Uredi opozorilo</h2>
             <div class="alert-form-group">
-                <label>Tip opozorila:</label>
+                <label for="edit_alert_type">Tip opozorila:</label>
                 <select id="edit_alert_type">
                     <option value="opozorilo"><i class="bi bi-exclamation-diamond-fill"></i> Opozorilo</option>
                     <option value="ideja"><i class="bi bi-lightbulb-fill"></i> Ideja</option>
                 </select>
             </div>
             <div class="alert-form-group">
-                <label>Besedilo:</label>
+                <label for="edit_alert_text">Besedilo:</label>
                 <textarea id="edit_alert_text" placeholder="Napišite opozorilo..." rows="4"></textarea>
             </div>
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px;">
@@ -215,21 +215,21 @@
                 <button data-movie-action="save-alert" style="background-color: #4caf50; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">Shrani</button>
             </div>
         </div>
-    </div>
+    </dialog>
 
     <!-- Forma za dodajanje opozorila (samo admin) -->
     {% if current_user.is_authenticated and current_user.is_admin and view_as != "anonymous" and view_as != "user" %}
     <div class="add-alert-form">
         <h4><i class="bi bi-plus-circle"></i> Dodaj novo opozorilo</h4>
         <div class="alert-form-group">
-            <label>Tip opozorila: (<i class="bi bi-exclamation-diamond-fill"></i>, <i class="bi bi-lightbulb-fill"></i>)</label>
+            <label for="alert_type">Tip opozorila: (<i class="bi bi-exclamation-diamond-fill"></i>, <i class="bi bi-lightbulb-fill"></i>)</label>
             <select id="alert_type">
                 <option value="opozorilo"><i class="bi bi-exclamation-diamond-fill"></i> Opozorilo</option>
                 <option value="ideja"><i class="bi bi-lightbulb-fill"></i> Ideja</option>
             </select>
         </div>
         <div class="alert-form-group">
-            <label>Besedilo:</label>
+            <label for="alert_text">Besedilo:</label>
             <textarea id="alert_text" placeholder="Napišite opozorilo..." rows="2"></textarea>
         </div>
         <button data-movie-action="add-alert" data-folder="{{ movie.folder }}" class="btn btn-success"><i class="bi bi-check-circle"></i> Dodaj opozorilo</button>
@@ -637,7 +637,8 @@ document.addEventListener('keydown', event => {
         <form id="commentForm" data-comment-folder="{{ movie.folder }}">
             <div class="form-group">
                 <label for="commentText">Komentar (predlog, opozorilo, itd.):</label><br>
-                <textarea id="commentText" name="comment" required minlength="5" rows="4" placeholder="Napišite vaš komentar..."></textarea>
+                <textarea id="commentText" name="comment" required minlength="5" rows="4" aria-describedby="commentHelp" placeholder="Kaj ti je bilo všeč ali kaj bi izboljšal?"></textarea>
+                <p id="commentHelp" class="movie-form-help">Najmanj 5 znakov. Skrbnik sporočilo pregleda pred morebitno objavo.</p>
             </div>
             <button type="submit">Pošlji komentar</button>
             <div id="commentStatus" class="status-message" role="status" aria-live="polite"></div>

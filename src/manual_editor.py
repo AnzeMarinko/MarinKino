@@ -5,24 +5,35 @@ import os
 import re
 import secrets
 import shutil
+import threading
 import unicodedata
 from pathlib import Path
-from urllib.parse import unquote
+from urllib.parse import unquote, urlparse
 
 import yt_dlp
 from ffmpeg_normalize import FFmpegNormalize
-from flask import Flask, jsonify, render_template, request, send_from_directory
+from flask import (
+    Flask,
+    g,
+    jsonify,
+    render_template,
+    request,
+    send_from_directory,
+)
 from flask_compress import Compress
 from flask_wtf.csrf import CSRFProtect
 from mutagen.easyid3 import EasyID3
 from mutagen.mp3 import MP3, HeaderNotFoundError
 
 from content_preparation.audio_preparation import convert_mp3_to_hls
-from content_preparation.get_movie_metadata import MovieMetadata
+from content_preparation.media_tools import archive_original, audio_hls_ready
 from content_preparation.subtitles.download_subtitles import get_subtitles
 from content_preparation.subtitles.translate_subtitles import translate
 from content_preparation.video_converter import convert_to_m3u8, convert_videos
+from security_storage import atomic_write_json
 from utils import safe_path
+
+_preparation_lock = threading.Lock()
 
 app = Flask(__name__, static_url_path="/static", static_folder="static")
 app.secret_key = os.getenv("FLASK_KEY") or secrets.token_hex(32)
@@ -53,7 +64,22 @@ def require_local_request():
     origin = request.headers.get("Origin")
     if origin is not None and origin != request.host_url.rstrip("/"):
         return jsonify({"error": "Cross-origin access denied"}), 403
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        if not _preparation_lock.acquire(blocking=False):
+            return jsonify(
+                {
+                    "status": "error",
+                    "message": "Priprava že poteka. Počakaj, da se zaključi.",
+                }
+            ), 409
+        g.preparation_lock_held = True
     return None
+
+
+@app.teardown_request
+def release_preparation_lock(_error=None):
+    if g.pop("preparation_lock_held", False):
+        _preparation_lock.release()
 
 
 CSRFProtect(app)
@@ -232,19 +258,15 @@ def process_incoming_music_folder(folder_path=None):
     if not root.exists():
         return
 
+    failures = []
     for mp3_file in sorted(root.rglob("*.mp3")):
-        try:
-            print(f"Normaliziram: {mp3_file}")
-            normalize_mp3_file(str(mp3_file))
-        except Exception as e:
-            print(f"NAPAKA pri normalizaciji {mp3_file}: {e}")
+        output_directory = mp3_file.with_suffix("")
+        if audio_hls_ready(output_directory):
             continue
-
-        try:
-            output_directory = _build_unique_hls_output_dir(mp3_file)
-            convert_mp3_to_hls(str(mp3_file), str(output_directory))
-        except Exception as e:
-            print(f"NAPAKA pri HLS pretvorbi {mp3_file}: {e}")
+        # Original MP3 stays available for tags, playback and recovery.
+        if not convert_mp3_to_hls(str(mp3_file), str(output_directory)):
+            failures.append(mp3_file.name)
+    return failures
 
 
 def download_playlist(playlist_url, get_video=False):
@@ -315,9 +337,9 @@ def download_playlist(playlist_url, get_video=False):
     if get_video:
         return True
 
-    process_incoming_music_folder(f"{INCOMING_MUSIC_FOLDER}/{playlist_title}")
-    print("\nKončano! Glasnost je urejena in HLS pripravljen.")
-    return True
+    failures = process_incoming_music_folder(INCOMING_MUSIC_FOLDER)
+    print("\nPrenos končan. Izvorni MP3 so ohranjeni.")
+    return not failures
 
 
 def get_current_metadata(track_ref):
@@ -407,12 +429,15 @@ def update_values(music_file, title, artist, album):
         audio["album"] = album.strip()
         audio.save()
 
-    metadata_payload = {
-        "title": title.strip(),
-        "artist": artist.strip(),
-        "album": album.strip(),
-        "duration": 0,
-    }
+    metadata_payload = _read_hls_dir_metadata(paths["hls_dir"])
+    metadata_payload.update(
+        {
+            "title": title.strip(),
+            "artist": artist.strip(),
+            "album": album.strip(),
+            "duration": metadata_payload.get("duration", 0),
+        }
+    )
     current = get_current_metadata(paths["track_id"])
     try:
         mm, ss = (current.get("duration") or "0:00").split(":", 1)
@@ -421,8 +446,7 @@ def update_values(music_file, title, artist, album):
         metadata_payload["duration"] = 0
 
     paths["hls_dir"].mkdir(parents=True, exist_ok=True)
-    with open(paths["hls_metadata"], "w", encoding="utf-8") as f:
-        json.dump(metadata_payload, f, ensure_ascii=False, indent=2)
+    atomic_write_json(paths["hls_metadata"], metadata_payload, mode=0o640)
 
     return {"status": "ok", "message": "Podatki uspešno shranjeni!"}
 
@@ -432,6 +456,31 @@ def index():
     return render_template(
         "music_editor.html",
         music=list_incoming_music_tracks(),
+    )
+
+
+@app.route("/api/music/list")
+def music_list():
+    return jsonify({"status": "ok", "music": list_incoming_music_tracks()})
+
+
+@app.route("/api/music/prepare", methods=["POST"])
+def prepare_music():
+    failures = process_incoming_music_folder() or []
+    if failures:
+        return jsonify(
+            {
+                "status": "error",
+                "message": "Niso pripravljene: " + ", ".join(failures),
+            }
+        ), 500
+    return jsonify(
+        {
+            "status": "ok",
+            "message": (
+                "HLS pripravljen. Obstoječi HLS preskočeni; MP3 ohranjeni."
+            ),
+        }
     )
 
 
@@ -512,48 +561,77 @@ def _movie_payload(folder):
         "videos": videos,
         "subtitles": subtitles,
         "is_collection": ".collection" in folder.name.lower(),
+        "metadata": _saved_movie_metadata(folder),
     }
+
+
+@app.route("/movie/file/<path:filename>")
+def incoming_movie_file(filename):
+    path = safe_path(str(INCOMING_MOVIE_FOLDER_ABS), filename)
+    relative = Path(path).relative_to(INCOMING_MOVIE_FOLDER_ABS)
+    return send_from_directory(
+        INCOMING_MOVIE_FOLDER_ABS, relative.as_posix(), conditional=True
+    )
 
 
 @app.route("/api/movies/incoming")
 def list_incoming_movies():
-    INCOMING_MOVIE_FOLDER_ABS.mkdir(parents=True, exist_ok=True)
     movies = []
     for folder in sorted(INCOMING_MOVIE_FOLDER_ABS.rglob("*")):
+        if any(
+            part.startswith(".")
+            for part in folder.relative_to(INCOMING_MOVIE_FOLDER_ABS).parts
+        ):
+            continue
         if not folder.is_dir() or not any(
             path.suffix.lower() in MOVIE_EXTENSIONS
             for path in folder.iterdir()
-        ):
-            continue
-        if any(folder.glob("*/master.m3u8")) or any(
-            folder.glob("master.m3u8")
         ):
             continue
         movies.append(_movie_payload(folder))
     return jsonify({"status": "ok", "movies": movies})
 
 
+_MOVIE_FIELDS = {
+    "title": "Title",
+    "original_title": "OriginalTitle",
+    "year": "Year",
+    "plot": "Plot",
+    "genres": "Genres",
+    "players": "Players",
+    "imdb_id": "imdb_id",
+}
+
+
+def _saved_movie_metadata(folder):
+    readme = folder / "readme.json"
+    if not readme.exists():
+        return {}
+    saved = json.loads(readme.read_text(encoding="utf-8"))
+    return {
+        key: saved.get(field, [] if key == "genres" else "")
+        for key, field in _MOVIE_FIELDS.items()
+    }
+
+
 @app.route("/api/movies/metadata", methods=["POST"])
 def movie_metadata():
     try:
-        folder = _movie_folder(request.json.get("folder"))
-        metadata = MovieMetadata(str(folder))
-        return jsonify(
-            {
-                "status": "ok",
-                "metadata": {
-                    "title": metadata.title,
-                    "original_title": metadata.original_title,
-                    "year": metadata.year,
-                    "plot": metadata.plot,
-                    "genres": metadata.genres,
-                    "players": metadata.players,
-                    "imdb_id": metadata.imdb_id,
-                },
-            }
+        from content_preparation.get_movie_metadata import (
+            lookup_movie_metadata,
         )
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 400
+
+        data = request.get_json()
+        folder = _movie_folder(data.get("folder"))
+        imdb_id = str(data.get("imdb_id", "")).strip()
+        if not re.fullmatch(r"tt\d{7,10}", imdb_id):
+            raise ValueError(
+                "Vnesi IMDb ID oblike tt1234567 ali podatke izpolni ročno."
+            )
+        metadata = lookup_movie_metadata(folder, imdb_id)
+        return jsonify({"status": "ok", "metadata": metadata})
+    except (ValueError, OSError) as error:
+        return jsonify({"status": "error", "message": str(error)}), 400
 
 
 @app.route("/api/movies/subtitles/download", methods=["POST"])
@@ -561,12 +639,20 @@ def download_movie_subtitles():
     try:
         data = request.json
         folder = _movie_folder(data.get("folder"))
-        metadata = MovieMetadata(str(folder))
+        metadata = data.get("metadata") or _saved_movie_metadata(folder)
+        imdb_id = str(metadata.get("imdb_id", "")).strip()
+        if not re.fullmatch(r"tt\d{7,10}", imdb_id):
+            raise ValueError("Za prenos podnapisov najprej vnesi IMDb ID.")
         languages = data.get("languages") or ["sl", "en"]
+        if not isinstance(languages, list) or not set(languages) <= {
+            "sl",
+            "en",
+        }:
+            raise ValueError("Podprta jezika: sl, en.")
         downloaded = get_subtitles(
-            metadata.title,
-            metadata.year,
-            metadata.imdb_id,
+            metadata.get("title", folder.name),
+            metadata.get("year", ""),
+            imdb_id,
             str(folder),
             languages=languages,
         )
@@ -598,7 +684,15 @@ def process_incoming_movie():
     try:
         data = request.json
         folder = _movie_folder(data.get("folder"))
+        mode = data.get("mode")
+        if mode not in {"merge", "collection"}:
+            raise ValueError("Izberi združitev ali zbirko.")
         metadata = data.get("metadata") or {}
+        if (
+            not isinstance(metadata, dict)
+            or not str(metadata.get("title", "")).strip()
+        ):
+            raise ValueError("Naslov filma je obvezen.")
         if metadata:
             readme = folder / "readme.json"
             current = (
@@ -619,10 +713,7 @@ def process_incoming_movie():
                     "imdb_id": metadata.get("imdb_id", "").strip(),
                 }
             )
-            readme.write_text(
-                json.dumps(current, ensure_ascii=False, indent=4),
-                encoding="utf-8",
-            )
+            atomic_write_json(readme, current, mode=0o640)
 
         selected_subtitles = set(data.get("subtitles") or [])
         for subtitle in folder.iterdir():
@@ -631,9 +722,8 @@ def process_incoming_movie():
                 and subtitle.suffix.lower() in (".srt", ".vtt")
                 and subtitle.name not in selected_subtitles
             ):
-                subtitle.unlink()
+                archive_original(subtitle)
 
-        mode = data.get("mode")
         if mode == "collection" and ".collection" not in folder.name.lower():
             target_folder = folder.with_name(f"{folder.name}.Collection")
             folder.rename(target_folder)
@@ -641,11 +731,21 @@ def process_incoming_movie():
         videos = convert_videos(
             str(folder), merge=mode == "merge", collection=mode == "collection"
         )
+        if not videos:
+            raise RuntimeError(
+                "Ni videov za pretvorbo. Preveri mapo in izpis v terminalu."
+            )
         hls_files = []
         for video in videos:
-            if convert_to_m3u8(str(video)):
-                hls_files.append(Path(video).stem)
-        return jsonify({"status": "ok", "hls": hls_files})
+            if not convert_to_m3u8(str(video)):
+                raise RuntimeError(
+                    f"Pretvorba ni uspela: {Path(video).name}. "
+                    "Izvor je ohranjen."
+                )
+            hls_files.append(Path(video).stem)
+        return jsonify(
+            {"status": "ok", "hls": hls_files, "folder": folder.name}
+        )
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -842,7 +942,20 @@ def download_yt_music():
                 400,
             )
 
-        # Preuzeми pesmi
+        parsed = urlparse(yt_url)
+        if parsed.scheme != "https" or parsed.hostname not in {
+            "youtube.com",
+            "www.youtube.com",
+            "music.youtube.com",
+            "youtu.be",
+        }:
+            return jsonify(
+                {
+                    "status": "error",
+                    "message": "Vnesi povezavo HTTPS na YouTube.",
+                }
+            ), 400
+
         success = download_playlist(yt_url)
 
         if not success:
@@ -873,11 +986,6 @@ def download_yt_music():
 
 
 if __name__ == "__main__":
-    # po potrebi posodobi yt-dlp: pip install -U yt-dlp
-    for url in []:
-        download_playlist(url)
-    rename_existing_incoming_hls_dirs()
-    # Prepare existing imports once at startup; HTTP GET requests only read.
-    process_incoming_music_folder(INCOMING_MUSIC_FOLDER)
-
+    # Opening the editor never renames or converts a library automatically.
+    os.chdir(REPO_ROOT)
     app.run(host="127.0.0.1", port=8080, debug=False)

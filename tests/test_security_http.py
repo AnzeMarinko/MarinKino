@@ -311,6 +311,33 @@ def test_authenticated_pages_are_not_cached_and_bootstrap_must_change_password(
     assert http.client.get("/password/change").status_code == 200
 
 
+def test_gold_chart_provider_is_confined_to_successful_admin_page(http):
+    from flask_login import login_user
+
+    for endpoint, admin, status in [
+        ("admin.admin_gold", True, 200),
+        ("admin.admin_gold", False, 200),
+        ("admin.admin_gold", True, 403),
+        ("probe", True, 200),
+    ]:
+        with http.app.test_request_context("/probe"):
+            user = User("member")
+            user.is_admin = admin
+            login_user(user)
+            request.url_rule = SimpleNamespace(endpoint=endpoint)
+            response = security_http.add_headers(
+                http.app.response_class(status=status)
+            )
+            policy = response.headers["Content-Security-Policy"]
+            allowed = (
+                endpoint == "admin.admin_gold" and admin and status == 200
+            )
+            assert ("https://www.bullionvault.com" in policy) == allowed
+            assert ("wss://chart-data.bullionvault.com" in policy) == allowed
+            assert "script-src-attr 'none'" in policy
+            assert "unsafe-eval" not in policy
+
+
 def test_cache_expires_and_evicts_old_queries_without_losing_recent_hit(
     monkeypatch,
 ):

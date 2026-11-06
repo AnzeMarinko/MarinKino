@@ -1,23 +1,70 @@
 # MarinKino
 
-To je repozitorij za domači kino. Preko HTTPS serverja so tako filmi z domačega diska varno dostopni preko spleta le izbranemu krogu uporabnikom (prijavljenim). Ta server omogoča enostavno izbiro in ogled filmov kar v brskalniku. Koda avtomatizirano poskrbi:
-* da je vsak film v eni `mp4` datoteki za zmanjšanje datoteke in tudi za združevanje `.vob` ter drugih podobnih nekompresiranih formatov,
-* priskrbi naslovnice, opise in druge podatke o filmih ter opise po potrebi z umetno inteligenco prevede v slovenščino,
-* po potrebi priskrbi podnapise z interneta (ročno je potrebno izbrani najboljšo datoteko),
-* z umetno inteligenco zazna govor in poravna podnapise z zvokom (zamik in skaliranje),
-* preveri jezik podnapisov in jih po potrebi z umetno inteligenco prevede v slovenščino.
+Javni blog **Sončnice** in zasebna zbirka filmov, glasbe ter otroškega radia.
+Flask aplikacija teče na Raspberry Pi za Nginx; medijske datoteke ostanejo na
+domačem disku. Javna stran: [anzemarinko.si](https://anzemarinko.si).
 
-> Mimogrede: Filme sem uredil in osnovno stran za izbiro filmov pripravil že preden je ven prišel Sloflix, ki je na nek način podobna stvar. Poleg osebnega zadovoljstva ob učenju novega in pripravi celotnega lastnega sistema je namen te strani predvsem zbirka vsebinsko kvalitetnih filmov in risank brez oglasov.
+## Vsebine in dostop
 
-Preko strani pa je dostopno tudi:
-* zbirka čez 2000 šal (meme) in spodbud, ki sem jih zbiral skozi leta. Del šal je seveda časovno specifičen predvsem zaradi zborovskih in koronskih let.
-* zbirka glasbe z okrog 1000 pesmimi brez oglasov (slovenske, klasične, krščanske, rokerske, ...). Stran z glasbo je že pripravljena, je pa izbor pesmi še potreben pregleda, saj sem pesmi počasi zbiral skozi leta in je vmes tudi, kaj vsebinsko nekvalitetnega, kar mi je bilo v nekem času zanimivo. Marsikatera zvrst, ki je nisem toliko poslušal, pa tudi manjka.
-* družabna igra Pod krinko (slovenska verzija igre Undercover).
+| Dostop | Vsebine |
+| --- | --- |
+| Javno | Blog, prevodi in potrjene e-poštne naročnine; vreme, Pod krinko in šale (nekatere funkcije imajo omejitve za goste) |
+| Prijavljeni | Filmi in risanke, glasba, otroški radio, predlogi in razširjen dostop do ostalih vsebin |
+| Skrbniki | Uporabniki, blog in obvestila, statistika, šale, dnevniki, gibanje in dodatna orodja |
 
-> Stran je dostopna preko [www.anzemarinko.si](https://www.anzemarinko.si). Je pa večina vsebin zaklenjenih le za prijavljene uporabnike.
+Račune povabi skrbnik. Naročnina na blog ne ustvari uporabniškega računa.
+Osnutki bloga niso javni; prek neposredne povezave jih lahko berejo prijavljeni.
 
-## Navodila za razvijalce
-* [Nastavitev MarinKino serverja](docs/installation.md)
-* [Dodajanje novih vsebin](docs/adding_data.md)
+## Kje začeti
 
-V primeru napak, pomanjkljivosti navodil ali slabega delovanja priprave filmov in strežnika bom vesel predlogov.
+- [Namestitev in razvoj](docs/installation.md): okolje, dostop, Docker, posodobitve.
+- [Priprava filmov in glasbe](docs/adding_data.md): pregled vhodov, pretvorba, urejanje in nadaljevanje.
+- [Uporaba strani](docs/usage.md): obiskovalci, člani in skrbniki.
+- [Arhitektura](docs/architecture.md): zahteve, podatki in opravila v ozadju.
+- [RPi: RAM, CPU in temperatura](docs/performance.md): en ukaz za meritve, cgroup in izmerjena poraba.
+- [Varnost, vzdrževanje in obnova](docs/security.md): setup, kopije, migracije in povrnitev.
+
+## Lokalni razvoj
+
+Potrebuješ Python 3.12+, `uv` in lokalni Redis. V `.env` nastavi vrednosti
+iz [navodil](docs/installation.md); vzorci niso produkcijska konfiguracija.
+
+```sh
+cp .env.example .env
+uv sync --extra dev
+uv run python src/app.py
+```
+
+Razvoj uporablja `data/test_users.json` in `data/fitness-development.sqlite3`.
+Začetno enkratno skrbniško geslo je v `data/.initial-admin-password`.
+**Ostale zbirke v `data/` se lahko spreminjajo tudi lokalno**; za razvoj
+uporabi svojo kopijo podatkov. Produkcije ne zaganjaj z razvojnim strežnikom.
+
+```sh
+PYTHONPATH=src uv run --extra dev pytest -q
+```
+
+Brskalniški testi so vključeni posebej; postopek je v
+[navodilih za razvoj](docs/installation.md#preverjanje-sprememb).
+Priprava medijev ima ločene, težje odvisnosti (`uv sync --extra preparation`)
+in ne teče ob HTTP zahtevah. Pregled vhodov brez pretvorbe:
+
+```sh
+uv run python src/prepare_content.py --dry-run
+```
+
+## Struktura
+
+```text
+src/app.py                 Flask, prijava in registracija blueprintov
+src/blueprints/             Javni, uporabniški in skrbniški HTTP vmesniki
+src/templates/, src/static/ Jinja, CSS, JavaScript in lokalne knjižnice
+src/content_preparation/   Obdelava medijev zunaj spletne aplikacije
+src/prepare_content.py      CLI za pripravo vsebin
+src/manual_editor.py        Lokalni urejevalnik metapodatkov in pretvorb
+data/                      Vsebine, zasebni JSON in SQLite podatki
+configuration/             Nginx, Redis in gradnja pomožnih slik
+scripts/                   Namestitev, varnostne kopije, vzdrževanje, meritve
+tests/                     Regresijski in brskalniški testi
+docs/                      Navodila za uporabo in upravljanje
+```

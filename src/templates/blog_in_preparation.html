@@ -1,12 +1,12 @@
-{% extends "base.html" %}
-{% block content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/blog.css') }}">
-<meta name="robots" content="noindex, nofollow">
-<main class="blog-page blog-reading-page">
- <div class="blog-reading-shell" style="text-align:center;padding:4rem 1rem">
-  <h1><i class="bi bi-hourglass-split" aria-hidden="true"></i> Zapis je še v pripravi</h1>
-  <p>Ta zapis žal trenutno še ni objavljen. Morda gre za napako in nas lahko obvestiš o tem. Prosimo, pošlji nam e-sporočilo na <a href="mailto:anze@anzemarinko.si">anze@anzemarinko.si</a>. Obišči stran ponovno, ko bo zapis objavljen.</p>
-  <a class="blog-text-link" href="/blog">Nazaj na vse zapise <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
- </div>
-</main>
+{% extends "auth_base.html" %}
+{% block page_styles %}<meta name="robots" content="noindex, nofollow">{% endblock %}
+{% block eyebrow %}Blog Sončnice{% endblock %}
+{% block icon %}bi-hourglass-split{% endblock %}
+{% block heading %}Zapis je še v pripravi.{% endblock %}
+{% block intro %}Ta zapis še ni objavljen. Medtem lahko prebereš druge zapise na blogu.{% endblock %}
+{% block form_title %}Preberi kaj drugega{% endblock %}
+{% block description %}Na seznamu najdeš vse trenutno objavljene zapise.{% endblock %}
+{% block auth_content %}
+<a class="auth-primary" href="/blog">Na vse zapise <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+<p class="auth-help mt-3">Če si prejel povezavo do objave, ki bi že morala biti na voljo, piši na <a href="mailto:anze@anzemarinko.si">anze@anzemarinko.si</a>.</p>
 {% endblock %}

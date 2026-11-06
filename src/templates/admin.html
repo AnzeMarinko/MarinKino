@@ -1,6 +1,6 @@
 {% extends "admin_base.html" %}
 {% block admin_content %}
-<div class="admin-stats" aria-label="Hiter pregled">
+<div class="admin-stats admin-stats-three" aria-label="Hiter pregled">
   <div class="admin-stat"><span>Registrirani uporabniki</span><strong>{{ users_count }}</strong></div>
   <div class="admin-stat"><span>Blog objave</span><strong>{{ blog_stats|length }}</strong></div>
   <div class="admin-stat"><span>Ogledi bloga</span><strong>{{ total_blog_views }}</strong></div>
@@ -21,7 +21,7 @@
 
 <section id="admin-users" class="admin-panel" aria-labelledby="users-title">
   <div class="admin-section-heading"><div><h2 id="users-title">Filmi in uporabniki</h2><p>Poišči uporabnika. Za razvrščanje izberi naslov stolpca.</p></div><a class="btn btn-outline-secondary" href="/admin/register">Dodaj uporabnika</a></div>
-  <div class="admin-filter-bar"><label class="admin-search"><i class="bi bi-search" aria-hidden="true"></i><input class="form-control" type="search" data-table-search="views-table" placeholder="Poišči uporabnika …" aria-label="Poišči uporabnika v statistiki"></label><span class="small text-muted" data-table-count="views-table" aria-live="polite"></span></div>
+  <div class="admin-filter-bar"><label class="admin-search"><i class="bi bi-search" aria-hidden="true"></i><input class="form-control" type="search" data-table-search="views-table" placeholder="Poišči uporabnika …" aria-label="Poišči uporabnika v statistiki"></label><span class="small text-muted" data-table-count="views-table" aria-live="polite"></span><button type="button" class="btn btn-sm btn-outline-secondary" data-table-reset="views-table" hidden>Počisti filtre</button></div>
   <div class="table-responsive"><table id="views-table" class="table table-hover" data-sortable><thead><tr><th scope="col" data-sort="text">Uporabnik</th>{% for column in users_stats_columns %}<th scope="col" data-sort="{{ 'text' if 'Zadnji' in column else 'number' }}">{{ column }}</th>{% endfor %}</tr></thead><tbody>{% for user, data in users_stats.items() %}<tr><td>{{ user }}</td>{% for column in users_stats_columns %}<td>{{ data[column] }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
   <p class="admin-table-empty mt-3" data-table-empty="views-table" hidden>Ni uporabnikov, ki bi ustrezali iskanju.</p>
   <details class="mt-3"><summary class="small">E-naslovi uporabnikov</summary><p class="small text-muted mt-2 text-break">{{ emails or 'Ni shranjenih e-naslovov.' }}</p></details>
@@ -41,7 +41,7 @@
   <div class="table-responsive"><table class="table table-hover" data-sortable><thead><tr><th scope="col" data-sort="text">Naslov</th><th scope="col" data-sort="number">Ogledi</th><th scope="col" data-sort="text">Datum</th></tr></thead><tbody>{% for stat in blog_stats %}<tr><td><a href="/admin/blog/edit/{{ stat.id }}">{{ stat.title }}</a></td><td>{{ stat.views }}</td><td>{{ stat.created_at }}</td></tr>{% else %}<tr><td colspan="3" class="text-muted">Ni še podatkov o objavah.</td></tr>{% endfor %}</tbody></table></div>
   <div id="blog-views-graph" class="admin-plot mt-3" aria-label="Graf dnevnih ogledov bloga"></div>
   <h3 class="mt-4">Rast ogledov po objavah</h3>
-  <p class="small text-muted">Skupni ogledi od prvega zabeleženega ogleda. Osi sta linearni; x-os uporablja log₂ dni, y-os pa kvadratni koren ogledov. Oznake kažejo dejanske vrednosti ogledov in dni. Na x-osi 1 pomeni prvi dan, 2 drugi dan, 4 četrti dan … 1024 je 1024. dan.</p>
+  <details class="admin-help"><summary>Kako prebrati graf rasti?</summary><p class="small text-muted mt-2">Skupni ogledi od prvega zabeleženega ogleda. Osi sta linearni; x-os uporablja log₂ dni, y-os pa kvadratni koren ogledov. Oznake kažejo dejanske vrednosti ogledov in dni. Na x-osi 1 pomeni prvi dan, 2 drugi dan, 4 četrti dan … 1024 je 1024. dan.</p></details>
   <div class="admin-filter-bar"><label for="blogPostSelect" class="form-label mb-0">Objava</label><select id="blogPostSelect" class="form-select w-auto"></select></div>
   <div id="blog-growth-graph" class="admin-plot" aria-label="Graf rasti ogledov posameznih objav"></div>
 </section>

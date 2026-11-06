@@ -139,10 +139,14 @@ def test_browser_password_matching_generator_and_post(account, browser):
     assert toggle.get_attribute("aria-pressed") == "true"
     toggle.click()
     assert page.locator("#password").get_attribute("type") == "password"
+    page.get_by_role("button", name="Shrani novo geslo").evaluate(
+        "el => { el.name = 'action'; el.value = 'change-password'; }"
+    )
     page.get_by_role("button", name="Shrani novo geslo").click()
     page.wait_for_load_state()
     assert account.submitted[-1]["csrf_token"] == "test-csrf"
     assert account.submitted[-1]["password"] == password
+    assert account.submitted[-1]["action"] == "change-password"
     assert page.locator("#password").input_value() == ""
     page.goto(browser.base + "/reset-password")
     assert page.locator("#username").get_attribute("readonly") is not None
@@ -169,3 +173,56 @@ def test_browser_without_javascript(account, browser):
         assert account.submitted[-1]["username"] == "Ana"
     finally:
         context.close()
+
+
+def test_browser_caps_lock_hint_is_local_to_password(account, browser):
+    page = browser.page
+    page.goto(browser.base + "/login")
+    password = page.locator("#password")
+    password.focus()
+    password.dispatch_event("keydown", {"key": "A", "modifierCapsLock": True})
+    assert page.locator("#password-caps").is_visible()
+    page.locator("#username").focus()
+    assert page.locator("#password-caps").is_hidden()
+    password.focus()
+    password.dispatch_event("keyup", {"key": "a", "modifierCapsLock": False})
+    assert page.locator("#password-caps").is_hidden()
+
+
+def test_browser_native_form_feedback_validation_retry_and_pageshow(
+    account, browser
+):
+    page = browser.page
+    page.goto(browser.base + "/login")
+    page.evaluate("""() => {
+        window.submissionAttempts = [];
+        document.addEventListener('submit', event => {
+            if (!event.target.matches('.auth-form')) return;
+            window.submissionAttempts.push(event.defaultPrevented);
+            // Observe the form helper before stopping navigation in this test.
+            event.preventDefault();
+        });
+    }""")
+    form = page.locator(".auth-form")
+    button = page.get_by_role("button", name="Prijavi se", exact=True)
+    button.click()
+    assert form.get_attribute("aria-busy") is None
+    assert page.evaluate("window.submissionAttempts") == []
+    page.locator("#username").fill("Ana")
+    page.locator("#password").fill("Password123!")
+    button.click()
+    assert form.get_attribute("aria-busy") == "true"
+    assert button.evaluate("el => !el.disabled")
+    assert button.get_attribute("aria-disabled") == "true"
+    page.evaluate("""() => {
+        const form = document.querySelector('.auth-form');
+        form.requestSubmit(form.querySelector('button[type="submit"]'));
+    }""")
+    assert page.evaluate("window.submissionAttempts") == [False, True]
+    page.evaluate("""() => window.dispatchEvent(
+        new PageTransitionEvent('pageshow', {persisted: true})
+    )""")
+    assert form.get_attribute("aria-busy") is None
+    assert button.get_attribute("aria-disabled") is None
+    button.click()
+    assert page.evaluate("window.submissionAttempts") == [False, True, False]

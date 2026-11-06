@@ -115,6 +115,21 @@ def init_security(app, limiter):
 
 
 def add_headers(response, production=False):
+    # The optional chart is loaded by an administrator's explicit action.
+    # Keep provider access confined to that page, including its data socket.
+    chart_page = (
+        request.endpoint == "admin.admin_gold"
+        and current_user.is_authenticated
+        and current_user.is_admin
+        and response.status_code == 200
+    )
+    chart_assets = " https://www.bullionvault.com" if chart_page else ""
+    chart_data = (
+        " https://chart-data.bullionvault.com"
+        " wss://chart-data.bullionvault.com"
+        if chart_page
+        else ""
+    )
     for name, value in {
         "X-Content-Type-Options": "nosniff",
         "X-Frame-Options": "SAMEORIGIN",
@@ -124,11 +139,12 @@ def add_headers(response, production=False):
             "default-src 'self'; base-uri 'self'; object-src 'none'; "
             "frame-ancestors 'self'; form-action 'self'; "
             f"script-src 'self' 'nonce-{getattr(g, 'csp_nonce', '')}' "
-            "https://challenges.cloudflare.com; script-src-attr 'none'; "
-            "style-src 'self' 'unsafe-inline'; "
+            f"https://challenges.cloudflare.com{chart_assets}; "
+            "script-src-attr 'none'; "
+            f"style-src 'self' 'unsafe-inline'{chart_assets}; "
             "img-src 'self' data: blob: https:; "
             "font-src 'self' data:; connect-src 'self' "
-            "https://challenges.cloudflare.com; "
+            f"https://challenges.cloudflare.com{chart_data}; "
             "frame-src https://challenges.cloudflare.com; "
             "worker-src 'self' blob:; media-src 'self' blob:"
         ),

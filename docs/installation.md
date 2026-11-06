@@ -4,8 +4,9 @@ Tu so posodobljena navodila za lokalno in strežniško namestitev.
 
 ## Sistemske zahteve
 * Linux (npr. Ubuntu 24.04 ali Raspberry Pi OS)
-* Python 3.12
-* FFMPEG
+* Python 3.12 ali novejši; produkcijska slika uporablja Python 3.12
+* Redis za lokalno aplikacijo; Docker Engine in Compose v2 za strežnik
+* FFmpeg/FFprobe za pripravo vsebin in filmske arhive; Shaka Packager za pripravo filmov
 * Rezerviran IP za strežnik (na routerju nastavi rezerviran IP za MAC naslov mrežne kartice svojega strežnika)
 * Port forwarding 80-80 (notranji in zunanji vhod) in 443-443 nastavljen na routerju za rezerviran IP strežnika
 * DuckDNS poddomena, če nimaš fiksnega IP
@@ -56,13 +57,17 @@ pre-commit install
 pre-commit run --all-files
 ```
 
+Priprava filmov in glasbe je ločen postopek: `uv sync --extra preparation`.
+Težjih knjižnic za AI in analizo ne nameščaj v javni spletni vsebnik.
+Glej [pripravo vsebin](adding_data.md).
+
 ### 3.1. Napredna analiza glasbe z librosa (opcijsko)
 
 Za tempo, tonaliteto, akorde in naprednejše značilnosti namesti opcijsko
 odvisnost:
 
 ```
-uv pip install -e ".[smart-playlists]"
+uv sync --extra preparation --extra smart-playlists
 ```
 
 Nato nastavi analizni backend v okolju:
@@ -74,7 +79,7 @@ AUDIO_ANALYZER=auto
 Možne vrednosti so `numpy`, `librosa` (zahteva namestitev) in
 `auto` (privzeto; uporabi librosa, če je na voljo, sicer NumPy/FFmpeg
 fallback).
-Analizo izvaja priprava vsebin in jo shrani v HLS `metadata.json`.
+Analizo vključiš z `--analyze` pri pripravi vsebin; rezultat se shrani v HLS `metadata.json`.
 Spletna aplikacija ob zagonu in zahtevah samo prebere pripravljene metapodatke;
 ne ponavlja audio ali Gemini analize. Metapodatki iz librosa ostanejo uporabni
 tudi v spletnem vsebniku brez te knjižnice. Sprememba analiznega backenda zato
@@ -87,7 +92,7 @@ semantične ocene za smart playlist:
 
 ```
 GEMINI_TOKEN=...
-GEMINI_MODEL=gemini-2.0-flash
+# GEMINI_MODEL je neobvezen; privzeto gemini-2.5-flash
 ```
 
 Klic se izvede samo pri ustvarjanju oziroma ponovni predpripravi
@@ -143,9 +148,10 @@ prevedene objave, brez neprevedenega naslova ali povzetka.
 Obvestila se pošiljajo ločeno za vsak jezik, naslovniki ostanejo v BCC.
 Uspešno poslane jezikovne skupine se zabeležijo v `mail_languages_sent`,
 zato jih ponovitev po napaki druge skupine ne pošlje znova. `mail_date`
-se nastavi po uspehu vseh skupin. Delna zavrnitev naslovnikov prek SMTP
-ostane napaka te skupine; pri ponovitvi lahko že sprejeti naslovniki te
-skupine prejmejo podvojeno sporočilo.
+se nastavi po uspehu vseh skupin. Delna zavrnitev ali prekinjena SMTP dostava dobi stanje `uncertain`: samodejno
+ponovno pošiljanje je blokirano, ker je del pošte lahko že dostavljen. Pred
+novim pošiljanjem preveri stanje pri poštnem ponudniku. Urednik kaže stanje
+opravila; shranjevanje objave samo po sebi ne pošlje obvestil.
 
 ### 4. Namesti Redis
 ```
@@ -155,16 +161,17 @@ sudo systemctl enable --now redis-server
 
 ### 4.1. Prijavljene naprave
 
-Vsak uporabnik ima lahko največ **10 hkrati prijavljenih naprav**, tudi
-administrator. Napravo predstavlja posamezna brskalniška seja z naključnim
+Običajni uporabnik ima lahko največ **10 hkrati prijavljenih naprav**,
+skrbnik **20**. Napravo predstavlja posamezna brskalniška seja z naključnim
 `device_id` v podpisanem sejnem piškotku. ID ni povezan s FingerprintJS.
-Šesta prijava je zavrnjena z opozorilom, naj se uporabnik odjavi na eni od
+Enajsta uporabniška oziroma enaindvajseta skrbniška prijava je zavrnjena z opozorilom, naj se uporabnik odjavi na eni od
 drugih naprav. Odjava takoj sprosti mesto.
 
 Redis hrani ID-je in čas zadnje uporabe v urejenem naboru
 `auth:devices:<uporabnik>`. Preverjanje omejitve in vpis naprave sta atomska,
 zato omejitev velja tudi pri sočasnih prijavah. Vsaka preverjena uporaba seje
-podaljša njeno veljavnost za **30 dni**. Po 7 dneh neaktivnosti seja ni več
+obnovi **7-dnevni rok nedejavnosti**. Seja ima tudi absolutno omejitev
+**30 dni od prijave**, tudi za skrbnika. Po 7 dneh neaktivnosti seja ni več
 veljavna in ne zaseda mesta: potekli vnosi se odstranijo ob preverjanju ali
 novi prijavi, celoten neaktiven nabor pa poteče s TTL. Dodaten cron ni potreben.
 
@@ -191,7 +198,7 @@ zgoščena vrednost. Prva prijava zahteva menjavo gesla. Nato datoteko z
 enkratnim geslom izbriši. Razvoj uporablja `data/test_users.json`.
 
 ### 6. Dodaj vsebine
-V mape `movies`, `memes` in `music` dodaj datoteke glede na [navodila za dodajanje datotek](docs/adding_data.md).
+V mape `movies`, `memes` in `music` dodaj datoteke glede na [navodila za dodajanje datotek](adding_data.md).
 
 ### 7. Pravice in strežniška namestitev
 
@@ -208,18 +215,16 @@ Setup uredi dovoljenja, vsebnike, TLS, požarni zid, Fail2Ban in cron.
 Podrobnosti posodobitev, obnovitev in šifriranih kopij:
 [varnost in vzdrževanje](security.md).
 
-### 3. Posodabljanje aplikacije po spremembah
+### 8. Posodabljanje aplikacije po spremembah
 Po spremembah v `src`, `.env`, Dockerfile ali `docker-compose.yml` ponovno pregradi:
 ```
 sudo --preserve-env=SSH_CONNECTION bash scripts/setup.sh
 ```
 
-Shranjevanje blog objave sprejme zahteve do 40 MB. Na obstoječem strežniku
-nastavi `client_max_body_size 40m;` v `configuration/nginx/conf/app.conf`
-in ponovno naloži Nginx:
-```
-docker compose exec nginx nginx -s reload
-```
+Setup ustvari tudi Nginx konfiguracijo z omejitvijo nalaganja slik 40 MB.
+Ročni popravki generirane konfiguracije se ob setupu prepišejo. Na RPi preveri
+še [Docker podporo za pomnilniške omejitve](performance.md#docker-in-cgroup).
+Namestitev pregradi aplikacijo in pripadajoče statične datoteke skupaj.
 
 ## Namestitev na obstoječem Pi in kopije na Drive
 
@@ -410,3 +415,27 @@ Za produkcijsko rabo priporočam svojo domeno, kjer upravljaš DNS zapise pri po
 4. Če želiš, lahko lastno domeno usmeriš prek CNAME na DuckDNS poddomeno, vendar je najbolj stabilna rešitev neposredni A/AAAA zapis na ciljni strežnik.
 
 Za HTTPS uporabi certbot ali drugo TLS rešitev z lastno domeno, ne pa URL-ja DuckDNS kot primarno končno ime. DuckDNS naj ostane pomočnik za dinamičen DNS in začasno preusmeritev, če nimaš statičnega naslova.
+
+
+## Preverjanje sprememb
+
+Uporabi razvojno okolje in začasne podatke; testi ne potrebujejo produkcijskega
+`.env`, SMTP računa ali dejanskega pošiljanja obvestil.
+
+```sh
+uv sync --extra dev
+PYTHONPATH=src uv run pytest -q
+uv run playwright install chromium
+PYTHONPATH=src MARINKINO_UI_BROWSER=1 uv run pytest tests/ -q
+```
+
+Testi s skupno UI fixture podpirajo tudi že nameščen Chromium/Chrome/Brave
+prek `MARINKINO_BROWSER_EXECUTABLE=/absolutna/pot/do/brskalnika`. Testi igre
+in gibanja še vedno potrebujejo Chromium, nameščen s Playwright.
+Brskalniški testi brez `MARINKINO_UI_BROWSER=1` ostanejo preskočeni.
+Preveri mobilno širino, tipkovnico, stanja brez zadetkov in neuspešno oddajo.
+Za pripravo medijev najprej zaženi `--dry-run`, nato preizkus na majhni kopiji
+filma oziroma MP3, nikoli prvič na celotni produkcijski zbirki.
+
+Python testi ne zamenjajo preverjanja Docker slik in `nginx -t`; te opravi
+namestitveni postopek na gostitelju z Dockerjem.

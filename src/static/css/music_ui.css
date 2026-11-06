@@ -209,3 +209,11 @@
     .audio-private-details { padding-top: .3rem; }
     .radio-stories-page .audio-player-hint { font-size: .65rem; line-height: 1.4; }
 }
+
+.audio-page-heading { flex-wrap:wrap; }
+.audio-quick-links { display:flex; gap:1rem; flex-wrap:wrap; flex-basis:100%; font-size:.8rem; }
+.audio-no-script { grid-column:1 / -1; }
+.audio-quick-links a { color:inherit; text-underline-offset:4px; padding:.4rem 0; }
+.music-app-container #browser, .music-app-container #player { scroll-margin-top:7rem; }
+
+.music-app-container:not(.radio-stories-page) .audio-quick-links { color:#d7e8e1; }

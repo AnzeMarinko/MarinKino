@@ -17,7 +17,8 @@
     <p class="blog-kicker">Sončnice · <span class="notranslate" translate="no" data-blog-title>Rože dobrega</span></p>
     <h1 itemprop="headline">{{ post.title }}</h1>
     {% if post.subtitle %}<p class="blog-article-subtitle" itemprop="description">{{ post.subtitle }}</p>{% endif %}
-    <div class="blog-article-meta"><span itemprop="author" itemscope itemtype="https://schema.org/Person"><a href="/blog/o-meni" itemprop="url"><i class="bi bi-person-circle" aria-hidden="true"></i> <span itemprop="name">Anže Marinko</span></a></span><time itemprop="datePublished" datetime="{{ post.published_at or post.created_at }}">{{ post.created_at_display }}</time>{% if not post.published %}<span class="blog-draft">Osnutek</span>{% endif %}</div>
+    {% set reading_minutes = ((post.content_html|striptags|wordcount) / 200)|round(0, 'ceil')|int %}
+    <div class="blog-article-meta"><span itemprop="author" itemscope itemtype="https://schema.org/Person"><a href="/blog/o-meni" itemprop="url"><i class="bi bi-person-circle" aria-hidden="true"></i> <span itemprop="name">Anže Marinko</span></a></span><time itemprop="datePublished" datetime="{{ post.published_at or post.created_at }}">{{ post.created_at_display }}</time><span><i class="bi bi-clock" aria-hidden="true"></i> Približno {{ [1, reading_minutes]|max }} min branja</span>{% if not post.published %}<span class="blog-draft">Osnutek</span>{% endif %}</div>
    </header>
    {% set gallery = post.get('images', []) %}
    {% if gallery %}

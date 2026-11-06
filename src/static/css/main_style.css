@@ -70,6 +70,38 @@ html, body {
   transform: translateY(-10px);
 }
 
+/* Shared keyboard access; page components retain their own layout. */
+:where(#main-content) :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid #087ca3;
+  outline-offset: 3px;
+}
+:where(#main-content) :where(h1, h2, h3, [id]) {
+  scroll-margin-top: 16px;
+}
+form[aria-busy="true"] .is-submitting {
+  cursor: progress;
+  opacity: .75;
+}
+form[aria-busy="true"] .is-submitting::after {
+  content: "";
+  display: inline-block;
+  width: .85em;
+  height: .85em;
+  margin-inline-start: .6em;
+  border: 2px solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  :where(#main-content, #main-content *) {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
 /* ===== ANIMATIONS ===== */
 @keyframes spin {
     from {

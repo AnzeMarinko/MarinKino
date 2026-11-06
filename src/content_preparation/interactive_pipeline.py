@@ -10,12 +10,15 @@ import json
 import logging
 from pathlib import Path
 
+from security_storage import atomic_write_json
+
 from .audio_preparation import process_audio_folders
 from .browser_preview import (
     preview_and_confirm_alignment,
     show_subtitle_excerpts_gallery,
 )
 from .get_movie_metadata import MovieMetadata
+from .media_tools import archive_original
 from .subtitles import (
     DOWNLOADED_MARKER,
     apply_alignment,
@@ -35,7 +38,7 @@ def ask_yes_no(prompt, default=True):
     answer = input(f"{prompt} {suffix}: ").strip().lower()
     if not answer:
         return default
-    return answer.startswith("y")
+    return answer in {"y", "yes", "d", "da", "ja"}
 
 
 def _readme_path(folder):
@@ -51,8 +54,7 @@ def _load_readme(folder):
 
 
 def _save_readme(folder, data):
-    with open(_readme_path(folder), "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
+    atomic_write_json(_readme_path(folder), data, mode=0o640)
 
 
 def _mark_confirmed(folder, key):
@@ -224,12 +226,21 @@ def step_select_subtitles(folder):
     if not choice:
         return
 
-    keep_indexes = {int(x) for x in choice.split(",") if x.strip().isdigit()}
+    choices = [item.strip() for item in choice.split(",")]
+    if not all(
+        item.isdigit() and 1 <= int(item) <= len(subtitle_files)
+        for item in choices
+    ):
+        log.warning("Neveljaven izbor; vsi podnapisi so ohranjeni.")
+        return
+    keep_indexes = {int(item) for item in choices}
     for i, s in enumerate(subtitle_files, start=1):
         if i not in keep_indexes:
-            s.unlink(missing_ok=True)
-            s.with_suffix(".vtt").unlink(missing_ok=True)
-            log.info(f"🗑️ Odstranjen podnapis: {s.name}")
+            archive_original(s)
+            vtt = s.with_suffix(".vtt")
+            if vtt.exists():
+                archive_original(vtt)
+            log.info("Podnapis umaknjen v .originals: %s", s.name)
 
 
 def step_align_subtitles(folder, video_path):
@@ -344,23 +355,47 @@ def process_single_movie(folder):
 
     for video in get_videos_list(folder):
         log.info(f"📦 Ustvarjam HLS (m3u8) za: {video.name}")
-        convert_to_m3u8(str(video))
+        if not convert_to_m3u8(str(video)):
+            raise RuntimeError(f"HLS ni bil pripravljen: {video.name}")
 
 
-def run_interactive_pipeline(films_root):
-    # KORAK 0: procesiranje audio datotek (glasba/otroški radio)
-    if ask_yes_no("Obdelam zvočne datoteke (glasba/otroški radio)?"):
-        process_audio_folders()
+def run_interactive_pipeline(
+    films_root, *, include_audio=True, movie_folders=None, analyze_audio=False
+):
+    failures = 0
+    if include_audio and ask_yes_no(
+        "Obdelam zvočne datoteke (glasba/otroški radio)?"
+    ):
+        data_root = Path(films_root).parent
+        summary = process_audio_folders(
+            [data_root / "music", data_root / "radio-stories"],
+            analyze=analyze_audio,
+        )
+        failures += summary["failed"]
 
     incoming_root = Path(films_root) / INCOMING_FOLDER_NAME
-    incoming_root.mkdir(parents=True, exist_ok=True)
-
-    film_folders = sorted(f for f in incoming_root.iterdir() if f.is_dir())
-    if not film_folders:
-        log.info(f"ℹ️ Ni novih filmov za obdelavo v {incoming_root}")
-
-    for folder in film_folders:
+    if movie_folders is None:
+        movie_folders = (
+            sorted(
+                f
+                for f in incoming_root.iterdir()
+                if f.is_dir() and not f.name.startswith(".")
+            )
+            if incoming_root.exists()
+            else []
+        )
+    if not movie_folders:
+        log.info("Ni novih filmov v %s", incoming_root)
+    for index, folder in enumerate(movie_folders, 1):
+        log.info("Film %s/%s: %s", index, len(movie_folders), folder.name)
         try:
             process_single_movie(folder)
-        except Exception as e:
-            log.error(f"❌ Napaka pri obdelavi '{folder.name}': {e}")
+        except Exception as error:
+            # Batch boundary: record failure, then process the next film.
+            failures += 1
+            log.exception("Napaka pri obdelavi %s: %s", folder.name, error)
+    log.info(
+        "Priprava zaključena. Napake: %s. Podrobnosti so v izpisu zgoraj.",
+        failures,
+    )
+    return failures

@@ -114,6 +114,7 @@ def test_native_form_is_localized_with_same_origin_protections(
     assert response.headers["Referrer-Policy"] == "same-origin"
     html = response.get_data(as_text=True)
     elements = Elements(html)
+    assert elements.find("meta", name="referrer", content="same-origin")
     direction = "rtl" if language == "ar" else "ltr"
     assert elements.find("html", lang=language, dir=direction)
     assert elements.find("form", method="post", action="/blog/subscribe")
@@ -332,7 +333,9 @@ def test_rate_limit_error_is_localized_and_does_not_send_more_mail(
 def test_queue_failure_removes_pending_token_and_reports_localized_error(
     subscription,
 ):
-    subscription.module.queue_mail.side_effect = RuntimeError("Queue unavailable")
+    subscription.module.queue_mail.side_effect = RuntimeError(
+        "Queue unavailable"
+    )
     response = submit(subscription, "ja")
     assert_notice(subscription, response, "ja", "mail_failed")
     assert subscription.redis.keys(PENDING_PREFIX + "*") == []

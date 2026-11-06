@@ -16,9 +16,11 @@
     <header class="audio-page-heading">
       <div><span class="audio-eyebrow">Čas za zgodbo</span><h1>Otroški radio</h1><p>Pravljice in zgodbe za male poslušalce. Izberi oddajo in prisluhni.</p></div>
 
+    <nav class="audio-quick-links" aria-label="Na tej strani"><a href="#browser">Izbira vsebin</a><a href="#player">Na predvajalnik ↓</a></nav>
     </header>
     <!-- Browser Section -->
-    <section id="browser" aria-label="Izbira oddaj">
+    <noscript class="audio-no-script"><p class="audio-empty">Za izbiro in predvajanje vsebin omogoči JavaScript v brskalniku.</p></noscript>
+    <section id="browser" tabindex="-1" aria-label="Izbira oddaj">
         <div id="albums" hidden><div id="albumList"></div></div>
         <div id="tracks" class="tracks-section">
             <div class="section-header">
@@ -32,7 +34,7 @@
     </section>
 
     <!-- Player Section -->
-    <section id="player" class="player-section" aria-label="Predvajalnik">
+    <section id="player" tabindex="-1" class="player-section" aria-label="Predvajalnik">
         <div class="audio-player-heading"><span><i class="bi bi-headphones" aria-hidden="true"></i> Tvoj predvajalnik</span><span id="playbackStatus" role="status" aria-live="polite">Izberi in predvajaj</span></div>
         <div class="now-playing-info">
             <div class="album-cover" aria-hidden="true">
@@ -76,6 +78,7 @@
             {% endif %}
         </div></div>
         <p class="audio-player-hint">Oddaje se nadaljujejo po vrsti. Poslušanje začasno ustaviš z gumbom za premor.</p>
+        <p class="audio-player-hint">Tipkovnica: preslednica predvaja ali ustavi, ← / → premakneta za 10 sekund.</p>
     </section>
 </main>
 

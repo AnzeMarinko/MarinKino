@@ -26,7 +26,7 @@
 .blog-search input { width: 230px; min-width: 0; border: 0; background: transparent; color: var(--blog-ink); padding: .75rem 0; margin: 0; cursor: text; font-size: .85rem; }
 .blog-search input:focus { outline: none; }
 .blog-search:focus-within { outline: 3px solid #416b5526; border-color: #416b55; }
-.blog-search button { background: transparent; background-image: none; border: 0; color: #6c786e; width: 40px; height: 40px; margin: 0; }
+.blog-search button { background: transparent; background-image: none; border: 0; color: #6c786e; width: 44px; height: 44px; flex-shrink: 0; margin: 0; }
 .blog-search-status { color: var(--blog-muted); font-size: .8rem; margin-bottom: 1rem; }
 .blog-post-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.25rem; }
 .blog-post-card { display: flex; flex-direction: column; border: 1px solid var(--blog-border); border-radius: 1rem; overflow: hidden; background: #fff; box-shadow: 0 5px 25px #344b3305; }

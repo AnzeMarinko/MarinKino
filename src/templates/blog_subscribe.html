@@ -9,7 +9,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   <meta name="google" content="notranslate">
-  <meta name="referrer" content="no-referrer">
+  <meta name="referrer" content="same-origin">
   <title>{{ copy.subscription_heading }} — {{ copy.blog_title }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/blog_subscribe.css') }}">
 </head>
@@ -18,7 +18,7 @@
         data-blog-language="{{ language }}" data-blog-languages='{{ blog_languages | tojson }}'
         data-subscription-url="{{ subscription_url_encoded }}">
     <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="{{ url_for('static', filename='js/blog_translation.js') }}"></script>
-    <img class="subscription-logo" src="{{ url_for('static', filename='blog_favicon_io/android-chrome-192x192.png') }}" width="56" height="56" alt="">
+    <img class="subscription-logo" src="{{ url_for('static', filename='blog_favicon_io/logo-80.webp') }}" width="56" height="56" alt="">
     <a class="brand" href="{{ blog_url }}" rel="noreferrer">{{ copy.blog_title }}</a>
     <h1>{{ copy.subscription_heading }}</h1>
     <p class="subscription-intro">{{ copy.subscription_intro }}</p>
@@ -38,7 +38,7 @@
         <button type="submit" aria-label="{{ copy.language_label }}">✓</button>
       </div>
     </form>
-    <form method="post" action="{{ url_for('blog.blog_subscribe') }}">
+    <form method="post" action="{{ url_for('blog.blog_subscribe') }}" data-submit-feedback>
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="language" value="{{ language }}">
       <div class="honeypot" aria-hidden="true">
@@ -64,6 +64,7 @@
     {% if language != 'sl' %}<p class="translation-notice">{{ copy.automatic_notice }}</p>{% endif %}
     <a class="subscription-back" href="{{ blog_url }}" rel="noreferrer">{{ copy.back_to_blog }}</a>
   </main>
+  <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="{{ url_for('static', filename='js/form_feedback.js') }}"></script>
   <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}">
     document.querySelector('[data-submit-language]').addEventListener('change', event => event.target.form.requestSubmit());
   </script>

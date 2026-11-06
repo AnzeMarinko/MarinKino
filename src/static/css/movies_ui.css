@@ -446,7 +446,7 @@
 .movie-view #rating-summary {
     line-height:1.8
 }
-.movie-view #rating-summary h4 {
+.movie-view #rating-summary h2 {
     font-size:1.05rem;
     font-weight:800
 }
@@ -671,7 +671,7 @@ body:has(.movie-view) #ratingSkip {
 .movie-view .plyr-container>video { aspect-ratio:16/9; }
 .movie-view #rating-summary { order:-1; border:1px solid var(--film-line); border-radius:16px; padding:16px 18px; background:white; line-height:1.5; }
 .movie-view #rating-summary>div { margin:7px 0; font-size:.85rem; }
-.movie-view #rating-summary h4 { margin:0 0 10px; }
+.movie-view #rating-summary h2 { margin:0 0 10px; padding:0; }
 .movie-view #rating-summary .icons-wrapper { font-size:1rem; }
 .movie-view .plyr-container:fullscreen,
 .movie-view .plyr:fullscreen,
@@ -721,3 +721,12 @@ body:has(.movie-view) #ratingSkip {
 .movie-view .plyr__video-wrapper--fixed-ratio video { height:100%; }
 
 .movie-view .plyr__poster { background-size:contain; background-color:#122328; }
+
+.movies-suggestion { margin:1.5rem 0; text-align:center; color:#53666a; }
+.movies-suggestion a { color:#246d72; text-underline-offset:3px; }
+.movie-card:focus { outline:3px solid #287a80; outline-offset:4px; }
+.movie-alert-dialog { width:min(94vw, 540px); max-height:90dvh; padding:0; border:1px solid #cbdad7; border-radius:1rem; color:#213b40; background:#fff; }
+.movie-alert-dialog::backdrop { background:#10282db3; }
+.movie-alert-dialog-content { padding:1.5rem; }
+.movie-alert-dialog .movie-dialog-close { float:right; min-width:44px; min-height:44px; border:0; background:#edf4f1; color:#213b40; border-radius:.5rem; font-size:1.5rem; }
+.movie-form-help { font-size:.85rem; line-height:1.6; color:#53666a; }

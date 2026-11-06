@@ -20,9 +20,12 @@
     <header class="audio-page-heading">
       <div><h1>Glasba <span class="audio-eyebrow">Za dobro melodijo</span></h1><p>Izberi album ali poišči pesem. Svoje najljubše zberi v osebnih albumih.</p></div>
 
+      <a class="section-action-btn" href="/suggestions?type=music">Predlagaj glasbo</a>
+    <nav class="audio-quick-links" aria-label="Na tej strani"><a href="#browser">Izbira vsebin</a><a href="#player">Na predvajalnik ↓</a></nav>
     </header>
     <!-- Browser Section -->
-    <section id="browser" aria-label="Izbira glasbe">
+    <noscript class="audio-no-script"><p class="audio-empty">Za izbiro in predvajanje vsebin omogoči JavaScript v brskalniku.</p></noscript>
+    <section id="browser" tabindex="-1" aria-label="Izbira glasbe">
         <div class="browser-toggle" id="browserToggle">
             <button type="button" class="toggle-btn active" data-target="albums" aria-controls="albums" aria-pressed="true"><i class="bi bi-disc" aria-hidden="true"></i> Albumi</button>
             <button type="button" class="toggle-btn" data-target="tracks" aria-controls="tracks" aria-pressed="false"><i class="bi bi-music-note-beamed" aria-hidden="true"></i> Pesmi</button>
@@ -33,7 +36,7 @@
                     <i class="bi bi-disc"></i>
                     <h2>Albumi</h2>
                 </div>
-                <button id="managePrivateAlbumsBtn" class="section-action-btn" type="button" aria-label="Uredi privat albume" title="Uredi privat albume" data-bs-toggle="modal" data-bs-target="#privateAlbumsModal">
+                <button id="managePrivateAlbumsBtn" class="section-action-btn" type="button" aria-label="Uredi moje albume" title="Uredi moje albume" data-bs-toggle="modal" data-bs-target="#privateAlbumsModal">
                     <i class="bi bi-pencil-square"></i>
                     <span>Moji albumi</span>
                 </button>
@@ -80,7 +83,7 @@
     </section>
 
     <!-- Player Section -->
-    <section id="player" class="player-section" aria-label="Predvajalnik">
+    <section id="player" tabindex="-1" class="player-section" aria-label="Predvajalnik">
         <div class="audio-player-heading"><span><i class="bi bi-headphones" aria-hidden="true"></i> Tvoj predvajalnik</span><span id="playbackStatus" role="status" aria-live="polite">Izberi in predvajaj</span></div>
         <div class="now-playing-info">
             <div class="album-cover" aria-hidden="true">
@@ -149,7 +152,9 @@
                 </div>
             </div>
         </div>
-    </details></section>
+    </details>
+        <p class="audio-player-hint">Tipkovnica: preslednica predvaja ali ustavi, ← / → premakneta za 10 sekund.</p>
+    </section>
 </main>
 
 <div class="modal fade" id="privateAlbumsModal" aria-labelledby="privateAlbumsTitle" tabindex="-1" aria-hidden="true">

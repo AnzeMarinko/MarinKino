@@ -27,6 +27,7 @@
 {% endif %}
 
 {% if not is_for_mail %}
+  <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="{{ url_for('static', filename='js/form_feedback.js') }}"></script>
   {% include "partials/fingerprint.html" %}
 {% endif %}
 

@@ -4,12 +4,13 @@
 {% block intro %}<i class="bi bi-stars" aria-hidden="true"></i> Prijava za dostop do dodatnih razvedrilnih vsebin za družino in prijatelje.{% endblock %}
 {% block form_title %}Prijava{% endblock %}
 {% block description %}Vnesi uporabniško ime in geslo svojega računa.{% endblock %}
+{% block tip %}<i class="bi bi-person-check" aria-hidden="true"></i><span>Dostop prejmeš s povabilom. Ob prvi prijavi nastavi geslo prek povezave v e-pošti.</span>{% endblock %}
 {% block auth_content %}
-<form method="post" class="auth-form" autocomplete="on">
+<form method="post" class="auth-form" autocomplete="on" data-submit-feedback>
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="auth-field"><label for="username">Uporabniško ime</label><input id="username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" value="{{ request.form.get('username', '') }}" required></div>
   {{ password_field('password', 'Geslo') }}
-  {% if config.get("ADMIN_TOTP_ENABLED") %}<div class="auth-field"><label for="otp">Koda za skrbnika (2FA)</label><input id="otp" name="otp" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code"></div>{% endif %}
+  {% if config.get("ADMIN_TOTP_ENABLED") %}<div class="auth-field"><label for="otp">Koda za skrbnika (2FA)</label><input id="otp" name="otp" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" aria-describedby="otp-help"><p id="otp-help" class="auth-help">Izpolni samo za skrbniški račun. Drugi uporabniki pusti prazno.</p></div>{% endif %}
   <div class="auth-form-links"><a href="{{ url_for('auth.forgot_password') }}">Pozabljeno geslo?</a></div>
   <button type="submit" class="auth-primary"><i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> Prijavi se</button>
 </form>

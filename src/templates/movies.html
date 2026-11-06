@@ -93,10 +93,12 @@
 </div>
 
 
- <p id="movies-status" role="status" aria-live="polite"></p>
+ <p id="movies-status" role="status" aria-live="polite" tabindex="-1"></p>
  <div class="movie-grid" id="movie-grid" data-admin="{{ 'true' if current_user.is_authenticated and current_user.is_admin and view_as not in ['anonymous', 'user'] else 'false' }}"></div>
  <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" id="movies-initial" type="application/json">{{ {'movies': movies, 'has_more': has_more}|tojson }}</script>
+ <noscript><div class="movies-empty"><p>Za prikaz plakatov in nalaganje dodatnih filmov omogoči JavaScript. Filme s trenutne strani lahko odpreš spodaj.</p><ul>{% for movie in movies %}<li><a href="{{ '/movies/play' ~ movie.folder }}">{{ movie.title }} · {{ movie.year }}</a></li>{% else %}<li>Ni filmov za izbrane pogoje.</li>{% endfor %}</ul></div></noscript>
  <div class="movies-pagination"><button id="movies-more" type="button" hidden>Naloži več filmov</button></div>
+ {% if current_user.is_authenticated and view_as != 'anonymous' %}<p class="movies-suggestion">Pogrešaš film? <a href="/suggestions?type=film">Predlagaj film ali risanko</a>.</p>{% endif %}
  {% if not current_user.is_authenticated or view_as == 'anonymous' %}<div class="movies-empty"><h2>Tvoj filmski večer se začne tukaj.</h2><p>Za ogled filmske zbirke se prijavi.</p><a class="movie-play" href="/login">Prijava</a></div>{% endif %}
 
 <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="{{ url_for('static', filename='script/movies.js') }}"></script>

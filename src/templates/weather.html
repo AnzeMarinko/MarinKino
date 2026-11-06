@@ -46,11 +46,12 @@
       </div>
     </div>
 
+    <nav class="weather-jump-links" aria-label="Deli napovedi"><a href="#location-title">Izberi kraj</a><a href="#forecast-title">Prihodnji dnevi</a><a href="#chart-title">Podrobni graf</a><a href="#radar-title">Radar padavin</a></nav>
     {% if weather_error %}<div class="weather-notice mb-3" role="alert">{{ weather_error }}</div>{% endif %}
     {% if search_warning %}<div class="weather-notice mb-3" role="status">{{ search_warning }}</div>{% endif %}
     <section class="weather-panel weather-location-panel p-3 p-lg-4 mb-4" aria-labelledby="location-title">
-      <div class="weather-section-heading"><div><h2 id="location-title" class="h5 mb-1">Kam te zanese danes?</h2><p class="weather-source mb-0">Poišči kraj ali uporabi lokacijo naprave. Obiskani kraji se shranijo v tem brskalniku.</p></div></div>
-      <form method="get" action="/weather" class="weather-search mt-3" id="weatherSearchForm">
+      <div class="weather-section-heading"><div><h2 id="location-title" tabindex="-1" class="h5 mb-1">Kam te zanese danes?</h2><p class="weather-source mb-0">Poišči kraj ali uporabi lokacijo naprave. Obiskani kraji se shranijo v tem brskalniku.</p></div></div>
+      <form method="get" action="/weather" class="weather-search mt-3" id="weatherSearchForm" data-submit-feedback>
         <label class="visually-hidden" for="weatherSearch">Ime kraja</label>
         <div class="weather-search-input"><i class="bi bi-search" aria-hidden="true"></i><input type="search" id="weatherSearch" name="location" value="{{ query }}" class="form-control" placeholder="Na primer: Ljubljana" required maxlength="100" autocomplete="off"></div>
         <button class="btn btn-primary" type="submit">Poišči kraj <i class="bi bi-arrow-right" aria-hidden="true"></i></button>
@@ -115,7 +116,7 @@
     </section>
 
     <section class="weather-panel p-3 p-lg-4 mb-4" aria-labelledby="forecast-title">
-      <div class="d-flex justify-content-between align-items-center mb-3"><h2 id="forecast-title" class="h4 mb-0">Napoved za prihodnje dni</h2><span class="weather-source">{{ weather.daily | selectattr('is_past', 'equalto', false) | list | length }} dni</span></div>
+      <div class="d-flex justify-content-between align-items-center mb-3"><h2 id="forecast-title" tabindex="-1" class="h4 mb-0">Napoved za prihodnje dni</h2><span class="weather-source">{{ weather.daily | selectattr('is_past', 'equalto', false) | list | length }} dni</span></div>
       <div id="weatherDailyList" class="weather-daily-list">
         {% for day in weather.daily if not day.is_past %}
         <div class="{{ 'weather-day-extra' if loop.index > 6 else '' }}">
@@ -137,13 +138,13 @@
     </section>
 
     <section class="weather-panel weather-wide-panel p-3 p-lg-4 mb-4" aria-labelledby="chart-title">
-      <div class="weather-section-heading"><div><div class="weather-eyebrow mb-1">Načrtuj naslednje ure</div><h2 id="chart-title" class="h4 mb-1">Podrobna napoved</h2><p class="weather-source mb-0">Temperatura, padavine, veter in sončno obsevanje · lokalni čas izbranega kraja</p></div><div class="weather-chart-ranges" role="group" aria-label="Obdobje grafa"><button type="button" data-chart-hours="24" aria-pressed="true" disabled>24 ur</button><button type="button" data-chart-hours="48" aria-pressed="false" disabled>48 ur</button><button type="button" data-chart-hours="all" aria-pressed="false" disabled>Vse dni</button></div></div>
+      <div class="weather-section-heading"><div><div class="weather-eyebrow mb-1">Načrtuj naslednje ure</div><h2 id="chart-title" tabindex="-1" class="h4 mb-1">Podrobna napoved</h2><p class="weather-source mb-0">Temperatura, padavine, veter in sončno obsevanje · lokalni čas izbranega kraja</p></div><div class="weather-chart-ranges" role="group" aria-label="Obdobje grafa"><button type="button" data-chart-hours="24" aria-pressed="true" disabled>24 ur</button><button type="button" data-chart-hours="48" aria-pressed="false" disabled>48 ur</button><button type="button" data-chart-hours="all" aria-pressed="false" disabled>Vse dni</button></div></div>
       <p id="weatherChartStatus" class="weather-source mt-3" role="status">Nalagam graf …</p><div id="weatherChart" class="weather-chart" role="img" aria-label="Interaktivni graf vremenske napovedi" aria-describedby="weatherChartHelp"></div><p id="weatherChartHelp" class="weather-source mb-0"><i class="bi bi-hand-index" aria-hidden="true"></i> Dotik ali miška pokaže vrednosti · povleci za premik · legenda vključi ali skrije meritev</p>
     </section>
 
     <div class="row g-4">
       <div class="col-lg-5"><section class="weather-panel p-3 p-lg-4 h-100" aria-labelledby="sun-title"><h2 id="sun-title" class="h4">Sonce in luna</h2><div class="d-flex justify-content-between align-items-center mt-3"><div><i class="bi bi-sunrise text-warning fs-2"></i><div class="small text-muted">Vzhod</div><strong>{{ today.sunrise.split('T')[1] if today.sunrise else '—' }}</strong></div><div class="text-end"><i class="bi bi-sunset text-danger fs-2"></i><div class="small text-muted">Zahod</div><strong>{{ today.sunset.split('T')[1] if today.sunset else '—' }}</strong></div></div><div class="moon-summary mt-4"><span class="moon-disc moon-phase--{{ moon_direction }} moon-illumination--{{ moon_illumination_side }} {{ 'moon-is-full' if moon_is_full else '' }}" style="--moon-scale-factor: {{ moon_scale_factor }};" role="img" aria-label="Luna je osvetljena {{ moon_illumination }} odstotkov"></span><div><div class="small text-muted">Luna</div><strong>{{ today.moon_label if today.moon_label else '—' }}</strong><div class="small text-muted">{{ moon_illumination }} % osvetljena</div>{% if today.hours_until_next_full_moon is defined and today.hours_until_next_full_moon is not none %}{% set moon_hours = today.hours_until_next_full_moon|abs %}<div class="small text-muted mt-1">{% if today.hours_until_next_full_moon < 0 %}Od zadnje{% else %}Do naslednje{% endif %} polne lune: {{ moon_hours // 24 }} dni in {{ moon_hours % 24 }} ur</div>{% endif %}</div></div></section></div>
-      <div class="col-lg-7"><section class="weather-panel p-3 p-lg-4 h-100" aria-labelledby="radar-title"><div class="weather-section-heading"><h2 id="radar-title" class="h4">Radar padavin</h2><a class="weather-source" href="https://meteo.arso.gov.si/met/sl/weather/observ/radar/" target="_blank" rel="noopener noreferrer">Odpri ARSO <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a></div><p class="weather-source">Animacija za Slovenijo · neodvisna od izbranega kraja</p><img id="weatherRadar" class="weather-radar" src="https://meteo.arso.gov.si/uploads/probase/www/observ/radar/si0-rm-anim.gif" alt="Animirana radarska slika padavin za Slovenijo" loading="lazy"><p id="weatherRadarStatus" class="weather-source" role="status" hidden>Radarska slika trenutno ni na voljo. Uporabi povezavo na ARSO.</p></section></div>
+      <div class="col-lg-7"><section class="weather-panel p-3 p-lg-4 h-100" aria-labelledby="radar-title"><div class="weather-section-heading"><h2 id="radar-title" tabindex="-1" class="h4">Radar padavin</h2><a class="weather-source" href="https://meteo.arso.gov.si/met/sl/weather/observ/radar/" target="_blank" rel="noopener noreferrer">Odpri ARSO <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a></div><p class="weather-source">Animacija za Slovenijo · neodvisna od izbranega kraja</p><img id="weatherRadar" class="weather-radar" src="https://meteo.arso.gov.si/uploads/probase/www/observ/radar/si0-rm-anim.gif" alt="Animirana radarska slika padavin za Slovenijo" loading="lazy"><p id="weatherRadarStatus" class="weather-source" role="status" hidden>Radarska slika trenutno ni na voljo. Uporabi povezavo na ARSO.</p></section></div>
     </div>
 
   </div>

@@ -379,6 +379,9 @@
         if (form.dataset.saving) return;
         form.dataset.saving = "true"; formError(form);
         const button = form.querySelector('[type="submit"]'); button.disabled = true;
+        const label = button.textContent;
+        button.textContent = "Shranjujem …";
+        form.setAttribute("aria-busy", "true");
         try {
             await api(path, method, payload);
             if (dialog) dialog.close(); else profileDirty = false;
@@ -386,7 +389,7 @@
             if (path === "/schedule" || /^\/schedule\/[^/]+$/.test(path)) selectTab("plan");
             await refresh("Podatki shranjeni.");
         } catch (error) { formError(form, error.message || "Povezava ni uspela. Vnos je ohranjen; poskusi znova."); }
-        finally { button.disabled = false; delete form.dataset.saving; }
+        finally { button.disabled = false; button.textContent = label; form.removeAttribute("aria-busy"); delete form.dataset.saving; }
     }
     el("fitness-measurement-form").addEventListener("submit", event => {
         event.preventDefault(); const form = event.currentTarget, payload = serialize(form); payload.timestamp = actualTimestamp(form);

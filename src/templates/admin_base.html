@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
-<main class="admin-page">
+<main class="admin-page" aria-labelledby="admin-page-title">
   <div class="admin-shell">
     <header class="admin-heading">
-      <div><p class="admin-eyebrow">MarinKino · upravljanje</p><h1>{% block admin_title %}Nadzorna plošča{% endblock %}</h1><p class="admin-lead">{% block admin_description %}Vsebine, uporabniki in pregled obiska na enem mestu.{% endblock %}</p></div>
+      <div><p class="admin-eyebrow">MarinKino · upravljanje</p><h1 id="admin-page-title">{% block admin_title %}Nadzorna plošča{% endblock %}</h1><p class="admin-lead">{% block admin_description %}Vsebine, uporabniki in pregled obiska na enem mestu.{% endblock %}</p></div>
       <a class="btn btn-outline-secondary" href="/" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Odpri stran</a>
     </header>
     <nav class="admin-nav" aria-label="Administracija">
