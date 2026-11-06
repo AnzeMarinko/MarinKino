@@ -2,13 +2,12 @@ import hashlib
 import json
 import logging
 import os
+import re
 import secrets
 import unicodedata
 from datetime import datetime, timezone
 from urllib.parse import quote, urlsplit
 
-import markdown
-import nh3
 import requests
 from flask import (
     Blueprint,
@@ -24,17 +23,18 @@ from flask import (
 from flask_login import current_user
 from redis.exceptions import RedisError
 
+from blog_content import load_posts, render_post_content
 from blog_i18n import BLOG_LANGUAGES, messages, normalize_language
-from blog_images import post_gallery
+from blog_images import image_sources, post_gallery
 from blog_translation import translate_url
-from security_storage import atomic_write_json, read_json, serialized_json
+from mail_jobs import queue_mail
+from security_storage import atomic_write_json, serialized_json
 from utils import (
     FLASK_ENV,
     load_blog_subscribers,
     redis_client,
     safe_path,
     save_blog_subscribers,
-    send_mail,
     users,
 )
 
@@ -64,6 +64,7 @@ def blog_language_context():
         "blog.blog_subscription_form", lang=language
     )
     return {
+        "blog_image_sources": image_sources,
         "blog_languages": BLOG_LANGUAGES,
         "blog_language": language,
         "blog_copy": messages(language),
@@ -80,7 +81,7 @@ def masked_email(email):
 
 
 def load_blog_posts():
-    return read_json(BLOG_DATA_FILE, {})
+    return load_posts(BLOG_DATA_FILE)
 
 
 def save_blog_posts(posts):
@@ -243,7 +244,7 @@ def notify_admins_about_subscriber(email):
             admin_emails += data.get("emails", [])
     if not admin_emails:
         admin_emails = [os.getenv("GMAIL_USERNAME")]
-    send_mail(
+    queue_mail(
         to=admin_emails,
         subject=f"Nov potrjen naročnik na blog: {email}",
         text=(
@@ -420,7 +421,7 @@ def blog_subscribe():
         "blog.blog_confirm_subscription", token=token, lang=language
     )
     try:
-        failed = send_mail(
+        queue_mail(
             to=email,
             subject=copy["confirmation_subject"],
             text=(
@@ -449,9 +450,7 @@ def blog_subscribe():
             batch_id="subscriber_confirmation",
             blog=True,
         )
-        if failed:
-            raise RuntimeError("SMTP rejected subscription confirmation")
-        log.info("Subscription confirmation sent: %s", masked_email(email))
+        log.info("Subscription confirmation queued: %s", masked_email(email))
     except Exception:
         redis_client.delete(pending_key)
         log.exception("Napaka pri pošiljanju potrditve naročnine")
@@ -530,17 +529,7 @@ def blog_post(post_id):
     # Members can preview drafts by URL; only admins see them in the list.
 
     # Render Markdown content
-    post["content_html"] = nh3.clean(
-        markdown.markdown(
-            post.get("content", ""), extensions=["extra", "codehilite"]
-        ),
-        attributes={
-            "a": {"href", "title"},
-            "img": {"src", "alt", "title"},
-            "*": {"class"},
-        },
-        url_schemes={"http", "https", "mailto"},
-    )
+    post["content_html"] = render_post_content(post.get("content", ""))
 
     # Format dates
     post["created_at_display"] = blog_timestamp(post).strftime("%d. %m. %Y")
@@ -550,13 +539,11 @@ def blog_post(post_id):
         or not current_user.is_admin
         or FLASK_ENV != "production"
     ):
-        client_ip = request.remote_addr
-        client_ip = client_ip or "unknown"
         # Increment view count
         today = datetime.now(timezone.utc).date().isoformat()
         key = f"blog:views:{post_id}:{today}"
         try:
-            redis_client.hincrby(key, client_ip, 1)
+            redis_client.hincrby(key, "views", 1)
             redis_client.expire(key, 90 * 86400)
         except RedisError:
             log.warning("Blog statistics unavailable")
@@ -570,6 +557,15 @@ def blog_post(post_id):
     return render_template(
         "blog_post.html",
         post=post,
+        related_posts=sorted(
+            (
+                item
+                for key, item in posts.items()
+                if key != post_id and item.get("published", False)
+            ),
+            key=blog_timestamp,
+            reverse=True,
+        )[:3],
         pagetitle=post.get("title", "Sončnice"),
         blog_view="blog",
         blog_translation_urls=(
@@ -628,4 +624,8 @@ def blog_image_file(file_name):
             conditional=True,
         )
         response.headers["Accept-Ranges"] = "bytes"
+    if re.fullmatch(r".+-responsive-v\d+-[a-f0-9]{16}-\d+w\.webp", file_name):
+        response.headers["Cache-Control"] = (
+            "public, max-age=31536000, immutable"
+        )
     return response

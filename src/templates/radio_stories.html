@@ -57,20 +57,20 @@
 
         <!-- Controls -->
         <div class="controls-section"><div class="controls-row primary-controls">
-            <button class="control-btn" onclick="prev()" aria-label="Prejšnja oddaja" title="Prejšnja oddaja">
+            <button class="control-btn" data-audio-action="prev" aria-label="Prejšnja oddaja" title="Prejšnja oddaja">
                 <i class="bi bi-skip-backward-fill"></i>
             </button>
 
-            <button id="playBtn" class="control-btn btn-play" onclick="togglePlay()" aria-label="Predvajaj" title="Predvajaj">
+            <button id="playBtn" class="control-btn btn-play" data-audio-action="togglePlay" aria-label="Predvajaj" title="Predvajaj">
                 <i id="playIcon" class="bi bi-play-fill"></i>
             </button>
 
-            <button class="control-btn" onclick="next()" aria-label="Naslednja oddaja" title="Naslednja oddaja">
+            <button class="control-btn" data-audio-action="next" aria-label="Naslednja oddaja" title="Naslednja oddaja">
                 <i class="bi bi-skip-forward-fill"></i>
             </button>
 
             {% if view_as != "anonymous" and view_as != "user" and current_user.is_authenticated and current_user.is_admin %}
-            <button id="delete-btn" class="control-btn btn-delete" onclick="izbrisiPesem()" aria-label="Izbriši datoteko" title="Izbriši datoteko">
+            <button id="delete-btn" class="control-btn btn-delete" data-audio-action="izbrisiPesem" aria-label="Izbriši datoteko" title="Izbriši datoteko">
                 <i class="bi bi-trash"></i>
             </button>
             {% endif %}
@@ -83,13 +83,13 @@
 <div id="albums-root" data-albums='{{ [{"name": "Vse", "songs": radio_stories_files}] | tojson | safe }}'></div>
 <div id="metadata-root" data-music='{{ radio_stories_metadata | tojson | safe }}'></div>
 
-<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="/static/vendor/hls.min.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="{{ url_for('static', filename='vendor/hls.min.js') }}"></script>
 <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}">
     window.IS_RADIO_STORIES_PAGE = true;
     window.MEDIA_FILE_BASE = '/radio-stories/file/';
     window.MEDIA_HLS_BASE = '/radio-stories/hls/';
     window.MEDIA_DELETE_BASE = '/radio-stories/delete/';
 </script>
-<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/script/music_player.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="{{ url_for('static', filename='script/music_player.js') }}"></script>
 
 {% endblock %}

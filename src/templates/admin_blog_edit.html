@@ -3,8 +3,8 @@
 {% block admin_title %}{{ "Nova blog objava" if not post else "Uredi blog objavo" }}{% endblock %}
 {% block admin_description %}Napiši vsebino, preglej prikaz in izberi, ali objavo shraniš kot osnutek ali objaviš javno.{% endblock %}
 {% block admin_content %}
-<link rel="stylesheet" href="/static/vendor/simplemde.min.css">
-<link rel="stylesheet" href="/static/vendor/font-awesome.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/simplemde.min.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/font-awesome.min.css') }}">
 <style>
 .markdown-preview {
     padding: 10px;
@@ -176,11 +176,11 @@
     </div>
 </div>
 
-<link rel="stylesheet" href="/static/css/blog_gallery.css">
-<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="/static/vendor/simplemde.min.js"></script>
-<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="/static/vendor/marked.min.js"></script>
-<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="/static/vendor/purify.min.js"></script>
-<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/script/admin_blog_gallery.js"></script>
-<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/script/admin_blog_editor.js"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/blog_gallery.css') }}">
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="{{ url_for('static', filename='vendor/simplemde.min.js') }}"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="{{ url_for('static', filename='vendor/marked.min.js') }}"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="{{ url_for('static', filename='vendor/purify.min.js') }}"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="{{ url_for('static', filename='script/admin_blog_gallery.js') }}"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="{{ url_for('static', filename='script/admin_blog_editor.js') }}"></script>
 
 {% endblock %}

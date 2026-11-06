@@ -34,10 +34,20 @@ izključi samodejno; najprej preveri dostop s ključem.
 - Ročni urejevalnik posluša samo na `127.0.0.1:8080`, preverja izvor in CSRF.
   Za oddaljeno uporabo uporabi SSH tunel.
 
-CSP že uveljavlja omejitve za `base`, objekte, okvirjanje in oddajo obrazcev.
-Strožji `script-src` je za zdaj `Report-Only`, ker stare predloge vsebujejo
-inline dogodke. Nonce je dodan skriptam; samo strožji CSP zato še ni popolna
-zaščita pred XSS. Turnstile ostane namenska zunanja skripta Cloudflare.
+CSP uveljavlja `default-src`, `script-src` z naključnim nonce in
+`script-src-attr none` ter omejitve za `base`, objekte, okvirjanje in obrazce.
+Kontrole uporabljajo poslušalce dogodkov namesto inline handlerjev. HLS workerji
+lahko uporabljajo `blob:`. Turnstile ostane namenska zunanja skripta Cloudflare.
+Nginx ohrani aplikacijski CSP; isti glavi ne dodaja podvojene politike.
+
+Dostopni dnevniki Nginx maskirajo obnovitvene in naročniške žetone v poteh ter izpuščajo
+query string. Referer vsebuje samo izvor. Stari dnevniki ostanejo pod obstoječo
+rotacijo; sprememba novega formata jih ne prepiše.
+
+Statistika javnega bloga hrani agregate brez IP naslovov in geolokacije.
+Migracija ob nadgradnji ohrani vsoto starih ogledov in odstrani geolokacijske
+ključe. Podrobnosti o omejenih opravilih, statiki in meritvah so v
+[performance.md](performance.md).
 
 ## Vsebniki in gostitelj
 

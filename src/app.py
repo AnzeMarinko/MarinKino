@@ -2,10 +2,8 @@
 # Set private creation permissions before imports initialize runtime storage.
 import logging
 import os
-import time
 from datetime import date, timedelta
 
-import requests
 from flask import (
     Flask,
     jsonify,
@@ -15,14 +13,15 @@ from flask import (
     request,
     session,
 )
-from werkzeug.exceptions import HTTPException, InternalServerError
 from flask_compress import Compress
 from flask_limiter import Limiter
 from flask_login import LoginManager, current_user
 from flask_wtf.csrf import CSRFProtect, generate_csrf
+from werkzeug.exceptions import HTTPException, InternalServerError
 
 os.umask(0o027)
 
+from background_jobs import JobStore
 from blueprints import (
     MUSIC_COUNT,
     admin_bp,
@@ -46,16 +45,21 @@ from blueprints.auth_bp import redis_client as auth_redis_client
 from device_sessions import DEVICE_IDLE_SECONDS
 from fitness import DEFAULT_DATABASE
 from fitness_access import init_fitness_access
+from mail_jobs import queue_mail
 from security_http import (
     add_headers,
     init_security,
     rate_limit_identity,
     record_response,
 )
+from static_assets import init_static_assets
 from utils import FLASK_ENV, User, redis_client, users
 
 # Flask app setup
 app = Flask(__name__, static_url_path="/static", static_folder="static")
+app.extensions["jobs"] = JobStore(
+    os.getenv("JOBS_DATABASE", "data/jobs.sqlite3")
+)
 app.secret_key = os.getenv("FLASK_KEY")
 if FLASK_ENV == "production" and (
     not app.secret_key
@@ -79,6 +83,7 @@ app.config.update(
     REMEMBER_COOKIE_HTTPONLY=True,
     REMEMBER_COOKIE_SAMESITE="Lax",
 )
+init_static_assets(app)
 Compress(app)
 csrf = CSRFProtect(app)
 app.config["WTF_CSRF_TIME_LIMIT"] = 3600
@@ -96,62 +101,9 @@ limiter = Limiter(
 )
 limiter.init_app(app)
 
-last_timeout_time = 0
-
-
 @app.get("/csrf-token")
 def csrf_token():
     return jsonify({"csrf_token": generate_csrf()})
-
-
-def get_location_from_ip(ip):
-    """Get location info from IP address using ipinfo.io
-    (free tier: 50k requests/month)"""
-    global last_timeout_time
-    if FLASK_ENV != "production":
-        return {"country": "SI", "city": "Ljubljana", "region": "Unknown"}
-    if time.time() - last_timeout_time < 60 * 60:
-        return {
-            "country": "Unknown",
-            "city": "Unknown",
-            "region": "Unknown",
-        }
-    try:
-        # Using ipinfo.io instead of ipapi.co (free tier: 50k/month)
-        response = requests.get(f"https://ipinfo.io/{ip}/json", timeout=2)
-        if response.status_code == 200:
-            data = response.json()
-            if "error" in data:
-                log.warning(f"ipinfo.io error: {data}")
-                return {
-                    "country": "Unknown",
-                    "city": "Unknown",
-                    "region": "Unknown",
-                }
-            return {
-                "country": data.get("country", "Unknown"),
-                "city": data.get("city", "Unknown"),
-                "region": data.get("region", "Unknown"),
-                "geolocation": data.get("loc"),
-                "postal": data.get("postal"),
-            }
-        else:
-            if response.status_code == 429:
-                last_timeout_time = time.time()
-                log.warning("ipinfo.io rate limit exceeded")
-            else:
-                log.warning(
-                    f"ipinfo.io request failed"
-                    f" with status {response.status_code} and"
-                    f" response content: {response.text}"
-                )
-    except Exception as e:
-        if "timeout" in str(e).lower():
-            last_timeout_time = time.time()
-            log.error("ipinfo.io timeout")
-        else:
-            log.error(f"Error getting geolocation: {str(e)}")
-    return {"country": "Unknown", "city": "Unknown", "region": "Unknown"}
 
 
 # add variables to all template rendering
@@ -177,7 +129,7 @@ def add_security_headers(response):
 
 @app.after_request
 def log_response_info(response):
-    return record_response(response, redis_client, get_location_from_ip)
+    return record_response(response, redis_client)
 
 
 @app.get("/healthz")
@@ -263,7 +215,7 @@ init_fitness_access(app)
 # Initialize blueprints with app context
 init_auth_bp(users, User)
 init_admin_bp(users)
-init_misc_bp(users)
+init_misc_bp(users, queue_mail)
 init_security(app, limiter)
 
 
@@ -288,5 +240,8 @@ def home():
 
 
 if __name__ == "__main__":
+    from runtime_jobs import start_background_workers
+
+    start_background_workers(app)
     log.info("Started server")
     app.run(host="127.0.0.1", port=5000, debug=False)

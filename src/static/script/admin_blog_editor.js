@@ -462,6 +462,30 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     // Send mail to subscribers
     const sendMailBtn = document.getElementById('send-mail-btn');
+    async function followMail(statusUrl) {
+        for (let attempt = 0; attempt < 150; attempt++) {
+            const response = await fetch(statusUrl, {cache: 'no-store'});
+            if (!response.ok) throw new Error('Stanja pošiljanja ni mogoče preveriti.');
+            const job = await response.json();
+            if (job.state === 'done') {
+                showAlert('E-pošta poslana naročnikom.', 'success');
+                sendMailBtn.textContent = 'Pošlji naročnikom (poslano)';
+                sendMailBtn.classList.replace('btn-warning', 'btn-success');
+                return;
+            }
+            if (job.state === 'uncertain') {
+                showAlert('Pošiljanje je bilo prekinjeno. Pred ponovitvijo preveri dostavo; del sporočil je lahko že poslan.', 'danger');
+                sendMailBtn.textContent = 'Preveri dostavo';
+                return;
+            }
+            if (job.state === 'failed') throw new Error('Pošiljanje ni uspelo. Ponovni poskus preskoči že zaključene jezikovne skupine.');
+            sendMailBtn.textContent = job.state === 'running' ? 'Pošiljam …' : 'V vrsti za pošiljanje …';
+            await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+        showAlert('Pošiljanje še poteka. Stanje preveri pozneje.', 'success');
+        sendMailBtn.disabled = false;
+        sendMailBtn.textContent = 'Preveri pošiljanje';
+    }
     if (sendMailBtn) {
         sendMailBtn.addEventListener('click', function() {
             if (dirty || saving) { showAlert('Najprej shrani spremembe objave. Nato jo lahko pošlješ naročnikom.', 'danger'); return; }
@@ -476,7 +500,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
             }))
             .then(r => r.json())
-            .then(data => {
+            .then(async data => {
+                if (data.success && data.status_url) {
+                    showAlert(data.message, 'success');
+                    return followMail(data.status_url);
+                }
                 if (data.success) {
                     showAlert(data.message || 'E-pošta poslana.', 'success');
                     sendMailBtn.textContent = 'Pošlji naročnikom (poslano)';

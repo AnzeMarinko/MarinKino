@@ -1,4 +1,4 @@
-:root { --site-ink: #263849; --site-muted: #687786; --site-accent: #286e75; --site-border: #e2e8ec; }
+:root { --site-ink: #263849; --site-muted: #536575; --site-accent: #286e75; --site-border: #e2e8ec; }
 html { scroll-padding-top: calc(var(--site-header-height, 77px) + 20px); }
 #main-content:focus { outline: none; }
 .site-skip-link { position: fixed; top: .5rem; left: .5rem; z-index: 1100; transform: translateY(-200%); background: #263849; color: #fff; padding: .8rem 1rem; border-radius: .6rem; }

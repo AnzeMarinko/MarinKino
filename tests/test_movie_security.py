@@ -14,11 +14,12 @@ from unittest.mock import Mock, patch
 
 import fakeredis
 import pytest
-from flask import Flask
+from flask import Flask, abort
 from flask_login import LoginManager, UserMixin
 from jinja2 import DictLoader
 
 import movie_downloads
+from background_jobs import JobStore
 from security_storage import safe_resolved_path
 
 SECRET_EMAIL = "private-note-owner@example.invalid"
@@ -80,11 +81,13 @@ def movies(tmp_path, monkeypatch):
         spec.loader.exec_module(module)
     app = Flask(__name__)
     app.config.update(TESTING=True, SECRET_KEY="isolated-movie-tests")
+    app.extensions["jobs"] = JobStore(tmp_path / "jobs.sqlite3")
     app.jinja_loader = DictLoader(
         {
             "movies.html": (
                 "{{ {'movies': movies, 'has_more': has_more}|tojson }}"
             ),
+            "movie_download.html": "{{ movie.title }} {{ prepare_url }}",
         }
     )
     manager = LoginManager(app)
@@ -192,6 +195,12 @@ def archive(tmp_path, monkeypatch):
 
     @app.get("/download")
     def download():
+        # Exercise preparation and delivery together in this isolated fixture;
+        # real routes enqueue preparation and only deliver cached archives.
+        try:
+            movie_downloads.prepare_archive(film, root, "group", "film")
+        except movie_downloads.ArchivePreparationError as error:
+            abort(error.status)
         return movie_downloads.archive_response(
             film,
             root,
@@ -370,3 +379,90 @@ def test_progress_rejects_invalid_timing(movies, value):
     )
     assert response.status_code == 400
     assert movies.redis.hlen("prog:member") == 0
+
+
+def test_download_request_queues_without_building_on_http_thread(
+    movies, monkeypatch
+):
+    url = "/movies/download/group/film-00"
+    build = Mock(side_effect=AssertionError("HTTP must not prepare archives"))
+    monkeypatch.setattr(movie_downloads, "prepare_archive", build)
+    assert movies.client.get(url).status_code == 200
+    response = movies.client.post(url + "/prepare")
+    assert response.status_code == 202
+    status_url = response.json["status_url"]
+    assert movies.client.get(status_url).json == {"state": "pending"}
+    duplicate = movies.client.post(url + "/prepare")
+    assert duplicate.json["status_url"] == status_url
+    build.assert_not_called()
+    job_id = status_url.rsplit("/", 1)[1]
+    job = movies.app.extensions["jobs"].get(job_id)
+    assert SECRET_NOTE not in json.dumps(job["payload"])
+    assert SECRET_EMAIL not in json.dumps(job["payload"])
+
+
+def test_archive_worker_finishes_and_download_status_delivers_cached_file(
+    movies,
+):
+    url = "/movies/download/group/film-00"
+    queued = movies.client.post(url + "/prepare")
+    store = movies.app.extensions["jobs"]
+    assert store.run_once({"archive": movie_downloads.build_archive_job})
+    ready = movies.client.get(queued.json["status_url"])
+    assert ready.json == {"state": "done", "download_url": url}
+    response = movies.client.get(url)
+    assert response.status_code == 200
+    assert response.headers["X-Accel-Redirect"].startswith(
+        "/protected_downloads/"
+    )
+    assert movies.client.post(url + "/prepare").json["state"] == "done"
+    job = store.get(queued.json["status_url"].rsplit("/", 1)[1])
+    assert job["payload"] == {}
+
+
+def test_download_status_requires_job_owner_and_matching_current_movie(movies):
+    url = "/movies/download/group/film-00"
+    queued = movies.client.post(url + "/prepare")
+    status_url = queued.json["status_url"]
+    store = movies.app.extensions["jobs"]
+    job_id = status_url.rsplit("/", 1)[1]
+    with store._connection() as connection:
+        connection.execute(
+            "UPDATE jobs SET owner = 'other' WHERE id = ?", (job_id,)
+        )
+    assert movies.client.get(status_url).status_code == 404
+    with store._connection() as connection:
+        connection.execute(
+            "UPDATE jobs SET owner = 'member' WHERE id = ?", (job_id,)
+        )
+    assert (
+        movies.client.get(status_url.replace("film-00", "film-01")).status_code
+        == 404
+    )
+    movies.module.all_films.pop("/group/film-00")
+    assert movies.client.get(status_url).status_code == 404
+    assert movies.client.post(url + "/prepare").status_code == 404
+
+
+def test_expired_archive_can_be_prepared_again(movies):
+    url = "/movies/download/group/film-00"
+    first = movies.client.post(url + "/prepare")
+    store = movies.app.extensions["jobs"]
+    assert store.run_once({"archive": movie_downloads.build_archive_job})
+    movie_downloads.ready_archive(movies.root, "group", "film-00").unlink()
+    assert (
+        movies.client.get(first.json["status_url"]).json["state"] == "failed"
+    )
+    second = movies.client.post(url + "/prepare")
+    assert second.status_code == 202
+    assert second.json["status_url"] != first.json["status_url"]
+
+
+def test_archive_failure_is_terminal_and_private(movies, monkeypatch):
+    response = movies.client.post("/movies/download/group/film-00/prepare")
+    monkeypatch.setattr(movie_downloads, "MAX_ARCHIVE_BYTES", 1)
+    store = movies.app.extensions["jobs"]
+    assert store.run_once({"archive": movie_downloads.build_archive_job})
+    result = movies.client.get(response.json["status_url"])
+    assert result.json == {"state": "failed"}
+    assert not list(Path("cache/downloads").glob("*.zip"))

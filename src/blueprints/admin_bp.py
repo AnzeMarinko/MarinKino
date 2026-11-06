@@ -1,16 +1,15 @@
-import json
 import logging
 import os
 import re
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timezone
 from io import BytesIO
 from urllib.parse import urlsplit
 from uuid import uuid4
 
-import pandas as pd
 from flask import (
     Blueprint,
     abort,
+    current_app,
     flash,
     jsonify,
     make_response,
@@ -30,6 +29,8 @@ from admin_log_reader import (
     host_snapshot,
     secret_values,
 )
+from admin_statistics import AdminStatistics
+from blog_content import load_posts
 from blog_i18n import BLOG_LANGUAGES, messages
 from blog_images import (
     MAX_GALLERY_REQUEST_BYTES,
@@ -43,12 +44,11 @@ from blog_subscribers import group_subscribers
 from blog_translation import translate_url
 from blueprints.blog_bp import public_base_url
 from content_preparation.config import LOG_FILENAME
-from security_storage import atomic_write_json, read_json, serialized_json
+from security_storage import atomic_write_json, serialized_json
 from utils import (
     is_current_admin_view,
     load_blog_subscribers,
     redis_client,
-    send_mail,
 )
 
 log = logging.getLogger(__name__)
@@ -120,7 +120,7 @@ def init_admin_bp(_users):
 
 
 def load_blog_posts():
-    return read_json(BLOG_DATA_FILE, {})
+    return load_posts(BLOG_DATA_FILE)
 
 
 def save_blog_posts(posts):
@@ -232,296 +232,19 @@ def admin_panel():
     if not is_current_admin_view(current_user):
         return redirect(url_for("home"))
 
-    access_stats_users = {}
-
-    user_counter = {}
-
-    for key in redis_client.scan_iter("stats:daily:*"):
-        parts = key.split(":")
-        if len(parts) < 5:
-            continue
-
-        log_date = parts[2]
-        user_id = parts[3]
-        status = parts[4][0] + "xx"
-
-        routes_data = redis_client.hgetall(key)
-
-        access_stats_users.setdefault(status, {})
-        access_stats_users[status].setdefault(log_date, {})
-        access_stats_users[status][log_date].setdefault(user_id, {})
-
-        for route_method, count in routes_data.items():
-            access_stats_users[status][log_date][user_id].setdefault(
-                "routes", {}
-            )
-            access_stats_users[status][log_date][user_id]["routes"].setdefault(
-                route_method, 0
-            )
-            access_stats_users[status][log_date][user_id]["routes"][
-                route_method
-            ] += int(count)
-            access_stats_users[status][log_date][user_id].setdefault(
-                "count", 0
-            )
-            access_stats_users[status][log_date][user_id]["count"] += int(
-                count
-            )
-            if status.startswith("2") or status.startswith("3"):
-                user_counter.setdefault(user_id, 0)
-                user_counter[user_id] += int(count)
-
-    # Daily user graph only needs to cover the last month
-    daily_graph_cutoff = (date.today() - timedelta(days=30)).isoformat()
-    for status in list(access_stats_users.keys()):
-        access_stats_users[status] = {
-            log_date: users_for_date
-            for log_date, users_for_date in access_stats_users[status].items()
-            if log_date >= daily_graph_cutoff
-        }
-
-    if access_stats_users:
-        for k1, v1 in access_stats_users.items():
-            for k2, v2 in v1.items():
-                for k3, v3 in v2.items():
-                    access_stats_users[k1][k2][k3]["routes"] = "\n".join(
-                        [
-                            v[1]
-                            for v in sorted(
-                                [
-                                    (int(count), f"{count}x {route_method}")
-                                    for route_method, count in v3[
-                                        "routes"
-                                    ].items()
-                                ],
-                                reverse=True,
-                            )[:10]
-                        ]
-                    )
-                access_stats_users[k1][k2] = {
-                    k: v
-                    for k, v in sorted(
-                        list(access_stats_users[k1][k2].items()),
-                        key=lambda x: -user_counter.get(x[0], 0),
-                    )
-                    if v
-                }
-            access_stats_users[k1] = {
-                k: v
-                for k, v in sorted(list(access_stats_users[k1].items()))
-                if v
-            }
-        access_stats_users = {
-            k: v for k, v in sorted(list(access_stats_users.items())) if v
-        }
-
-    access_stats_monthly = {}
-
-    for key in redis_client.scan_iter("stats:monthly:*"):
-        month_label = key.split(":")[-1]
-        monthly_data = redis_client.hgetall(key)
-        access_stats_monthly.setdefault(month_label, {})
-        for route_method, count in monthly_data.items():
-            route = "/" + "/".join(route_method.split("/")[1:3])
-            access_stats_monthly[month_label][route] = access_stats_monthly[
-                month_label
-            ].get(route, 0) + int(count)
-
-    if access_stats_monthly:
-        df_monthly = pd.DataFrame(access_stats_monthly).T.fillna(0).astype(int)
-        top_routes = (
-            df_monthly.sum(axis=0).sort_values(ascending=False).head(20).index
-        )
-        access_stats_monthly_dict = (
-            df_monthly[top_routes].sort_index().to_dict(orient="index")
-        )
-    else:
-        access_stats_monthly_dict = {}
-
-    users_stats = {}
-    user_prog_keys = redis_client.keys("prog:*")
-
-    for key in user_prog_keys:
-        user_id = key.split(":")[1]
-        user_data_raw = redis_client.hgetall(key)
-
-        total_watch_time = 0
-        watch_ratios = []
-        watched_count = 0
-        starting_count = 0
-        last_start_time = "-"
-
-        for video_file, progress_json in user_data_raw.items():
-            progress = json.loads(progress_json)
-
-            watch_time = progress.get("total_play_time", 0)
-            duration = progress.get("duration", 0)
-            current_max_start = progress.get("last_start_time")
-
-            if watch_time and duration:
-                ratio = (watch_time / duration) * 100
-                if ratio < 5:
-                    continue
-                watch_ratios.append(ratio)
-                starting_count += 1
-                if ratio >= 70:
-                    watched_count += 1
-
-                if current_max_start:
-                    if (
-                        last_start_time == "-"
-                        or current_max_start > last_start_time
-                    ):
-                        last_start_time = current_max_start
-
-                total_watch_time += watch_time
-
-        def seconds_to_str(seconds):
-            hours = int(seconds // 3600)
-            minutes = int((seconds % 3600) // 60)
-            return f"{hours}h {minutes:02}m"
-
-        percent = (
-            round(sum(watch_ratios) / len(watch_ratios), 1)
-            if watch_ratios
-            else 0
-        )
-        users_stats[user_id] = {
-            "Skupen čas": seconds_to_str(total_watch_time),
-            "Število začetih": starting_count,
-            "Število ogledanih": watched_count,
-            "Povprečen delež ogleda": f"{percent} %",
-            "Zadnji začetek ogleda": last_start_time,
-        }
-
-    if users_stats:
-        df_users = pd.DataFrame(users_stats).T.sort_values(
-            by=["Število ogledanih", "Skupen čas"], ascending=False
-        )
-        users_stats_dict = df_users.to_dict(orient="index")
-        users_stats_columns = df_users.columns
-    else:
-        users_stats_dict = {}
-        users_stats_columns = []
-
-    # Referrer statistics
-    referrer_stats = {}
-    for key in redis_client.scan_iter("stats:referrer:*"):
-        if redis_client.type(key) != "hash":
-            continue
-        date_part = key.split(":")[-1]
-        referrer_data = redis_client.hgetall(key)
-        for source, count in referrer_data.items():
-            referrer_stats.setdefault(source, {})
-            referrer_stats[source][date_part] = int(count)
-
-    # Geolocation statistics
-    geo_stats = {}
-    geo_stats_cities = {}
-    all_geo_data = {}
-    for key in redis_client.scan_iter("stats:geo:*"):
-        if key.startswith("stats:geo:seen:"):
-            continue
-        if redis_client.type(key) != "hash":
-            continue
-        date_part = key.split(":")[-1]
-        geo_data = redis_client.hgetall(key)
-
-        for ip, location_json in geo_data.items():
-            try:
-                location = json.loads(location_json)
-                if ip not in all_geo_data.keys():
-                    all_geo_data[ip] = location
-                country = location.get("country", "Unknown")
-                city = location.get("city", "Unknown")
-                city_key = f"{city} ({country})"
-                city = city_key if country == "SI" else country
-                geolocation = location.get("geolocation", "").split(",")
-
-                geo_stats.setdefault(city, 0)
-                geo_stats[city] += 1
-                geo_stats_cities.setdefault(city_key, {"count": 0})
-                geo_stats_cities[city_key]["count"] += 1
-                if len(geolocation) == 2:
-                    geo_stats_cities[city_key]["geolocation"] = (
-                        float(geolocation[0]),
-                        float(geolocation[1]),
-                    )
-            except Exception:
-                continue
-    geo_stats = dict(sorted(geo_stats.items(), key=lambda x: -x[1]))
-    # City list capped at 20; map below still shows every location
-    geo_stats_top = dict(list(geo_stats.items())[:20])
-
-    # Blog statistics
-    blog_views_daily = {}
-    blog_si_views_daily = {}
-    total_views = 0
-    total_si_views = 0
-    blog_posts = load_blog_posts()
-    blog_stats = []
-    blog_posts_daily = {}
-    for post_id, post in blog_posts.items():
-        views = 0
-        si_views = 0
-        post_daily = {}
-        for key in redis_client.scan_iter(f"blog:views:{post_id}:*"):
-            part_views = 0
-            part_si_views = 0
-            date_part = key.split(":")[-1]
-            for ip in redis_client.hgetall(key).keys():
-                part_views += 1
-                if all_geo_data.get(ip, {}).get("country") == "SI":
-                    part_si_views += 1
-            views += part_views
-            si_views += part_si_views
-            post_daily[date_part] = part_views
-            blog_views_daily[date_part] = (
-                blog_views_daily.get(date_part, 0) + part_views
-            )
-            blog_si_views_daily[date_part] = (
-                blog_si_views_daily.get(date_part, 0) + part_si_views
-            )
-        total_views += views
-        total_si_views += si_views
-        blog_posts_daily[post_id] = {
-            "title": post["title"],
-            "created_at": post["created_at"][:10],
-            "views": post_daily,
-        }
-        blog_stats.append(
-            {
-                "id": post_id,
-                "title": post["title"],
-                "views": views,
-                "si_views": si_views,
-                "created_at": post["created_at"][:16],
-            }
-        )
-
+    cache = current_app.extensions.get("admin_statistics")
+    if cache is None:
+        cache = AdminStatistics(redis_client)
+        current_app.extensions["admin_statistics"] = cache
+    statistics = cache.snapshot(load_blog_posts())
     return render_template(
         "admin.html",
         pagetitle="MarinKino - Nadzorna plošča",
-        access_stats_users=access_stats_users,
-        users=list(
-            sorted(user_counter.keys(), key=lambda x: -user_counter[x])
-        ),
         emails=", ".join(
-            [e for u in users for e in users[u].get("emails", [])]
+            email for user in users.values() for email in user.get("emails", [])
         ),
         users_count=len(users),
-        users_stats=users_stats_dict,
-        users_stats_columns=users_stats_columns,
-        access_stats_monthly=access_stats_monthly_dict,
-        blog_views_daily=blog_views_daily,
-        blog_si_views_daily=blog_si_views_daily,
-        blog_posts_daily=blog_posts_daily,
-        blog_stats=blog_stats,
-        total_blog_views=total_views,
-        total_si_views=total_si_views,
-        referrer_stats=referrer_stats,
-        geo_stats=geo_stats_top,
-        geo_stats_cities=geo_stats_cities,
+        **statistics,
     )
 
 
@@ -857,7 +580,6 @@ def admin_blog_delete(post_id):
 
 @admin_bp.route("/admin/blog/send_mail/<post_id>", methods=["POST"])
 @login_required
-@serialized_json(lambda: BLOG_DATA_FILE)
 def admin_blog_send_mail(post_id):
     if not is_current_admin_view(current_user):
         return redirect(url_for("home"))
@@ -980,45 +702,55 @@ def admin_blog_send_mail(post_id):
     if not admin_emails:
         admin_emails = [os.getenv("GMAIL_USERNAME")]
 
+    from background_jobs import QueueFull
+
     try:
-        for language, recipients, subject, html, text in deliveries:
-            failed = send_mail(
-                to=admin_emails[0],
-                bcc=recipients,
-                subject=subject,
-                text=text,
-                html=html,
-                batch_id=post_id,
-                blog=True,
-            )
-            if failed:
-                raise RuntimeError("SMTP rejected notification recipients")
-            sent_languages.add(language)
-            posts[post_id]["mail_languages_sent"] = sorted(sent_languages)
-            save_blog_posts(posts)
-    except Exception:
-        log.exception("Napaka pri pošiljanju maila naročnikom")
-        if (
-            request.is_json
-            or request.headers.get("X-Requested-With") == "XMLHttpRequest"
-        ):
-            return jsonify(
-                {"success": False, "message": "Napaka pri pošiljanju maila."}
-            )
-        flash("Napaka pri pošiljanju maila.", "error")
-        return redirect(request.referrer or url_for("admin.admin_blog"))
-
-    # mark as sent
-    posts[post_id]["mail_date"] = datetime.now(timezone.utc).isoformat()
-    save_blog_posts(posts)
-
+        job = current_app.extensions["jobs"].enqueue(
+            "blog_mail",
+            {
+                "posts_path": os.path.abspath(BLOG_DATA_FILE),
+                "post_id": post_id,
+                "deliveries": deliveries,
+                "sender_recipient": admin_emails[0],
+            },
+            owner=current_user.get_id() or "",
+            dedupe_key=f"blog-mail:{post_id}",
+        )
+    except QueueFull:
+        return jsonify(
+            success=False,
+            message="Vrsta za pošiljanje je polna. Poskusi pozneje.",
+        ), 503
+    status_url = url_for("admin.mail_job_status", job_id=job["id"])
+    message = {
+        "pending": "E-pošta je v vrsti za pošiljanje.",
+        "running": "Pošiljanje e-pošte že poteka.",
+        "done": "E-pošta je že poslana.",
+        "uncertain": "Pošiljanje je bilo prekinjeno. Pred ponovitvijo preveri dostavo.",
+    }[job["state"]]
     if (
         request.is_json
         or request.headers.get("X-Requested-With") == "XMLHttpRequest"
     ):
         return jsonify(
-            {"success": True, "message": "E-pošta poslana naročnikom."}
+            {
+                "success": True,
+                "message": message,
+                "status_url": status_url,
+                "state": job["state"],
+            }
         )
 
-    flash("E-pošta poslana naročnikom.", "success")
+    flash(message, "error" if job["state"] == "uncertain" else "success")
     return redirect(request.referrer or url_for("admin.admin_blog"))
+
+
+@admin_bp.get("/admin/mail-jobs/<job_id>")
+@login_required
+def mail_job_status(job_id):
+    if not is_current_admin_view(current_user):
+        abort(403)
+    job = current_app.extensions["jobs"].get(job_id)
+    if not job or job["kind"] not in {"mail", "blog_mail"}:
+        abort(404)
+    return jsonify(state=job["state"])

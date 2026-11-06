@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   {% include "partials/admin_night_theme.html" %}
   {% if current_user is defined and current_user.is_authenticated and current_user.is_admin %}
-  <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="/static/js/admin_access_clock.js"></script>
+  <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="{{ url_for('static', filename='js/admin_access_clock.js') }}"></script>
   {% endif %}
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
@@ -30,7 +30,7 @@
     <form method="get" action="{{ url_for('blog.blog_subscription_form') }}" class="language-form">
       <label for="subscription-language">{{ copy.language_label }}</label>
       <div class="language-row">
-        <select id="subscription-language" name="lang" onchange="this.form.submit()">
+        <select id="subscription-language" name="lang" data-submit-language>
           {% for code, metadata in blog_languages.items() %}
           <option value="{{ code }}" lang="{{ code }}" dir="{{ metadata.direction }}" {{ 'selected' if code == language else '' }}>{{ metadata.name }}</option>
           {% endfor %}
@@ -64,5 +64,8 @@
     {% if language != 'sl' %}<p class="translation-notice">{{ copy.automatic_notice }}</p>{% endif %}
     <a class="subscription-back" href="{{ blog_url }}" rel="noreferrer">{{ copy.back_to_blog }}</a>
   </main>
+  <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}">
+    document.querySelector('[data-submit-language]').addEventListener('change', event => event.target.form.requestSubmit());
+  </script>
 </body>
 </html>

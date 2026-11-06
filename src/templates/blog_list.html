@@ -1,11 +1,11 @@
 {% extends "base.html" %}
+{% block page_styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/blog.css') }}">{% endblock %}
 {% block content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/blog.css') }}">
 <main class="blog-page">
  <div class="blog-shell">
   <header class="blog-hero">
    <div><p class="blog-kicker">Sončnice · osebni blog</p><h1 class="notranslate" translate="no" data-blog-title>Rože dobrega</h1><p class="blog-lead">Zapisi o ljubezni, veselju do življenja, zaupanju v Boga, hvaležnosti ...</p><div class="blog-actions"><a class="blog-text-link" href="/blog/o-blogu">O blogu <i class="bi bi-arrow-right" aria-hidden="true"></i></a><a class="blog-text-link" href="/blog/o-meni">O avtorju <i class="bi bi-arrow-right" aria-hidden="true"></i></a></div></div>
-   <div class="blog-flower" aria-hidden="true"><img id="blog-logo" src="{{ url_for('static', filename='blog_favicon_io/android-chrome-512x512.png') }}" alt="" style="max-width: 50%;"></div>
+   <div class="blog-flower" aria-hidden="true"><img id="blog-logo" src="{{ url_for('static', filename='blog_favicon_io/logo-240.webp') }}" srcset="{{ url_for('static', filename='blog_favicon_io/logo-240.webp') }} 240w, {{ url_for('static', filename='blog_favicon_io/logo-480.webp') }} 480w" sizes="240px" width="240" height="240" alt=""></div>
   </header>
   <section id="blog-posts" aria-labelledby="blog-posts-title">
    <div class="blog-section-heading"><div><p class="blog-kicker" id="blog-posts-title">V razmislek in navdih</p></div>
@@ -17,6 +17,7 @@
      <details id="blogIndex" class="blog-index"><summary><i class="bi bi-list-ul" aria-hidden="true"></i> Kazalo objav</summary><nav aria-label="Kazalo vseh objav"><ul>{% for post in blog_index %}<li><a href="{{ url_for('blog.blog_post', post_id=post.id) }}"><span>{{ post.title }}{% if not post.published %} <small>(osnutek)</small>{% endif %}</span><time datetime="{{ post.published_at or post.created_at }}">{{ post.created_at_display }}</time></a></li>{% else %}<li>Objav še ni.</li>{% endfor %}</ul></nav></details>
     </div>
    </div>
+   <p id="blogSearchFeedback" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
    <div id="blog-results">{% include 'partials/blog_results.html' %}</div>
   </section>
   {% include 'partials/blog_subscribe_banner.html' %}

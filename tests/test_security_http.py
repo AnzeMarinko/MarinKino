@@ -86,13 +86,13 @@ def stats_fields(store):
     }
 
 
-def test_unmatched_urls_are_recorded_by_path_and_expire(http):
+def test_unmatched_urls_share_one_counter_and_expire(http):
     for index in range(120):
         response = http.client.get(f"/scanner-{index}/secret-{index}.php")
         assert response.status_code == 404
     fields = stats_fields(http.redis)
-    assert len(fields) == 120
-    assert "GET /scanner-0/secret-0.php" in fields
+    assert len(fields) == 1
+    assert "GET <unmatched>" in fields
     for key in http.redis.scan_iter("stats:*"):
         assert 0 < http.redis.ttl(key) <= security_http.STATS_TTL
     daily = list(http.redis.scan_iter("stats:daily:*"))
@@ -107,7 +107,7 @@ def test_invented_http_verbs_cannot_make_unlimited_statistics_fields(http):
     assert len(stats_fields(http.redis)) <= 10
 
 
-def test_referrers_are_bucketed_and_routes_recorded_by_path(http):
+def test_referrers_and_dynamic_routes_are_bucketed(http):
     for index in range(35):
         response = http.client.get(
             f"/article/id-{index}",
@@ -117,9 +117,9 @@ def test_referrers_are_bucketed_and_routes_recorded_by_path(http):
         )
         assert response.status_code == 200
     fields = stats_fields(http.redis)
-    assert "GET /article/id-0" in fields
+    assert "GET /article/<slug>" in fields
     assert not any("random-" in field for field in fields)
-    assert len(fields) == 35 + 1
+    assert len(fields) == 2
     for key in http.redis.scan_iter("stats:*"):
         assert http.redis.ttl(key) > 0
 
@@ -288,8 +288,12 @@ def test_security_headers_cover_error_responses_and_nonces_are_fresh(http):
         assert "object-src 'none'" in enforced
         assert "base-uri 'self'" in enforced
         assert "form-action 'self'" in enforced
-        report = response.headers["Content-Security-Policy-Report-Only"]
-        nonces.append(re.search(r"'nonce-([^']+)'", report)[1])
+        assert "script-src-attr 'none'" in enforced
+        assert "Content-Security-Policy-Report-Only" not in response.headers
+        script_policy = re.search(r"script-src ([^;]+)", enforced)[1]
+        assert "unsafe-inline" not in script_policy
+        assert "unsafe-eval" not in script_policy
+        nonces.append(re.search(r"'nonce-([^']+)'", enforced)[1])
     assert nonces[0] != nonces[1]
 
 

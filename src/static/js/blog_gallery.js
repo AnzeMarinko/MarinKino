@@ -28,7 +28,9 @@
         }
         function show(next, manual = false) {
             index = (next + items.length) % items.length;
-            image.src = items[index].href;
+            image.srcset = items[index].dataset.srcset || '';
+            image.sizes = '(max-width: 767px) 90vw, 740px';
+            image.src = items[index].dataset.displaySrc || items[index].href;
             image.alt = items[index].dataset.alt;
             caption.textContent = items[index].dataset.description;
             caption.hidden = !caption.textContent;

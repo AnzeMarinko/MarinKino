@@ -3,8 +3,7 @@
 <div class="admin-stats" aria-label="Hiter pregled">
   <div class="admin-stat"><span>Registrirani uporabniki</span><strong>{{ users_count }}</strong></div>
   <div class="admin-stat"><span>Blog objave</span><strong>{{ blog_stats|length }}</strong></div>
-  <div class="admin-stat"><span>Seje branja bloga</span><strong>{{ total_blog_views }}</strong></div>
-  <div class="admin-stat"><span>Seje branja iz Slovenije</span><strong>{{ total_si_views }}</strong></div>
+  <div class="admin-stat"><span>Ogledi bloga</span><strong>{{ total_blog_views }}</strong></div>
 </div>
 <div class="admin-shortcuts">
   <a href="/admin/blog/new"><i class="bi bi-pencil-square" aria-hidden="true"></i><span><strong>Napiši novo objavo</strong><small>Besedilo, slika in predogled</small></span></a>
@@ -39,7 +38,7 @@
 
 <section id="admin-blog-stats" class="admin-panel" aria-labelledby="blog-stats-title">
   <div class="admin-section-heading"><div><h2 id="blog-stats-title">Statistika bloga</h2><p>Ogledi posameznih objav in dnevni pregled branja.</p></div><a class="btn btn-outline-secondary" href="/admin/blog">Upravljaj objave</a></div>
-  <div class="table-responsive"><table class="table table-hover" data-sortable><thead><tr><th scope="col" data-sort="text">Naslov</th><th scope="col" data-sort="number">Ogledi</th><th scope="col" data-sort="number">Slovenija</th><th scope="col" data-sort="text">Datum</th></tr></thead><tbody>{% for stat in blog_stats %}<tr><td><a href="/admin/blog/edit/{{ stat.id }}">{{ stat.title }}</a></td><td>{{ stat.views }}</td><td>{{ stat.si_views }}</td><td>{{ stat.created_at }}</td></tr>{% else %}<tr><td colspan="4" class="text-muted">Ni še podatkov o objavah.</td></tr>{% endfor %}</tbody></table></div>
+  <div class="table-responsive"><table class="table table-hover" data-sortable><thead><tr><th scope="col" data-sort="text">Naslov</th><th scope="col" data-sort="number">Ogledi</th><th scope="col" data-sort="text">Datum</th></tr></thead><tbody>{% for stat in blog_stats %}<tr><td><a href="/admin/blog/edit/{{ stat.id }}">{{ stat.title }}</a></td><td>{{ stat.views }}</td><td>{{ stat.created_at }}</td></tr>{% else %}<tr><td colspan="3" class="text-muted">Ni še podatkov o objavah.</td></tr>{% endfor %}</tbody></table></div>
   <div id="blog-views-graph" class="admin-plot mt-3" aria-label="Graf dnevnih ogledov bloga"></div>
   <h3 class="mt-4">Rast ogledov po objavah</h3>
   <p class="small text-muted">Skupni ogledi od prvega zabeleženega ogleda. Osi sta linearni; x-os uporablja log₂ dni, y-os pa kvadratni koren ogledov. Oznake kažejo dejanske vrednosti ogledov in dni. Na x-osi 1 pomeni prvi dan, 2 drugi dan, 4 četrti dan … 1024 je 1024. dan.</p>
@@ -48,12 +47,10 @@
 </section>
 
 <section id="admin-traffic" class="admin-panel" aria-labelledby="traffic-title">
-  <div class="admin-section-heading"><div><h2 id="traffic-title">Od kod pridejo obiskovalci?</h2><p>Viri dostopa in približne lokacije obiskovalcev.</p></div></div>
+  <div class="admin-section-heading"><div><h2 id="traffic-title">Od kod pridejo obiskovalci?</h2><p>Skupno število dostopov po virih, brez določanja lokacije obiskovalcev.</p></div></div>
   <div class="admin-chart-grid">
     <div><h3 class="mb-3">Viri obiska</h3>{% if referrer_stats %}<div class="table-responsive"><table class="table table-hover" data-sortable><thead><tr><th scope="col" data-sort="text">Vir</th><th scope="col" data-sort="number">Obiski</th></tr></thead><tbody>{% for source, dates in referrer_stats.items() %}<tr><td class="text-break">{{ source }}</td><td>{{ dates.values()|sum }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="admin-empty">Ni podatkov o virih obiska.</p>{% endif %}</div>
-    <div><h3 class="mb-3">Lokacije</h3>{% if geo_stats %}<div class="table-responsive"><table class="table table-hover" data-sortable><thead><tr><th scope="col" data-sort="text">Mesto</th><th scope="col" data-sort="number">Obiskovalci</th></tr></thead><tbody>{% for city, count in geo_stats.items() %}<tr><td>{{ city }}</td><td>{{ count }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="admin-empty">Ni podatkov o lokacijah.</p>{% endif %}</div>
   </div>
-  {% if geo_stats_cities %}<div id="geo-map" class="mt-3" style="height:360px; border-radius:.7rem;" aria-label="Zemljevid približnih lokacij obiskovalcev"></div>{% endif %}
 </section>
 
 <section id="admin-tools" class="admin-panel" aria-labelledby="tools-title">
@@ -61,11 +58,9 @@
   <div class="admin-view-as"><div><strong>Predogled strani kot uporabnik</strong><p class="small mb-0 mt-1">Odpre prikaz izbrane vloge. Za vrnitev uporabi povezavo v opozorilni pasici.</p></div><div class="admin-actions">{% for mode, label in [('anonymous', 'Neprijavljen'), ('user', 'Uporabnik')] %}<form method="post" action="/admin/set-view-as/{{ mode }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-outline-secondary" type="submit">{{ label }}</button></form>{% endfor %}<form method="post" action="/admin/clear-view-as"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-outline-primary" type="submit">Administrator</button></form></div></div>
 
 </section>
-<div id="adminData" data-stats='{{ {"accessUsers": access_stats_users, "users": users, "accessMonthly": access_stats_monthly, "blogDaily": blog_views_daily, "blogSiDaily": blog_si_views_daily, "blogPosts": blog_posts_daily or {}, "geoCities": geo_stats_cities}|tojson }}' hidden></div>
+<div id="adminData" data-stats='{{ {"accessUsers": access_stats_users, "users": users, "accessMonthly": access_stats_monthly, "blogDaily": blog_views_daily, "blogPosts": blog_posts_daily or {}}|tojson }}' hidden></div>
 {% endblock %}
 {% block admin_scripts %}
-<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/vendor/plotly.min.js"></script>
-<link rel="stylesheet" href="/static/vendor/leaflet.css">
-<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/vendor/leaflet.js"></script>
-<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/script/admin_dashboard.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="{{ url_for('static', filename='vendor/plotly.min.js') }}"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="{{ url_for('static', filename='script/admin_dashboard.js') }}"></script>
 {% endblock %}

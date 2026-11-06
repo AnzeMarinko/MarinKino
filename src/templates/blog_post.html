@@ -1,6 +1,9 @@
 {% extends "base.html" %}
-{% block content %}
+{% block page_styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/blog.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/blog_gallery.css') }}">
+{% endblock %}
+{% block content %}
 <main class="blog-page blog-reading-page">
  {% if not post.published %}
  <div role="alert" style="position:sticky;top:0;z-index:1000;background:#c62828;color:#fff;text-align:center;padding:.75rem 1rem;font-weight:700;border-bottom:3px solid #8e0000"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i> OSNUTEK – zapis še ni objavljen. Ne deli povezave na družabnih omrežjih!</div>
@@ -19,11 +22,12 @@
    {% set gallery = post.get('images', []) %}
    {% if gallery %}
    <figure class="blog-article-image blog-gallery" data-blog-gallery role="region" aria-roledescription="galerija" aria-label="Slike objave">
-    <div class="blog-gallery-stage"><img data-gallery-main src="{{ url_for('blog.blog_image_file', file_name=gallery[0].filename) }}" alt="{{ gallery[0].description or post.title }}" itemprop="image" decoding="async"></div>
+    {% set cover = blog_image_sources(gallery[0].filename) %}
+    <div class="blog-gallery-stage"><img data-gallery-main src="{{ url_for('blog.blog_image_file', file_name=cover.src) }}" {% if cover.srcset %}srcset="{% for source in cover.srcset %}{{ url_for('blog.blog_image_file', file_name=source.filename) }} {{ source.width }}w{{ ', ' if not loop.last else '' }}{% endfor %}" sizes="(max-width: 767px) 90vw, 740px"{% endif %} alt="{{ gallery[0].description or post.title }}" itemprop="image" decoding="async"></div>
     <figcaption data-gallery-caption {{ 'hidden' if not gallery[0].description else '' }}>{{ gallery[0].description }}</figcaption>
     {% if gallery|length > 1 %}
     <div class="blog-gallery-controls" data-gallery-controls hidden><button type="button" data-gallery-prev aria-label="Prejšnja slika">←</button><span data-gallery-counter>1 / {{ gallery|length }}</span><button type="button" data-gallery-next aria-label="Naslednja slika">→</button><button type="button" data-gallery-play><i class="bi bi-pause-fill" aria-hidden="true"></i></button></div>
-    <nav class="blog-gallery-thumbnails" aria-label="Izberi sliko">{% for item in gallery %}<a href="{{ url_for('blog.blog_image_file', file_name=item.filename) }}" target="_blank" rel="noopener" data-gallery-index="{{ loop.index0 }}" data-description="{{ item.description }}" data-alt="{{ item.description or post.title }}" aria-label="Slika {{ loop.index }} od {{ gallery|length }}: {{ item.description or post.title }}" {{ 'aria-current=true' if loop.first else '' }}><img src="{{ url_for('blog.blog_image_file', file_name=item.thumbnail|default(item.filename)) }}" alt="" loading="lazy" decoding="async"></a>{% endfor %}</nav>
+    <nav class="blog-gallery-thumbnails" aria-label="Izberi sliko">{% for item in gallery %}{% set sources = blog_image_sources(item.filename) %}<a href="{{ url_for('blog.blog_image_file', file_name=item.filename) }}" target="_blank" rel="noopener" data-gallery-index="{{ loop.index0 }}" data-display-src="{{ url_for('blog.blog_image_file', file_name=sources.src) }}" data-srcset="{% for source in sources.srcset %}{{ url_for('blog.blog_image_file', file_name=source.filename) }} {{ source.width }}w{{ ', ' if not loop.last else '' }}{% endfor %}" data-description="{{ item.description }}" data-alt="{{ item.description or post.title }}" aria-label="Slika {{ loop.index }} od {{ gallery|length }}: {{ item.description or post.title }}" {{ 'aria-current=true' if loop.first else '' }}><img src="{{ url_for('blog.blog_image_file', file_name=item.thumbnail|default(sources.srcset[0].filename if sources.srcset else item.filename)) }}" alt="" loading="lazy" decoding="async"></a>{% endfor %}</nav>
     <span class="visually-hidden" data-gallery-announcement role="status" aria-live="polite"></span>
     {% endif %}
    </figure>
@@ -32,11 +36,11 @@
    <div class="blog-content" itemprop="articleBody">{{ post.content_html|safe }}</div>
    <footer class="blog-article-footer"><span><i class="bi bi-flower1" aria-hidden="true"></i> Hvala, ker bereš.</span><a class="blog-text-link" href="/blog">Nazaj na vse zapise <i class="bi bi-arrow-right" aria-hidden="true"></i></a></footer>
   </article>
+  {% if related_posts %}<section class="blog-related" aria-labelledby="blog-related-title"><h2 id="blog-related-title">Preberi tudi</h2><ul>{% for related in related_posts %}<li><a href="{{ url_for('blog.blog_post', post_id=related.id) }}"><span>{{ related.title }}</span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></a></li>{% endfor %}</ul></section>{% endif %}
   {% include 'partials/blog_subscribe_banner.html' %}
  </div>
 </main>
 <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="{{ url_for('static', filename='js/blog_ui.js') }}"></script>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/blog_gallery.css') }}">
 <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="{{ url_for('static', filename='js/blog_gallery.js') }}"></script>
 <!-- Breadcrumb Schema -->
 <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" type="application/ld+json">

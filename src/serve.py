@@ -8,6 +8,9 @@ from app import app
 
 if __name__ == "__main__":
     os.umask(0o027)
+    from runtime_jobs import start_background_workers
+
+    start_background_workers(app)
     serve(
         app,
         unix_socket="/run/marinkino/app.sock",

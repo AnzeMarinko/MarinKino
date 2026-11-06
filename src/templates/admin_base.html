@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<link rel="stylesheet" href="/static/css/admin.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
 <main class="admin-page">
   <div class="admin-shell">
     <header class="admin-heading">
@@ -20,6 +20,6 @@
     {% block admin_content %}{% endblock %}
   </div>
 </main>
-<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/script/admin.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="{{ url_for('static', filename='script/admin.js') }}"></script>
 {% block admin_scripts %}{% endblock %}
 {% endblock %}

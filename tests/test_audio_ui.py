@@ -103,7 +103,10 @@ def test_browser_audio_keyboard_shortcuts(audio_site, browser):
     page.goto(browser.base + "/music")
     page.locator('.toggle-btn[data-target="tracks"]').click()
     page.locator(".track-item").first.click()
-    page.wait_for_function('!document.querySelector("#audio").paused')
+    page.wait_for_function("""() => {
+        const audio = document.querySelector('#audio');
+        return !audio.paused && Number.isFinite(audio.duration);
+    }""")
     page.locator("#playBtn").focus()
     page.evaluate("""() => {
         const audio = document.querySelector('#audio');
@@ -120,9 +123,9 @@ def test_browser_audio_keyboard_shortcuts(audio_site, browser):
     assert page.locator("#audio").evaluate("el => el.currentTime") == 5
     page.locator("#audio").evaluate("el => delete el.currentTime")
     page.keyboard.press("Space")
-    page.wait_for_function('document.querySelector("#audio").paused')
+    page.wait_for_function('() => document.querySelector("#audio").paused')
     page.keyboard.press("Space")
-    page.wait_for_function('!document.querySelector("#audio").paused')
+    page.wait_for_function('() => !document.querySelector("#audio").paused')
 
 
 @pytest.mark.parametrize("size", [(320, 568), (375, 667), (667, 375)])
@@ -230,7 +233,7 @@ def test_browser_audio_layout_search_keyboard_and_playback(
             )
             page.locator("#searchInput").fill("xxxxxxxxxxx")
             page.wait_for_function(
-                'document.querySelector("#trackResultsStatus")'
+                '() => document.querySelector("#trackResultsStatus")'
                 '.textContent.includes(": 0")'
             )
             assert page.locator(".audio-empty").is_visible()
@@ -240,9 +243,11 @@ def test_browser_audio_layout_search_keyboard_and_playback(
             track = page.locator(".track-item").last
             track.focus()
             page.keyboard.press("Enter")
-            page.wait_for_function('!document.querySelector("#audio").paused')
             page.wait_for_function(
-                'document.querySelector("#playBtn")'
+                '() => !document.querySelector("#audio").paused'
+            )
+            page.wait_for_function(
+                '() => document.querySelector("#playBtn")'
                 '.getAttribute("aria-label") === "Premor"'
             )
             assert page.locator(".album-cover").evaluate(
@@ -283,7 +288,7 @@ def test_browser_personal_album_safe_names_and_empty_state(
     page.locator("#newPrivateAlbumName").fill("<img src=x onerror=alert(1)>")
     page.get_by_role("button", name="Dodaj album", exact=True).click()
     page.wait_for_function(
-        'document.querySelectorAll(".private-manager-row").length === 1'
+        '() => document.querySelectorAll(".private-manager-row").length === 1'
     )
     assert audio_site.personal[0]["name"] == "<img src=x onerror=alert(1)>"
     assert page.locator(".album-item img").count() == 0
@@ -314,7 +319,8 @@ def test_browser_playback_errors_and_restricted_storage(audio_site, browser):
     )
     page.get_by_role("button", name="Predvajaj", exact=True).click()
     page.wait_for_function(
-        'document.querySelector("#playbackStatus").dataset.error === "true"'
+        '() => document.querySelector("#playbackStatus")'
+        '.dataset.error === "true"'
     )
     assert page.locator("#playBtn").get_attribute("aria-label") == "Predvajaj"
     assert page.locator("#playbackStatus").is_visible()
@@ -325,12 +331,14 @@ def test_browser_music_and_radio_restore_separate_tracks(audio_site, browser):
     page.goto(browser.base + "/music")
     page.locator('.toggle-btn[data-target="tracks"]').click()
     page.locator(".track-item").last.click()
-    page.wait_for_function('localStorage.getItem("track") === "second.wav"')
+    page.wait_for_function(
+        '() => localStorage.getItem("track") === "second.wav"'
+    )
     page.goto(browser.base + "/radio-stories")
     assert page.locator("#nowPlayingTitle").inner_text() == "Jutranja melodija"
     page.locator(".track-item").first.click()
     page.wait_for_function(
-        'localStorage.getItem("radioStories:track") === "first.wav"'
+        '() => localStorage.getItem("radioStories:track") === "first.wav"'
     )
     page.goto(browser.base + "/music")
     assert page.locator("#nowPlayingTitle").inner_text() == "Zgodba o lisici"

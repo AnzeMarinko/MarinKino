@@ -1,6 +1,7 @@
 """Public blog layout, search, reading navigation and localized forms."""
 
 import pytest
+from flask import g
 from playwright.sync_api import expect
 from test_admin_memes_ui import browser as browser_fixture
 from test_blog_translation import blog as blog_fixture
@@ -61,6 +62,12 @@ def test_browser_blog_layout_and_localized_subscription(public_blog, browser):
 def test_browser_blog_search_and_reading_navigation(public_blog, browser):
     page = browser.page
     page.goto(browser.base + "/blog")
+    expect(page.locator("#blogSearchFeedback")).to_have_attribute(
+        "aria-live", "polite"
+    )
+    assert page.locator(".blog-post-card h3").first.evaluate(
+        "element => element.getBoundingClientRect().bottom < innerHeight"
+    )
     page.get_by_role("searchbox", name="Poišči objavo").fill("cebelice")
     expect(page.locator("[data-blog-post]:visible")).to_have_count(1)
     assert "Čebelice" in page.locator("[data-blog-post]:visible").inner_text()
@@ -81,6 +88,49 @@ def test_browser_blog_search_and_reading_navigation(public_blog, browser):
     )
     page.locator(".blog-article-footer a").click()
     page.wait_for_url(browser.base + "/blog")
+
+
+def test_browser_search_falls_back_to_get_navigation(public_blog, browser):
+    page = browser.page
+    page.goto(browser.base + "/blog")
+    page.route(
+        "**/blog?**",
+        lambda route: route.fulfill(status=503, body="Unavailable")
+        if "partial=1" in route.request.url
+        else route.continue_(),
+    )
+    page.get_by_role("searchbox", name="Poišči objavo").fill("cebelice")
+    page.wait_for_url("**/blog?q=cebelice")
+    expect(page.locator("[data-blog-post]")).to_have_count(1)
+    expect(page.locator("[data-blog-post]")).to_contain_text("Čebelice")
+
+
+def test_browser_public_blog_works_with_enforced_csp(public_blog, browser):
+    from security_http import add_headers
+
+    @public_blog.app.before_request
+    def nonce():
+        g.csp_nonce = "test-page-nonce"
+
+    public_blog.app.jinja_env.globals["csp_nonce"] = lambda: g.csp_nonce
+    public_blog.app.after_request(add_headers)
+    page = browser.page
+    page.add_init_script("""
+        window.policyViolations = [];
+        document.addEventListener('securitypolicyviolation', event => {
+            window.policyViolations.push(event.violatedDirective);
+        });
+    """)
+    page.goto(browser.base + "/blog")
+    page.get_by_role("searchbox", name="Poišči objavo").fill("cebelice")
+    expect(page.locator("[data-blog-post]")).to_have_count(1)
+    assert page.evaluate("window.policyViolations") == []
+    page.get_by_role("link", name="Preberi: Čebelice", exact=True).click()
+    expect(page.locator(".blog-related")).to_contain_text("Javna objava")
+    expect(page.locator(".blog-related")).not_to_contain_text(
+        "Zasebni osnutek"
+    )
+    assert page.evaluate("window.policyViolations") == []
 
 
 def test_browser_blog_without_javascript(public_blog, browser):

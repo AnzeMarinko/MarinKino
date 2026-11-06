@@ -163,6 +163,52 @@ def test_nginx_has_scoped_aliases_proxy_and_limits(project):
     assert "always;" in config
 
 
+def test_static_bypasses_python_and_only_release_urls_are_immutable(project):
+    config = security.render_nginx(security.deployment_config(project))
+    static = config.split("location ^~ /static/ {", 1)[1].split("\n    location /", 1)[0]
+    assert "proxy_pass" not in static
+    assert "root /usr/share/nginx/html;" in static
+    assert "try_files $uri =404;" in static
+    assert "disable_symlinks on;" in static
+    assert "gzip_static on;" in static
+    # Plyr's local reset clip must also be available in hashed releases.
+    extensions = static.split("if ($uri !~* ", 1)[1].split(") {", 1)[0]
+    clip = "/static/v/" + "a" * 64 + "/vendor/blank.mp4"
+    assert re.search(extensions, clip)
+    assert not re.search(extensions, "/static/private.sqlite3")
+    assert "add_header Cache-Control $mk_static_cache;" in static
+    assert 'default "no-cache";' in config
+    assert '"~^/static/v/[a-f0-9]{64}/" "public, max-age=31536000, immutable";' in config
+    assert "http2 on;" in config
+    assert "add_header X-Content-Type-Options" in static
+    assert "add_header Content-Security-Policy $mk_csp" in static
+
+
+def test_access_log_masks_token_paths_and_never_logs_query_or_full_referrer(project):
+    config = security.render_nginx(security.deployment_config(project))
+    log_format = config.split("log_format marinkino", 1)[1].split(";", 1)[0]
+    assert '"$request"' not in log_format
+    assert "$request_uri" not in log_format
+    assert "$args" not in log_format
+    assert "$http_referer" not in log_format
+    assert "$mk_log_uri" in log_format
+    assert "$mk_log_referrer" in log_format
+    mapping = config.split("map $uri $mk_log_uri {", 1)[1].split("}", 1)[0]
+    for path in ["/password/reset", "/password/setup", "/blog/subscribe/confirm"]:
+        assert f"{path}/[redacted]" in mapping
+    assert 'default "-";' in config
+
+
+def test_nginx_keeps_app_csp_nonce_without_duplicate_security_headers(project):
+    config = security.render_nginx(security.deployment_config(project))
+    assert "default $upstream_http_content_security_policy;" in config
+    for name in [
+        "Content-Security-Policy", "Strict-Transport-Security",
+        "X-Content-Type-Options", "X-Frame-Options", "Permissions-Policy",
+    ]:
+        assert f"proxy_hide_header {name};" in config
+
+
 @pytest.mark.parametrize("bootstrap", [False, True])
 def test_keepalive_overrides_stock_http_setting_only_in_servers(
     project, bootstrap

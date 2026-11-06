@@ -55,7 +55,7 @@ def subscription(blog, monkeypatch):
         subscribers[:] = copy.deepcopy(records)
 
     module.save_blog_subscribers = Mock(side_effect=save)
-    module.send_mail = Mock(return_value=[])
+    module.queue_mail = Mock(return_value=[])
     module.notify_admins_about_subscriber = Mock()
     module.verify_turnstile = Mock(return_value=True)
     monkeypatch.setenv("TURNSTILE_SITE_KEY", "test-turnstile-site-key")
@@ -141,7 +141,7 @@ def test_native_form_is_localized_with_same_origin_protections(
         assert messages(language)[key] in unescape(html)
     assert f'>{messages(language)["blog_title"]}</a>' in unescape(html)
     assert "site-translation__control" not in html
-    subscription.module.send_mail.assert_not_called()
+    subscription.module.queue_mail.assert_not_called()
 
 
 @pytest.mark.parametrize("language", LANGUAGES)
@@ -159,8 +159,8 @@ def test_confirmation_email_and_persisted_preference_follow_selected_language(
         "test-turnstile-token"
     )
 
-    subscription.module.send_mail.assert_called_once()
-    mail = subscription.module.send_mail.call_args.kwargs
+    subscription.module.queue_mail.assert_called_once()
+    mail = subscription.module.queue_mail.call_args.kwargs
     assert mail["to"] == "reader@example.com"
     assert mail["subject"] == messages(language)["confirmation_subject"]
     assert messages(language)["blog_title"] in unescape(mail["html"])
@@ -255,7 +255,7 @@ def test_same_language_duplicate_does_not_send_confirmation(subscription):
     })
     response = submit(subscription, "fr")
     assert_notice(subscription, response, "fr", "generic_success")
-    subscription.module.send_mail.assert_not_called()
+    subscription.module.queue_mail.assert_not_called()
     subscription.module.save_blog_subscribers.assert_not_called()
     assert subscription.redis.keys(PENDING_PREFIX + "*") == []
 
@@ -269,7 +269,7 @@ def test_unknown_language_falls_back_to_slovenian(subscription, language):
     response = submit(subscription, language)
     assert_notice(subscription, response, "sl", "check_email")
     assert pending(subscription)[1]["language"] == "sl"
-    mail = subscription.module.send_mail.call_args.kwargs
+    mail = subscription.module.queue_mail.call_args.kwargs
     assert mail["subject"] == messages("sl")["confirmation_subject"]
 
 
@@ -286,7 +286,7 @@ def test_missing_and_expired_token_errors_use_requested_language(
     )
     assert_notice(subscription, response, "it", "invalid_token")
     subscription.module.save_blog_subscribers.assert_not_called()
-    subscription.module.send_mail.assert_not_called()
+    subscription.module.queue_mail.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -303,7 +303,7 @@ def test_invalid_submission_errors_are_localized(
 ):
     response = submit(subscription, "es", **overrides)
     assert_notice(subscription, response, "es", message)
-    subscription.module.send_mail.assert_not_called()
+    subscription.module.queue_mail.assert_not_called()
     assert subscription.redis.keys(PENDING_PREFIX + "*") == []
 
 
@@ -313,7 +313,7 @@ def test_turnstile_failure_is_localized_without_creating_subscription(
     subscription.module.verify_turnstile.return_value = False
     response = submit(subscription, "pl")
     assert_notice(subscription, response, "pl", "verify_failed")
-    subscription.module.send_mail.assert_not_called()
+    subscription.module.queue_mail.assert_not_called()
     assert subscription.redis.keys(PENDING_PREFIX + "*") == []
 
 
@@ -322,21 +322,17 @@ def test_rate_limit_error_is_localized_and_does_not_send_more_mail(
 ):
     for _ in range(subscription.module.SUBSCRIPTION_EMAIL_LIMIT):
         submit(subscription, "uk")
-    sent = subscription.module.send_mail.call_count
+    sent = subscription.module.queue_mail.call_count
     assert sent == subscription.module.SUBSCRIPTION_EMAIL_LIMIT
     response = submit(subscription, "uk")
     assert_notice(subscription, response, "uk", "retry_later")
-    assert subscription.module.send_mail.call_count == sent
+    assert subscription.module.queue_mail.call_count == sent
 
 
-@pytest.mark.parametrize("raises", [False, True])
-def test_mail_failure_removes_pending_token_and_reports_localized_error(
-    subscription, raises
+def test_queue_failure_removes_pending_token_and_reports_localized_error(
+    subscription,
 ):
-    if raises:
-        subscription.module.send_mail.side_effect = RuntimeError("SMTP down")
-    else:
-        subscription.module.send_mail.return_value = ["reader@example.com"]
+    subscription.module.queue_mail.side_effect = RuntimeError("Queue unavailable")
     response = submit(subscription, "ja")
     assert_notice(subscription, response, "ja", "mail_failed")
     assert subscription.redis.keys(PENDING_PREFIX + "*") == []
@@ -348,6 +344,6 @@ def test_honeypot_suppresses_mail_and_keeps_language(subscription):
     response = submit(subscription, "pt", website="https://spam.example")
     assert response.status_code == 302
     assert parse_qs(urlsplit(response.location).query) == {"lang": ["pt"]}
-    subscription.module.send_mail.assert_not_called()
+    subscription.module.queue_mail.assert_not_called()
     subscription.module.verify_turnstile.assert_not_called()
     assert subscription.redis.keys(PENDING_PREFIX + "*") == []

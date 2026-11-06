@@ -1,0 +1,18 @@
+{% extends "auth_base.html" %}
+{% block eyebrow %}Filmi{% endblock %}
+{% block icon %}bi-download{% endblock %}
+{% block page_styles %}{% if job_state in ['pending', 'running'] %}<noscript><meta http-equiv="refresh" content="5"></noscript>{% endif %}{% endblock %}
+{% block heading %}Prenos filma{% endblock %}
+{% block intro %}{{ movie.title }}{% endblock %}
+{% block form_title %}Pripravi za ogled brez povezave{% endblock %}
+{% block description %}Priprava lahko traja nekaj minut. Medtem lahko stran uporabljaš naprej.{% endblock %}
+{% block auth_content %}
+<form id="movie-download-form" method="post" action="{{ prepare_url }}" data-status-url="{{ status_url }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button class="auth-primary" type="submit" {% if job_state in ['pending', 'running'] %}disabled{% endif %}>Pripravi prenos</button>
+</form>
+<p id="movie-download-status" role="status" aria-live="polite">{% if job_state in ['pending', 'running'] %}Film čaka na pripravo. Stran se bo samodejno osvežila.{% elif job_state %}Arhiv ni na voljo. Začni pripravo znova.{% endif %}</p>
+<a id="movie-download-link" class="auth-primary" hidden>Prenesi film</a>
+<a class="auth-back" href="{{ url_for('movies.index') }}">Nazaj na filme</a>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="{{ url_for('static', filename='js/movie_download.js') }}"></script>
+{% endblock %}

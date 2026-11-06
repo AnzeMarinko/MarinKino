@@ -51,6 +51,7 @@ def auth(tmp_path):
     # Import only this blueprint, without production utils' data and clients.
     with patch.dict(sys.modules, {"utils": utilities}):
         spec.loader.exec_module(module)
+    module.queue_mail = utilities.send_mail
     # Device-limit scenarios exceed the separate five-attempt login throttle.
     module.auth_rate_limited = Mock(return_value=False)
 
@@ -456,7 +457,7 @@ def test_slow_reset_email_does_not_hold_account_storage_lock(auth):
         entered.set()
         assert release.wait(3)
 
-    auth.module.send_mail.side_effect = slow_mail
+    auth.module.queue_mail.side_effect = slow_mail
     with ThreadPoolExecutor(max_workers=2) as pool:
         recovery = pool.submit(
             lambda: auth.app.test_client().post(

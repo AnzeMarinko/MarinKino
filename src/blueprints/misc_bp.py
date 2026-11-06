@@ -1,3 +1,4 @@
+import csv
 import json
 import logging
 import os
@@ -6,7 +7,6 @@ from datetime import date, datetime
 from math import isfinite
 from urllib.parse import unquote, urlsplit
 
-import pandas as pd
 from flask import (
     Blueprint,
     jsonify,
@@ -18,6 +18,7 @@ from flask import (
 )
 from flask_login import current_user, login_required
 
+from blog_content import load_posts
 from blog_i18n import BLOG_LANGUAGES, messages, normalize_language
 from blog_translation import translate_url
 from blueprints.blog_bp import public_base_url
@@ -52,10 +53,7 @@ send_mail = None
 
 
 def load_blog_posts():
-    if os.path.exists(BLOG_DATA_FILE):
-        with open(BLOG_DATA_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {}
+    return load_posts(BLOG_DATA_FILE)
 
 
 def init_misc_bp(_users, _send_mail=None):
@@ -82,9 +80,12 @@ def pod_krinko():
 
 # Initialize pod_krinko
 try:
-    pod_krinko_words = pd.read_csv(
-        "data/pod_krinko_besede.csv", sep=";"
-    ).to_dict(orient="split")["data"]
+    with open(
+        "data/pod_krinko_besede.csv", encoding="utf-8-sig", newline=""
+    ) as source:
+        reader = csv.reader(source, delimiter=";")
+        next(reader, None)  # The first row contains column labels.
+        pod_krinko_words = [row for row in reader if row]
 except FileNotFoundError:
     pod_krinko_words = [
         ["mačka", "pes"],
@@ -249,7 +250,7 @@ def send_admin_emails():
                     batch_id="mail_newsletter",
                 )
         return {
-            "sent": len(list_of_emailed_users),
+            "queued": len(list_of_emailed_users),
             "emails": list_of_emailed_users,
             "time": datetime.now().isoformat(),
         }

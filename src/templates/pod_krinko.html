@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
-<link href="/static/css/pod_krinko.css" rel="stylesheet"/>
-<link href="/static/pod_krinko_favicon_io/favicon.ico" rel="icon"/>
+<link href="{{ url_for('static', filename='css/pod_krinko.css') }}" rel="stylesheet"/>
+<link href="{{ url_for('static', filename='pod_krinko_favicon_io/favicon.ico') }}" rel="icon"/>
 <main class="game" data-bs-theme="dark" id="podKrinko">
  <div class="pk-ambience" aria-hidden="true">
   <span class="pk-ambient-glow pk-ambient-glow-one"></span>
@@ -94,9 +94,9 @@
      </div>
     </div>
     <div aria-hidden="true" class="pk-lineup">
-     <img alt="" src="/static/pod_krinko_avatars/civilistka.png"/>
-     <img alt="" src="/static/pod_krinko_avatars/pod_krinko.png"/>
-     <img alt="" src="/static/pod_krinko_avatars/gospod_v_belem.png"/>
+     <img alt="" src="{{ url_for('static', filename='pod_krinko_avatars/civilistka.png') }}"/>
+     <img alt="" src="{{ url_for('static', filename='pod_krinko_avatars/pod_krinko.png') }}"/>
+     <img alt="" src="{{ url_for('static', filename='pod_krinko_avatars/gospod_v_belem.png') }}"/>
     </div>
    </div>
    <form id="setupForm" novalidate="">
@@ -141,7 +141,7 @@
        </span>
       </div>
       <div class="pk-role-row">
-       <img alt="" src="/static/pod_krinko_avatars/pod_krinko.png"/>
+       <img alt="" src="{{ url_for('static', filename='pod_krinko_avatars/pod_krinko.png') }}"/>
        <div>
         <label for="nUndercoversSlider">
          Vohuni
@@ -161,7 +161,7 @@
        </div>
       </div>
       <div class="pk-role-row">
-       <img alt="" src="/static/pod_krinko_avatars/gospod_v_belem.png"/>
+       <img alt="" src="{{ url_for('static', filename='pod_krinko_avatars/gospod_v_belem.png') }}"/>
        <div>
         <label for="nWhitesSlider">
          Gospodje v belem
@@ -417,7 +417,7 @@
   </p>
   <div class="pk-rules-roles">
    <article>
-    <img alt="" src="/static/pod_krinko_avatars/civilist.png"/>
+    <img alt="" src="{{ url_for('static', filename='pod_krinko_avatars/civilist.png') }}"/>
     <h3>
      Prebivalci
     </h3>
@@ -429,7 +429,7 @@
     </strong>
    </article>
    <article>
-    <img alt="" src="/static/pod_krinko_avatars/pod_krinko.png"/>
+    <img alt="" src="{{ url_for('static', filename='pod_krinko_avatars/pod_krinko.png') }}"/>
     <h3>
      Vohuni
     </h3>
@@ -441,7 +441,7 @@
     </strong>
    </article>
    <article>
-    <img alt="" src="/static/pod_krinko_avatars/gospod_v_belem.png"/>
+    <img alt="" src="{{ url_for('static', filename='pod_krinko_avatars/gospod_v_belem.png') }}"/>
     <h3>
      Gospod v belem
     </h3>
@@ -524,7 +524,7 @@
   </div>
  </dialog>
  <dialog aria-labelledby="eliminationTitle" class="pk-dialog pk-secret" id="eliminationDialog">
-  <img alt="" class="pk-elimination-avatar" id="eliminationAvatar" src="/static/pod_krinko_avatars/neznanec.png"/>
+  <img alt="" class="pk-elimination-avatar" id="eliminationAvatar" src="{{ url_for('static', filename='pod_krinko_avatars/neznanec.png') }}"/>
   <p class="pk-eyebrow">
    Glasovanje je odločilo
   </p>
@@ -566,6 +566,6 @@
   </div>
  </dialog>
 </main>
-<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer="" src="/static/script/pod_krinko.js">
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer="" src="{{ url_for('static', filename='script/pod_krinko.js') }}">
 </script>
 {% endblock %}

@@ -127,7 +127,6 @@ candidate="marinkino-app:security-$stamp"
 redis_candidate="marinkino-redis:security-$stamp"
 certbot_candidate="marinkino-certbot:security-$stamp"
 nginx_candidate="marinkino-nginx:security-$stamp"
-docker build --pull --no-cache --tag "$nginx_candidate" "$project/configuration/nginx-image"
 docker build --pull --no-cache --tag "$redis_candidate" "$project/configuration/redis"
 docker build --pull --no-cache --tag "$certbot_candidate" "$project/configuration/certbot-image"
 export MARINKINO_REDIS_IMAGE="$redis_candidate"
@@ -135,6 +134,10 @@ export MARINKINO_CERTBOT_IMAGE="$certbot_candidate"
 export MARINKINO_NGINX_IMAGE="$nginx_candidate"
 export MARINKINO_APP_IMAGE="$candidate" UPDATE_DEPENDENCIES=1 SECURITY_REFRESH="$stamp"
 "${compose[@]}" build --pull app
+docker pull nginx:stable-alpine
+docker build --no-cache --build-arg APP_IMAGE="$candidate" \
+    --file "$project/configuration/nginx-image/Dockerfile" \
+    --tag "$nginx_candidate" "$project"
 python3 "$runtime" audit --image "$candidate"
 # Scan images from a read-only tar file; scanner never receives Docker socket.
 # Database downloads and layer extraction exceed a small tmpfs. Use private
@@ -158,6 +161,13 @@ docker run --rm --read-only --network none --cap-drop ALL --security-opt no-new-
     "$certbot_candidate" --version
 renew_certificates
 python3 "$runtime" smoke --image "$candidate" --uid "$uid" --gid "$gid"
+# Prepare display derivatives serially, before the new templates are exposed.
+# Originals and post records remain untouched, so rollback remains possible.
+docker run --rm --network none --read-only --cap-drop ALL \
+    --security-opt no-new-privileges --memory 1024m --cpus 1 --pids-limit 64 \
+    --tmpfs /tmp:size=128m,nosuid,nodev,noexec \
+    -v "$project/data:/app/data" --entrypoint python \
+    "$candidate" -m blog_images --prepare-existing
 install -d -m 700 "$work/nginx"
 python3 "$config" render-nginx --project "$project" --output "$work/nginx/app.conf"
 # nginx -t initializes/chowns its temporary paths; mirror runtime capabilities.
@@ -179,6 +189,7 @@ install -m 644 "$work/nginx/app.conf" configuration/nginx/conf/app.conf
 "${compose[@]}" up -d --no-build --wait --wait-timeout 180 redis redis-auth app nginx
 "${compose[@]}" exec -T nginx sh -ec 'test -S /run/marinkino/app.sock || { echo "Nginx cannot see the shared application socket" >&2; exit 1; }'
 python3 "$runtime" expire-legacy-stats --project "$project"
+"${compose[@]}" exec -T app python -m analytics_privacy
 "${compose[@]}" exec -T nginx nginx -t
 "${compose[@]}" exec -T nginx nginx -s reload
 www=$(value WWW_DOMAIN)

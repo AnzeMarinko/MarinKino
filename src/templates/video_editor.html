@@ -14,7 +14,7 @@
   </style>
 </head>
 <body>
-  <header><div><h1>Priprava filmov</h1><p>Izberi neurejen film in ga pripravi po korakih.</p></div><button class="secondary" onclick="loadMovies()">Osveži seznam</button></header>
+  <header><div><h1>Priprava filmov</h1><p>Izberi neurejen film in ga pripravi po korakih.</p></div><button class="secondary" data-editor-action="refresh">Osveži seznam</button></header>
   <main>
     <aside class="panel"><h2>Neurejeni filmi</h2><div id="movie-list" class="list">Nalagam …</div></aside>
     <section class="workspace" id="workspace"><div class="empty">Izberi film na levi za začetek.</div></section>
@@ -24,10 +24,10 @@
     const labels=['Film','Način','Metapodatki','Podnapisi','Potrditev'];
     const esc=value=>String(value??'').replace(/[&<>"]/g, character=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[character]));
     async function api(url, options={}){const response=await fetch(url,{headers:{'Content-Type':'application/json','X-CSRFToken':document.querySelector('meta[name="csrf-token"]').content},...options});const data=await response.json();if(!response.ok||data.status==='error')throw Error(data.message||'Napaka');return data}
-    async function loadMovies(){try{const data=await api('/api/movies/incoming');movies=data.movies;listEl.innerHTML=movies.length?movies.map((movie,index)=>`<button class="movie" onclick="selectMovie(${index})"><strong>${esc(movie.name)}</strong><small>${movie.videos.length} video · ${movie.subtitles.length} podnapisov</small></button>`).join(''):'<div class="hint">Ni neurejenih filmov.</div>'}catch(error){listEl.innerHTML=`<div class="error">${esc(error.message)}</div>`}}
+    async function loadMovies(){try{const data=await api('/api/movies/incoming');movies=data.movies;listEl.innerHTML=movies.length?movies.map((movie,index)=>`<button class="movie" data-select-movie="${index}"><strong>${esc(movie.name)}</strong><small>${movie.videos.length} video · ${movie.subtitles.length} podnapisov</small></button>`).join(''):'<div class="hint">Ni neurejenih filmov.</div>'}catch(error){listEl.innerHTML=`<div class="error">${esc(error.message)}</div>`}}
     function selectMovie(index){current=movies[index];selectedMode=current.is_collection?'collection':'merge';selectedSubtitles=[...current.subtitles];metadata={title:current.name.replace(/[._-]/g,' '),original_title:'',year:'',plot:'',genres:[],players:'',imdb_id:''};step=0;document.querySelectorAll('.movie').forEach((el,i)=>el.classList.toggle('active',i===index));render()}
     function render(){if(!current)return;workspace.innerHTML=`<div class="steps">${labels.map((label,index)=>`<div class="step ${index===step?'active':''} ${index<step?'done':''}">${index+1}. ${label}</div>`).join('')}</div><div id="card" class="step-card active"></div>`;const card=document.getElementById('card');[filmStep,modeStep,metadataStep,subtitleStep,confirmStep][step](card)}
-    function nav(card,next=true){card.insertAdjacentHTML('beforeend',`<div class="actions"><button class="secondary" ${step?'':'disabled'} onclick="step--;render()">Nazaj</button><div class="right"><button class="primary" onclick="${next?'step++;render()':'finish()'}">${next?'Naprej':'Pretvori v HLS'}</button></div></div>`)}
+    function nav(card,next=true){card.insertAdjacentHTML('beforeend',`<div class="actions"><button class="secondary" ${step?'':'disabled'} data-editor-action="previous">Nazaj</button><div class="right"><button class="primary" data-editor-action="${next?'next':'finish'}">${next?'Naprej':'Pretvori v HLS'}</button></div></div>`)}
     function filmStep(card){card.innerHTML=`<h2>${esc(current.name)}</h2><p class="hint">Preglej izbrane datoteke pred pripravo.</p><div class="preview"><video controls src="/video/file/${current.folder}/${encodeURIComponent(current.videos[0])}"></video><div class="files">${current.videos.map(file=>`<div>🎞 ${esc(file)}</div>`).join('')}</div></div>`;nav(card)}
     function modeStep(card){const singleVideo=current.videos.length===1;card.innerHTML=`<h2>Kako naj se film obdela?</h2><p class="hint">${singleVideo?'Video bo pretvorjen v HLS.':'Izbira določi, ali bodo videi ostali ločeni ali postali en film.'}</p><div class="choices">${singleVideo?`<div class="choice"><input id="convert" type="radio" name="mode" value="${selectedMode}" checked><label for="convert"><b>Pretvori</b><span>Video bo pripravljen za predvajanje.</span></label></div>`:`<div class="choice"><input id="collection" type="radio" name="mode" value="collection" ${selectedMode==='collection'?'checked':''}><label for="collection"><b>Zbirka</b><span>Vsak video ostane samostojen del.</span></label></div><div class="choice"><input id="merge" type="radio" name="mode" value="merge" ${selectedMode==='merge'?'checked':''}><label for="merge"><b>Združi videe</b><span>Vsi deli postanejo en končni film.</span></label></div>`}</div>`;card.querySelectorAll('input[name=mode]').forEach(input=>input.onchange=()=>selectedMode=input.value);nav(card)}
     async function metadataStep(card){card.innerHTML='<h2>Metapodatki</h2><p class="hint">Pridobi predlog z interneta, nato ga pred potrditvijo uredi.</p><button class="secondary" id="fetch-meta">Pridobi metapodatke</button><div id="meta-form"></div>';document.getElementById('fetch-meta').onclick=async()=>{try{const data=await api('/api/movies/metadata',{method:'POST',body:JSON.stringify({folder:current.folder})});metadata={...metadata,...data.metadata};drawMeta()}catch(error){document.getElementById('meta-form').innerHTML=`<p class="error">${esc(error.message)}</p>`}};drawMeta();nav(card)}
@@ -37,6 +37,15 @@
     function confirmStep(card){const selected=selectedSubtitles;card.innerHTML=`<h2>Potrditev</h2><p class="hint">Preveri nastavitve. Po potrditvi se začne pretvorba, ki lahko traja nekaj časa.</p><div class="files"><div><b>Način:</b> ${selectedMode==='merge'?'združeni videi':'zbirka'}</div><div><b>Naslov:</b> ${esc(metadata.title)}</div><div><b>Podnapisi:</b> ${selected.length||'brez'}</div></div><div id="status" class="status"></div>`;nav(card,false)}
     async function finish(){const status=document.getElementById('status');status.textContent='Pretvarjam …';document.querySelectorAll('.actions button').forEach(button=>button.disabled=true);try{['title','original_title','year','imdb_id','plot','players'].forEach(id=>{const element=document.getElementById(id);if(element)metadata[id]=element.value});const data=await api('/api/movies/process',{method:'POST',body:JSON.stringify({folder:current.folder,mode:selectedMode,metadata,subtitles:selectedSubtitles})});status.textContent=`Končano. Ustvarjen HLS: ${data.hls.join(', ')||'brez datoteke'}`;await loadMovies();setTimeout(()=>{workspace.innerHTML='<div class="empty">Film končan. Izberi naslednji neurejen film.</div>'},900)}catch(error){status.className='status error';status.textContent=error.message;document.querySelectorAll('.actions button').forEach(button=>button.disabled=false)}}
     loadMovies();
+  document.addEventListener('click', event => {
+      const movie = event.target.closest('[data-select-movie]');
+      if (movie) selectMovie(Number(movie.dataset.selectMovie));
+      const action = event.target.closest('[data-editor-action]')?.dataset.editorAction;
+      if (action === 'refresh') loadMovies();
+      if (action === 'previous') { step--; render(); }
+      if (action === 'next') { step++; render(); }
+      if (action === 'finish') finish();
+    });
   </script>
  </body>
 </html>

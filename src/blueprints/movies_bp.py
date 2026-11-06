@@ -1,4 +1,5 @@
 import difflib
+import hashlib
 import json
 import logging
 import math
@@ -13,6 +14,8 @@ from urllib.parse import quote, unquote
 from flask import (
     Blueprint,
     abort,
+    current_app,
+    jsonify,
     make_response,
     redirect,
     render_template,
@@ -23,15 +26,16 @@ from flask import (
 )
 from flask_login import current_user, login_required
 
+from background_jobs import QueueFull
+from mail_jobs import queue_mail
 from movie_catalog import FILMS_ROOT, check_folder
-from movie_downloads import archive_response
+from movie_downloads import archive_payload, archive_response, ready_archive
 from security_storage import atomic_write_json, serialized_json
 from utils import (
     FLASK_ENV,
     is_current_admin_view,
     redis_client,
     safe_path,
-    send_mail,
     users,
 )
 
@@ -473,19 +477,145 @@ def play_movie(movies_subfolder, movie_folder):
         return "", 404
 
 
-@movies_bp.route("/movies/download/<movies_subfolder>/<movie_folder>")
+def _download_film(group, folder):
+    film = all_films.get("/" + group + "/" + folder)
+    if (
+        film is None
+        or not Path(safe_path(FILMS_ROOT, f"{group}/{folder}")).is_dir()
+    ):
+        abort(404)
+    return film
+
+
+def _archive_job_key(group, folder):
+    identity = json.dumps([current_user.get_id(), group, folder])
+    return "archive:" + hashlib.sha256(identity.encode()).hexdigest()
+
+
+def _download_job(group, folder, job_id):
+    job = current_app.extensions["jobs"].get(job_id)
+    if (
+        job is None
+        or job["kind"] != "archive"
+        or job["owner"] != current_user.get_id()
+        or job["dedupe_key"] != _archive_job_key(group, folder)
+    ):
+        abort(404)
+    return job
+
+
+@movies_bp.get("/movies/download/<movies_subfolder>/<movie_folder>")
 @login_required
 def download_movie(movies_subfolder, movie_folder):
-    film = all_films.get("/" + movies_subfolder + "/" + movie_folder)
-    if film is None:
-        abort(404)
-    return archive_response(
+    film = _download_film(movies_subfolder, movie_folder)
+    response = archive_response(
         film,
         FILMS_ROOT,
         movies_subfolder,
         movie_folder,
         FLASK_ENV == "production",
     )
+    if response is not None:
+        return response
+    job_id = request.args.get("job")
+    job = (
+        _download_job(movies_subfolder, movie_folder, job_id)
+        if job_id
+        else None
+    )
+    return render_template(
+        "movie_download.html",
+        pagetitle="Prenos filma",
+        movie=film,
+        job_state=job["state"] if job else None,
+        status_url=url_for(
+            "movies.download_status",
+            movies_subfolder=movies_subfolder,
+            movie_folder=movie_folder,
+            job_id=job_id,
+        )
+        if job
+        else "",
+        prepare_url=url_for(
+            "movies.prepare_download",
+            movies_subfolder=movies_subfolder,
+            movie_folder=movie_folder,
+        ),
+    )
+
+
+@movies_bp.post("/movies/download/<movies_subfolder>/<movie_folder>/prepare")
+@login_required
+def prepare_download(movies_subfolder, movie_folder):
+    film = _download_film(movies_subfolder, movie_folder)
+    download_url = url_for(
+        "movies.download_movie",
+        movies_subfolder=movies_subfolder,
+        movie_folder=movie_folder,
+    )
+    if ready_archive(FILMS_ROOT, movies_subfolder, movie_folder) is not None:
+        if request.accept_mimetypes.best == "text/html":
+            return redirect(download_url, code=303)
+        return jsonify(state="done", download_url=download_url)
+    try:
+        job = current_app.extensions["jobs"].enqueue(
+            "archive",
+            archive_payload(
+                film,
+                FILMS_ROOT,
+                movies_subfolder,
+                movie_folder,
+            ),
+            owner=current_user.get_id(),
+            dedupe_key=_archive_job_key(movies_subfolder, movie_folder),
+        )
+    except QueueFull:
+        return jsonify(
+            error="Vrsta za pripravo je polna. Poskusi pozneje."
+        ), 503
+    if request.accept_mimetypes.best == "text/html":
+        return redirect(
+            url_for(
+                "movies.download_movie",
+                movies_subfolder=movies_subfolder,
+                movie_folder=movie_folder,
+                job=job["id"],
+            ),
+            code=303,
+        )
+    return jsonify(
+        state=job["state"],
+        status_url=url_for(
+            "movies.download_status",
+            movies_subfolder=movies_subfolder,
+            movie_folder=movie_folder,
+            job_id=job["id"],
+        ),
+    ), 202
+
+
+@movies_bp.get(
+    "/movies/download/<movies_subfolder>/<movie_folder>/status/<job_id>"
+)
+@login_required
+def download_status(movies_subfolder, movie_folder, job_id):
+    _download_film(movies_subfolder, movie_folder)
+    job = _download_job(movies_subfolder, movie_folder, job_id)
+    state = job["state"]
+    if state == "done":
+        if ready_archive(FILMS_ROOT, movies_subfolder, movie_folder) is None:
+            return jsonify(
+                state="failed", error="Arhiv je potekel. Začni znova."
+            )
+        return jsonify(
+            state=state,
+            download_url=url_for(
+                "movies.download_movie",
+                movies_subfolder=movies_subfolder,
+                movie_folder=movie_folder,
+            ),
+        )
+    return jsonify(state=state)
 
 
 def _compute_ratings_summary(ratings):
@@ -625,7 +755,7 @@ def rate_movie():
                 notification_action_label="Pojdi na film",
             )
 
-            send_mail(
+            queue_mail(
                 to=[admin_email],
                 subject=f"Nove ocene za film: {movie_title}",
                 html=email_html,
@@ -1055,7 +1185,7 @@ def add_comment():
         )
 
         try:
-            send_mail(
+            queue_mail(
                 to=[admin_email],
                 subject=f"Nov {comment_type}: {movie_title}",
                 html=email_html,
@@ -1168,7 +1298,7 @@ def admin_comment():
         )
 
         try:
-            send_mail(
+            queue_mail(
                 to=[user_email],
                 subject=f"Odgovor na vaš komentar: {movie_title}",
                 html=email_html,

@@ -11,6 +11,7 @@ from typing import List
 import redis
 from flask import session
 from flask_login import UserMixin
+from redis.exceptions import RedisError
 from werkzeug.security import generate_password_hash
 
 from blog_subscribers import normalize_subscribers
@@ -161,7 +162,10 @@ def send_mail(
             recipients += field if isinstance(field, list) else [field]
 
     base = f"mail:{date.today().isoformat()[:7]}:{batch_id}"
-    redis_client.sadd(f"{base}:recipients", *recipients)
+    try:
+        redis_client.sadd(f"{base}:recipients", *recipients)
+    except RedisError:
+        log.warning("Mail statistics unavailable")
     context = ssl.create_default_context()
 
     try:
@@ -171,21 +175,29 @@ def send_mail(
 
             failed = server.send_message(msg, to_addrs=recipients)
 
-            for email in recipients:
-                if email in (failed or {}):
-                    code, reason = failed[email]
-                    redis_client.hset(
-                        f"{base}:errors",
-                        find_user_by_email(email, users) or email,
-                        f"{code} {reason}",
-                    )
+            try:
+                for email in recipients:
+                    if email in (failed or {}):
+                        code, reason = failed[email]
+                        redis_client.hset(
+                            f"{base}:errors",
+                            find_user_by_email(email, dict(users)) or email,
+                            f"{code} {reason}",
+                        )
+            except RedisError:
+                # Delivery outcome is authoritative; optional counters cannot
+                # turn an accepted/partial send into a retryable failure.
+                log.warning("Mail statistics unavailable")
 
     except smtplib.SMTPException as e:
-        redis_client.hset(
-            f"{base}:errors",
-            f"smtp_exception_{date.today().isoformat()}",
-            str(e),
-        )
+        try:
+            redis_client.hset(
+                f"{base}:errors",
+                f"smtp_exception_{date.today().isoformat()}",
+                str(e),
+            )
+        except RedisError:
+            log.warning("Mail statistics unavailable")
         raise
 
     return failed or {}

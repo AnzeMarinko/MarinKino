@@ -99,7 +99,7 @@
  <div class="movies-pagination"><button id="movies-more" type="button" hidden>Naloži več filmov</button></div>
  {% if not current_user.is_authenticated or view_as == 'anonymous' %}<div class="movies-empty"><h2>Tvoj filmski večer se začne tukaj.</h2><p>Za ogled filmske zbirke se prijavi.</p><a class="movie-play" href="/login">Prijava</a></div>{% endif %}
 
-<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/script/movies.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="{{ url_for('static', filename='script/movies.js') }}"></script>
 </main>
 
 {% endblock %}

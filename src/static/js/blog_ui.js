@@ -16,11 +16,11 @@
             pending?.abort();
             const controller = new AbortController();
             pending = controller;
-            results.setAttribute('aria-busy', 'true');
-            feedback.textContent = 'Nalagam objave …';
-            const requestUrl = new URL(url);
-            requestUrl.searchParams.set('partial', '1');
             try {
+                results.setAttribute('aria-busy', 'true');
+                feedback.textContent = 'Nalagam objave …';
+                const requestUrl = new URL(url);
+                requestUrl.searchParams.set('partial', '1');
                 const response = await fetch(requestUrl, {signal: controller.signal});
                 if (!response.ok) throw new Error();
                 const html = await response.text();
@@ -32,7 +32,7 @@
                 feedback.textContent = document.getElementById('blogSearchStatus').textContent;
                 if (scroll) document.getElementById('blog-posts').scrollIntoView({block: 'start'});
             } catch (error) {
-                if (error.name !== 'AbortError') feedback.textContent = 'Nalaganje ni uspelo. Za ponovni poskus pritisni gumb za iskanje.';
+                if (error.name !== 'AbortError') location.assign(url.href);
             } finally {
                 if (pending === controller) results.setAttribute('aria-busy', 'false');
             }

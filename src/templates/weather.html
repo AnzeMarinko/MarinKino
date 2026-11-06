@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
 {% block content %}
-<link rel="stylesheet" href="/static/css/weather.css">
-<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/vendor/plotly.min.js"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/weather.css') }}">
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="{{ url_for('static', filename='vendor/plotly.min.js') }}"></script>
 
 <main class="container py-4 py-lg-5">
   <div class="weather-page {{ 'weather-page--day' if weather.current.is_day else 'weather-page--night' }}">
@@ -150,5 +150,5 @@
 </main>
 
 <div id="weather-root" data-weather='{{ weather | tojson | safe }}'></div>
-<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/script/weather.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="{{ url_for('static', filename='script/weather.js') }}"></script>
 {% endblock %}

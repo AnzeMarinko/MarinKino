@@ -2,9 +2,9 @@
 
 {% block content %}
 
-<link rel="stylesheet" href="/static/vendor/plyr.css" />
-<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="/static/vendor/plyr.min.js"></script>
-<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="/static/vendor/hls.min.js"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/plyr.css') }}" />
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="{{ url_for('static', filename='vendor/plyr.min.js') }}"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="{{ url_for('static', filename='vendor/hls.min.js') }}"></script>
 
 <link rel="stylesheet" href="{{ url_for('static', filename='css/movies_ui.css') }}">
 <main class="container movie-view">
@@ -12,7 +12,7 @@
 {% if current_user.is_authenticated and current_user.is_admin %}
 <div id="admin-movie-duration-warning" class="alert alert-warning" role="alert" hidden></div>
 <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" id="admin-movie-timing" type="application/json">{{ {'collection': is_collection, 'duration_min': (movie.runtimes_by_files|default({})).get(video_file|default('', true)|replace('.mp4', ''), movie.runtimes|float), 'resume_seconds': movie.last_play_time|default(0)}|tojson }}</script>
-<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/js/admin_movie_clock.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="{{ url_for('static', filename='js/admin_movie_clock.js') }}"></script>
 {% endif %}
 <div class="movie-page">
     <div class="description">
@@ -39,7 +39,7 @@
                 {% for video_file in video_files %}
                     <button class="video-btn" style="--watch: {{ movie.watch_info[video_file]['watch_ratio']|default(0) }}%;"
                         data-runtime-min="{{ movie.runtimes_by_files[video_file|replace('.mp4', '')] }}" data-resume-seconds="{{ movie.watch_info[video_file]['last_play_time']|default(0) }}"
-                        onclick="playVideo('/movies/file/{{ group_folder }}/{{ folder }}/{{ video_file }}', {{ movie.watch_info[video_file]['last_play_time']|default(0) }}, this)">
+                        data-play-video="/movies/file/{{ group_folder }}/{{ folder }}/{{ video_file }}" data-resume="{{ movie.watch_info[video_file]['last_play_time']|default(0) }}">
                         {{ video_file|replace('.mp4', '') }} ({{ movie.runtimes_by_files[video_file|replace('.mp4', '')] }} min)
                     </button>
                 {% endfor %}
@@ -66,7 +66,7 @@
                     <input type="radio" id="priporocilo3-{{ movie.movie_id }}" name="priporocaj-{{ movie.movie_id }}" value="warm-recommend" {% if movie.recommendation_level == "warm-recommend" %}checked{% endif %}>
                     <label for="priporocilo3-{{ movie.movie_id }}">Toplo priporoči</label>
                 </div><hr>
-                <form action="/movies/remove{{ movie.folder }}" method="post" onsubmit="return odstraniMovieCard(event, this);">
+                <form action="/movies/remove{{ movie.folder }}" method="post" data-remove-movie>
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit">Odstrani</button>
                 </form>
@@ -169,7 +169,7 @@
             {% endif %}
 
             <div style="margin-top:8px;">
-                <button type="button" class="btn btn-primary" onclick="openRatingModal()">Oceni film</button>
+                <button type="button" class="btn btn-primary" data-movie-action="rate">Oceni film</button>
             </div>
         </div>
 
@@ -185,8 +185,8 @@
             </div>
             {% if current_user.is_authenticated and current_user.is_admin and view_as != "anonymous" and view_as != "user" %}
             <div class="alert-actions">
-                <button class="btn btn-sm btn-warning" onclick="editAlertOnPage(this, '{{ movie.folder }}', '{{ note.random_index }}')"><i class="bi bi-pencil"></i> Uredi</button>
-                <button class="btn btn-sm btn-danger" onclick="deleteAlertOnPage(this, '{{ movie.folder }}', '{{ note.random_index }}')"><i class="bi bi-trash"></i> Izbriši</button>
+                <button class="btn btn-sm btn-warning" data-movie-action="edit-alert" data-folder="{{ movie.folder }}" data-note="{{ note.random_index }}"><i class="bi bi-pencil"></i> Uredi</button>
+                <button class="btn btn-sm btn-danger" data-movie-action="delete-alert" data-folder="{{ movie.folder }}" data-note="{{ note.random_index }}"><i class="bi bi-trash"></i> Izbriši</button>
             </div>
             {% endif %}
         </div>
@@ -197,7 +197,7 @@
     <!-- Modal za urejanje opozorila -->
     <div id="editAlertModal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
         <div style="background-color: #fefefe; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 90%; max-width: 500px; border-radius: 8px;">
-            <span style="color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer;" onclick="closeEditAlertModal()">&times;</span>
+            <span style="color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer;" data-movie-action="close-alert">&times;</span>
             <h2>Uredi opozorilo</h2>
             <div class="alert-form-group">
                 <label>Tip opozorila:</label>
@@ -211,8 +211,8 @@
                 <textarea id="edit_alert_text" placeholder="Napišite opozorilo..." rows="4"></textarea>
             </div>
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px;">
-                <button onclick="closeEditAlertModal()" style="background-color: #ccc; color: black; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">Prekliči</button>
-                <button onclick="saveEditedAlert()" style="background-color: #4caf50; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">Shrani</button>
+                <button data-movie-action="close-alert" style="background-color: #ccc; color: black; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">Prekliči</button>
+                <button data-movie-action="save-alert" style="background-color: #4caf50; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">Shrani</button>
             </div>
         </div>
     </div>
@@ -232,7 +232,7 @@
             <label>Besedilo:</label>
             <textarea id="alert_text" placeholder="Napišite opozorilo..." rows="2"></textarea>
         </div>
-        <button onclick="submitAlertOnPage('{{ movie.folder }}')" class="btn btn-success"><i class="bi bi-check-circle"></i> Dodaj opozorilo</button>
+        <button data-movie-action="add-alert" data-folder="{{ movie.folder }}" class="btn btn-success"><i class="bi bi-check-circle"></i> Dodaj opozorilo</button>
     </div>
     {% endif %}
 
@@ -272,7 +272,8 @@
 
 
             // Inicializacija Plyr-a
-            const player = window.Plyr ? new Plyr(video, { iconUrl: '/static/vendor/plyr.svg',
+            const player = window.Plyr ? new Plyr(video, { iconUrl: {{ url_for('static', filename='vendor/plyr.svg')|tojson }},
+                blankVideo: {{ url_for('static', filename='vendor/blank.mp4')|tojson }},
                 ratio: '16:9',
                 controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'captions', 'settings', 'fullscreen', 'download'],
                 urls: { download: '/movies/download/{{ group_folder }}/{{ folder }}' },
@@ -434,7 +435,8 @@
             const video = document.getElementById('videoPlayer');
             const lastTime = {{ movie.last_play_time|default(0) }};
 
-            const player = window.Plyr ? new Plyr(video, { iconUrl: '/static/vendor/plyr.svg',
+            const player = window.Plyr ? new Plyr(video, { iconUrl: {{ url_for('static', filename='vendor/plyr.svg')|tojson }},
+                blankVideo: {{ url_for('static', filename='vendor/blank.mp4')|tojson }},
                 ratio: '16:9',
                 controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'captions', 'settings', 'fullscreen', 'download'],
                 urls: { download: '/movies/download/{{ group_folder }}/{{ folder }}' },
@@ -480,7 +482,8 @@
         }
 
         if (!globalPlayer && window.Plyr) {
-            globalPlayer = new Plyr('#videoPlayer', { iconUrl: '/static/vendor/plyr.svg',
+            globalPlayer = new Plyr('#videoPlayer', { iconUrl: {{ url_for('static', filename='vendor/plyr.svg')|tojson }},
+                blankVideo: {{ url_for('static', filename='vendor/blank.mp4')|tojson }},
                 ratio: '16:9',
                 controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'settings', 'fullscreen', 'download'],
                 urls: { download: '/movies/download/{{ group_folder }}/{{ folder }}' },
@@ -631,7 +634,7 @@ document.addEventListener('keydown', event => {
     <div class="comment-form-section">
         <h3>Dodaj komentar ali predlog</h3>
         <p>Avtor sporočila bo viden le skrbniku strani, ki bo po potrebi pred objavo besedilo tudi prilagodil.</p>
-        <form id="commentForm" onsubmit="submitComment(event, '{{ movie.folder }}')">
+        <form id="commentForm" data-comment-folder="{{ movie.folder }}">
             <div class="form-group">
                 <label for="commentText">Komentar (predlog, opozorilo, itd.):</label><br>
                 <textarea id="commentText" name="comment" required minlength="5" rows="4" placeholder="Napišite vaš komentar..."></textarea>
@@ -643,7 +646,7 @@ document.addEventListener('keydown', event => {
 </div>
 </div>
 
-<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/script/movies.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="{{ url_for('static', filename='script/movies.js') }}"></script>
 
 </main>
 

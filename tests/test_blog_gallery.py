@@ -12,6 +12,31 @@ ui = blog_fixture
 browser = browser_fixture
 
 
+def test_public_pages_use_prepared_images_without_replacing_original_links(
+    gallery, tmp_path, monkeypatch
+):
+    import blog_images
+
+    monkeypatch.setattr(blog_images, "IMAGE_DIRECTORY", tmp_path)
+    for index in range(1, 4):
+        path = tmp_path / f"picture-{index}.jpg"
+        Image.new("RGB", (1800, 1500), "green").save(path)
+        blog_images.prepare_responsive_images(path)
+    gallery.posts["javno"]["image"] = "picture-1.jpg"
+    sources = blog_images.image_sources("picture-1.jpg")
+    response = gallery.app.test_client().get("/blog")
+    assert f'src="/blog/image/{sources["src"]}"' in response.text
+    assert "480w, " in response.text
+    assert "css/style.css" not in response.text
+    response = gallery.app.test_client().get("/blog/javno")
+    assert (
+        f'data-gallery-main src="/blog/image/{sources["src"]}"'
+        in response.text
+    )
+    assert 'href="/blog/image/picture-1.jpg"' in response.text
+    assert f'data-display-src="/blog/image/{sources["src"]}"' in response.text
+
+
 @pytest.fixture
 def gallery(ui):
     ui.posts["javno"]["images"] = [

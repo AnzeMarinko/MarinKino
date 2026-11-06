@@ -11,10 +11,12 @@ FROM base AS builder
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY pyproject.toml uv.lock README.md ./
 COPY src ./src
+COPY scripts/package_static.py /tmp/package_static.py
 ARG UPDATE_DEPENDENCIES=0
 # Optional preparation/ML tools never enter the public server image.
 RUN if [ "$UPDATE_DEPENDENCIES" = 1 ]; then uv lock --upgrade; fi \
     && uv sync --frozen --no-dev --no-editable
+RUN python /tmp/package_static.py /app/src/static /app/src/static-version
 
 FROM base AS runtime
 LABEL io.marinkino.security.managed="true"

@@ -95,7 +95,7 @@ function renderMovieCard(movie) {
             <fieldset class="selectors izbira" movie-id="${text(id)}"><legend>Stanje ogleda</legend>
             ${[0,100].map(value => `<input type="radio" id="watch-${text(id)}-${value}" name="izbor-${text(id)}" value="${value}" ${watched === value ? 'checked' : ''}><label for="watch-${text(id)}-${value}">${value ? 'Pogledano' : 'Nepogledano'}</label>`).join('')}</fieldset>
             ${movie.is_admin ? `<fieldset class="selectors priporocilo" movie-folder="${text(movie.folder)}"><legend>Priporočilo</legend>${['','recommend','warm-recommend'].map((value,index) => `<input type="radio" id="recommend-${text(id)}-${index}" name="priporocaj-${text(id)}" value="${value}" ${recommendation === value ? 'checked' : ''}><label for="recommend-${text(id)}-${index}">${['Brez priporočila','Priporoči','Toplo priporoči'][index]}</label>`).join('')}</fieldset>
-            <form action="/movies/remove${text(moviePath(movie.folder))}" method="post" onsubmit="odstraniMovieCard(event, this); return false;"><button class="movie-delete" type="submit">Odstrani film</button></form>` : ''}
+            <form action="/movies/remove${text(moviePath(movie.folder))}" method="post" data-remove-movie><button class="movie-delete" type="submit">Odstrani film</button></form>` : ''}
         </details></div>`;
     wrapper.querySelectorAll('.selectors').forEach(group => group.dataset.savedValue = group.querySelector('input:checked')?.value);
     attachMovieHover(wrapper);
@@ -548,7 +548,7 @@ function deleteAlertOnPage(button, movieFolder, index) {
         const m = document.getElementById('ratingModal');
         if (m) m.style.display = 'none';
         ratingNeeded = false;
-        document.querySelector('[onclick="openRatingModal()"]')?.focus();
+        document.querySelector('[data-movie-action="rate"]')?.focus();
     }
 
     async function submitRating() {
@@ -646,3 +646,24 @@ function deleteAlertOnPage(button, movieFolder, index) {
         });
     });
 })();
+
+// Explicit listeners keep controls compatible with script-src-attr 'none'.
+document.addEventListener('submit', event => {
+    if (event.target.matches('[data-remove-movie]')) odstraniMovieCard(event, event.target);
+    if (event.target.matches('[data-comment-folder]')) submitComment(event, event.target.dataset.commentFolder);
+});
+document.addEventListener('click', event => {
+    const play = event.target.closest('[data-play-video]');
+    if (play) playVideo(play.dataset.playVideo, Number(play.dataset.resume) || 0, play);
+    const button = event.target.closest('[data-movie-action]');
+    if (!button) return;
+    const actions = {
+        rate: () => openRatingModal(),
+        'edit-alert': () => editAlertOnPage(button, button.dataset.folder, button.dataset.note),
+        'delete-alert': () => deleteAlertOnPage(button, button.dataset.folder, button.dataset.note),
+        'close-alert': () => closeEditAlertModal(),
+        'save-alert': () => saveEditedAlert(),
+        'add-alert': () => submitAlertOnPage(button.dataset.folder),
+    };
+    actions[button.dataset.movieAction]?.();
+});

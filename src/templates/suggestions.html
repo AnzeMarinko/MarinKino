@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<link rel="stylesheet" href="/static/css/suggestions.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/suggestions.css') }}">
 <main class="suggestions-page" id="suggestionsPage" data-draft-key="marinkino-suggestion:{{ current_user.id }}">
   <div class="suggestions-shell">
     <header class="suggestions-heading"><p class="suggestions-eyebrow"><i class="bi bi-lightbulb" aria-hidden="true"></i> Tvoje ideje štejejo</p><h1>Skupaj izboljšajmo MarinKino.</h1><p>Pogrešaš film, imaš idejo ali kaj ne deluje? Napiši predlog. Vsak pomaga pri izboljšavah.</p></header>
@@ -29,5 +29,5 @@
     </div>
   </div>
 </main>
-<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/js/suggestions.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="{{ url_for('static', filename='js/suggestions.js') }}"></script>
 {% endblock %}

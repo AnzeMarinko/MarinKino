@@ -12,7 +12,7 @@ from pathlib import Path
 from threading import BoundedSemaphore
 from urllib.parse import quote
 
-from flask import abort, make_response, send_file
+from flask import make_response, send_file
 
 from security_storage import locked_path, safe_resolved_path
 
@@ -21,9 +21,31 @@ CACHE_LIMIT_BYTES = 8 * 1024**3
 _preparation = BoundedSemaphore(1)
 
 
-def archive_response(film, root, group, folder, production=False):
+class ArchivePreparationError(Exception):
+    """A bounded preparation could not produce a downloadable archive."""
+
+    def __init__(self, status, message="Priprava prenosa ni uspela."):
+        super().__init__(message)
+        self.status = status
+
+
+def ready_archive(root, group, folder):
+    directory = safe_resolved_path(root, f"{group}/{folder}")
+    digest = hashlib.sha256(str(directory).encode()).hexdigest()
+    target = Path("cache/downloads").resolve() / (digest + ".zip")
+    try:
+        if time.time() - target.stat().st_mtime <= 3600 and target.is_file():
+            return target
+    except FileNotFoundError:
+        pass
+    return None
+
+
+def prepare_archive(film, root, group, folder):
     if not _preparation.acquire(blocking=False):
-        abort(429, "Priprava prenosa že poteka. Poskusi pozneje.")
+        raise ArchivePreparationError(
+            429, "Priprava prenosa že poteka. Poskusi pozneje."
+        )
     try:
         directory = Path(safe_resolved_path(root, f"{group}/{folder}"))
         cache = Path("cache/downloads").resolve()
@@ -64,14 +86,16 @@ def archive_response(film, root, group, folder, production=False):
                         and path.resolve().is_relative_to(stream_dir.resolve())
                     )
                 if source_size > MAX_ARCHIVE_BYTES:
-                    abort(
+                    raise ArchivePreparationError(
                         413, "Film presega največjo velikost prenosa (4 GB)."
                     )
                 if (
                     shutil.disk_usage(cache).free
                     < source_size * 3 + 256 * 1024**2
                 ):
-                    abort(503, "Za pripravo prenosa ni dovolj prostora.")
+                    raise ArchivePreparationError(
+                        503, "Za pripravo prenosa ni dovolj prostora."
+                    )
                 with tempfile.TemporaryDirectory(
                     prefix="build-", dir=cache
                 ) as build:
@@ -108,7 +132,7 @@ def archive_response(film, root, group, folder, production=False):
                                 timeout=1800,
                             )
                         except (subprocess.SubprocessError, OSError):
-                            abort(
+                            raise ArchivePreparationError(
                                 503,
                                 "Filma trenutno ni mogoče pripraviti "
                                 "za prenos.",
@@ -121,7 +145,7 @@ def archive_response(film, root, group, folder, production=False):
                         sum(path.stat().st_size for path, _ in paths)
                         > MAX_ARCHIVE_BYTES
                     ):
-                        abort(413)
+                        raise ArchivePreparationError(413)
                     staged = build / "archive.zip"
                     with zipfile.ZipFile(
                         staged, "w", zipfile.ZIP_STORED
@@ -148,22 +172,60 @@ def archive_response(film, root, group, folder, production=False):
                         )
                     staged.chmod(0o644)
                     os.replace(staged, target)
-        if production:
-            response = make_response()
-            response.headers["X-Accel-Redirect"] = (
-                "/protected_downloads/" + target.name
-            )
-            response.headers["Content-Type"] = "application/zip"
-            # RFC5987 supports Unicode without response header injection.
-            response.headers["Content-Disposition"] = (
-                "attachment; filename*=UTF-8''"
-                + quote(folder + ".zip", safe="")
-            )
-        else:
-            response = send_file(
-                target, as_attachment=True, download_name=folder + ".zip"
-            )
-        response.headers["Cache-Control"] = "private, no-store"
-        return response
+        return target
     finally:
         _preparation.release()
+
+
+def archive_response(film, root, group, folder, production=False):
+    """Deliver an existing archive without preparing work on an HTTP thread."""
+    target = ready_archive(root, group, folder)
+    if target is None:
+        return None
+    if production:
+        response = make_response()
+        response.headers["X-Accel-Redirect"] = (
+            "/protected_downloads/" + target.name
+        )
+        response.headers["Content-Type"] = "application/zip"
+        # RFC5987 supports Unicode without response header injection.
+        response.headers["Content-Disposition"] = (
+            "attachment; filename*=UTF-8''" + quote(folder + ".zip", safe="")
+        )
+    else:
+        response = send_file(
+            target, as_attachment=True, download_name=folder + ".zip"
+        )
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
+def build_archive_job(job):
+    payload = job["payload"]
+    prepare_archive(
+        payload["film"], payload["root"], payload["group"], payload["folder"]
+    )
+    return {"group": payload["group"], "folder": payload["folder"]}
+
+
+def archive_payload(film, root, group, folder):
+    public_fields = (
+        "title",
+        "original_title",
+        "year",
+        "description",
+        "genres",
+        "players",
+        "runtimes",
+        "slosinh",
+        "recommendation_level",
+        "video_files",
+        "subtitles",
+        "video_files_m3u8",
+    )
+    return {
+        "root": str(Path(root).resolve()),
+        "group": group,
+        "folder": folder,
+        "film": {key: film.get(key) for key in public_fields},
+    }

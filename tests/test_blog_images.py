@@ -374,6 +374,7 @@ def test_gallery_upload_reorder_remove_and_cover_compatibility(ui):
     assert response.json["success"]
     post_id = response.json["post_id"]
     images = response.json["images"]
+    uploaded_files = {path.name for path in ui.images.iterdir()}
     assert len(images) == 2
     assert response.json["image_uploads"]["one"] == images[0]["filename"]
     assert images[1]["filename"].endswith(".jpg")
@@ -402,7 +403,7 @@ def test_gallery_upload_reorder_remove_and_cover_compatibility(ui):
         "success"
     ]
     assert ui.module.load_blog_posts()[post_id]["image"] is None
-    assert len(list(ui.images.iterdir())) == 4
+    assert {path.name for path in ui.images.iterdir()} == uploaded_files
 
 
 def test_gallery_bad_second_image_rolls_back_new_files_and_keeps_post(ui):

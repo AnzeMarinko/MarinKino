@@ -309,8 +309,12 @@ def browser(ui):
     thread.start()
     errors = []
     with sync_playwright() as playwright:
-        chromium = playwright.chromium.launch()
+        chromium = playwright.chromium.launch(
+            executable_path=os.environ.get("MARINKINO_BROWSER_EXECUTABLE")
+        )
         page = chromium.new_page(viewport={"width": 390, "height": 844})
+        # Layout checks use daytime; clock-specific tests override this value.
+        page.clock.set_fixed_time(datetime(2026, 11, 6, 12, 0, 0))
         page.set_default_timeout(7000)
         page.on("pageerror", lambda error: errors.append(str(error)))
         # Offline fallbacks; admin actions use fake routes.
@@ -408,7 +412,7 @@ def test_browser_editor_reuses_saved_post_and_preserves_failed_edits(browser):
         }
     )
     page.wait_for_function(
-        'Number(document.querySelector("#crop_w").value) > 0'
+        '() => Number(document.querySelector("#crop_w").value) > 0'
     )
     box = page.locator("#crop-box")
     box.scroll_into_view_if_needed()
@@ -517,7 +521,7 @@ def test_browser_real_markdown_editor_sync(browser):
     page = browser.page
     page.goto(browser.base + "/admin/blog/new")
     page.wait_for_function(
-        '!!document.querySelector(".CodeMirror")?.CodeMirror'
+        '() => !!document.querySelector(".CodeMirror")?.CodeMirror'
     )
     page.locator("#title").fill("CodeMirror naslov")
     page.evaluate(
@@ -550,6 +554,8 @@ def test_browser_meme_quota_retains_history(browser):
 
 def test_browser_real_dashboard_charts(browser):
     page = browser.page
+    # October is the incomplete period following September's fixture data.
+    page.clock.set_fixed_time(datetime(2026, 10, 6, 12, 0, 0))
     page.goto(browser.base + "/admin")
     page.locator("#access-monthly-graph .main-svg").first.wait_for()
     page.locator("#access-user-graph .main-svg").first.wait_for()
@@ -609,6 +615,6 @@ def test_mail_recipient_count_excludes_users_without_email(ui):
         "/admin/send_emails", method="POST", json={"whole_list": "true"}
     ):
         result = namespace["send_admin_emails"]()
-    assert result["sent"] == 1
+    assert result["queued"] == 1
     assert result["emails"] == ["admin"]
     send.assert_called_once()

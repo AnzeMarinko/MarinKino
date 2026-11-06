@@ -181,7 +181,7 @@ def test_browser_movie_catalog_filters_and_retry(films, browser):
     ).is_visible()
     page.get_by_text("Pogledano", exact=True).click()
     page.wait_for_function(
-        "document.querySelector('.movie-watch-progress')"
+        "() => document.querySelector('.movie-watch-progress')"
         ".getAttribute('aria-valuenow') === '100'"
     )
     assert calls == ["/movies/progress-change"]
@@ -193,7 +193,7 @@ def test_browser_movie_catalog_filters_and_retry(films, browser):
     ui.app.config["MOVIE_PAGE_FAIL"] = False
     page.get_by_role("button", name="Naloži več filmov").click()
     page.wait_for_function(
-        "document.querySelectorAll('.movie-card').length === 2"
+        "() => document.querySelectorAll('.movie-card').length === 2"
     )
     assert page.locator("#movies-more").is_hidden()
     page.get_by_role("button", name="Poišči filme").click()
@@ -290,7 +290,23 @@ def test_browser_movie_comment_and_rating(films, browser):
 
 
 def test_browser_movie_collection_and_hls_fallback(films, browser):
+    from flask import g
+
+    from security_http import add_headers
+
+    app = browser.ui.app
+
+    @app.before_request
+    def csp_nonce():
+        g.csp_nonce = "test-player-nonce"
+
+    app.jinja_env.globals["csp_nonce"] = lambda: g.csp_nonce
+    app.after_request(add_headers)
     page = browser.page
+    page.add_init_script("""window.cspViolations = [];
+        document.addEventListener('securitypolicyviolation', event => {
+            window.cspViolations.push(event.blockedURI);
+        });""")
     page.goto(browser.base + "/movies/play/test/one?mode=collection")
     expect(page.locator("#chooseVideoNotice")).to_be_visible()
     page.locator(".video-btn").first.click()
@@ -312,6 +328,7 @@ def test_browser_movie_collection_and_hls_fallback(films, browser):
     assert video.evaluate(
         "el => (el.querySelector('source')?.src || el.src || el.currentSrc)"
     ).endswith("/second.mp4")
+    assert page.evaluate("window.cspViolations") == []
     # Exercise the no-HLS-library fallback explicitly. Production HLS assets
     # are now local and load even when external network requests are blocked.
     page.route(
@@ -326,6 +343,7 @@ def test_browser_movie_collection_and_hls_fallback(films, browser):
             getComputedStyle(document.getElementById('hlsAudioContainer'))
                 .display !== 'none';
     }""")
+    assert page.evaluate("window.cspViolations") == []
 
 
 def test_browser_movie_hover_and_touch_details(films, browser):
@@ -418,7 +436,8 @@ def test_browser_plyr_controls_fit_and_progress_shines(films, browser):
         page.set_viewport_size({"width": width, "height": 900})
         page.goto(browser.base + "/movies/play/test/one")
         page.wait_for_function(
-            "document.getElementById('videoPlayer')?.plyr?.elements?.controls"
+            "() => document.getElementById('videoPlayer')"
+            "?.plyr?.elements?.controls"
         )
         download = page.locator('.plyr__controls [data-plyr="download"]')
         expect(download).to_be_visible()

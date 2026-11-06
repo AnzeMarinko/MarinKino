@@ -1,9 +1,15 @@
 """Decode blog uploads and encode browser-compatible, oriented images."""
 
+import argparse
+import hashlib
 import json
 import math
+import os
+import re
+import tempfile
 import warnings
 from dataclasses import dataclass
+from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
 from uuid import uuid4
@@ -18,6 +24,9 @@ MAX_UPLOAD_BYTES = 30 * 1024 * 1024
 MAX_GALLERY_REQUEST_BYTES = 40 * 1024 * 1024
 MAX_IMAGE_PIXELS = 50_000_000
 FORMATS = ("JPEG", "PNG", "WEBP", "GIF", "BMP", "TIFF", "HEIF", "AVIF")
+IMAGE_DIRECTORY = Path(__file__).resolve().parent.parent / "data/blog_images"
+RESPONSIVE_WIDTHS = (480, 960, 1600)
+RESPONSIVE_VERSION = 1
 
 
 class ImageUploadError(ValueError):
@@ -153,7 +162,148 @@ def save_image(file, directory, crop=None):
     with (directory / filename).open("xb") as output:
         output.write(result.data)
     (directory / filename).chmod(0o644)
+    try:
+        prepare_responsive_images(directory / filename)
+    except Exception:
+        # An upload is published only after its display assets are ready.
+        remove_image_files(directory / filename)
+        raise
     return filename
+
+
+def _manifest_path(path):
+    return path.with_name(f".{path.name}.responsive.json")
+
+
+def _source_revision(path):
+    stat = path.stat()
+    return [stat.st_mtime_ns, stat.st_size, RESPONSIVE_VERSION]
+
+
+@lru_cache(maxsize=512)
+def _read_sources(path, revision, manifest_mtime):
+    try:
+        record = json.loads(_manifest_path(path).read_text())
+    except (FileNotFoundError, ValueError):
+        return None
+    if record.get("revision") != list(revision):
+        return None
+    return record
+
+
+def image_sources(filename, directory=None):
+    """Read prepared display assets; never resize images during a page view."""
+    fallback = {"src": filename, "srcset": []}
+    if not filename or Path(filename).name != filename:
+        return fallback
+    path = Path(directory or IMAGE_DIRECTORY) / filename
+    try:
+        revision = _source_revision(path)
+        manifest_stat = _manifest_path(path).stat()
+    except FileNotFoundError:
+        return fallback
+    # Include manifest mtime so a background preparation becomes visible.
+    record = _read_sources(path, tuple(revision), manifest_stat.st_mtime_ns)
+    return record or fallback
+
+
+def prepare_responsive_images(path):
+    """Create immutable WebP display sizes, retaining the existing original."""
+    path = Path(path)
+    revision = _source_revision(path)
+    try:
+        previous = json.loads(_manifest_path(path).read_text())
+    except (FileNotFoundError, ValueError):
+        previous = {}
+    if (
+        previous.get("revision") == revision
+        and all(
+            (path.parent / item["filename"]).is_file()
+            for item in previous.get("srcset", [])
+        )
+        and previous.get("srcset")
+    ):
+        return previous
+    with path.open("rb") as stream:
+        digest = hashlib.file_digest(stream, "sha256").hexdigest()[:16]
+    created = []
+    try:
+        with Image.open(path, formats=FORMATS) as source:
+            if source.width * source.height > MAX_IMAGE_PIXELS:
+                raise ImageUploadError("Slika ima preveliko ločljivost.")
+            # JPEG can decode at a reduced resolution before allocating pixels.
+            source.draft("RGB", (1600, 1600))
+            image = ImageOps.exif_transpose(source)
+            mode = (
+                "RGBA"
+                if "A" in image.getbands() or "transparency" in image.info
+                else "RGB"
+            )
+            image = image.convert(mode)
+            image.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
+            profile = image.info.get("icc_profile")
+            options = {"icc_profile": profile} if profile else {}
+            width, height = image.size
+            variants = []
+            widths = sorted({min(size, width) for size in RESPONSIVE_WIDTHS})
+            for size in widths:
+                name = (
+                    f"{path.stem}-responsive-v{RESPONSIVE_VERSION}-"
+                    f"{digest}-{size}w.webp"
+                )
+                destination = path.parent / name
+                already_exists = destination.exists()
+                display = image.resize(
+                    (size, max(1, round(height * size / width))),
+                    Image.Resampling.LANCZOS,
+                )
+                descriptor, temporary = tempfile.mkstemp(dir=path.parent)
+                try:
+                    with os.fdopen(descriptor, "wb") as output:
+                        display.save(
+                            output,
+                            format="WEBP",
+                            quality=82,
+                            method=4,
+                            **options,
+                        )
+                        os.fchmod(output.fileno(), 0o644)
+                    os.replace(temporary, destination)
+                finally:
+                    Path(temporary).unlink(missing_ok=True)
+                if not already_exists:
+                    created.append(destination)
+                variants.append({"filename": name, "width": size})
+            default = min(variants, key=lambda item: abs(item["width"] - 960))
+            record = {
+                "revision": revision,
+                "src": default["filename"],
+                "srcset": variants,
+                "width": width,
+                "height": height,
+            }
+            descriptor, temporary = tempfile.mkstemp(dir=path.parent)
+            try:
+                with os.fdopen(descriptor, "w") as output:
+                    json.dump(record, output)
+                os.replace(temporary, _manifest_path(path))
+            finally:
+                Path(temporary).unlink(missing_ok=True)
+            _read_sources.cache_clear()
+            return record
+    except Exception:
+        for item in created:
+            item.unlink(missing_ok=True)
+        raise
+
+
+def remove_image_files(path):
+    """Roll back assets for a new upload that was never published."""
+    path = Path(path)
+    for derivative in path.parent.glob(f"{path.stem}-responsive-v*.*"):
+        derivative.unlink(missing_ok=True)
+    _manifest_path(path).unlink(missing_ok=True)
+    path.unlink(missing_ok=True)
 
 
 def post_gallery(post):
@@ -261,9 +411,7 @@ def save_gallery(form, files, directory, post=None):
                     f"gallery_file_{upload_id}"
                 )
                 crop = item.get("crop")
-                if not file or (
-                    index == 0 and not isinstance(crop, dict)
-                ):
+                if not file or (index == 0 and not isinstance(crop, dict)):
                     raise ImageUploadError(
                         "Naslovna slika potrebuje datoteko in izrez."
                     )
@@ -287,6 +435,7 @@ def save_gallery(form, files, directory, post=None):
                         options.update(quality=85, optimize=True)
                     with thumbnail_path.open("xb") as output:
                         source.save(output, format=source.format, **options)
+                    thumbnail_path.chmod(0o644)
                 mapping[upload_id] = filename
             else:
                 filename = item.get("filename")
@@ -310,6 +459,49 @@ def save_gallery(form, files, directory, post=None):
     except Exception:
         # Undo only files created by this upload; retain existing assets.
         for path in created:
-            path.unlink(missing_ok=True)
+            remove_image_files(path)
         raise
     return saved, mapping
+
+
+def prepare_existing_images(posts_path, directory):
+    """Serial preparation for existing referenced images during deployment."""
+    posts_path, directory = Path(posts_path), Path(directory)
+    if not posts_path.exists():
+        return 0
+    posts = json.loads(posts_path.read_text())
+    filenames = set()
+    for post in posts.values():
+        filenames.update(item["filename"] for item in post_gallery(post))
+        filenames.update(
+            re.findall(r"/blog/image/([^\s)\"'<>]+)", post.get("content", ""))
+        )
+    prepared = 0
+    for name in sorted(filenames):
+        if Path(name).name != name:
+            continue
+        path = directory / name
+        # A missing legacy attachment must not prevent deployment.
+        if path.is_symlink() or not path.is_file():
+            continue
+        prepare_responsive_images(path)
+        prepared += 1
+    return prepared
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Prepare responsive blog images"
+    )
+    parser.add_argument(
+        "--prepare-existing", action="store_true", required=True
+    )
+    parser.add_argument("--directory", type=Path, default=IMAGE_DIRECTORY)
+    parser.add_argument(
+        "--posts",
+        type=Path,
+        default=IMAGE_DIRECTORY.parent / "blog_posts.json",
+    )
+    arguments = parser.parse_args()
+    count = prepare_existing_images(arguments.posts, arguments.directory)
+    print(f"Prepared {count} blog images")

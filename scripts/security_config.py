@@ -445,9 +445,7 @@ def security_headers(tls: bool = False) -> str:
         'add_header Referrer-Policy $mk_referrer_policy always;',
         'add_header Permissions-Policy "camera=(), microphone=(), '
         'geolocation=(self)" always;',
-        "add_header Content-Security-Policy \"base-uri 'self'; "
-        "object-src 'none'; "
-        "frame-ancestors 'self'; form-action 'self'\" always;",
+        "add_header Content-Security-Policy $mk_csp always;",
     )
     if tls:
         headers += (
@@ -476,8 +474,28 @@ map $upstream_http_referrer_policy $mk_referrer_policy {
     default $upstream_http_referrer_policy;
     "" same-origin;
 }
-log_format marinkino '$remote_addr - $remote_user [$time_local] "$request" '
-                     '$status $body_bytes_sent "$http_referer" '
+map $upstream_http_content_security_policy $mk_csp {
+    default $upstream_http_content_security_policy;
+    "" "base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'";
+}
+# Never persist bearer tokens or query strings in the access log.
+map $uri $mk_log_uri {
+    default $uri;
+    ~^/password/reset(?:/|$) /password/reset/[redacted];
+    ~^/password/setup(?:/|$) /password/setup/[redacted];
+    ~^/reset-password(?:/|$) /reset-password/[redacted];
+    ~^/blog/subscribe/confirm(?:/|$) /blog/subscribe/confirm/[redacted];
+}
+map $http_referer $mk_log_referrer {
+    default "-";
+    "~^(?<mk_referrer_origin>https?://[A-Za-z0-9.-]+(?::[0-9]+)?)(?:/|$)" $mk_referrer_origin;
+}
+map $uri $mk_static_cache {
+    default "no-cache";
+    "~^/static/v/[a-f0-9]{64}/" "public, max-age=31536000, immutable";
+}
+log_format marinkino '$remote_addr - $remote_user [$time_local] "$request_method $mk_log_uri $server_protocol" '
+                     '$status $body_bytes_sent "$mk_log_referrer" '
                      '"$http_user_agent"';
 access_log /var/log/nginx/access.log marinkino;
 error_log /var/log/nginx/error.log warn;
@@ -501,6 +519,11 @@ proxy_request_buffering on;
 proxy_buffering on;
 proxy_hide_header X-Powered-By;
 proxy_hide_header Referrer-Policy;
+proxy_hide_header Content-Security-Policy;
+proxy_hide_header X-Content-Type-Options;
+proxy_hide_header X-Frame-Options;
+proxy_hide_header Permissions-Policy;
+proxy_hide_header Strict-Transport-Security;
 proxy_set_header Host $host;
 proxy_set_header X-Real-IP $remote_addr;
 proxy_set_header X-Forwarded-For $remote_addr;
@@ -565,6 +588,7 @@ server {
     common += (
         "server {\n    keepalive_timeout 20s;\n"
         "    listen 443 ssl;\n    listen [::]:443 ssl;\n"
+        "    http2 on;\n"
         f"    server_name {www};\n"
         + certificate
         + f"    {security_headers(True)}\n"
@@ -606,10 +630,15 @@ server {
         f"        {proxy}\n    }}\n"
         "    location ^~ /static/ {\n"
         "        limit_req zone=mk_site burst=200 nodelay;\n"
-        "        proxy_buffers 16 32k;\n"
-        "        proxy_buffer_size 16k;\n"
-        "        proxy_max_temp_file_size 0;\n"
-        f"        {proxy}\n    }}\n"
+        "        root /usr/share/nginx/html;\n"
+        "        disable_symlinks on;\n"
+        "        if ($uri ~ (?:^|/)\\.) { return 404; }\n"
+        "        if ($uri !~* \\.(?:css|js|svg|txt|webmanifest|ico|png|jpe?g|webp|avif|gif|mp4|woff2?|ttf|eot)$) { return 404; }\n"
+        "        try_files $uri =404;\n"
+        "        gzip_static on;\n"
+        "        gzip_vary on;\n"
+        "        add_header Cache-Control $mk_static_cache;\n"
+        f"        {security_headers(True)}\n    }}\n"
         "    location / {\n"
         "        limit_req zone=mk_site burst=40 nodelay;\n"
         f"        {proxy}\n    }}\n"

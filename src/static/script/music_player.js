@@ -2632,3 +2632,8 @@ window.addEventListener("load", () => {
         initializeBrowserToggle();
     }, 100);
 });
+
+const audioActions = {prev, togglePlay, next, nextRandom, cyclePlaybackMode, izbrisiPesem};
+document.querySelectorAll("[data-audio-action]").forEach(button => {
+    button.addEventListener("click", () => audioActions[button.dataset.audioAction]());
+});

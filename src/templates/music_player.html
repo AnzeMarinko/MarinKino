@@ -106,30 +106,30 @@
         <!-- Controls -->
         <div class="controls-section">
             <div class="controls-row primary-controls">
-                <button id="prevBtn" class="control-btn control-btn-primary" onclick="prev()" aria-label="Prejšnja pesem" title="Prejšnja pesem">
+                <button id="prevBtn" class="control-btn control-btn-primary" data-audio-action="prev" aria-label="Prejšnja pesem" title="Prejšnja pesem">
                     <i class="bi bi-skip-backward-fill"></i>
                 </button>
 
-                <button id="playBtn" class="control-btn btn-play" onclick="togglePlay()" aria-label="Predvajaj" title="Predvajaj">
+                <button id="playBtn" class="control-btn btn-play" data-audio-action="togglePlay" aria-label="Predvajaj" title="Predvajaj">
                     <i id="playIcon" class="bi bi-play-fill"></i>
                 </button>
 
-                <button id="nextBtn" class="control-btn control-btn-primary" onclick="next()" aria-label="Naslednja pesem" title="Naslednja pesem">
+                <button id="nextBtn" class="control-btn control-btn-primary" data-audio-action="next" aria-label="Naslednja pesem" title="Naslednja pesem">
                     <i class="bi bi-skip-forward-fill"></i>
                 </button>
 
-                <button id="randomNextBtn" class="control-btn control-btn-accent" onclick="nextRandom()" aria-label="Naslednja naključna pesem" title="Naslednja naključna pesem">
+                <button id="randomNextBtn" class="control-btn control-btn-accent" data-audio-action="nextRandom" aria-label="Naslednja naključna pesem" title="Naslednja naključna pesem">
                     <i class="bi bi-dice-5"></i>
                 </button>
             </div>
 
             <div class="controls-row secondary-controls">
-                <button id="playbackModeBtn" class="control-btn playback-mode-btn" onclick="cyclePlaybackMode()" aria-label="Nastavitev nadaljevanja" title="Nastavitev nadaljevanja">
+                <button id="playbackModeBtn" class="control-btn playback-mode-btn" data-audio-action="cyclePlaybackMode" aria-label="Nastavitev nadaljevanja" title="Nastavitev nadaljevanja">
                     <i id="playbackModeIcon" class="bi bi-arrow-repeat"></i><span id="playbackModeLabel">Po vrsti</span>
                 </button>
 
                 {% if view_as != "anonymous" and view_as != "user" and current_user.is_authenticated and current_user.is_admin %}
-                <button id="delete-btn" class="control-btn btn-delete" onclick="izbrisiPesem()" aria-label="Izbriši pesem" title="Izbriši pesem">
+                <button id="delete-btn" class="control-btn btn-delete" data-audio-action="izbrisiPesem" aria-label="Izbriši pesem" title="Izbriši pesem">
                     <i class="bi bi-trash"></i>
                 </button>
                 {% endif %}
@@ -175,12 +175,12 @@
 <div id="metadata-root" data-music='{{ music_metadata | tojson | safe }}'></div>
 <div id="music-config-root" data-private-albums='{{ private_albums | tojson | safe }}' data-private-albums-max="{{ max_private_albums }}" data-private-albums-endpoint="/music/private-albums"></div>
 
-<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="/static/vendor/hls.min.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="{{ url_for('static', filename='vendor/hls.min.js') }}"></script>
 <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}">
     window.MEDIA_FILE_BASE = '/music/file/';
     window.MEDIA_HLS_BASE = '/music/hls/';
     window.MEDIA_DELETE_BASE = '/music/delete/';
 </script>
-<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="/static/script/music_player.js"></script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="{{ url_for('static', filename='script/music_player.js') }}"></script>
 
 {% endblock %}

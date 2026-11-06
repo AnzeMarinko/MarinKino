@@ -22,3 +22,6 @@
     });
     window.matchMedia('(min-width: 1400px)').addEventListener('change', event => { if (event.matches) closeMenu(); });
 })();
+
+document.querySelector("[data-action=fullscreen]")?.addEventListener("click", () => preklopiFullscreen());
+document.querySelector("[data-action=delete-meme]")?.addEventListener("click", event => izbrisiMeme(event.currentTarget.dataset.filename));

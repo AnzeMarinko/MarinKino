@@ -86,7 +86,7 @@
     plotUsers(); el("accessStatus").disabled = !el("accessStatus").options.length;
     el("accessStatus").addEventListener("change", plotUsers);
     el("accessUser").addEventListener("change", plotUsers);
-    const blogTraces = [["Vsi ogledi", stats.blogDaily || {}], ["Slovenija", stats.blogSiDaily || {}]].map(([name, values], index) => {
+    const blogTraces = [["Ogledi", stats.blogDaily || {}]].map(([name, values], index) => {
         const dates = Object.keys(values).sort();
         return { ...appearance(index), ...nonZero(dates, dates.map(date => values[date])), name, mode: "lines+markers", type: "scatter" };
     });
@@ -136,21 +136,6 @@
         });
     }
     plotBlogGrowth(); el("blogPostSelect").addEventListener("change", plotBlogGrowth);
-    if (el("geo-map")) {
-        if (!window.L) empty("geo-map", "Zemljevida ni mogoče naložiti. Lokacije so prikazane v tabeli.");
-        else {
-            const map = L.map("geo-map").setView([46.119944, 14.815333], 8);
-            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© OpenStreetMap contributors" }).addTo(map);
-            Object.entries(stats.geoCities || {}).forEach(([city, entry]) => {
-                const coords = entry.geolocation;
-                if (!Array.isArray(coords) || coords.length < 2 || coords.some(value => !Number.isFinite(Number(value))) || (!Number(coords[0]) && !Number(coords[1]))) return;
-                const popup = document.createElement("div");
-                const title = document.createElement("strong"); title.textContent = city;
-                const count = document.createElement("div"); count.textContent = `Obiskovalci: ${entry.count}`;
-                popup.append(title, count); L.marker(coords).addTo(map).bindPopup(popup);
-            });
-        }
-    }
     let comments = [];
     const drafts = new Map();
     let loading = false;

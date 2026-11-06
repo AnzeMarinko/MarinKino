@@ -21,13 +21,13 @@ from redis.exceptions import RedisError
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from device_sessions import MAX_ADMIN_DEVICES, MAX_DEVICES, DeviceSessionStore
+from mail_jobs import queue_mail
 from security_http import rate_limit_identity
 from security_storage import atomic_write_json, locked_path, serialized_json
 from utils import (
     find_user_by_email,
     is_current_admin_view,
     redis_client,
-    send_mail,
     users_file,
 )
 
@@ -388,7 +388,7 @@ def register():
             content = (
                 "Ustvarjen je bil vaš uporabniški račun za MarinKino.\n\n"
                 f"Uporabniško ime: {username}\n\n"
-                "Povezavo za nastavitev gesla smo poslali po e-pošti.\n\n"
+                "Povezavo za nastavitev gesla boste prejeli po e-pošti.\n\n"
                 "Lep pozdrav,\nMarinKino sistem"
             )
             requests.post(
@@ -400,7 +400,7 @@ def register():
                 },
                 timeout=5,
             )
-            send_mail(
+            queue_mail(
                 to=emails,
                 subject="Dostop do MarinKino",
                 text=content,
@@ -449,7 +449,7 @@ def forgot_password():
             )
             auth_stat("forgot", username)
             try:
-                send_mail(
+                queue_mail(
                     to=users[username].get("emails", []),
                     subject="MarinKino - Ponastavitev gesla",
                     text=(
@@ -471,7 +471,7 @@ def forgot_password():
             except Exception:
                 pass
         flash(
-            "Če uporabnik z navedenim e-naslovom obstaja, mu je bila poslana "
+            "Če uporabnik z navedenim e-naslovom obstaja, bo prejel "
             "povezava za ponastavitev gesla.",
             "info",
         )

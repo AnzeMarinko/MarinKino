@@ -4,7 +4,7 @@
   <div class="site-footer-inner">
     <div class="site-footer-grid">
       <div class="site-footer-about">
-        <a class="site-footer-brand" href="{{ '/blog' if blog_brand else '/' }}"><img src="{{ '/static/blog_favicon_io/android-chrome-512x512.png' if blog_brand else '/static/logo.png' }}" width="40" height="40" alt=""><span>{{ 'Sončnice' if blog_brand else 'MarinKino' }}</span></a>
+        <a class="site-footer-brand" href="{{ '/blog' if blog_brand else '/' }}"><img src="{{ url_for('static', filename='blog_favicon_io/logo-80.webp' if blog_brand else 'logo.png') }}" width="40" height="40" alt=""><span>{{ 'Sončnice' if blog_brand else 'MarinKino' }}</span></a>
         {% if blog_brand %}<p><span class="notranslate" translate="no" data-blog-title>Rože dobrega</span>. Zapisi o ljubezni, veselju do življenja, zaupanju v Boga, hvaležnosti ...</p><a class="site-footer-more" href="/blog/o-blogu">Spoznaj blog <i class="bi bi-arrow-right" aria-hidden="true"></i></a></br><a class="site-footer-more" href="/blog/o-meni">Spoznaj avtorja <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
         {% else %}<p>Filmi, glasba, šale in majhni odmori za družino in prijatelje. Vsebine v slovenščini, brez oglasov.</p><a class="site-footer-more" href="/suggestions">Imaš idejo za izboljšavo? <i class="bi bi-arrow-right" aria-hidden="true"></i></a>{% endif %}
       </div>

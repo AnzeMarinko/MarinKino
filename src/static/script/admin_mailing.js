@@ -21,8 +21,8 @@
         try {
             const response = await fetch("/admin/send_emails", { method: "POST", headers: { "Content-Type": "application/json", "X-CSRFToken": document.querySelector('meta[name="csrf-token"]').content }, body: JSON.stringify({ whole_list: target }) });
             const data = await response.json();
-            if (!response.ok || data.error || !Array.isArray(data.emails) || !Number.isFinite(Number(data.sent))) throw new Error(data.error || "unavailable");
-            status.textContent = `Pošiljanje zaključeno. Sporočilo poslano ${data.sent} uporabnikom.`;
+            if (!response.ok || data.error || !Array.isArray(data.emails) || !Number.isFinite(Number(data.queued))) throw new Error(data.error || "unavailable");
+            status.textContent = `Sporočila za ${data.queued} uporabnikov so v vrsti za pošiljanje.`;
             document.getElementById("emails").textContent = data.emails.join("\n");
             document.getElementById("mailRecipientsResult").hidden = false;
         } catch (_error) {

@@ -12,7 +12,9 @@ import pytest
 from flask import Flask
 from flask_login import LoginManager
 
+from background_jobs import JobStore
 from blog_i18n import BLOG_LANGUAGES, messages
+from mail_jobs import deliver_blog_mail_job
 
 
 @pytest.fixture
@@ -65,6 +67,8 @@ def publication(tmp_path):
     app.config.update(
         TESTING=True, SECRET_KEY="mail-tests-only", LOGIN_DISABLED=True
     )
+    jobs = JobStore(tmp_path / "jobs.sqlite3")
+    app.extensions["jobs"] = jobs
     manager = LoginManager(app)
     manager.user_loader(lambda user_id: None)
     app.register_blueprint(module.admin_bp)
@@ -74,8 +78,18 @@ def publication(tmp_path):
         endpoint="blog.blog_post",
         view_func=lambda post_id: "",
     )
+
+    def run():
+        with patch.dict(sys.modules, {"utils": utilities}):
+            jobs.run_once({"blog_mail": deliver_blog_mail_job})
+
     return SimpleNamespace(
-        app=app, module=module, utilities=utilities, client=app.test_client()
+        app=app,
+        module=module,
+        utilities=utilities,
+        client=app.test_client(),
+        jobs=jobs,
+        run=run,
     )
 
 
@@ -89,6 +103,9 @@ def test_each_language_gets_its_own_private_localized_message(publication):
         for language in BLOG_LANGUAGES
     ]
     assert notify(publication).json["success"] is True
+    publication.utilities.send_mail.assert_not_called()
+    assert not publication.module.load_blog_posts()["javno"].get("mail_date")
+    publication.run()
     calls = publication.utilities.send_mail.call_args_list
     assert len(calls) == len(BLOG_LANGUAGES)
     for call, language in zip(calls, BLOG_LANGUAGES):
@@ -128,7 +145,13 @@ def test_retry_skips_languages_already_delivered(publication):
     ]
     send = publication.utilities.send_mail
     send.side_effect = [{}, RuntimeError("mail unavailable")]
-    assert notify(publication).json["success"] is False
+    queued = notify(publication)
+    assert queued.json["success"] is True
+    publication.run()
+    assert (
+        publication.client.get(queued.json["status_url"]).json["state"]
+        == "failed"
+    )
     post = publication.module.load_blog_posts()["javno"]
     assert post["mail_languages_sent"] == ["sl"]
     assert post["mail_date"] is None
@@ -136,6 +159,7 @@ def test_retry_skips_languages_already_delivered(publication):
     send.reset_mock()
     send.side_effect = None
     assert notify(publication).json["success"] is True
+    publication.run()
     send.assert_called_once()
     assert send.call_args.kwargs["bcc"] == ["foreign@example.com"]
     post = publication.module.load_blog_posts()["javno"]
@@ -148,9 +172,16 @@ def test_smtp_rejection_does_not_mark_delivery_complete(publication):
         {"email": "foreign@example.com", "language": "de"}
     ]
     publication.utilities.send_mail.return_value = {
-        "foreign@example.com": (550, b"rejected")
+        "foreign@example.com": (550, b"rejected"),
+        "admin@example.com": (550, b"rejected"),
     }
-    assert notify(publication).json["success"] is False
+    queued = notify(publication)
+    assert queued.json["success"] is True
+    publication.run()
+    assert (
+        publication.client.get(queued.json["status_url"]).json["state"]
+        == "failed"
+    )
     post = publication.module.load_blog_posts()["javno"]
     assert not post.get("mail_languages_sent")
     assert post["mail_date"] is None
@@ -161,6 +192,7 @@ def test_successful_notifications_cannot_be_sent_twice(publication):
         "legacy@example.com"
     ]
     assert notify(publication).json["success"] is True
+    publication.run()
     assert notify(publication).json["success"] is False
     publication.utilities.send_mail.assert_called_once()
 
@@ -178,3 +210,72 @@ def test_editing_post_preserves_completed_language_batches(publication):
     with open(publication.module.BLOG_DATA_FILE, encoding="utf-8") as stream:
         updated = json.load(stream)
     assert updated["javno"]["mail_languages_sent"] == ["sl"]
+
+
+def test_repeated_click_keeps_one_pending_campaign(publication):
+    publication.utilities.load_blog_subscribers.return_value = [
+        "reader@example.com"
+    ]
+    first, second = notify(publication), notify(publication)
+    assert first.json["status_url"] == second.json["status_url"]
+    publication.utilities.send_mail.assert_not_called()
+    publication.run()
+    publication.utilities.send_mail.assert_called_once()
+    assert publication.client.get(first.json["status_url"]).json == {
+        "state": "done"
+    }
+
+
+def test_delivery_without_durable_progress_cannot_be_replayed(publication):
+    publication.utilities.load_blog_subscribers.return_value = [
+        "reader@example.com"
+    ]
+    queued = notify(publication)
+    with patch(
+        "mail_jobs.atomic_write_json", side_effect=OSError("disk full")
+    ):
+        publication.run()
+    assert publication.client.get(queued.json["status_url"]).json == {
+        "state": "uncertain"
+    }
+    assert notify(publication).json["status_url"] == queued.json["status_url"]
+    publication.run()
+    publication.utilities.send_mail.assert_called_once()
+
+
+def test_partial_delivery_requires_verification_before_retry(publication):
+    publication.utilities.load_blog_subscribers.return_value = [
+        "reader@example.com"
+    ]
+    publication.utilities.send_mail.return_value = {
+        "reader@example.com": (550, b"rejected")
+    }
+    queued = notify(publication)
+    publication.run()
+    assert publication.client.get(queued.json["status_url"]).json == {
+        "state": "uncertain"
+    }
+    assert not publication.module.load_blog_posts()["javno"].get("mail_date")
+    retried = notify(publication)
+    assert retried.json["state"] == "uncertain"
+    assert retried.json["status_url"] == queued.json["status_url"]
+    publication.run()
+    publication.utilities.send_mail.assert_called_once()
+
+
+def test_interrupted_smtp_is_not_repeated(publication):
+    import smtplib
+
+    publication.utilities.load_blog_subscribers.return_value = [
+        "reader@example.com"
+    ]
+    publication.utilities.send_mail.side_effect = (
+        smtplib.SMTPServerDisconnected("connection lost")
+    )
+    queued = notify(publication)
+    publication.run()
+    assert publication.client.get(queued.json["status_url"]).json == {
+        "state": "uncertain"
+    }
+    publication.run()
+    publication.utilities.send_mail.assert_called_once()

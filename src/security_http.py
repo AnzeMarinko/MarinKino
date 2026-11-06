@@ -1,14 +1,10 @@
 """Bound resource use and enforce common HTTP security controls."""
 
-import hashlib
 import ipaddress
-import json
 import logging
 import os
 import secrets
-from concurrent.futures import ThreadPoolExecutor
 from datetime import date
-from threading import BoundedSemaphore
 from urllib.parse import urlsplit
 
 from flask import abort, g, request
@@ -17,8 +13,6 @@ from redis.exceptions import RedisError
 
 log = logging.getLogger(__name__)
 STATS_TTL = 90 * 86400
-_geo_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="geo")
-_geo_slots = BoundedSemaphore(4)
 
 
 def client_ip():
@@ -109,7 +103,7 @@ def init_security(app, limiter):
         "memes.meme": "60 per minute",
         "blog.blog_subscribe": "10 per minute",
         "blog.blog_confirm_subscription": "20 per minute",
-        "movies.download_movie": "3 per hour",
+        "movies.prepare_download": "3 per hour",
         "movies.add_comment": "5 per minute; 30 per day",
         "auth.change_password": "5 per minute",
         "auth.reset_password": "10 per minute",
@@ -127,23 +121,19 @@ def add_headers(response, production=False):
         "Referrer-Policy": "same-origin",
         "Permissions-Policy": "camera=(), microphone=(), geolocation=(self)",
         "Content-Security-Policy": (
-            "base-uri 'self'; object-src 'none'; frame-ancestors 'self'; "
-            "form-action 'self'"
+            "default-src 'self'; base-uri 'self'; object-src 'none'; "
+            "frame-ancestors 'self'; form-action 'self'; "
+            f"script-src 'self' 'nonce-{getattr(g, 'csp_nonce', '')}' "
+            "https://challenges.cloudflare.com; script-src-attr 'none'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: blob: https:; "
+            "font-src 'self' data:; connect-src 'self' "
+            "https://challenges.cloudflare.com; "
+            "frame-src https://challenges.cloudflare.com; "
+            "worker-src 'self' blob:; media-src 'self' blob:"
         ),
     }.items():
         response.headers.setdefault(name, value)
-    # Report-only while legacy inline event handlers are migrated. The enforced
-    # policy above already blocks base-tag, plugin and cross-origin form abuse.
-    response.headers.setdefault(
-        "Content-Security-Policy-Report-Only",
-        "default-src 'self'; "
-        f"script-src 'self' 'nonce-{getattr(g, 'csp_nonce', '')}' "
-        "https://challenges.cloudflare.com; "
-        "style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; "
-        "font-src 'self' data:; connect-src 'self' "
-        "https://challenges.cloudflare.com; "
-        "frame-src https://challenges.cloudflare.com; media-src 'self' blob:",
-    )
     if production:
         response.headers.setdefault(
             "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
@@ -153,20 +143,8 @@ def add_headers(response, production=False):
     return response
 
 
-def _save_geo(redis, ip, today, locate):
-    try:
-        location = locate(ip)
-        if location.get("country") != "Unknown":
-            redis.hset(f"stats:geo:{today}", ip, json.dumps(location))
-            redis.expire(f"stats:geo:{today}", 14 * 86400)
-    except Exception:
-        log.warning("Geolocation unavailable")
-    finally:
-        _geo_slots.release()
-
-
-def record_response(response, redis, locate=None):
-    """Aggregate route patterns, expire every key and never delay responses."""
+def record_response(response, redis):
+    """Keep bounded route counters without visitor IPs or geolocation."""
     if request.endpoint in {"static", "healthz", "csrf_token"}:
         return response
     if (
@@ -179,18 +157,7 @@ def record_response(response, redis, locate=None):
     today = date.today().isoformat()
     month = today[:7]
 
-    def _route_hidden():
-        for r in [
-            "<token>",
-            "<password>",
-            "<entry_id>",
-            "<session_token>",
-        ]:
-            if request.url_rule and r in request.url_rule.rule:
-                return request.url_rule.rule
-        return request.path
-
-    route = _route_hidden()
+    route = request.url_rule.rule if request.url_rule else "<unmatched>"
     user_id = current_user.id if current_user.is_authenticated else "anonymus"
     method = (
         request.method
@@ -229,29 +196,6 @@ def record_response(response, redis, locate=None):
             pipe.hincrby(key, source, 1)
             pipe.expire(key, STATS_TTL)
         pipe.execute()
-        if (
-            locate
-            and request.endpoint == "blog.blog_post"
-            and response.status_code == 200
-            and request.method == "GET"
-            and not (current_user.is_authenticated and current_user.is_admin)
-        ):
-            ip = client_ip()
-            if ip != "unknown" and _geo_slots.acquire(blocking=False):
-                digest = hashlib.sha256(ip.encode()).hexdigest()
-                try:
-                    if redis.set(
-                        f"stats:geo:seen:{today}:{digest}",
-                        "1",
-                        nx=True,
-                        ex=86400,
-                    ):
-                        _geo_pool.submit(_save_geo, redis, ip, today, locate)
-                    else:
-                        _geo_slots.release()
-                except Exception:
-                    _geo_slots.release()
-                    raise
     except (RedisError, ValueError):
         # Statistics are optional. Redis authentication still fails closed.
         pass
