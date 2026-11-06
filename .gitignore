@@ -64,3 +64,4 @@ data/fitness*.sqlite3
 
 configuration/.vendor-assets.lock
 data/.*.lock
+.readme.json.lock

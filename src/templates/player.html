@@ -236,7 +236,6 @@
     </div>
     {% endif %}
 
-
 {% if video_file_m3u8 %}
     <!-- Izbira jezika za HLS (m3u8) - privzeto skrita z display: none -->
     <div id="hlsAudioContainer" style="display: none; margin-bottom: 12px; background: #2b3035; padding: 10px; border-radius: 6px; border: 1px solid #4f5358;">
@@ -440,8 +439,8 @@
                 controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'captions', 'settings', 'fullscreen', 'download'],
                 urls: { download: '/movies/download/{{ group_folder }}/{{ folder }}' },
                 keyboard: {
-                    focused: true,  // Bližnjice delujejo, ko je predvajalnik fokusiran
-                    global: false    // Bližnjice (kot je Space) delujejo globalno na strani
+                    focused: true,
+                    global: false
                 }
             }) : video;
 
@@ -543,6 +542,49 @@
     }
     </script>
 {% endif %}
+
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}">
+document.addEventListener('keydown', event => {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+
+    const target = event.target;
+    if (target instanceof Element && target.closest(
+        'input:not([type="range"]), textarea, select, [contenteditable="true"]'
+    )) return;
+
+    const fullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+    const video = fullscreen?.matches('video')
+        ? fullscreen
+        : fullscreen?.querySelector('video')
+            || document.querySelector('#hlsVideoPlayer, #collectionPlayerContainer video, #videoPlayer');
+    if (!video || !(video.currentSrc || video.src)) return;
+
+    if (
+        target instanceof Element &&
+        target.closest('button, a') &&
+        !target.closest('.plyr')
+    ) return;
+
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        if (!Number.isFinite(video.duration) || video.duration <= 0) return;
+        event.preventDefault();
+        event.stopPropagation();
+        video.currentTime = Math.max(
+            0,
+            Math.min(video.duration, video.currentTime + (event.key === 'ArrowRight' ? 10 : -10))
+        );
+    } else if (event.key === ' ' || event.key === 'Spacebar') {
+        if (event.repeat) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (video.paused) {
+            video.play()?.catch(error => console.error(
+                'Predvajanje videa ni uspelo:', error
+            ));
+        } else video.pause();
+    }
+}, true);
+</script>
 
     <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}">
     document.addEventListener('DOMContentLoaded', () => {

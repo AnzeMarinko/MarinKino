@@ -2586,6 +2586,30 @@ audio.addEventListener('error', () => {
     updatePlayBtn('false');
     setPlaybackStatus('Vsebine ni mogoče predvajati. Poskusi znova ali izberi drugo.', true);
 });
+document.addEventListener('keydown', event => {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+
+    const target = event.target;
+    if (target instanceof Element && target.closest(
+        'input:not([type="range"]), textarea, select, [contenteditable="true"]'
+    )) return;
+    if (
+        target instanceof Element &&
+        target.closest('button, a') &&
+        !target.closest('#player')
+    ) return;
+
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        const { duration, position } = getPlaybackPosition();
+        if (!Number.isFinite(duration) || duration <= 0) return;
+        event.preventDefault();
+        seekWithinCurrentTrack(position + (event.key === 'ArrowRight' ? 10 : -10));
+    } else if (event.key === ' ' || event.key === 'Spacebar') {
+        if (event.repeat || !audio.getAttribute('src')) return;
+        event.preventDefault();
+        togglePlay();
+    }
+}, true);
 if (!currentSongs.length) {
     renderCurrentAlbumTracks();
     setPlaybackStatus('Izberi album z vsebinami');

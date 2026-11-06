@@ -115,8 +115,11 @@ def find_user_by_email(email, users_dict):
     if not email:
         return None
     for username, data in users_dict.items():
-        for aux_email in data.get("emails", []):
-            if aux_email.lower() == email.lower():
+        for aux_email in data.get("emails") or []:
+            if (
+                isinstance(aux_email, str)
+                and aux_email.lower() == email.lower()
+            ):
                 return username
     return None
 

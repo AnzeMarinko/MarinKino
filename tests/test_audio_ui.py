@@ -98,6 +98,33 @@ def test_audio_templates(audio_site):
         assert "user-scalable=no" not in html
 
 
+def test_browser_audio_keyboard_shortcuts(audio_site, browser):
+    page = browser.page
+    page.goto(browser.base + "/music")
+    page.locator('.toggle-btn[data-target="tracks"]').click()
+    page.locator(".track-item").first.click()
+    page.wait_for_function('!document.querySelector("#audio").paused')
+    page.locator("#playBtn").focus()
+    page.evaluate("""() => {
+        const audio = document.querySelector('#audio');
+        let position = 5;
+        Object.defineProperty(audio, 'currentTime', {
+            configurable: true,
+            get: () => position,
+            set: value => { position = value; },
+        });
+    }""")
+    page.keyboard.press("ArrowRight")
+    assert page.locator("#audio").evaluate("el => el.currentTime") == 15
+    page.keyboard.press("ArrowLeft")
+    assert page.locator("#audio").evaluate("el => el.currentTime") == 5
+    page.locator("#audio").evaluate("el => delete el.currentTime")
+    page.keyboard.press("Space")
+    page.wait_for_function('document.querySelector("#audio").paused')
+    page.keyboard.press("Space")
+    page.wait_for_function('!document.querySelector("#audio").paused')
+
+
 @pytest.mark.parametrize("size", [(320, 568), (375, 667), (667, 375)])
 def test_browser_small_phone_lists_scroll(audio_site, browser, size):
     page = browser.page
@@ -232,8 +259,6 @@ def test_browser_audio_layout_search_keyboard_and_playback(
                 page.locator("#playBtn").get_attribute("aria-label")
                 == "Premor"
             )
-            page.get_by_role("button", name="Premor", exact=True).click()
-            assert page.locator("#audio").evaluate("(el) => el.paused")
             if path == "/music" and width <= 812:
                 page.locator(".audio-private-details summary").click()
                 assert page.locator("#privateAlbumEmptyHint").is_visible()

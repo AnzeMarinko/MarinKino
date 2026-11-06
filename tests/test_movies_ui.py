@@ -232,6 +232,40 @@ def test_browser_movie_responsive_player(films, browser):
     # Fixture asserts that no JavaScript errors were emitted.
 
 
+def test_browser_movie_keyboard_shortcuts_in_fullscreen(films, browser):
+    page = browser.page
+    page.goto(browser.base + "/movies/play/test/one")
+    page.evaluate("""() => {
+        const video = document.querySelector('#videoPlayer');
+        let currentTime = 20;
+        let paused = true;
+        Object.defineProperty(video, 'duration', {configurable: true, value: 100});
+        Object.defineProperty(video, 'currentTime', {
+            configurable: true,
+            get: () => currentTime,
+            set: value => { currentTime = value; },
+        });
+        Object.defineProperty(video, 'paused', {
+            configurable: true,
+            get: () => paused,
+        });
+        video.play = () => { paused = false; return Promise.resolve(); };
+        video.pause = () => { paused = true; };
+        Object.defineProperty(document, 'fullscreenElement', {
+            configurable: true,
+            get: () => document.querySelector('.plyr'),
+        });
+    }""")
+    page.keyboard.press("ArrowRight")
+    assert page.locator("#videoPlayer").evaluate("el => el.currentTime") == 30
+    page.keyboard.press("ArrowLeft")
+    assert page.locator("#videoPlayer").evaluate("el => el.currentTime") == 20
+    page.keyboard.press("Space")
+    assert page.locator("#videoPlayer").evaluate("el => !el.paused")
+    page.keyboard.press("Space")
+    assert page.locator("#videoPlayer").evaluate("el => el.paused")
+
+
 def test_browser_movie_comment_and_rating(films, browser):
     ui, _ = films
     page = browser.page
