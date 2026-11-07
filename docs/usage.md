@@ -28,8 +28,8 @@ ali potrdi gumb; povezava »Preskoči na vsebino« preskoči navigacijo.
 
 | Stran | Običajen potek |
 | --- | --- |
-| Filmi | Poišči ali filtriraj zbirko, odpri film in nadaljuj ogled. Če ni zadetkov, počisti filtre. |
-| Prenos filma | Zahtevaj pripravo arhiva in počakaj na stanje. Osvežitev ohrani povezavo do opravila; prenos je na voljo po uspešni pripravi. |
+| Filmi | Poišči ali filtriraj zbirko, odpri film in nadaljuj ogled. Pri zbirki izberi epizodo; napredek se hrani za vsako posebej. Če ni zadetkov, počisti filtre. |
+| Prenos filma | Zahtevaj pripravo arhiva in počakaj na stanje. Osvežitev ohrani povezavo do opravila; prenos je na voljo po uspešni pripravi. ZIP zbirke vsebuje vse epizode kot MP4; celoten arhiv je omejen na 4 GB. |
 | Glasba in otroški radio | Izberi kategorijo, poišči naslov in zaženi predvajanje. Kontrole ostanejo ob predvajalniku, pomoč pojasni tipke. |
 | Šale in navdih | Uporabi prejšnjo/naslednjo vsebino ali celozaslonski prikaz. Skrbniška dejanja so ločena od običajnega ogleda. |
 | Vreme | Izberi kraj ali dovoli trenutno lokacijo. Če lokacije ne dovoliš, uporabi ročni izbor. |

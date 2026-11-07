@@ -42,6 +42,8 @@ def check_folder(root):
             for file in folder.iterdir()
             if file.is_file()
             and not file.is_symlink()
+            and not file.name.startswith(".")
+            and not file.name.endswith((".tmp.mp4", ".temp_conv.mp4"))
             and file.suffix.lower() in {".avi", ".mp4", ".mkv", ".vob"}
         )
         streams = sorted(
@@ -51,6 +53,10 @@ def check_folder(root):
                 if file.is_file()
                 and not file.is_symlink()
                 and file.resolve().is_relative_to(folder.resolve())
+                and not any(
+                    part.startswith(".")
+                    for part in file.relative_to(folder).parts
+                )
             }
         )
         subtitles = sorted(

@@ -30,6 +30,7 @@ from background_jobs import QueueFull
 from mail_jobs import queue_mail
 from movie_catalog import FILMS_ROOT, check_folder
 from movie_downloads import archive_payload, archive_response, ready_archive
+from movie_media import movie_sources
 from security_storage import atomic_write_json, serialized_json
 from utils import (
     FLASK_ENV,
@@ -144,7 +145,9 @@ def add_watch_info(movie, user_data):
     movie["watch_info"] = {}
     total_play_time = 0
     total_duration = 0
-    for video_file in movie["video_files"] + movie["video_files_m3u8"]:
+    sources = movie_sources(movie)
+    for source in sources:
+        video_file = source["id"]
         file_path = (
             os.path.join(movie["folder"][1:], video_file)
             .replace(".mp4", "")
@@ -160,7 +163,7 @@ def add_watch_info(movie, user_data):
                     video_file.replace(".mp4", "")
                     .replace("_Slo", "")
                     .replace("_Eng", ""),
-                    0,
+                    movie["runtimes_by_files"].get(source["title"], 0),
                 )
             )
             * 60,
@@ -168,7 +171,9 @@ def add_watch_info(movie, user_data):
         watch_ratio = (
             round(last_play_time / duration * 100) if duration > 0 else 0
         )
-        if watch_ratio > 90 or abs(duration - last_play_time) < 30:
+        if duration > 0 and (
+            watch_ratio > 90 or abs(duration - last_play_time) < 30
+        ):
             watch_ratio = 100
             last_play_time = 0
         total_play_time += watch_ratio * duration / 100
@@ -177,7 +182,11 @@ def add_watch_info(movie, user_data):
             "last_play_time": last_play_time,
             "watch_ratio": watch_ratio,
         }
-        movie["last_play_time"] = last_play_time
+    movie["last_play_time"] = (
+        movie["watch_info"][sources[0]["id"]]["last_play_time"]
+        if sources
+        else 0
+    )
     movie["watch_ratio"] = (
         int(total_play_time / total_duration * 100)
         if total_duration > 0
@@ -440,34 +449,48 @@ def play_movie(movies_subfolder, movie_folder):
         return "", 404
 
     film = add_watch_info(film_candidate, user_data)
-    video_files = film["video_files"]
-    video_files_m3u8 = film["video_files_m3u8"]
+    sources = movie_sources(film)
     subtitles = film["subtitles"]
     subtitle_buttons = film["subtitle_buttons"]
     ratings = film["ratings"]
 
-    if len(video_files + video_files_m3u8) > 0:
+    if sources:
         slosubs_file = None
         for subs in subtitles:
             if "slo" in subs.lower() or "si" in subs.lower():
                 slosubs_file = subs
         film["ratings_summary"] = _compute_ratings_summary(ratings)
 
-        video_file_m3u8 = None
-        if len(video_files_m3u8) == 1:
-            video_file_m3u8 = os.path.join(video_files_m3u8[0], "master.m3u8")
+        is_collection = len(sources) > 1
+        first = sources[0]
+        video_file_m3u8 = (
+            first["path"] if first["is_hls"] and not is_collection else None
+        )
+        for source in sources:
+            source["url"] = url_for(
+                ".movie_file",
+                filename=(
+                    f"{movies_subfolder}/{movie_folder}/{source['path']}"
+                ),
+            )
+            source["progress_url"] = url_for(
+                ".movie_file",
+                filename=f"{movies_subfolder}/{movie_folder}/{source['id']}",
+            )
 
         return render_template(
             "player.html",
             pagetitle=film["title"] + film["year"],
-            is_collection=len(video_files) > 1,
+            is_collection=is_collection,
             movie=film,
             known_genres=known_genres,
             group_folder=movies_subfolder,
             folder=movie_folder,
-            video_file=None if video_file_m3u8 else video_files[0],
+            video_file=first["id"],
             video_file_m3u8=video_file_m3u8,
-            video_files=video_files,
+            video_files=[source["id"] for source in sources],
+            video_sources=sources,
+            progress_source_url=first["progress_url"],
             subtitles=subtitles,
             slosubs_file=slosubs_file,
             subtitle_buttons=subtitle_buttons,
@@ -948,11 +971,10 @@ def movie_file(filename):
                 start = int(match.group(1))
                 if start == 0:
                     try:
-                        aux_filename = "/".join(
-                            filename.replace(".mp4", "")
-                            .replace("_Slo", "")
-                            .replace("_Eng", "")
-                            .split("/")[:3]
+                        aux_filename = _progress_key(
+                            str(Path(filename).parent)
+                            if filename.endswith(".ts")
+                            else filename
                         )
                         user_key = f"prog:{current_user.id}"
                         data = redis_client.hget(user_key, aux_filename)
@@ -985,21 +1007,20 @@ def movie_file(filename):
 
 
 def _progress_key(filename):
-    return "/".join(
-        unquote(filename)
-        .split("/movies/file/")[-1]
+    return (
+        unquote(filename.split("/movies/file/")[-1])
+        .removesuffix("/master.m3u8")
         .replace(".mp4", "")
         .replace("_Slo", "")
         .replace("_Eng", "")
-        .split("/")[:3]
     )
 
 
 def _valid_progress_keys():
     return {
-        _progress_key(os.path.join(film["folder"].lstrip("/"), video))
+        _progress_key(os.path.join(film["folder"].lstrip("/"), source["id"]))
         for film in all_films.values()
-        for video in film["video_files"] + film["video_files_m3u8"]
+        for source in movie_sources(film)
     }
 
 
@@ -1061,22 +1082,23 @@ def video_progress_change():
 
     user_key = f"prog:{current_user.id}"
 
-    for video_file in (
-        selected_movie["video_files"] + selected_movie["video_files_m3u8"]
-    ):
-        filename = "/".join(
-            os.path.join(selected_movie["folder"][1:], video_file)
-            .replace(".mp4", "")
-            .replace("_Slo", "")
-            .replace("_Eng", "")
-            .split("/")[:3]
+    for source in movie_sources(selected_movie):
+        filename = _progress_key(
+            os.path.join(selected_movie["folder"].lstrip("/"), source["id"])
         )
         user_data = redis_client.hget(user_key, filename)
         user_data = json.loads(user_data) if user_data else {}
 
         if "duration" not in user_data.keys():
             duration = (
-                selected_movie["runtimes_by_files"][filename.split("/")[-1]]
+                float(
+                    selected_movie["runtimes_by_files"].get(
+                        source["id"].removesuffix(".mp4"),
+                        selected_movie["runtimes_by_files"].get(
+                            source["title"], 0
+                        ),
+                    )
+                )
                 * 60
             )
             user_data["duration"] = duration

@@ -36,11 +36,13 @@
         {% endif %}<br>
         <hr>{% if is_collection %}
             <div>
-                {% for video_file in video_files %}
-                    <button class="video-btn" style="--watch: {{ movie.watch_info[video_file]['watch_ratio']|default(0) }}%;"
-                        data-runtime-min="{{ movie.runtimes_by_files[video_file|replace('.mp4', '')] }}" data-resume-seconds="{{ movie.watch_info[video_file]['last_play_time']|default(0) }}"
-                        data-play-video="/movies/file/{{ group_folder }}/{{ folder }}/{{ video_file }}" data-resume="{{ movie.watch_info[video_file]['last_play_time']|default(0) }}">
-                        {{ video_file|replace('.mp4', '') }} ({{ movie.runtimes_by_files[video_file|replace('.mp4', '')] }} min)
+                {% for source in video_sources %}
+                    {% set watch = movie.watch_info.get(source.id, {}) %}
+                    {% set runtime = movie.runtimes_by_files.get(source.title, 0) %}
+                    <button type="button" class="video-btn" style="--watch: {{ watch.get('watch_ratio', 0) }}%;" aria-pressed="false"
+                        data-runtime-min="{{ runtime }}" data-resume-seconds="{{ watch.get('last_play_time', 0) }}"
+                        data-play-video="{{ source.url }}" data-progress-source="{{ source.progress_url|default(source.url) }}" data-hls="{{ 'true' if source.is_hls else 'false' }}" data-resume="{{ watch.get('last_play_time', 0) }}">
+                        {{ source.title }}{% if runtime %} ({{ runtime }} min){% endif %}
                     </button>
                 {% endfor %}
                 </div><br>
@@ -246,7 +248,7 @@
     </div>
 
     <div class="plyr-container hls-player-block" style="margin-bottom: 20px;">
-        <video id="hlsVideoPlayer" controls playsinline preload="metadata" poster="/movies/file{{ movie.cover }}">
+        <video id="hlsVideoPlayer" data-progress-source="{{ progress_source_url|default('') }}" controls playsinline preload="metadata" poster="/movies/file{{ movie.cover }}">
             {% if slosubs_file %}
                 <track src="/movies/file/{{ group_folder }}/{{ folder }}/{{ slosubs_file }}" kind="subtitles" srclang="sl" label="{{ slosubs_file|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" default>
             {% endif %}
@@ -417,7 +419,7 @@
     </script>
 {% elif not is_collection %}
     <div class="plyr-container">
-        <video id="videoPlayer" controls playsinline preload="metadata" poster="/movies/file{{ movie.cover }}">
+        <video id="videoPlayer" data-progress-source="{{ progress_source_url|default('') }}" controls playsinline preload="metadata" poster="/movies/file{{ movie.cover }}">
             <source src="/movies/file/{{ group_folder }}/{{ folder }}/{{ video_file }}" type="video/mp4">
             {% if slosubs_file %}
                 <track src="/movies/file/{{ group_folder }}/{{ folder }}/{{ slosubs_file }}" kind="subtitles" srclang="sl" label="{{ slosubs_file|replace('subtitles-', '')|replace('.vtt', '')|replace('Subs', '') }}" default>
@@ -460,90 +462,20 @@
         Za začetek predvajanja najprej izberi epizodo oziroma datoteko videa.
     </div>
 
-    <div id="collectionPlayerContainer" class="plyr-container" style="display: none;">
-        <video id="videoPlayer" controls playsinline preload="metadata" poster="/movies/file{{ movie.cover }}">
-            <source src="" type="video/mp4">
+    <p id="collectionPlaybackStatus" role="status" aria-live="polite" hidden></p>
+    <div id="collectionAudio" hidden>
+        <label for="collectionAudioSelect">Jezik zvoka</label>
+        <select id="collectionAudioSelect"></select>
+    </div>
+    <div id="collectionPlayerContainer" class="plyr-container" style="display: none;"
+         data-plyr-icons="{{ url_for('static', filename='vendor/plyr.svg') }}"
+         data-blank-video="{{ url_for('static', filename='vendor/blank.mp4') }}"
+         data-download-url="/movies/download/{{ group_folder }}/{{ folder }}">
+        <video id="videoPlayer" data-progress-source="{{ progress_source_url|default('') }}" controls playsinline preload="metadata" poster="/movies/file{{ movie.cover }}">
             Tvoj brskalnik ne podpira videa.
         </video>
     </div>
-
-    <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}">
-    let globalPlayer = null;
-
-    function ensureCollectionPlayer() {
-        const playerContainer = document.getElementById('collectionPlayerContainer');
-        const chooseVideoNotice = document.getElementById('chooseVideoNotice');
-
-        if (chooseVideoNotice) {
-            chooseVideoNotice.style.display = 'none';
-        }
-        if (playerContainer) {
-            playerContainer.style.display = 'block';
-        }
-
-        if (!globalPlayer && window.Plyr) {
-            globalPlayer = new Plyr('#videoPlayer', { iconUrl: {{ url_for('static', filename='vendor/plyr.svg')|tojson }},
-                blankVideo: {{ url_for('static', filename='vendor/blank.mp4')|tojson }},
-                ratio: '16:9',
-                controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'volume', 'settings', 'fullscreen', 'download'],
-                urls: { download: '/movies/download/{{ group_folder }}/{{ folder }}' },
-                keyboard: {
-                    focused: true,
-                    global: false
-                }
-            });
-        }
-
-        return globalPlayer;
-    }
-
-    function playVideo(src, startTime = 0, button) {
-        // Označi izbran gumb
-        document.querySelectorAll('.video-btn').forEach(btn => btn.classList.remove('selected'));
-        button.classList.add('selected');
-
-        const player = ensureCollectionPlayer();
-
-        if (!player) {
-            const video = document.getElementById('videoPlayer');
-            video.src = src;
-            video.addEventListener('loadedmetadata', () => {
-                if (startTime > 0 && startTime < video.duration) video.currentTime = startTime;
-                video.play().catch(() => {});
-            }, {once: true});
-            video.load();
-        }
-        if (player) {
-            // Predvajalnik inicializiramo in napolnimo šele po izbiri datoteke
-            player.source = {
-                type: 'video',
-                poster: player.media.getAttribute('poster'),
-                sources: [{ src: src, type: 'video/mp4' }]
-            };
-
-            const video = player.media;
-            let restoredStartTime = false;
-            const setStartTime = () => {
-                if (restoredStartTime) return;
-                if (!Number.isFinite(video.duration) || video.duration <= 0) return;
-
-                restoredStartTime = true;
-                if (
-                    startTime > 0 &&
-                    startTime < video.duration
-                ) {
-                    player.currentTime = startTime;
-                }
-                player.play()?.catch(() => {});
-            };
-
-            video.addEventListener('loadedmetadata', setStartTime, { once: true });
-            if (video.readyState >= HTMLMediaElement.HAVE_METADATA) {
-                setStartTime();
-            }
-        }
-    }
-    </script>
+    <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" defer src="{{ url_for('static', filename='js/movie_collection.js') }}"></script>
 {% endif %}
 
 <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}">

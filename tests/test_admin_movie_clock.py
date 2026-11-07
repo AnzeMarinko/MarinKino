@@ -61,6 +61,16 @@ def film(ui):
             video_file="film.mp4",
             video_file_m3u8="master.m3u8" if mode == "hls" else None,
             video_files=files,
+            video_sources=[
+                dict(
+                    id=name,
+                    title=name.removesuffix(".mp4"),
+                    path=name,
+                    is_hls=False,
+                    url=f"/movies/file/test/clock/{name}",
+                )
+                for name in files
+            ],
             subtitles=[],
             subtitle_buttons=[],
             slosubs_file=None,

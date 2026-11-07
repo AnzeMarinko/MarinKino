@@ -13,6 +13,8 @@ from test_admin_memes_ui import (
     ui as ui_fixture,
 )
 
+from movie_media import movie_sources
+
 ui = ui_fixture
 browser = browser_fixture
 
@@ -75,12 +77,24 @@ def films(ui):
 
     @ui.app.route("/movies/play/test/one")
     def player():
-        collection = request.args.get("mode") == "collection"
+        mode = request.args.get("mode")
+        collection = mode in {"collection", "hls-collection", "mixed"}
         files = ["film.mp4", "second.mp4"] if collection else ["film.mp4"]
+        streams = []
+        if mode == "hls-collection":
+            files, streams = [], ["film", "second"]
+        elif mode == "mixed":
+            files, streams = ["film.mp4", "second.mp4"], ["film"]
+        sources = movie_sources(
+            {"video_files": files, "video_files_m3u8": streams}
+        )
+        for source in sources:
+            source["url"] = "/movies/file/test/one/" + source["path"]
         data = dict(
             movie,
             watch_info={
-                name: dict(watch_ratio=35, last_play_time=0) for name in files
+                source["id"]: dict(watch_ratio=35, last_play_time=0)
+                for source in sources
             },
             runtimes_by_files={"film": 90, "second": 45},
         )
@@ -96,6 +110,7 @@ def films(ui):
             if request.args.get("mode") == "hls"
             else None,
             video_files=files,
+            video_sources=sources,
             subtitles=[],
             subtitle_buttons=[],
             slosubs_file=None,

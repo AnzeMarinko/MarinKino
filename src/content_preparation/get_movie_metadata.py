@@ -12,6 +12,8 @@ from google.cloud import translate_v2 as translate
 from langdetect import detect
 from PIL import Image
 
+from movie_media import movie_sources
+
 log = logging.getLogger(__name__)
 
 os.environ.setdefault(
@@ -320,8 +322,11 @@ def _build_runtimes_by_files(folder, video_files, hls_dirs):
     """Združi surove video datoteke in že pretvorjene HLS mape v en
     seznam doložin. HLS vnosi so ključeni po imenu HLS mape
     (surova mp4 datoteka takrat že ne obstaja več)."""
-    entries = [(f, f) for f in video_files] + [
-        (os.path.join(d, "master.m3u8"), d) for d in (hls_dirs or [])
+    entries = [
+        (source["path"], source["id"])
+        for source in movie_sources(
+            {"video_files": video_files, "video_files_m3u8": hls_dirs or []}
+        )
     ]
     if not entries:
         return {}, []
@@ -585,13 +590,20 @@ class MovieMetadata:
             [
                 f.name
                 for f in folder_contents
-                if f.is_file() and f.suffix.lower() in self.SUPPORTED_VIDEO
+                if f.is_file()
+                and not f.name.startswith(".")
+                and not f.name.endswith((".tmp.mp4", ".temp_conv.mp4"))
+                and f.suffix.lower() in self.SUPPORTED_VIDEO
             ]
         )
         self.video_files_m3u8 = sorted(
             [
                 str(f.relative_to(self.path).parent)
-                for f in self.path.rglob("*master.m3u8")
+                for f in self.path.rglob("master.m3u8")
+                if not any(
+                    part.startswith(".")
+                    for part in f.relative_to(self.path).parts
+                )
             ]
         )
 

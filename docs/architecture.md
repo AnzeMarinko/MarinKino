@@ -29,6 +29,7 @@ z neposrednim Nginx `alias` na celotno `data/`.
 | --- | --- |
 | `blueprints/blog_bp.py`, `blog_content.py`, `blog_images.py` | Objave, naročnine, očiščen Markdown, različice slik |
 | `blueprints/auth_bp.py`, `device_sessions.py` | Gesla, povabila, seje in omejitve naprav |
+| `movie_media.py` | Enoten izbor epizod za predvajanje, prenose in metapodatke; HLS ima prednost pred istoimenskim MP4 |
 | `blueprints/movies_bp.py`, `music_bp.py` | Katalogi, predvajanje, napredek in prenosi |
 | `blueprints/admin_bp.py`, `fitness_bp.py` | Skrbniški vmesniki in zasebni podatki |
 | `security_http.py` | Varnostne glave, omejitve zahtev, statistični števci |

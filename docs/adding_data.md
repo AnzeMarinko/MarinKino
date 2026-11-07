@@ -41,6 +41,22 @@ Orodja FFmpeg/FFprobe in Shaka Packager niso Python paketi; namesti različice z
 
 Brez možnosti (`uv run --extra preparation python src/prepare_content.py`) ostane interaktivni postopek za glasbo/otroški radio in nato vse nove filme. `--kind movies` preskoči vprašanje za glasbo. `Ctrl+C` prekine postopek; pri ponovitvi preveri izpis in mapo. Napake se izpišejo, obdelava drugih filmov nadaljuje, končna izhodna koda je `1`, če je bila zaznana napaka.
 
+### Zbirke in epizode
+
+Pri načinu »Zbirka« vsaka epizoda dobi svoj HLS, npr.
+`Zbirka.Collection/01 Prvi/master.m3u8` in
+`Zbirka.Collection/02 Drugi/master.m3u8`. Pred pretvarjanjem zbirk posodobi
+tudi spletno aplikacijo na različico s podporo več HLS virom.
+
+Predvajalnik ponudi izbor epizode in za vsako ohrani napredek ogleda. Med
+postopno pretvorbo podpira tudi mešanico MP4 in HLS; če sta prisotni obe
+obliki iste epizode, jo prikaže enkrat in uporabi HLS.
+
+»Prenesi« pripravi ZIP z vsemi epizodami kot ločenimi MP4. HLS se zaporedno
+pretvori nazaj v MP4 s kopiranjem tokov, brez ponovnega kodiranja. Omejitev
+prenosa 4 GB velja za celotno zbirko; večji prenos se zavrne. Za predvajanje
+posameznih epizod ta omejitev arhiva ne velja.
+
 ## Glasba in otroški radio
 
 Priporočena struktura za uvoz glasbe:

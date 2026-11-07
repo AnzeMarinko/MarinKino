@@ -100,7 +100,13 @@ def _needs_translation(folder):
 
 
 def _has_existing_hls(folder):
-    return bool(next(Path(folder).rglob("*master.m3u8"), None))
+    folder = Path(folder)
+    return any(
+        not any(
+            part.startswith(".") for part in file.relative_to(folder).parts
+        )
+        for file in folder.rglob("master.m3u8")
+    )
 
 
 def step_convert_videos(folder):

@@ -14,10 +14,12 @@ from urllib.parse import quote
 
 from flask import make_response, send_file
 
+from movie_media import movie_sources
 from security_storage import locked_path, safe_resolved_path
 
 MAX_ARCHIVE_BYTES = 4 * 1024**3
 CACHE_LIMIT_BYTES = 8 * 1024**3
+ARCHIVE_PREPARATION_SECONDS = 1800
 _preparation = BoundedSemaphore(1)
 
 
@@ -31,7 +33,7 @@ class ArchivePreparationError(Exception):
 
 def ready_archive(root, group, folder):
     directory = safe_resolved_path(root, f"{group}/{folder}")
-    digest = hashlib.sha256(str(directory).encode()).hexdigest()
+    digest = hashlib.sha256(f"collection-v2:{directory}".encode()).hexdigest()
     target = Path("cache/downloads").resolve() / (digest + ".zip")
     try:
         if time.time() - target.stat().st_mtime <= 3600 and target.is_file():
@@ -39,6 +41,84 @@ def ready_archive(root, group, folder):
     except FileNotFoundError:
         pass
     return None
+
+
+def _archive_sources(film, directory):
+    """Resolve each selected episode once and account for the entire input."""
+    media = []
+    paths = []
+    for name in film["subtitles"]:
+        path = Path(safe_resolved_path(directory, name))
+        if path.is_file():
+            paths.append((path, path.name))
+    cover = directory / "cover_image.jpg"
+    if cover.is_file() and not cover.is_symlink():
+        paths.append((cover, "cover_image.jpg"))
+    input_paths = {path for path, _ in paths}
+    for source in movie_sources(film):
+        path = Path(safe_resolved_path(directory, source["path"]))
+        if not path.is_file():
+            raise ArchivePreparationError(
+                503,
+                "Del zbirke ni na voljo. Osveži knjižnico in poskusi znova.",
+            )
+        media.append((source, path))
+        if source["is_hls"]:
+            stream_dir = path.parent
+            input_paths.update(
+                file
+                for file in stream_dir.rglob("*")
+                if file.is_file()
+                and not file.is_symlink()
+                and file.resolve().is_relative_to(directory)
+                and not any(
+                    part.startswith(".")
+                    for part in file.relative_to(stream_dir).parts
+                )
+            )
+        else:
+            input_paths.add(path)
+    if not media:
+        raise ArchivePreparationError(404, "Ni videov za prenos.")
+    return media, paths, sum(path.stat().st_size for path in input_paths)
+
+
+def _remux_episode(playlist, converted, timeout):
+    """Copy encoded streams locally; bound the whole collection's duration."""
+    try:
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-nostdin",
+                "-v",
+                "error",
+                "-threads",
+                "1",
+                "-protocol_whitelist",
+                "file,crypto,data",
+                "-i",
+                str(playlist),
+                "-map",
+                "0:v?",
+                "-map",
+                "0:a?",
+                "-c",
+                "copy",
+                "-threads",
+                "1",
+                "-movflags",
+                "+faststart",
+                str(converted),
+            ],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=timeout,
+        )
+    except (subprocess.SubprocessError, OSError) as error:
+        raise ArchivePreparationError(
+            503, "Dela zbirke trenutno ni mogoče pripraviti za prenos."
+        ) from error
 
 
 def prepare_archive(film, root, group, folder):
@@ -51,7 +131,9 @@ def prepare_archive(film, root, group, folder):
         cache = Path("cache/downloads").resolve()
         cache.mkdir(parents=True, exist_ok=True)
         cache.chmod(0o755)
-        digest = hashlib.sha256(str(directory).encode()).hexdigest()
+        digest = hashlib.sha256(
+            f"collection-v2:{directory}".encode()
+        ).hexdigest()
         target = cache / (digest + ".zip")
         with locked_path(cache / ".preparation"):
             now = time.time()
@@ -67,24 +149,7 @@ def prepare_archive(film, root, group, folder):
                     total -= old.stat().st_size
                     old.unlink(missing_ok=True)
             if not target.is_file():
-                paths = []
-                for name in film["video_files"] + film["subtitles"]:
-                    path = Path(safe_resolved_path(directory, name))
-                    if path.is_file():
-                        paths.append((path, path.name))
-                hls = (
-                    film["video_files_m3u8"] if not film["video_files"] else []
-                )
-                source_size = sum(path.stat().st_size for path, _ in paths)
-                if hls:
-                    stream_dir = Path(safe_resolved_path(directory, hls[0]))
-                    source_size += sum(
-                        path.stat().st_size
-                        for path in stream_dir.rglob("*")
-                        if path.is_file()
-                        and not path.is_symlink()
-                        and path.resolve().is_relative_to(stream_dir.resolve())
-                    )
+                media, paths, source_size = _archive_sources(film, directory)
                 if source_size > MAX_ARCHIVE_BYTES:
                     raise ArchivePreparationError(
                         413, "Film presega največjo velikost prenosa (4 GB)."
@@ -100,52 +165,33 @@ def prepare_archive(film, root, group, folder):
                     prefix="build-", dir=cache
                 ) as build:
                     build = Path(build)
-                    if hls:
-                        playlist = safe_resolved_path(
-                            directory, f"{hls[0]}/master.m3u8"
-                        )
-                        converted = build / "film.mp4"
-                        try:
-                            subprocess.run(
-                                [
-                                    "ffmpeg",
-                                    "-nostdin",
-                                    "-v",
-                                    "error",
-                                    "-protocol_whitelist",
-                                    "file,crypto,data",
-                                    "-i",
-                                    playlist,
-                                    "-map",
-                                    "0:v?",
-                                    "-map",
-                                    "0:a?",
-                                    "-c",
-                                    "copy",
-                                    "-movflags",
-                                    "+faststart",
-                                    str(converted),
-                                ],
-                                check=True,
-                                stdout=subprocess.DEVNULL,
-                                stderr=subprocess.DEVNULL,
-                                timeout=1800,
+                    deadline = time.monotonic() + ARCHIVE_PREPARATION_SECONDS
+                    output_size = sum(path.stat().st_size for path, _ in paths)
+                    for index, (source, source_path) in enumerate(media):
+                        if source["is_hls"]:
+                            remaining = deadline - time.monotonic()
+                            if remaining <= 0:
+                                raise ArchivePreparationError(
+                                    503,
+                                    "Priprava prenosa je trajala predolgo.",
+                                )
+                            converted = build / f"episode-{index}.mp4"
+                            _remux_episode(source_path, converted, remaining)
+                            name = (
+                                folder + ".mp4"
+                                if len(media) == 1
+                                else source["id"]
                             )
-                        except (subprocess.SubprocessError, OSError):
+                            paths.append((converted, name))
+                            output_size += converted.stat().st_size
+                        else:
+                            paths.append((source_path, source["id"]))
+                            output_size += source_path.stat().st_size
+                        if output_size > MAX_ARCHIVE_BYTES:
                             raise ArchivePreparationError(
-                                503,
-                                "Filma trenutno ni mogoče pripraviti "
-                                "za prenos.",
+                                413,
+                                "Zbirka presega omejitev prenosa (4 GB).",
                             )
-                        paths.append((converted, folder + ".mp4"))
-                    cover = directory / "cover_image.jpg"
-                    if cover.is_file() and not cover.is_symlink():
-                        paths.append((cover, "cover_image.jpg"))
-                    if (
-                        sum(path.stat().st_size for path, _ in paths)
-                        > MAX_ARCHIVE_BYTES
-                    ):
-                        raise ArchivePreparationError(413)
                     staged = build / "archive.zip"
                     with zipfile.ZipFile(
                         staged, "w", zipfile.ZIP_STORED
@@ -169,6 +215,10 @@ def prepare_archive(film, root, group, folder):
                         archive.writestr(
                             "metadata.json",
                             json.dumps(public, ensure_ascii=False),
+                        )
+                    if staged.stat().st_size > MAX_ARCHIVE_BYTES:
+                        raise ArchivePreparationError(
+                            413, "Arhiv presega omejitev prenosa (4 GB)."
                         )
                     staged.chmod(0o644)
                     os.replace(staged, target)

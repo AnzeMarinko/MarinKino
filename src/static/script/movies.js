@@ -242,10 +242,10 @@ document.addEventListener("DOMContentLoaded", function () {
     setInterval(() => {
         const currentVideo = document.getElementById("videoPlayer") || document.getElementById("hlsVideoPlayer") || document.querySelector(".plyr-container video, .plyr video");
         if (currentVideo && !currentVideo.paused && !currentVideo.ended) {
-            let currentFilename = currentVideo.currentSrc;
+            let currentFilename = currentVideo.dataset.progressSource || currentVideo.currentSrc;
             const isHlsPlayer = currentVideo.id === "hlsVideoPlayer" || currentFilename.endsWith('.ts') || currentFilename.includes('stream_');
 
-            if (isHlsPlayer) {
+            if (isHlsPlayer && !currentVideo.dataset.progressSource) {
                 currentFilename = window.hlsVideoSrc || currentFilename;
             }
 
