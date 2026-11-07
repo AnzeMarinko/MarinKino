@@ -1,7 +1,10 @@
 """Movie discovery and playback with isolated content and mocked mutations."""
 
+from io import BytesIO
+from zipfile import ZipFile
+
 import pytest
-from flask import Response, jsonify, render_template, request
+from flask import Response, jsonify, render_template, request, send_file
 from playwright.sync_api import expect
 from test_admin_memes_ui import (
     PNG,
@@ -160,6 +163,92 @@ def test_movie_templates_render(films):
         response = ui.app.test_client().get(path)
         assert response.status_code == 200
         assert b"movies_ui.css" in response.data
+
+
+@pytest.mark.parametrize(
+    "mode", ["single", "hls", "collection", "hls-collection"]
+)
+@pytest.mark.parametrize("ready", [False, True], ids=["prepare", "cached"])
+def test_browser_player_download_opens_preparation_or_zip(
+    films,
+    browser,
+    mode,
+    ready,
+):
+    ui, _ = films
+    path = "/movies/download/test/one"
+    status_path = path + "/status/job-one"
+    state = {"ready": ready, "preparations": 0}
+    archive = BytesIO()
+    with ZipFile(archive, "w") as output:
+        output.writestr("film.mp4", b"prepared film")
+
+    ui.app.add_url_rule("/movies", "movies.index", lambda: "Films")
+
+    @ui.app.get(path)
+    def download_page():
+        if state["ready"]:
+            return send_file(
+                BytesIO(archive.getvalue()),
+                mimetype="application/zip",
+                as_attachment=True,
+                download_name="one.zip",
+            )
+        return render_template(
+            "movie_download.html",
+            movie=ui.movie,
+            job_state=None,
+            status_url="",
+            prepare_url=path + "/prepare",
+        )
+
+    @ui.app.post(path + "/prepare")
+    def prepare_download():
+        assert request.form["csrf_token"] == "test-csrf"
+        state["preparations"] += 1
+        state["ready"] = True
+        return jsonify(
+            state="pending",
+            page_url=path + "?job=job-one",
+            status_url=status_path,
+        ), 202
+
+    @ui.app.get(status_path)
+    def download_status():
+        return jsonify(state="done", download_url=path)
+
+    page = browser.page
+    downloads = []
+    page.on("download", lambda download: downloads.append(download))
+    page.goto(browser.base + "/movies/play/test/one?mode=" + mode)
+    if "collection" in mode:
+        page.locator(".video-btn").first.click()
+        page.locator(".video-btn").nth(1).click()
+    control = page.locator('.plyr__controls [data-plyr="download"]')
+    expect(control).to_be_visible()
+    expect(control).to_have_accessible_name("Prenos filma")
+    if ready:
+        with page.expect_download() as transfer:
+            control.click()
+        assert state["preparations"] == 0
+    else:
+        control.click()
+        page.wait_for_url(browser.base + path)
+        expect(
+            page.get_by_role("button", name="Pripravi prenos")
+        ).to_be_visible()
+        assert downloads == []
+        page.get_by_role("button", name="Pripravi prenos").click()
+        link = page.get_by_role("link", name="Prenesi film")
+        expect(link).to_be_visible(timeout=6000)
+        assert downloads == []
+        with page.expect_download() as transfer:
+            link.click()
+        assert state["preparations"] == 1
+    assert transfer.value.suggested_filename == "one.zip"
+    with ZipFile(transfer.value.path()) as result:
+        assert result.read("film.mp4") == b"prepared film"
+    assert len(downloads) == 1
 
 
 def test_browser_movie_catalog_filters_and_retry(films, browser):

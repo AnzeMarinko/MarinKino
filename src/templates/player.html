@@ -6,6 +6,17 @@
 <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="{{ url_for('static', filename='vendor/plyr.min.js') }}"></script>
 <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}" src="{{ url_for('static', filename='vendor/hls.min.js') }}"></script>
 
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}">
+    document.addEventListener('ready', event => {
+        const link = event.detail?.plyr?.elements.buttons.download;
+        if (!link) return;
+        // This URL can return a preparation page; only ZIP responses are attachments.
+        link.removeAttribute('download');
+        link.removeAttribute('target');
+        link.setAttribute('aria-label', 'Prenos filma');
+    });
+</script>
+
 <link rel="stylesheet" href="{{ url_for('static', filename='css/movies_ui.css') }}">
 <main class="container movie-view">
 <header class="movie-view-heading"><a href="/movies">← Nazaj na filme</a><h1>{{ movie.title }} <small>{{ movie.year }}</small></h1><p>{{ movie.original_title }}</p></header>

@@ -57,6 +57,10 @@ pretvori nazaj v MP4 s kopiranjem tokov, brez ponovnega kodiranja. Omejitev
 prenosa 4 GB velja za celotno zbirko; večji prenos se zavrne. Za predvajanje
 posameznih epizod ta omejitev arhiva ne velja.
 
+Ikona za prenos v predvajalniku odpre stran »Prenos filma«. Tam izberi
+»Pripravi prenos«, počakaj na pripravo in nato »Prenesi film«. Če je ZIP že
+pripravljen, se prenese neposredno.
+
 ## Glasba in otroški radio
 
 Priporočena struktura za uvoz glasbe:
