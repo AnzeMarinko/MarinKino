@@ -175,7 +175,9 @@ def archive(tmp_path, monkeypatch):
     directory = root / "group/film"
     directory.mkdir(parents=True)
     (directory / "film.mp4").write_bytes(b"video bytes")
-    (directory / "subtitles.vtt").write_text("WEBVTT\n")
+    (directory / "subtitles.vtt").write_text(
+        "WEBVTT\n\n00:00:01.000 --> 00:00:02.500\nPozdravljen svet.\n"
+    )
     (directory / "readme.json").write_text(SECRET_NOTE)
     film = {
         "title": "Film",
@@ -234,14 +236,28 @@ def test_archive_is_disk_backed_and_contains_only_public_metadata(archive):
     with zipfile.ZipFile(target) as downloaded:
         assert set(downloaded.namelist()) == {
             "film.mp4",
-            "subtitles.vtt",
+            "subtitles.srt",
             "metadata.json",
         }
+        assert downloaded.read("subtitles.srt").decode() == (
+            "00:00:01,000 --> 00:00:02,500\nPozdravljen svet.\n"
+        )
         metadata = downloaded.read("metadata.json")
         assert SECRET_NOTE.encode() not in metadata
         assert SECRET_EMAIL.encode() not in metadata
         assert json.loads(metadata)["title"] == "Film"
     assert not list(archive.cache.glob("build-*"))
+
+
+def test_previous_vtt_archive_cache_is_not_reused(archive):
+    archive.cache.mkdir(parents=True)
+    old_digest = hashlib.sha256(
+        f"collection-v2:{archive.directory.resolve()}".encode()
+    ).hexdigest()
+    (archive.cache / f"{old_digest}.zip").write_bytes(b"old VTT archive")
+    assert (
+        movie_downloads.ready_archive(archive.root, "group", "film") is None
+    )
 
 
 def test_oversized_source_and_insufficient_disk_fail_without_archive(

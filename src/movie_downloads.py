@@ -16,6 +16,7 @@ from flask import make_response, send_file
 
 from movie_media import movie_sources
 from security_storage import locked_path, safe_resolved_path
+from subtitle_formats import webvtt_to_srt
 
 MAX_ARCHIVE_BYTES = 4 * 1024**3
 CACHE_LIMIT_BYTES = 8 * 1024**3
@@ -33,7 +34,7 @@ class ArchivePreparationError(Exception):
 
 def ready_archive(root, group, folder):
     directory = safe_resolved_path(root, f"{group}/{folder}")
-    digest = hashlib.sha256(f"collection-v2:{directory}".encode()).hexdigest()
+    digest = hashlib.sha256(f"collection-v3:{directory}".encode()).hexdigest()
     target = Path("cache/downloads").resolve() / (digest + ".zip")
     try:
         if time.time() - target.stat().st_mtime <= 3600 and target.is_file():
@@ -132,7 +133,7 @@ def prepare_archive(film, root, group, folder):
         cache.mkdir(parents=True, exist_ok=True)
         cache.chmod(0o755)
         digest = hashlib.sha256(
-            f"collection-v2:{directory}".encode()
+            f"collection-v3:{directory}".encode()
         ).hexdigest()
         target = cache / (digest + ".zip")
         with locked_path(cache / ".preparation"):
@@ -166,6 +167,24 @@ def prepare_archive(film, root, group, folder):
                 ) as build:
                     build = Path(build)
                     deadline = time.monotonic() + ARCHIVE_PREPARATION_SECONDS
+                    for index, (path, name) in enumerate(paths):
+                        if path.suffix.lower() != ".vtt":
+                            continue
+                        converted = build / f"subtitle-{index}.srt"
+                        try:
+                            content = path.read_text(encoding="utf-8")
+                            converted.write_text(
+                                webvtt_to_srt(content), encoding="utf-8"
+                            )
+                        except (OSError, UnicodeError) as error:
+                            raise ArchivePreparationError(
+                                503,
+                                "Podnapisov ni mogoče pripraviti za prenos.",
+                            ) from error
+                        paths[index] = (
+                            converted,
+                            Path(name).with_suffix(".srt").name,
+                        )
                     output_size = sum(path.stat().st_size for path, _ in paths)
                     for index, (source, source_path) in enumerate(media):
                         if source["is_hls"]:

@@ -7,6 +7,9 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from security_storage import atomic_write_json
+from subtitle_formats import webvtt_to_srt
+
 from .media_tools import archive_original, ffmpeg_command
 
 log = logging.getLogger(__name__)
@@ -33,9 +36,7 @@ def vtt_to_srt(vtt_path: Path, srt_path: Path):
     """Pretvori zunanjo VTT datoteko v SRT format."""
     try:
         content = vtt_path.read_text(encoding="utf-8")
-        content = re.sub(r"^WEBVTT\s*\n*", "", content)
-        content = re.sub(r"(\d{2}:\d{2}:\d{2})\.(\d{3})", r"\1,\2", content)
-        srt_path.write_text(content.strip() + "\n", encoding="utf-8")
+        srt_path.write_text(webvtt_to_srt(content), encoding="utf-8")
         log.info(f"📝 Pretvori podnapise: {vtt_path.name} -> {srt_path.name}")
         return True
     except Exception as e:
@@ -142,7 +143,9 @@ def extract_subtitles_to_srt(video_path: Path, base_srt_path: Path):
     return True
 
 
-def convert_to_mp4(input_path: Path, output_path: Path):
+def convert_to_mp4(
+    input_path: Path, output_path: Path, *, extract_subtitles=True
+):
     """
     Enotna vstopna točka za obdelavo vseh video datotek.
 
@@ -162,7 +165,11 @@ def convert_to_mp4(input_path: Path, output_path: Path):
         )
 
         # Popravimo avdio/video parametre znotraj obstoječega MP4 datoteke
-        if not ensure_aac_audio(input_path):
+        if not (
+            ensure_aac_audio(input_path)
+            if extract_subtitles
+            else ensure_aac_audio(input_path, extract_subtitles=False)
+        ):
             return False
 
         # Če se ciljna pot razlikuje od trenutne,
@@ -195,7 +202,8 @@ def convert_to_mp4(input_path: Path, output_path: Path):
 
     # Ekstrakcija podnapisov zraven novega videa (preden se karkoli pobriše)
     srt_output_path = destination.with_suffix(".srt")
-    extract_subtitles_to_srt(input_path, srt_output_path)
+    if extract_subtitles:
+        extract_subtitles_to_srt(input_path, srt_output_path)
 
     # Preverimo video kodek in barvni profil izvorne datoteke s ffprobe
     probe_cmd = [
@@ -306,7 +314,7 @@ def convert_to_mp4(input_path: Path, output_path: Path):
     return False
 
 
-def ensure_aac_audio(filepath):
+def ensure_aac_audio(filepath, *, extract_subtitles=True):
     """
     Skrbi za obstoječe MP4 datoteke.
     1. Preveri, ali je video varen za splet (H.264 8-bit).
@@ -382,7 +390,8 @@ def ensure_aac_audio(filepath):
             f"popravilo: {filepath.name}"
         )
         temp_file = filepath.with_suffix(".tmp.mp4")
-        extract_subtitles_to_srt(filepath, filepath)
+        if extract_subtitles:
+            extract_subtitles_to_srt(filepath, filepath)
 
         command = [
             "ffmpeg",
@@ -428,7 +437,8 @@ def ensure_aac_audio(filepath):
 
         log.info(f"🔊 {action_msg} za MP4: {filepath.name}")
         temp_file = filepath.with_suffix(".tmp.mp4")
-        extract_subtitles_to_srt(filepath, filepath)
+        if extract_subtitles:
+            extract_subtitles_to_srt(filepath, filepath)
 
         # Če je zvok že AAC, ga samo kopiramo, sicer ga prekodiramo
         audio_codec = "copy" if audio_is_aac else "aac"
@@ -473,6 +483,45 @@ def get_videos_list(folder):
     ]
 
 
+def _safe_hls_name(name):
+    cleaned = re.sub(r"[^\w .-]", "", name, flags=re.UNICODE)
+    cleaned = " ".join(cleaned.split()).strip(" .")
+    if not cleaned or cleaned in {".", ".."}:
+        raise ValueError(f"Ime videa nima uporabnih znakov: {name!r}")
+    return cleaned
+
+
+def _update_movie_metadata(folder, old_name, new_name):
+    if old_name == new_name:
+        return
+
+    metadata_path = Path(folder) / "readme.json"
+    if not metadata_path.is_file():
+        return
+
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    if not isinstance(metadata, dict):
+        raise ValueError(f"Neveljavni filmski metapodatki: {metadata_path}")
+
+    changed = False
+    for field in ("Film", "Title"):
+        if metadata.get(field) == old_name:
+            metadata[field] = new_name
+            changed = True
+
+    runtimes = metadata.get("RuntimesByFiles")
+    if isinstance(runtimes, dict) and old_name in runtimes:
+        if new_name in runtimes and runtimes[new_name] != runtimes[old_name]:
+            raise ValueError(
+                f"Konflikt dolžin za ime HLS {new_name!r} v {metadata_path}"
+            )
+        runtimes[new_name] = runtimes.pop(old_name)
+        changed = True
+
+    if changed:
+        atomic_write_json(metadata_path, metadata, mode=0o640)
+
+
 def convert_videos(folder, merge=False, collection=False):
     folder_path = Path(folder)
     videos = sorted(get_videos_list(folder_path))
@@ -484,7 +533,9 @@ def convert_videos(folder, merge=False, collection=False):
 
     if collection or ".collection" in folder_path.name.lower():
         for video in videos:
-            if not convert_to_mp4(video, video.with_suffix(".mp4")):
+            if not convert_to_mp4(
+                video, video.with_suffix(".mp4"), extract_subtitles=False
+            ):
                 raise RuntimeError(f"Pretvorba ni uspela: {video.name}")
 
     elif (
@@ -557,8 +608,9 @@ def convert_to_m3u8(video_path):
         log.error(f"Datoteka ne obstaja: {original}")
         return False
 
-    # Ustvarimo mapo z imenom brez .mp4
-    mapa = Path(os.path.abspath(original.with_suffix("")))
+    # Ustvarimo HLS mapo z varnim imenom brez .mp4.
+    hls_name = _safe_hls_name(original.stem)
+    mapa = original.with_name(hls_name)
     mapa.mkdir(parents=True, exist_ok=True)
 
     destination = mapa
@@ -566,6 +618,7 @@ def convert_to_m3u8(video_path):
         (destination / name).is_file() and (destination / name).stat().st_size
         for name in ("master.m3u8", "video.ts", "audio.ts")
     ):
+        _update_movie_metadata(original.parent, original.stem, hls_name)
         log.info("HLS že obstaja: %s", destination)
         return True
     temporary = tempfile.TemporaryDirectory(prefix=".hls-", dir=destination)
@@ -756,6 +809,7 @@ def convert_to_m3u8(video_path):
             mapa.iterdir(), key=lambda path: path.name == "master.m3u8"
         ):
             output.replace(destination / output.name)
+        _update_movie_metadata(original.parent, original.stem, hls_name)
         archive_original(original)
         (original.parent / ".detected-voice-activity.pkl").unlink(
             missing_ok=True

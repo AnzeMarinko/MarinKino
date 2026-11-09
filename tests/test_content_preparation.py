@@ -215,6 +215,47 @@ def test_movie_packaging_publishes_then_archives_source(
     assert (tmp_path / "film/video.m3u8").is_file()
 
 
+def test_movie_packaging_sanitizes_name_and_updates_readme(
+    media, tmp_path, monkeypatch
+):
+    source = tmp_path / "Name, (A)!?.mp4"
+    source.write_bytes(b"original")
+    (tmp_path / "readme.json").write_text(
+        json.dumps(
+            {
+                "Film": source.stem,
+                "Title": source.stem,
+                "RuntimesByFiles": {source.stem: 12},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    def process(cmd, **_kwargs):
+        if cmd[0] == "ffprobe":
+            return SimpleNamespace(stdout="h264")
+        if cmd[0] == "ffmpeg":
+            Path(cmd[-1]).write_bytes(b"intermediate")
+        if cmd[0] == "packager":
+            output = Path(cmd[cmd.index("--hls_master_playlist_output") + 1])
+            (output.parent / "video.ts").write_bytes(b"video")
+            (output.parent / "audio.ts").write_bytes(b"audio")
+            output.write_text(f"#EXTM3U\n{output.parent}/video.m3u8\n")
+            (output.parent / "video.m3u8").write_text("#EXTM3U\nvideo.ts\n")
+        return SimpleNamespace(stdout="")
+
+    monkeypatch.setattr(media.video.subprocess, "run", process)
+    assert media.video.convert_to_m3u8(source)
+
+    output = tmp_path / "Name A"
+    assert (output / "master.m3u8").is_file()
+    assert not (tmp_path / source.stem).exists()
+    metadata = json.loads((tmp_path / "readme.json").read_text())
+    assert metadata["Film"] == "Name A"
+    assert metadata["Title"] == "Name A"
+    assert metadata["RuntimesByFiles"] == {"Name A": 12}
+
+
 def test_merge_failure_keeps_every_input_and_subtitles(
     media, tmp_path, monkeypatch
 ):
@@ -236,6 +277,20 @@ def test_merge_failure_keeps_every_input_and_subtitles(
     assert all(
         call.args[1].parent == tmp_path for call in extraction.call_args_list
     )
+
+
+def test_collection_conversion_never_extracts_subtitles(
+    media, tmp_path, monkeypatch
+):
+    source = tmp_path / "episode.mp4"
+    source.write_bytes(b"video")
+    extraction = Mock()
+    ensure = Mock(return_value=True)
+    monkeypatch.setattr(media.video, "extract_subtitles_to_srt", extraction)
+    monkeypatch.setattr(media.video, "ensure_aac_audio", ensure)
+    assert media.video.convert_videos(tmp_path, collection=True) == [source]
+    ensure.assert_called_once_with(source, extract_subtitles=False)
+    extraction.assert_not_called()
 
 
 def test_mp4_failure_does_not_rename_original(media, tmp_path, monkeypatch):

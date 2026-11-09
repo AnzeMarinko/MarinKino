@@ -8,7 +8,7 @@
   async function api(url,data) {
     const response = await fetch(url,{method:data?'POST':'GET',headers:{'Content-Type':'application/json','X-CSRFToken':document.querySelector('meta[name=csrf-token]').content},...(data?{body:JSON.stringify(data)}:{})});
     const result = await response.json().catch(()=>({message:`Zahteva ni uspela (${response.status}). Preveri terminal urejevalnika.`}));
-    if(!response.ok||result.status==='error') throw Error(result.message||'Zahteva ni uspela.');
+    if(!response.ok||result.status==='error'){const error=Error(result.message||'Zahteva ni uspela.');error.renames=result.renames;throw error;}
     return result;
   }
   function drawList() {
@@ -39,7 +39,14 @@
   async function operation(message,work) {
     if(busy)return;remember();busy=true;document.getElementById('status').textContent=message;
     document.querySelectorAll('button,input,textarea').forEach(element=>element.disabled=true);
-    try{await work();}catch(error){document.getElementById('status').className='status error';document.getElementById('status').textContent=error.message;}
+    try{await work();}catch(error){
+      let message=error.message;
+      if(step===3){
+        try{const fresh=(await api('/api/movies/incoming')).movies.find(movie=>movie.folder===current.folder);if(fresh){const mapped=name=>error.renames?.[name]||name;const previous=new Set(selected.map(mapped)),existing=new Set(current.subtitles.map(mapped));current=fresh;selected=current.subtitles.filter(name=>previous.has(name)||!existing.has(name));render();}}
+        catch(refreshError){message+=` Seznama podnapisov ni mogoče osvežiti: ${refreshError.message}`;}
+      }
+      document.getElementById('status').className='status error';document.getElementById('status').textContent=message;
+    }
     finally{busy=false;document.querySelectorAll('button,input,textarea').forEach(element=>element.disabled=false);const previous=workspace.querySelector('[data-action=previous]');if(previous)previous.disabled=step===0;drawList();}
   }
   workspace.addEventListener('input',()=>dirty=true);
@@ -52,9 +59,22 @@
     if(action==='metadata')operation('Pridobivam podatke …',async()=>{metadata={...metadata,...(await api('/api/movies/metadata',{folder:current.folder,imdb_id:metadata.imdb_id})).metadata};dirty=true;render();document.getElementById('status').textContent='Predlog pridobljen. Preglej podatke.';});
     if(action==='download'||action==='translate')operation(action==='download'?'Prenašam podnapise …':'Prevajam izbrane podnapise. Napredek je v terminalu …',async()=>{
       if(action==='translate'&&!selected.some(file=>file.endsWith('.srt')))throw Error('Izberi vsaj eno datoteko SRT.');
-      const result=await api(`/api/movies/subtitles/${action}`,{folder:current.folder,metadata,languages:['sl','en'],files:selected.filter(file=>file.endsWith('.srt'))});
-      if((action==='download'&&!result.downloaded)||(action==='translate'&&!result.translated?.length)){document.getElementById('status').textContent=action==='download'?'Ni novih podnapisov. Preveri IMDb ID in storitev ali jih dodaj ročno.':'Prevod ni bil ustvarjen. Preveri nastavitve storitve in izpis v terminalu.';return;}
-      const fresh=(await api('/api/movies/incoming')).movies.find(movie=>movie.folder===current.folder);if(fresh){current=fresh;selected=[...current.subtitles];}render();document.getElementById('status').textContent='Končano. Preglej izbor podnapisov.';
+      const oldSubtitles=[...current.subtitles];
+      const payload={folder:current.folder,mode,metadata,languages:['sl','en'],files:selected.filter(file=>file.endsWith('.srt'))};
+      let result=await api(`/api/movies/subtitles/${action}`,payload);
+      if(result.status==='selection_required'){
+        const choices={};
+        for(const [language,names] of Object.entries(result.groups)){
+          const choice=prompt(`Več podnapisov (${language}). Izberi številko za ohranitev; ostali se arhivirajo:\n${names.map((name,index)=>`${index+1}. ${name}`).join('\n')}`);
+          if(choice===null){document.getElementById('status').textContent='Prenos preklican; podnapisi niso spremenjeni.';return;}
+          if(!/^\d+$/.test(choice)||Number(choice)<1||Number(choice)>names.length)throw Error('Neveljaven izbor podnapisa; prenos ustavljen.');
+          choices[language]=names[Number(choice)-1];
+        }
+        result=await api('/api/movies/subtitles/download',{...payload,subtitle_selection:choices});
+        if(result.status==='selection_required')throw Error('Podnapisi so se spremenili. Ponovno začni prenos.');
+      }
+      if(action==='translate'&&!result.translated?.length){document.getElementById('status').textContent='Prevod ni bil ustvarjen. Preveri nastavitve storitve in izpis v terminalu.';return;}
+      const fresh=(await api('/api/movies/incoming')).movies.find(movie=>movie.folder===current.folder);if(fresh){const mapped=name=>result.renames?.[name]||name;const previous=new Set(selected.map(mapped)),existing=new Set(oldSubtitles.map(mapped));current=fresh;selected=current.subtitles.filter(name=>previous.has(name)||!existing.has(name));}render();document.getElementById('status').textContent=result.message||(action==='download'?(result.downloaded?'Podnapisi preneseni, govor zaznan. Poravnavo potrdi v terminalskem postopku priprave.':'Ni novih podnapisov. Preveri IMDb ID in storitev ali jih dodaj ročno.'):'Končano. Preglej izbor podnapisov.');
     });
     if(action==='finish')operation('Pripravljam HLS … Stran pusti odprto, napredek spremljaj v terminalu.',async()=>{
       const result=await api('/api/movies/process',{folder:current.folder,mode,metadata,subtitles:selected});dirty=false;

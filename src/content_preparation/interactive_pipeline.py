@@ -19,9 +19,12 @@ from .browser_preview import (
 )
 from .get_movie_metadata import MovieMetadata
 from .media_tools import archive_original
+from .subtitle_alignment import alignment_backup, finalize_alignment
+from .subtitle_inventory import normalize_subtitles_interactive
 from .subtitles import (
     DOWNLOADED_MARKER,
-    apply_alignment,
+    apply_downloaded_alignment,
+    extract_audio,
     get_subtitles,
     propose_alignment,
     translate,
@@ -63,40 +66,23 @@ def _mark_confirmed(folder, key):
     _save_readme(folder, data)
 
 
-def _alignment_backup_path(srt):
-    """Ista poimenovalna konvencija kot v `apply_alignment` - obstoj te
-    datoteke pomeni, da je bil ta podnapis že poravnan."""
-    return srt.with_name("." + srt.name + ".original")
-
-
-def _needs_subtitle_check(folder):
-    existing = list(folder.glob("*.srt"))
-    joined = "".join(f.name for f in existing)
-    is_slovenian = (
-        "slosinh" in folder.name.lower() or "slovenski-filmi" in str(folder)
-    )
-    is_series = ".S1E" in folder.name
-    if is_slovenian or is_series:
-        return False
-    return "enSubs" not in joined or "SloSubs" not in joined
-
-
 def _needs_subtitle_selection(folder):
     return len(list(folder.glob("*.srt"))) > 1
 
 
 def _needs_alignment(folder):
-    return any(
-        not _alignment_backup_path(srt).exists()
-        for srt in folder.glob(f"*{DOWNLOADED_MARKER}.srt")
-    )
+    return any(folder.glob(f"*{DOWNLOADED_MARKER}.srt"))
 
 
 def _needs_translation(folder):
     srts = list(folder.glob("*.srt"))
     if not srts:
         return False
-    return not any("slosubs" in s.name.lower() for s in srts)
+    return not any(
+        "slosubs" in path.name.lower()
+        for path in folder.iterdir()
+        if path.is_file() and path.suffix.lower() in {".srt", ".vtt"}
+    )
 
 
 def _has_existing_hls(folder):
@@ -169,18 +155,20 @@ def step_fetch_metadata(folder):
     return metadata
 
 
-def step_check_download_subtitles(folder, metadata):
+def step_check_download_subtitles(folder, metadata, video_path):
     """KORAK 3: preveri jezik podnapisov in po potrebi potegni manjkajoče."""
-    existing = list(folder.glob("*.srt"))
-    joined = "".join(f.name for f in existing)
-    ensubs_missing = "enSubs" not in joined
-    slosubs_missing = "SloSubs" not in joined
     is_slovenian = (
         "slosinh" in folder.name.lower() or "slovenski-filmi" in str(folder)
     )
     is_series = ".S1E" in folder.name
 
-    if is_slovenian or is_series or not (ensubs_missing or slosubs_missing):
+    if is_slovenian or is_series:
+        log.info("ℹ️ Samodejni prenos podnapisov ni potreben.")
+        return
+    present, _changes = normalize_subtitles_interactive(folder)
+    ensubs_missing = "en" not in present
+    slosubs_missing = "sl" not in present
+    if not (ensubs_missing or slosubs_missing):
         log.info("ℹ️ Podnapisi so že v redu, samodejni prenos ni potreben.")
         return
 
@@ -200,16 +188,15 @@ def step_check_download_subtitles(folder, metadata):
     languages = (["sl"] if slosubs_missing else []) + (
         ["en"] if ensubs_missing else []
     )
-    try:
-        get_subtitles(
-            metadata.title,
-            metadata.year,
-            metadata.imdb_id,
-            str(folder),
-            languages=languages,
-        )
-    except Exception as e:
-        log.error(f"❌ Napaka pri prenosu podnapisov: {e}")
+    downloaded = get_subtitles(
+        metadata.title,
+        metadata.year,
+        metadata.imdb_id,
+        str(folder),
+        languages=languages,
+    )
+    if downloaded:
+        extract_audio(str(folder), str(video_path))
 
 
 def step_select_subtitles(folder):
@@ -251,15 +238,15 @@ def step_select_subtitles(folder):
 
 def step_align_subtitles(folder, video_path):
     """KORAK 5: poravnaj SAMO prenešene podnapise, ki še niso poravnani."""
-    downloaded_srts = [
-        srt
-        for srt in sorted(folder.glob(f"*{DOWNLOADED_MARKER}.srt"))
-        if not _alignment_backup_path(srt).exists()
-    ]
+    downloaded_srts = sorted(folder.glob(f"*{DOWNLOADED_MARKER}.srt"))
     if not downloaded_srts:
         return
 
     for srt in downloaded_srts:
+        if alignment_backup(srt).exists():
+            target = finalize_alignment(srt)
+            log.info("✅ Že poravnan podnapis preimenovan: %s", target.name)
+            continue
         if not ask_yes_no(
             f"Poravnam prenešene podnapise '{srt.name}' glede na govor v videu?"  # noqa: E501
         ):
@@ -278,8 +265,8 @@ def step_align_subtitles(folder, video_path):
         if outcome["confirmed"]:
             proposal["scale"] = outcome["scale"]
             proposal["shift"] = outcome["shift"]
-            apply_alignment(proposal, str(srt))
-            log.info(f"✅ Poravnava potrjena: {srt.name}")
+            target = apply_downloaded_alignment(proposal, str(srt))
+            log.info("✅ Poravnava potrjena: %s", target.name)
         else:
             log.info(f"⏭️ Poravnava preklicana: {srt.name}")
 
@@ -309,6 +296,7 @@ def process_single_movie(folder):
     folder = Path(folder)
     print(f"\n{'=' * 60}\n🎬 {folder.name}\n{'=' * 60}")
 
+    original_video_count = len(get_videos_list(folder))
     result = step_convert_videos(folder)
     if result is None:
         return
@@ -320,6 +308,13 @@ def process_single_movie(folder):
         return
 
     metadata = step_fetch_metadata(folder)
+    if original_video_count > 1 and not is_collection:
+        log.warning(
+            "⚠️ Film ima več delov; podnapise uredi ročno: %s", folder.name
+        )
+        data = _load_readme(folder)
+        data["subtitles_manual_required"] = True
+        _save_readme(folder, data)
 
     # Podnapise lahko urejamo tudi, če je video že pretvorjen v HLS
     # (takrat surova video datoteka ne obstaja več).
@@ -331,7 +326,7 @@ def process_single_movie(folder):
     can_process_subtitles = (
         not is_collection
         and metadata
-        and metadata.imdb_id
+        and not _load_readme(folder).get("subtitles_manual_required", False)
         and (len(videos) == 1 or (not videos and single_hls_dir))
     )
     if can_process_subtitles:
@@ -339,24 +334,24 @@ def process_single_movie(folder):
             videos[0] if videos else folder / single_hls_dir / "master.m3u8"
         )
 
-        if _needs_subtitle_check(folder):
-            step_check_download_subtitles(folder, metadata)
+        if metadata.imdb_id:
+            step_check_download_subtitles(folder, metadata, video_path)
             _mark_confirmed(folder, "subtitles_checked")
 
-        if _needs_subtitle_selection(folder):
-            step_select_subtitles(folder)
-            _mark_confirmed(folder, "subtitles_selected")
+            if _needs_subtitle_selection(folder):
+                step_select_subtitles(folder)
+                _mark_confirmed(folder, "subtitles_selected")
 
         if _needs_alignment(folder):
             step_align_subtitles(folder, video_path)
             _mark_confirmed(folder, "subtitles_aligned")
 
-        if _needs_translation(folder):
+        if metadata.imdb_id and _needs_translation(folder):
             step_translate_missing_slovenian(folder)
             _mark_confirmed(folder, "subtitles_translated")
     else:
         log.info(
-            "ℹ️ Koraki s podnapisi se preskočijo (zbirka ali brez IMDb ID)."
+            "ℹ️ Koraki s podnapisi se preskočijo (zbirka ali več videov)."
         )
 
     for video in get_videos_list(folder):

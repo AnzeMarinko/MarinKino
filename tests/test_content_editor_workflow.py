@@ -3,6 +3,7 @@
 import json
 from unittest.mock import Mock
 
+import pytest
 from test_manual_editor_security import editor as editor_fixture
 
 from security_storage import safe_resolved_path
@@ -117,3 +118,91 @@ def test_download_rejects_other_hosts_before_network(editor, monkeypatch):
     )
     assert response.status_code == 400
     download.assert_not_called()
+
+
+def test_subtitle_download_normalizes_and_requests_only_missing_language(
+    editor, tmp_path, monkeypatch
+):
+    monkeypatch.setattr(editor.module, "_movie_folder", lambda _name: tmp_path)
+    download = Mock(return_value=True)
+    monkeypatch.setattr(editor.module, "get_subtitles", download)
+    extract = Mock()
+    monkeypatch.setattr(editor.module, "extract_audio", extract)
+    (tmp_path / "film.mp4").write_bytes(b"video")
+    (tmp_path / "Film.slv.srt").write_text("slovenian")
+    response = post(
+        editor,
+        "/api/movies/subtitles/download",
+        {"folder": "Film", "metadata": {"imdb_id": "tt1234567"}},
+    )
+    assert response.status_code == 200
+    assert response.json["renames"] == {
+        "Film.slv.srt": "subtitles-SloSubs.srt"
+    }
+    assert download.call_args.kwargs["languages"] == ["en"]
+    extract.assert_called_once_with(str(tmp_path), str(tmp_path / "film.mp4"))
+
+
+def test_subtitle_download_asks_before_archiving_duplicates(
+    editor, tmp_path, monkeypatch
+):
+    monkeypatch.setattr(editor.module, "_movie_folder", lambda _name: tmp_path)
+    download = Mock(return_value=True)
+    monkeypatch.setattr(editor.module, "get_subtitles", download)
+    monkeypatch.setattr(editor.module, "extract_audio", Mock())
+    (tmp_path / "film.mp4").write_bytes(b"video")
+    (tmp_path / "one.eng.srt").write_text("first")
+    (tmp_path / "two.en.srt").write_text("second")
+    payload = {"folder": "Film", "metadata": {"imdb_id": "tt1234567"}}
+    response = post(editor, "/api/movies/subtitles/download", payload)
+    assert response.json["status"] == "selection_required"
+    assert response.json["groups"] == {"en": ["one.eng.srt", "two.en.srt"]}
+    download.assert_not_called()
+    assert not (tmp_path / ".originals").exists()
+    payload["subtitle_selection"] = {"en": "two.en.srt"}
+    response = post(editor, "/api/movies/subtitles/download", payload)
+    assert response.json["status"] == "ok"
+    assert (tmp_path / ".originals/one.eng.srt.source").read_text() == "first"
+    assert download.call_args.kwargs["languages"] == ["sl"]
+
+
+def test_subtitle_download_reports_renames_even_if_request_fails(
+    editor, tmp_path, monkeypatch
+):
+    monkeypatch.setattr(editor.module, "_movie_folder", lambda _name: tmp_path)
+    (tmp_path / "film.mp4").write_bytes(b"video")
+    (tmp_path / "Film.en.srt").write_text("english")
+    response = post(
+        editor,
+        "/api/movies/subtitles/download",
+        {"folder": "Film", "metadata": {"imdb_id": "invalid"}},
+    )
+    assert response.status_code == 400
+    assert response.json["renames"] == {
+        "Film.en.srt": "subtitles-enSubs.srt"
+    }
+    assert (tmp_path / "subtitles-enSubs.srt").exists()
+
+
+@pytest.mark.parametrize(
+    ("mode", "video_count"), [("collection", 1), ("merge", 2)]
+)
+def test_subtitle_download_skips_collections_and_split_movies(
+    editor, tmp_path, monkeypatch, mode, video_count
+):
+    monkeypatch.setattr(editor.module, "_movie_folder", lambda _name: tmp_path)
+    download = Mock()
+    extract = Mock()
+    monkeypatch.setattr(editor.module, "get_subtitles", download)
+    monkeypatch.setattr(editor.module, "extract_audio", extract)
+    for index in range(video_count):
+        (tmp_path / f"{index}.mp4").write_bytes(b"video")
+    response = post(
+        editor, "/api/movies/subtitles/download",
+        {"folder": "Film", "mode": mode, "metadata": {"imdb_id": "tt1234567"}},
+    )
+    assert response.status_code == 200
+    assert not response.json["downloaded"]
+    assert response.json["message"]
+    download.assert_not_called()
+    extract.assert_not_called()

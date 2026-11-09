@@ -103,6 +103,56 @@ def test_movie_editor_keeps_fields_and_reports_empty_subtitle_result(page):
     assert received[0]["metadata"]["plot"] == "Ročni opis"
 
 
+def test_movie_editor_resolves_duplicate_subtitles_before_download(page):
+    movie = {
+        "folder": "Film.A",
+        "name": "Film A",
+        "videos": ["part.mp4"],
+        "subtitles": ["one.en.srt", "two.eng.srt", "film.sl.srt"],
+        "is_collection": False,
+        "metadata": {},
+    }
+    received = []
+
+    def api(path, request):
+        if path == "/api/movies/incoming":
+            return {"status": "ok", "movies": [movie]}
+        if path == "/api/movies/subtitles/download":
+            payload = request.post_data_json
+            received.append(payload)
+            if "subtitle_selection" not in payload:
+                return {
+                    "status": "selection_required",
+                    "groups": {"en": ["one.en.srt", "two.eng.srt"]},
+                }
+            movie["subtitles"] = [
+                "subtitles-enSubs.srt",
+                "subtitles-SloSubs.srt",
+            ]
+            return {
+                "status": "ok",
+                "downloaded": False,
+                "message": "Podnapisi že obstajajo.",
+                "renames": {
+                    "two.eng.srt": "subtitles-enSubs.srt",
+                    "film.sl.srt": "subtitles-SloSubs.srt",
+                },
+            }
+        raise AssertionError(path)
+
+    serve(page, "video_editor.html", api)
+    page.get_by_role("button", name="Film A").click()
+    for _ in range(3):
+        page.get_by_role("button", name="Naprej", exact=True).click()
+    page.get_by_label("film.sl.srt").uncheck()
+    page.on("dialog", lambda dialog: dialog.accept("2"))
+    page.get_by_role("button", name="Prenesi slovenske in angleške").click()
+    page.get_by_text("Podnapisi že obstajajo.").wait_for()
+    assert received[1]["subtitle_selection"] == {"en": "two.eng.srt"}
+    assert page.get_by_label("subtitles-enSubs.srt").is_checked()
+    assert not page.get_by_label("subtitles-SloSubs.srt").is_checked()
+
+
 def test_music_editor_keeps_drafts_across_search_and_save(page):
     tracks = [
         {

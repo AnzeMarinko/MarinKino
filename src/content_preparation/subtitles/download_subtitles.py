@@ -9,6 +9,8 @@ import requests
 from bs4 import BeautifulSoup
 from opensubtitlescom import OpenSubtitles
 
+from ..subtitle_inventory import normalize_subtitles
+
 log = logging.getLogger(__name__)
 
 OPENSUBTITLESCOM_TOKEN = os.getenv("OPENSUBTITLESCOM_TOKEN")
@@ -54,7 +56,7 @@ def download_opensubtitles(sub, i, path):
     data = osub.download(sub["url"])
     lang_short = "Slo" if sub["lang"] == "sl" else sub["lang"]
     filename = f"{path}/subtitles{i}-{lang_short}Subs{DOWNLOADED_MARKER}.srt"
-    with open(filename, "wb") as f:
+    with open(filename, "xb") as f:
         f.write(data)
     return filename
 
@@ -122,44 +124,62 @@ def search_podnapisi_safe(title, year, languages):
 
 def download_podnapisi_safe(sub, index, extract_path):
     r = session.get(sub["url"] + "/download", timeout=10)
-    with zipfile.ZipFile(io.BytesIO(r.content)) as z:
-        srt_names = [n for n in z.namelist() if n.lower().endswith(".srt")]
-        z.extractall(extract_path)
-
+    r.raise_for_status()
     lang_short = "Slo" if sub["lang"] == "sl" else sub["lang"]
     downloaded = []
-    for i, name in enumerate(srt_names):
-        src = os.path.join(extract_path, name)
-        suffix = f"-{i}" if i else ""
-        dst = os.path.join(
-            extract_path,
-            f"subtitles{index}{suffix}-{lang_short}Subs{DOWNLOADED_MARKER}.srt",  # noqa: E501
-        )
-        os.replace(src, dst)
-        downloaded.append(dst)
+    with zipfile.ZipFile(io.BytesIO(r.content)) as z:
+        srt_names = [n for n in z.namelist() if n.lower().endswith(".srt")]
+        for i, name in enumerate(srt_names):
+            suffix = f"-{i}" if i else ""
+            dst = os.path.join(
+                extract_path,
+                f"subtitles{index}{suffix}-{lang_short}Subs{DOWNLOADED_MARKER}.srt",  # noqa: E501
+            )
+            with z.open(name) as source, open(dst, "xb") as target:
+                target.write(source.read())
+            downloaded.append(dst)
     log.info("Podnapisi so shranjeni")
     return downloaded
 
 
-def get_subtitles(title, year, imdb_id, path, languages=["sl", "en"]):
+def get_subtitles(title, year, imdb_id, path, languages=("sl", "en")):
+    present, _changes = normalize_subtitles(path)
+    languages = list(
+        dict.fromkeys(
+            language for language in languages if language not in present
+        )
+    )
+    if not languages:
+        log.info("Podnapisi za zahtevane jezike že obstajajo.")
+        return False
+
     # 1. OpenSubtitles
     subs, err = search_opensubtitles(imdb_id, languages)
     time.sleep(1)
+    downloaded_languages = set()
     if subs:
         for i, sub in enumerate(subs):
             download_opensubtitles(sub, "" if i == 0 else i, path)
+            downloaded_languages.add(sub["lang"])
             time.sleep(10)
-        return True
-    elif err == "RateLimitError":
+    if err == "RateLimitError":
         print("RateLimitError")
-        return False
+        return bool(downloaded_languages)
+
+    missing = [lang for lang in languages if lang not in downloaded_languages]
+    if not missing:
+        return True
 
     # 2. podnapisi.net fallback
-    subs = search_podnapisi_safe(title, str(year), languages)
+    subs = search_podnapisi_safe(title, str(year), missing)
     if subs:
         for i, sub in enumerate(subs):
-            download_podnapisi_safe(sub, i, path)
-        return True
+            if download_podnapisi_safe(sub, i, path):
+                downloaded_languages.add(sub["lang"])
 
-    log.error(f"❌ No subtitles found: {title}")
-    return False
+    missing = [lang for lang in languages if lang not in downloaded_languages]
+    if missing:
+        log.warning(
+            "Ni dodatnih podnapisov za %s (%s).", title, ", ".join(missing)
+        )
+    return bool(downloaded_languages)

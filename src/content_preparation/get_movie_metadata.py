@@ -14,6 +14,8 @@ from PIL import Image
 
 from movie_media import movie_sources
 
+from .subtitle_encoding import convert_srt_to_vtt
+
 log = logging.getLogger(__name__)
 
 os.environ.setdefault(
@@ -545,24 +547,6 @@ def get_movie_metadata(folder, film, video_files, hls_dirs=None):
     return result, film_cover_file
 
 
-def convert_srt_to_vtt(srt_path):
-    vtt_path = str(Path(srt_path).with_suffix(".vtt"))
-    with (
-        open(srt_path, "r", encoding="utf-8") as srt_file,
-        open(
-            vtt_path,
-            "w",
-            encoding="utf-8",
-        ) as vtt_file,
-    ):
-        vtt_file.write("WEBVTT\n\n")
-        for line in srt_file:
-            if "-->" in line:
-                line = line.replace(",", ".")
-            vtt_file.write(line)
-    return vtt_path
-
-
 class MovieMetadata:
     SUPPORTED_VIDEO = {".avi", ".mp4", ".mkv", ".vob"}
 
@@ -615,8 +599,10 @@ class MovieMetadata:
             ]
         )
         for srt_file in srt_files:
-            if not (self.path / srt_file).with_suffix(".vtt").exists():
-                vtt_file = convert_srt_to_vtt(str(self.path / srt_file))
+            vtt_path = (self.path / srt_file).with_suffix(".vtt")
+            existed = vtt_path.exists()
+            vtt_file = convert_srt_to_vtt(str(self.path / srt_file))
+            if not existed:
                 folder_contents.append(Path(vtt_file))
 
         self.subtitles = [

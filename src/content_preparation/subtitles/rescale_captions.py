@@ -1,8 +1,9 @@
-import datetime
 import logging
 import os
 import pickle
 import subprocess
+import tempfile
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,6 +11,9 @@ import pysrt
 from numba import njit
 from scipy.io import wavfile
 from scipy.optimize import differential_evolution
+
+from ..subtitle_alignment import alignment_backup, finalize_alignment
+from ..subtitle_encoding import read_subtitle
 
 log = logging.getLogger(__name__)
 
@@ -41,7 +45,7 @@ def time_to_timestamp(t):
 
 
 def extract_subtitles(srt_file):
-    subs = pysrt.open(srt_file)
+    subs = pysrt.from_string(read_subtitle(srt_file))
     out_subs = []
     for sub in subs:
         out_subs.append(
@@ -58,30 +62,30 @@ def extract_audio(folder, video_path):
     voice_file = os.path.join(folder, ".detected-voice-activity.pkl")
     if not os.path.exists(voice_file):
         log.info(f"⚙ Zaznavam govor: {video_path}")
-        wav_file = "output.wav"
-        if os.path.exists(wav_file):
-            os.remove(wav_file)
-
-        subprocess.run(
-            [
-                "ffmpeg",
-                "-i",
-                video_path,
-                "-vn",
-                "-acodec",
-                "pcm_s16le",
-                "-ar",
-                "16000",
-                "-ac",
-                "1",
-                wav_file,
-            ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            check=True,
-        )
-
-        sr, audio = wavfile.read(wav_file)
+        with tempfile.TemporaryDirectory(
+            prefix=".speech-", dir=folder
+        ) as directory:
+            wav_file = str(Path(directory) / "audio.wav")
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-nostdin",
+                    "-i",
+                    str(video_path),
+                    "-vn",
+                    "-acodec",
+                    "pcm_s16le",
+                    "-ar",
+                    "16000",
+                    "-ac",
+                    "1",
+                    wav_file,
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=True,
+            )
+            sr, audio = wavfile.read(wav_file)
         assert sr == 16000
 
         model, utils = get_pipeline()
@@ -104,11 +108,18 @@ def extract_audio(folder, video_path):
             end = min(int((s["end"] / sr) * TARGET_RATE), len(speech))
             speech[start:end] = np.log10(np.linspace(1, 0.2, end - start)) + 1
 
-        with open(voice_file, "wb") as f:
-            pickle.dump({"audio": envelope, "speech": speech}, f)
-
-        if os.path.exists(wav_file):
-            os.remove(wav_file)
+        descriptor, temporary = tempfile.mkstemp(
+            prefix=".speech-cache-", dir=folder
+        )
+        try:
+            with os.fdopen(descriptor, "wb") as file:
+                pickle.dump({"audio": envelope, "speech": speech}, file)
+                file.flush()
+                os.fsync(file.fileno())
+            os.replace(temporary, voice_file)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
 
     with open(voice_file, "rb") as f:
         voice_result = pickle.load(f)
@@ -119,10 +130,11 @@ def extract_audio(folder, video_path):
 
 # Formatiranje časa za SRT datoteko
 def format_time(seconds):
-    timestamp = str(datetime.timedelta(seconds=round(seconds, 3))).replace(
-        ".", ","
-    )[:-3]
-    return ("0" if "0:" == timestamp[:2] else "") + timestamp
+    milliseconds = max(0, round(seconds * 1000))
+    seconds, milliseconds = divmod(milliseconds, 1000)
+    minutes, seconds = divmod(seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours:02}:{minutes:02}:{seconds:02},{milliseconds:03}"
 
 
 # Ustvarjanje SRT datoteke
@@ -258,18 +270,26 @@ def apply_alignment(proposal, subtitle_path, backup_original=True):
     generate_srt(shift, scale, subtitles_with_note, subtitle_path)
 
 
+def apply_downloaded_alignment(proposal, subtitle_path):
+    source = Path(subtitle_path)
+    with tempfile.TemporaryDirectory(
+        prefix=".subtitle-preparation-", dir=source.parent
+    ) as directory:
+        aligned = Path(directory) / "aligned.srt"
+        apply_alignment(proposal, str(aligned), backup_original=False)
+        return finalize_alignment(source, aligned)
+
+
 def rescale_subtitles(folder, subtitle_path, video_path, plot=False):
-    file_name = os.path.basename(subtitle_path)
-    original_file = subtitle_path.replace(
-        file_name, "." + file_name + ".original"
-    )
-    if not os.path.exists(original_file):
+    if alignment_backup(subtitle_path).exists():
+        return finalize_alignment(subtitle_path)
+    else:
         proposal = propose_alignment(folder, subtitle_path, video_path)
         if proposal:
             log.info(f"⚙ Poravnavam podnapise: {video_path}")
             scale, shift = proposal["scale"], proposal["shift"]
             if abs(scale - 1) < 0.1 and abs(shift) < 60:
-                apply_alignment(proposal, subtitle_path)
+                result = apply_downloaded_alignment(proposal, subtitle_path)
                 if plot:
                     plt.figure()
                     plt.plot(proposal["audio"], label="audio")
@@ -285,8 +305,7 @@ def rescale_subtitles(folder, subtitle_path, video_path, plot=False):
                     plt.legend()
                     plt.title(os.path.basename(folder).replace(".", " "))
                     plt.show()
+                return result
+            log.warning("Poravnava ni zanesljiva: %s", subtitle_path)
         else:
-            log.warning(f"Empy subtitles: {subtitle_path}")
-            if "enSubs" in subtitle_path:
-                os.remove(subtitle_path)
-                return
+            log.warning("Premalo podnapisov za poravnavo: %s", subtitle_path)

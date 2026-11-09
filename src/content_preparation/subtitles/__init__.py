@@ -1,9 +1,12 @@
 import logging
+import os
 from pathlib import Path
 
+from ..subtitle_inventory import normalize_subtitles_interactive
 from .download_subtitles import DOWNLOADED_MARKER, get_subtitles
 from .rescale_captions import (
     apply_alignment,  # noqa: F401
+    apply_downloaded_alignment,  # noqa: F401
     extract_audio,
     propose_alignment,  # noqa: F401
     rescale_subtitles,
@@ -24,27 +27,35 @@ def prepare_subtitles(folder, video_file, metadata):
     )
 
     # Prenos podnapisov, če jih ni
-    existing_srts = list(folder_path.glob("*.srt"))
+    present, _changes = normalize_subtitles_interactive(folder_path)
 
     # Ekstrakcija zvoka (če je potrebna za kasnejšo sinhronizacijo/rescale)
     if not is_slovenian_content:
         extract_audio(str(folder_path), str(video_path))
 
-    # Urejanje in prevajanje
-    if len(existing_srts) == 1:
+    existing_srts = list(folder_path.glob("*.srt"))
+    if "sl" not in present and len(existing_srts) == 1:
         srt = existing_srts[0]
-        # Prevajamo samo, če še ni prevedeno (nima "slosubs" v imenu)
-        if "slosubs" not in srt.name.lower():
-            log.info(f"🌍 Prevajam: {srt.name}")
-            standard_name = folder_path / "subtitles.srt"
-            srt.rename(standard_name)
-            translate(str(standard_name))
-            # Osvežimo seznam, ker se je ime spremenilo/dodal se je nov
-            existing_srts = list(folder_path.glob("*.srt"))
+        log.info(f"🌍 Prevajam: {srt.name}")
+        standard_name = folder_path / "subtitles.srt"
+        srt.rename(standard_name)
+        try:
+            result = translate(str(standard_name))
+            if result and result["input_language"] != "sl":
+                translated_source = folder_path / (
+                    f"subtitles-{result['input_language']}Subs.srt"
+                )
+                if translated_source != srt:
+                    os.link(translated_source, srt)
+                    translated_source.unlink()
+        finally:
+            if standard_name.exists():
+                os.link(standard_name, srt)
+                standard_name.unlink()
+        present, _changes = normalize_subtitles_interactive(folder_path)
 
-    existing_joined = "".join([str(f) for f in existing_srts])
-    ensubs_missing = "enSubs" not in existing_joined
-    slosubs_missing = "SloSubs" not in existing_joined
+    ensubs_missing = "en" not in present
+    slosubs_missing = "sl" not in present
     is_series = ".S1E" in folder_path.name
     if (
         (ensubs_missing or slosubs_missing)
@@ -53,22 +64,18 @@ def prepare_subtitles(folder, video_file, metadata):
         and not is_series
     ):
         log.info(f"🔍 Pridobivam podnapise za: {folder_path.name}")
-        try:
-            get_subtitles(
-                metadata.title,
-                metadata.year,
-                metadata.imdb_id,
-                str(folder_path),
-                languages=(["sl"] if slosubs_missing else [])
-                + (["en"] if ensubs_missing else []),
-            )
-            # Ponovno osvežimo seznam po prenosu
-            existing_srts = list(folder_path.glob("*.srt"))
-        except Exception as e:
-            log.error(f"❌ Napaka pri branju metapodatkov ali prenosu: {e}")
+        get_subtitles(
+            metadata.title,
+            metadata.year,
+            metadata.imdb_id,
+            str(folder_path),
+            languages=(["sl"] if slosubs_missing else [])
+            + (["en"] if ensubs_missing else []),
+        )
 
     elif not is_slovenian_content and metadata.imdb_id and not is_series:
         # Preverimo sumljive situacije z več podnapisi
+        existing_srts = list(folder_path.glob("*.srt"))
         has_main = any(s.name == "subtitles.srt" for s in existing_srts)
 
         if (

@@ -27,7 +27,12 @@ from mutagen.mp3 import MP3, HeaderNotFoundError
 
 from content_preparation.audio_preparation import convert_mp3_to_hls
 from content_preparation.media_tools import archive_original, audio_hls_ready
+from content_preparation.subtitle_inventory import (
+    SubtitleSelectionRequiredError,
+    normalize_subtitles,
+)
 from content_preparation.subtitles.download_subtitles import get_subtitles
+from content_preparation.subtitles.rescale_captions import extract_audio
 from content_preparation.subtitles.translate_subtitles import translate
 from content_preparation.video_converter import convert_to_m3u8, convert_videos
 from security_storage import atomic_write_json
@@ -278,7 +283,7 @@ def download_playlist(playlist_url, get_video=False):
         os.makedirs(incoming_folder)
     ydl_opts = {
         "ignoreerrors": True,
-        "outtmpl": f"{incoming_folder}/%(playlist_title)s/%(title)s.%(ext)s",
+        "outtmpl": f"{incoming_folder}/%(playlist_title)s/%(playlist_index)s - %(title)s.%(ext)s",
         "postprocessors": [
             {
                 "key": "FFmpegMetadata",
@@ -636,29 +641,69 @@ def movie_metadata():
 
 @app.route("/api/movies/subtitles/download", methods=["POST"])
 def download_movie_subtitles():
+    renames = {}
     try:
         data = request.json
         folder = _movie_folder(data.get("folder"))
+        videos = sorted(
+            path for path in folder.iterdir()
+            if path.is_file() and path.suffix.lower() in MOVIE_EXTENSIONS
+        )
+        if data.get("mode") == "collection" or ".collection" in folder.name.lower():
+            return jsonify(
+                status="ok", downloaded=False,
+                message="Zbirke ne potrebujejo podnapisov; prenos je preskočen.",
+            )
+        if len(videos) != 1:
+            return jsonify(
+                status="ok", downloaded=False,
+                message="Film ima več delov ali nima videa; podnapise uredi ročno.",
+            )
         metadata = data.get("metadata") or _saved_movie_metadata(folder)
-        imdb_id = str(metadata.get("imdb_id", "")).strip()
-        if not re.fullmatch(r"tt\d{7,10}", imdb_id):
-            raise ValueError("Za prenos podnapisov najprej vnesi IMDb ID.")
         languages = data.get("languages") or ["sl", "en"]
         if not isinstance(languages, list) or not set(languages) <= {
             "sl",
             "en",
         }:
             raise ValueError("Podprta jezika: sl, en.")
+        try:
+            present, renames = normalize_subtitles(
+                folder, data.get("subtitle_selection")
+            )
+        except SubtitleSelectionRequiredError as error:
+            return jsonify(
+                status="selection_required",
+                groups=error.groups,
+            )
+        missing = [
+            language for language in languages if language not in present
+        ]
+        if not missing:
+            return jsonify(
+                status="ok",
+                downloaded=False,
+                renames=renames,
+                message="Podnapisi za izbrane jezike že obstajajo.",
+            )
+        imdb_id = str(metadata.get("imdb_id", "")).strip()
+        if not re.fullmatch(r"tt\d{7,10}", imdb_id):
+            raise ValueError("Za prenos podnapisov najprej vnesi IMDb ID.")
         downloaded = get_subtitles(
             metadata.get("title", folder.name),
             metadata.get("year", ""),
             imdb_id,
             str(folder),
-            languages=languages,
+            languages=missing,
         )
-        return jsonify({"status": "ok", "downloaded": bool(downloaded)})
+        if downloaded:
+            extract_audio(str(folder), str(videos[0]))
+        return jsonify(
+            status="ok", downloaded=bool(downloaded), renames=renames
+        )
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 400
+        return jsonify(
+            {"status": "error", "message": str(e), "renames": renames}
+        ), 400
 
 
 @app.route("/api/movies/subtitles/translate", methods=["POST"])

@@ -24,6 +24,14 @@ Orodja FFmpeg/FFprobe in Shaka Packager niso Python paketi; namesti različice z
 
 1. Vsak film postavi v svojo mapo pod `data/movies/0x-neurejeni-filmi`, npr. `La.Vita.E.Bella.1997`. Več zaporednih delov poimenuj `01…`, `02…`; združitev uporablja abecedni vrstni red. Za samostojne epizode ali zbirko izberi način »Zbirka« oziroma pripono `.Collection`.
 2. V mapo dodaj izvorne videe in želene `.srt`/`.vtt` podnapise. Podprti video formati: MP4, MKV, AVI, VOB, MOV, WebM. Izvori se po uspešni obdelavi ohranijo v skriti mapi `.originals` s pripono `.source`.
+
+   Pri pretvorbi SRT v VTT se preveri UTF-8 in po potrebi zazna drugo kodiranje (npr. Windows-1250). Izvorni SRT ostane nespremenjen. Če zaznavanje ni pravilno, SRT ročno shrani v UTF-8 in pripravo ponovi.
+
+   Pred spletnim prenosom se lokalni SRT/VTT poimenujejo po jeziku; ujemajoči se SRT in VTT ostaneta par. Jezik brez jasne oznake se zazna iz besedila. Če zaznava ni zanesljiva, dodaj oznako jezika v ime (npr. `.slv.srt` ali `.eng.srt`) in ponovi. Pri več različicah istega jezika izberi eno; druge se ohranijo v `.originals`. Prenos išče samo jezike, ki še manjkajo.
+
+   Preneseni SRT z oznako `-Downloaded` čaka na poravnavo. Po uspešni oziroma potrjeni poravnavi se preimenuje brez oznake, VTT se ustvari iz poravnanega SRT, izvirni SRT pa se ohrani kot skrita varnostna kopija. Če poravnavo prekličeš ali ne uspe, oznaka ostane za ponovni poskus.
+
+   Po uspešnem prenosu se zazna govor za poznejšo poravnavo. Terminalski postopek predlagano poravnavo pokaže v brskalniku za potrditev; spletni urejevalnik potrditve poravnave še nima. Pri zbirkah se podnapisi ne prenašajo ali izluščijo iz videa. Pri filmu v več delih je samodejni prenos izklopljen; podnapise uredi ročno.
 3. Preglej samo izbrani film, nato zaženi pripravo:
 
    ```bash

@@ -168,12 +168,24 @@ def record_response(response, redis):
         or "/hls/" in request.path
         or "/blog/image/" in request.path
         or "video-progress" in request.path
+        or "/status/" in request.path
     ):
         return response
     today = date.today().isoformat()
     month = today[:7]
 
-    route = request.url_rule.rule if request.url_rule else "<unmatched>"
+    def _route_hidden():
+        for r in [
+            "<token>",
+            "<password>",
+            "<entry_id>",
+            "<session_token>",
+        ]:
+            if request.url_rule and r in request.url_rule.rule:
+                return request.url_rule.rule
+        return request.path
+
+    route = _route_hidden()
     user_id = current_user.id if current_user.is_authenticated else "anonymus"
     method = (
         request.method
