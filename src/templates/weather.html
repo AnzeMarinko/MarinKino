@@ -74,7 +74,6 @@
           <div class="d-flex align-items-center gap-4">
             <i class="bi {{ weather.current.weather_icon }} weather-current-icon weather-icon weather-icon--{{ weather.current.weather_icon_class }}" aria-hidden="true"></i>
             <div>
-              <div class="text-muted">{{ weather.location }}</div>
               <h2 id="current-weather-title" class="weather-temperature fw-bold mb-2">{{ weather.current.temperature if weather.current.temperature is not none else '—' }}°</h2>
               <div class="fs-5">{{ weather.current.weather_label }}</div>
               <div class="weather-source weather-current-time mt-2">
@@ -90,13 +89,13 @@
         </div>
         <div class="col-lg-5">
           <div class="row g-2">
-            <div class="col-6"><div class="weather-stat"><i class="bi bi-droplet"></i><div class="small text-muted mt-2">Padavine</div><strong>{{ weather.current.precipitation if weather.current.precipitation is not none else '—' }} mm</strong></div></div>
-            <div class="col-6"><div class="weather-stat"><i class="bi bi-wind"></i><div class="small text-muted mt-2">Veter</div><strong>{{ weather.current.wind_speed if weather.current.wind_speed is not none else '—' }} km/h</strong></div></div>
-            <div class="col-6"><div class="weather-stat"><i class="bi bi-cloud"></i><div class="small text-muted mt-2">Oblačnost</div><strong>{{ weather.current.cloud_cover if weather.current.cloud_cover is not none else '—' }}%</strong></div></div>
+            <div class="col-4"><div class="weather-stat"><i class="bi bi-droplet"></i> <strong>{{ weather.current.precipitation if weather.current.precipitation is not none else '—' }} mm</strong></div></div>
+            <div class="col-4"><div class="weather-stat"><i class="bi bi-wind"></i> <strong>{{ weather.current.wind_speed if weather.current.wind_speed is not none else '—' }} km/h</strong></div></div>
+            <div class="col-4"><div class="weather-stat"><i class="bi bi-cloud"></i> <strong>{{ weather.current.cloud_cover if weather.current.cloud_cover is not none else '—' }}%</strong></div></div>
           </div>
         </div>
       </div>
-      {% if weather.current.time %}<div class="weather-source mt-3">Podatek napovedi: {{ weather.current.time|replace('T', ' ob ') }} · lokalni čas kraja</div>{% endif %}
+      {% if weather.current.time %}<div class="weather-source mt-3">Podatek napovedi: {{ weather.current.time|replace('T', ' ob ') }}</div>{% endif %}
     </section>
 
     <section class="weather-panel p-3 p-lg-4 mb-4" aria-labelledby="forecast-title">
