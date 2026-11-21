@@ -20,7 +20,7 @@ if __name__ == "__main__":
         trusted_proxy_count=1,
         trusted_proxy_headers={"x-forwarded-for", "x-forwarded-proto"},
         clear_untrusted_proxy_headers=True,
-        threads=4,
+        threads=8,
         connection_limit=128,
         channel_timeout=60,
         max_request_body_size=40 * 1024 * 1024,
