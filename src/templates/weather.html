@@ -40,12 +40,13 @@
         <h1 class="display-6 fw-bold mb-1">Vreme</h1>
       </div>
       <div class="d-flex align-items-center gap-2">
+        <button type="button" id="weatherLocationsToggle" class="btn btn-outline-secondary" aria-expanded="false" aria-controls="weatherLocationPanel"><i class="bi bi-geo-alt" aria-hidden="true"></i> Lokacije</button>
         <a class="btn btn-outline-secondary" href="{{ url_for('misc.weather', location=weather.location, lat=weather.latitude, lon=weather.longitude) }}" aria-label="Osveži napoved za {{ weather.location }}"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Osveži</a>
       </div>
     </div>
     {% if weather_error %}<div class="weather-notice mb-3" role="alert">{{ weather_error }}</div>{% endif %}
     {% if search_warning %}<div class="weather-notice mb-3" role="status">{{ search_warning }}</div>{% endif %}
-    <section class="weather-panel weather-location-panel p-3 p-lg-4 mb-4" aria-label="Izbira kraja">
+    <section id="weatherLocationPanel" class="weather-panel weather-location-panel p-3 p-lg-4 mb-4" aria-label="Izbira kraja" hidden>
       <form method="get" action="/weather" class="weather-search mt-3" id="weatherSearchForm" data-submit-feedback>
         <label class="visually-hidden" for="weatherSearch">Ime kraja</label>
         <div class="weather-search-input"><i class="bi bi-search" aria-hidden="true"></i><input type="search" id="weatherSearch" name="location" value="{{ query }}" class="form-control" placeholder="Na primer: Ljubljana" required maxlength="100" autocomplete="off"></div>
@@ -68,7 +69,7 @@
     </section>
 
     <section class="weather-hero mb-4" aria-labelledby="current-weather-title">
-      <div class="weather-eyebrow mb-3">Trenutno · {{ weather.location }}</div>
+      <div class="d-flex flex-wrap align-items-baseline gap-2 mb-3"><span class="weather-eyebrow">Trenutno ·</span><span class="fs-5">{{ weather.location }}</span></div>
       <div class="row align-items-center g-4">
         <div class="col-lg-7">
           <div class="d-flex align-items-center gap-4">

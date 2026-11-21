@@ -318,6 +318,15 @@ def test_game_new_word_failure_preserves_current_round(browser_page, failure):
 def test_weather_mobile_controls_and_chart_fallback(browser_page):
     page = browser_page.page
     page.goto(browser_page.base + "/weather")
+    assert page.locator("#weatherLocationPanel").is_hidden()
+    page.locator("#weatherLocationsToggle").click()
+    assert page.locator("#weatherLocationPanel").is_visible()
+    assert page.locator("#weatherLocationsToggle").get_attribute("aria-expanded") == "true"
+    assert page.locator("#weatherSearch").evaluate("element => element === document.activeElement")
+    page.locator("#weatherLocationsToggle").click()
+    assert page.locator("#weatherLocationPanel").is_hidden()
+    assert page.locator("#weatherLocationsToggle").get_attribute("aria-expanded") == "false"
+    page.locator("#weatherLocationsToggle").click()
     assert page.locator(".weather-day:visible").count() == 6
     page.locator(".weather-more-toggle").click()
     assert page.locator(".weather-day:visible").count() == 10
@@ -413,6 +422,7 @@ def test_game_storage_unavailable_and_malformed_data(browser_page):
 def test_weather_location_permission_failure_allows_retry(browser_page):
     page = browser_page.page
     page.goto(browser_page.base + "/weather")
+    page.locator("#weatherLocationsToggle").click()
     page.evaluate("""() => {
         Object.defineProperty(navigator, 'geolocation', { value: {
             getCurrentPosition: (_success, failure) => failure({ code: 1 })
@@ -430,6 +440,7 @@ def test_weather_missing_graph_keeps_daily_forecast(browser_page):
     page.goto(browser_page.base + "/weather")
     assert "Grafa ni bilo mogoče naložiti" in page.locator("#weatherChartStatus").inner_text()
     assert page.locator(".weather-day:visible").count() == 6
+    page.locator("#weatherLocationsToggle").click()
     assert page.locator("#weatherSearch").is_visible()
 
 

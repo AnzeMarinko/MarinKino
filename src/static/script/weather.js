@@ -3,6 +3,13 @@
     if (!root) return;
     const weather = JSON.parse(root.dataset.weather || "{}");
     const el = id => document.getElementById(id);
+    const locationsToggle = el("weatherLocationsToggle");
+    const locationPanel = el("weatherLocationPanel");
+    locationsToggle.addEventListener("click", () => {
+        locationPanel.hidden = !locationPanel.hidden;
+        locationsToggle.setAttribute("aria-expanded", String(!locationPanel.hidden));
+        if (!locationPanel.hidden) el("weatherSearch").focus();
+    });
     const graph = el("weatherChart");
     const cookieName = "marinkino_weather_locations";
     const weekdays = ["nedelja", "ponedeljek", "torek", "sreda", "četrtek", "petek", "sobota"];
