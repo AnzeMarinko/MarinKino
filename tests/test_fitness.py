@@ -295,35 +295,35 @@ def test_recurring_deleted_occurrence_stays_deleted_and_is_private(ui):
     )
 
 
-def test_access_counts_any_activity_in_last_seven_days(gated):
+@pytest.mark.parametrize("endurance_kind", ["cycling", "running"])
+@pytest.mark.parametrize("second_kind", ["cardio", "strength"])
+def test_access_requires_both_activity_groups_in_last_seven_days(
+    gated, endurance_kind, second_kind
+):
     ui = gated
-    plans = [
-        create(ui, "plan", kind="running", date=day)
-        for day in ("2026-10-07", "2026-10-09", "2026-10-12", "2026-10-13")
-    ]
+    create(ui, "activities", kind=second_kind, timestamp="2026-10-07T12:00:00")
     assert not state(ui)["plan_progress"]["allowed"]
-    assert ui.client.get("/movies").status_code == 302
-    # An older execution does not unlock, even with the plan still pending.
-    create(ui, "activities", kind="running", timestamp="2026-10-07T12:00:00")
-    assert not state(ui)["plan_progress"]["allowed"]
-    # A different, unplanned activity unlocks and is counted.
-    other = create(
-        ui, "activities", kind="cycling", timestamp="2026-10-08T12:00:00"
+    endurance = create(
+        ui, "activities", kind=endurance_kind, timestamp="2026-10-08T00:00:00"
+    )
+    assert ui.client.get("/music").status_code == 302
+    strength = create(
+        ui, "activities", kind=second_kind, timestamp="2026-10-14T12:00:00"
     )
     progress = state(ui)["plan_progress"]
     assert progress["allowed"]
-    assert progress["recent_activities"] == 1
-    assert ui.client.get("/music").status_code == 200
-    # The window is rolling: it expires after the seventh day.
-    ui.client.delete(f"/admin/fitness/activities/{other['id']}")
-    assert ui.client.get("/music").status_code == 302
-    activity = complete_plan(ui, plans[0])
-    assert ui.client.get("/music").status_code == 200
-    assert state(ui)["plan_progress"]["week_completed"] == 1
     assert (
-        ui.client.delete(f"/admin/fitness/activities/{activity}").status_code
-        == 204
+        progress["recent_endurance"]
+        == progress["recent_cardio_or_strength"]
+        == 1
     )
+    assert ui.client.get("/music").status_code == 200
+    ui.client.delete(f"/admin/fitness/activities/{endurance['id']}")
+    assert ui.client.get("/music").status_code == 302
+    assert state(ui)["plan_progress"]["recent_cardio_or_strength"] == 1
+    create(ui, "activities", kind=endurance_kind)
+    assert ui.client.get("/music").status_code == 200
+    ui.client.delete(f"/admin/fitness/activities/{strength['id']}")
     assert ui.client.get("/music").status_code == 302
 
 
@@ -352,6 +352,7 @@ def test_weighing_reminder_and_lock_date_thresholds():
 
 def test_stale_weighing_locks_content_until_new_measurement(gated):
     ui = gated
+    create(ui, "activities", kind="strength")
     plan = create(ui, "plan", kind="running", date="2026-10-14")
     complete_plan(ui, plan)
     create(
@@ -381,9 +382,7 @@ def test_stale_weighing_locks_content_until_new_measurement(gated):
 
 def test_access_blocks_content_without_recent_activity(gated):
     ui = gated
-    create(
-        ui, "activities", kind="running", timestamp="2026-10-07T12:00:00"
-    )
+    create(ui, "activities", kind="running", timestamp="2026-10-07T12:00:00")
     create(ui, "plan", kind="running", date="2026-10-14", status="skipped")
     for path in (
         "/",
@@ -495,6 +494,7 @@ def test_night_lock_boundaries_override_completed_fitness(
     gated, monkeypatch, hour, minute, locked
 ):
     ui = gated
+    create(ui, "activities", kind="strength")
     plan = create(ui, "plan", kind="running", date="2026-10-14")
     complete_plan(ui, plan)
     assert ui.client.get("/movies").status_code == 200
@@ -539,7 +539,7 @@ def test_unknown_device_zone_keeps_fitness_condition(gated, zone):
     response = gated.client.get("/movies")
     assert response.status_code == 302
     page = gated.client.get(response.location).text
-    assert "V zadnjih 7 dneh najprej opravi" in page
+    assert "V zadnjih 7 dneh zabeleži" in page
 
 
 def test_night_redirect_clears_preview_and_flashes_once(gated):
@@ -559,6 +559,7 @@ def test_night_redirect_clears_preview_and_flashes_once(gated):
 
 def test_blog_night_exception_keeps_activity_condition(gated, monkeypatch):
     ui = gated
+    create(ui, "activities", kind="strength")
     ui.client.set_cookie("marinkino_device_timezone", "Europe%2FLjubljana")
     monkeypatch.setattr(
         fitness,
@@ -583,6 +584,7 @@ def test_blog_night_exception_keeps_activity_condition(gated, monkeypatch):
 
 
 def test_browser_blog_stays_open_across_midnight(gated, browser, monkeypatch):
+    create(gated, "activities", kind="strength")
     from playwright.sync_api import expect
 
     plan = create(gated, "plan", kind="running", date="2026-10-14")
@@ -611,6 +613,7 @@ def test_browser_blog_stays_open_across_midnight(gated, browser, monkeypatch):
 def test_browser_night_warning_redirect_and_six_am_unlock(
     gated, browser, monkeypatch
 ):
+    create(gated, "activities", kind="strength")
     from playwright.sync_api import expect
 
     ui, page = gated, browser.page
@@ -643,9 +646,10 @@ def test_browser_night_warning_redirect_and_six_am_unlock(
 
 
 def test_browser_first_visit_at_night_and_resume_from_sleep(gated, browser):
+    create(gated, "activities", kind="strength")
     from playwright.sync_api import expect
 
-    plan = create(gated, "plan", kind="cardio", date="2026-10-14")
+    plan = create(gated, "plan", kind="running", date="2026-10-14")
     complete_plan(gated, plan)
     page = browser.page
     # No timezone cookie yet: the head script blocks the first night visit.
@@ -667,14 +671,12 @@ def test_browser_first_visit_at_night_and_resume_from_sleep(gated, browser):
     expect(page).to_have_url(browser.base + "/admin/fitness")
 
 
-def test_access_progress_appears_on_other_pages(gated):
-    plan = create(gated, "plan", kind="running", date="2026-10-12")
-    complete_plan(gated, plan, timestamp="2026-10-13T12:00:00")
+def test_access_warning_disappears_after_both_activity_types(gated):
+    create(gated, "activities", kind="running")
+    create(gated, "activities", kind="strength")
     response = gated.client.get("/page")
     assert response.status_code == 200
-    assert 'id="site-fitness-progress"' in response.text
-    assert "1 / 1 opravljenih" in response.text
-    assert "Aktivnosti v zadnjih 7 dneh: 1" in response.text
+    assert 'id="site-fitness-progress"' not in response.text
 
 
 def test_access_cache_unlocks_immediately_and_resets_after_seven_days(
@@ -683,6 +685,7 @@ def test_access_cache_unlocks_immediately_and_resets_after_seven_days(
     import fitness_access
 
     ui = gated
+    create(ui, "activities", kind="strength")
     plan = create(ui, "plan", kind="cycling", date="2026-10-14")
     with patch.object(
         fitness_access, "read_state", wraps=fitness.read_state
@@ -705,6 +708,7 @@ def test_access_cache_unlocks_immediately_and_resets_after_seven_days(
 
 def test_access_is_per_admin_and_view_as_cannot_bypass(gated):
     ui = gated
+    create(ui, "activities", kind="running")
     plan = create(ui, "plan", kind="strength", date="2026-10-14")
     complete_plan(ui, plan)
     assert ui.client.get("/movies").status_code == 200
@@ -724,51 +728,27 @@ def test_access_is_per_admin_and_view_as_cannot_bypass(gated):
     assert ui.client.get("/blog").status_code == 200
 
 
-def test_browser_two_week_cycle_and_access_completion(gated, browser):
+@pytest.mark.parametrize("second_kind", ["cardio", "strength"])
+def test_browser_simple_suggestions_and_access_completion(
+    gated, browser, second_kind
+):
     from playwright.sync_api import expect
 
     page = browser.page
     page.goto(browser.base + "/music")
     expect(page).to_have_url(browser.base + "/admin/fitness")
-    expect(page.locator("#flash-container")).to_contain_text(
-        "Ostale vsebine so zaklenjene."
-    )
-    page.locator("[data-open-plan]").click()
-    expect(page.locator("#fitness-cycle-library button")).to_have_count(8)
-    for index in range(8):
-        page.locator("#fitness-cycle-library button").nth(index).click()
-        page.locator("#session-repeat").select_option(
-            "even" if index < 4 else "odd"
-        )
-        page.locator("#session-weekday").select_option(str(index % 4))
-        page.get_by_role("button", name="Shrani v plan", exact=True).click()
-        expect(page.locator("#fitness-session-dialog")).not_to_be_visible()
-        expect(
-            page.locator('#fitness-cycle-plan [data-edit="schedule"]')
-        ).to_have_count(index + 1)
-    expect(page.locator("#fitness-plan > section")).to_have_count(2)
-    even = page.locator('#fitness-cycle-plan [data-parity="even"]')
-    odd = page.locator('#fitness-cycle-plan [data-parity="odd"]')
-    expect(even.locator('[data-edit="schedule"]')).to_have_count(4)
-    expect(odd.locator('[data-edit="schedule"]')).to_have_count(4)
-    expect(page.locator("#fitness-access-title")).to_have_text(
-        "Načrti in izvedbe"
-    )
-    expect(page.locator("[data-complete-due]")).to_have_count(3)
-    page.locator("[data-complete-due]").first.click()
-    expect(page.locator("#session-date")).to_have_value("2026-10-14")
-    page.locator("#session-date").fill("2026-10-14")
-    page.locator("#session-time").fill("12:00")
-    page.get_by_role("button", name="Shrani izvedbo", exact=True).click()
-    expect(page.locator("#fitness-access-title")).to_have_text(
-        "Načrti in izvedbe"
-    )
-    expect(page.locator("#fitness-plan-progress")).to_contain_text(
-        "1 / 3 opravljenih"
-    )
-    page.goto(browser.base + "/music")
-    expect(page).to_have_url(browser.base + "/music")
-    assert page.locator("body").inner_text() == "music"
+    expect(
+        page.get_by_role("heading", name="Zdravje", exact=True)
+    ).to_be_visible()
+    expect(page.locator("#fitness-suggestions button")).to_have_count(4)
+    assert page.locator("#panel-plan").count() == 0
+    for kind in ("running", second_kind):
+        page.locator(f'[data-use-suggestion="{kind}"]').click()
+        assert page.locator("#session-kind").input_value() == kind
+        page.get_by_role("button", name="Shrani aktivnost", exact=True).click()
+        page.locator("#fitness-session-dialog").wait_for(state="hidden")
+    expect(page.locator("#fitness-access-home")).to_be_visible()
+    assert gated.client.get("/music").status_code == 200
 
 
 def test_optional_measurements_and_chronological_persistence(ui):
@@ -1191,9 +1171,7 @@ def test_existing_profile_and_decimal_minutes_load_without_overwrite(ui):
 
 def test_suggested_workout_copy_preserves_form_advice_and_actual_overrides(ui):
     suggestion = next(
-        row
-        for row in state(ui)["suggestions"]
-        if row["id"] == "cycling-cadence"
+        row for row in state(ui)["suggestions"] if row["id"] == "cycling"
     )
     template = create(ui, "templates", **suggestion)
     plan = create(ui, "plan", **{**template, "date": "2026-10-14"})
@@ -1275,7 +1253,7 @@ def test_browser_measurements_graphs_and_mobile_layout(ui, browser):
     page.get_by_role("button", name="Shrani meritev", exact=True).click()
     page.locator("#fitness-measurement-dialog").wait_for(state="hidden")
     assert state(ui)["measurements"][0]["after_bowel"] is True
-    page.get_by_role("tab", name="Predloge in nastavitve").click()
+    page.get_by_role("tab", name="Nastavitve").click()
     page.locator("#fitness-height").fill("180")
     page.get_by_role("button", name="Shrani nastavitve").click()
     page.get_by_role("tab", name="Pregled", exact=True).click()
@@ -1288,8 +1266,7 @@ def test_browser_measurements_graphs_and_mobile_layout(ui, browser):
             "Pregled",
             "Meritve",
             "Dnevnik aktivnosti",
-            "Tedenski plan",
-            "Predloge in nastavitve",
+            "Nastavitve",
         ]:
             page.get_by_role("tab", name=tab, exact=True).click()
             assert page.evaluate(
@@ -1305,35 +1282,11 @@ def test_browser_measurements_graphs_and_mobile_layout(ui, browser):
     assert page.locator("#chart-weight circle").count() == 1
 
 
-def test_browser_template_plan_completion_and_failure_recovery(ui, browser):
+def test_browser_activity_failure_preserves_draft(ui, browser):
+    create(ui, "activities", kind="running", description="Stara opomba")
     page = browser.page
     page.goto(browser.base + "/admin/fitness")
-    page.get_by_role("tab", name="Predloge in nastavitve").click()
-    page.locator("[data-use-template]").first.click()
-    title = page.locator("#session-name").input_value()
-    page.locator("#plan-date").fill("2026-10-14")
-    page.locator("#session-description").fill(
-        "Moj opis <script>bad()</script>"
-    )
-    page.locator("#session-tutorial").fill("https://example.com/tutorial")
-    page.get_by_role("button", name="Shrani v plan").click()
-    page.locator("#fitness-session-dialog").wait_for(state="hidden")
-    page.get_by_role("tab", name="Tedenski plan").click()
-    page.locator("[data-complete]").click()
-    page.locator("#session-date").fill("2026-10-14")
-    page.locator("#session-time").fill("12:00")
-    page.locator("#session-duration").fill("45")
-    page.get_by_role("button", name="Shrani izvedbo").click()
-    page.locator("#fitness-session-dialog").wait_for(state="hidden")
-    assert state(ui)["plan"][0]["status"] == "completed"
-    completed_card = page.locator(
-        "#fitness-plan .fitness-card.is-completed"
-    ).filter(has_text=title)
-    assert completed_card.locator("button").count() == 0
-    assert state(ui)["activities"][0]["duration_min"] == 45
     page.get_by_role("tab", name="Dnevnik aktivnosti").click()
-    assert page.get_by_role("heading", name=title, exact=True).is_visible()
-    assert page.locator("#fitness-activities script").count() == 0
     page.locator("#fitness-activities [data-edit]").click()
     page.locator("#session-description").fill("Ohranjen osnutek")
     page.route(
@@ -1356,48 +1309,36 @@ def test_browser_template_plan_completion_and_failure_recovery(ui, browser):
     assert state(ui)["activities"][0]["description"] == "Ohranjen osnutek"
 
 
-def test_browser_custom_template_nullable_fields_plan_edit_and_delete(
+def test_browser_simple_activity_edit_delete_preserves_legacy_fields(
     ui, browser
 ):
+    create(
+        ui,
+        "activities",
+        kind="cycling",
+        training_style="intervals",
+        cadence_rpm=88,
+        advice="Stari podatki",
+        elapsed_time="30:00",
+        distance_km=10,
+    )
     page = browser.page
     page.goto(browser.base + "/admin/fitness")
-    page.get_by_role("tab", name="Predloge in nastavitve").click()
-    page.get_by_role("button", name="Nova predloga", exact=True).click()
-    page.locator("#session-kind").select_option("strength")
-    page.locator("#session-name").fill("Moje vaje")
-    page.locator("#session-description").fill("Opis in serije")
-    page.get_by_role("button", name="Shrani predlogo", exact=True).click()
+    page.get_by_role("tab", name="Dnevnik aktivnosti").click()
+    page.locator("#fitness-activities [data-edit]").click()
+    assert page.locator("#session-style").count() == 0
+    page.locator("#session-description").fill("Nova opomba")
+    page.locator("#session-elapsed").fill("31:00")
+    page.get_by_role("button", name="Shrani aktivnost", exact=True).click()
     page.locator("#fitness-session-dialog").wait_for(state="hidden")
-    template = next(
-        row for row in state(ui)["templates"] if row["title"] == "Moje vaje"
-    )
-    assert template["duration_min"] is None and template["intensity"] is None
-    page.locator(f'[data-use-template="{template["id"]}"]').click()
-    page.locator("#plan-date").fill("2026-10-19")
-    page.locator("#session-description").fill("Prilagojen opis")
-    page.get_by_role("button", name="Shrani v plan", exact=True).click()
-    page.locator("#fitness-session-dialog").wait_for(state="hidden")
-    assert page.locator("#tab-plan").get_attribute("aria-selected") == "true"
-    page.locator("#fitness-plan [data-edit]").click()
-    page.locator("#session-status").select_option("skipped")
-    page.get_by_role("button", name="Shrani v plan", exact=True).click()
-    page.locator("#fitness-session-dialog").wait_for(state="hidden")
-    assert state(ui)["plan"][0]["status"] == "skipped"
-    assert (
-        next(
-            row
-            for row in state(ui)["templates"]
-            if row["id"] == template["id"]
-        )["description"]
-        == "Opis in serije"
-    )
-    page.locator("#fitness-plan [data-delete]").click()
-    page.get_by_role("button", name="Prekliči", exact=True).click()
-    assert len(state(ui)["plan"]) == 1
-    page.locator("#fitness-plan [data-delete]").click()
+    row = state(ui)["activities"][0]
+    assert row["training_style"] == "intervals" and row["cadence_rpm"] == 88
+    assert row["duration_seconds"] == 1860
+    assert row["advice"] == "Stari podatki"
+    page.locator("#fitness-activities [data-delete]").click()
     page.get_by_role("button", name="Izbriši zapis", exact=True).click()
     page.locator("#fitness-delete-dialog").wait_for(state="hidden")
-    assert state(ui)["plan"] == []
+    assert state(ui)["activities"] == []
 
 
 def test_browser_graphs_with_data_and_unknown_conditions(ui, browser):
@@ -1439,9 +1380,10 @@ def test_browser_graphs_with_data_and_unknown_conditions(ui, browser):
     assert "Cilj: 21,6" in page.locator("#fitness-summary").text_content()
     assert "Cilj: 0,444" in page.locator("#fitness-summary").text_content()
     bmi_info = page.locator("#fitness-info-bmi")
-    assert bmi_info.evaluate(
-        "(element) => getComputedStyle(element).display"
-    ) == "none"
+    assert (
+        bmi_info.evaluate("(element) => getComputedStyle(element).display")
+        == "none"
+    )
     page.locator(".fitness-info").first.hover()
     assert bmi_info.is_visible()
     assert "referenčni razpon" in bmi_info.text_content()
@@ -1488,61 +1430,46 @@ def test_browser_reminds_to_weigh_after_a_week(ui, browser):
     assert reminder.is_hidden()
 
 
-def test_browser_targets_workout_suggestions_and_precise_running_time(
-    ui, browser
-):
-    create(ui, "measurements", weight_kg=80, waist_cm=90)
+def test_browser_conditioning_scatter_charts_and_precise_time(ui, browser):
+    for kind in ("cycling", "running"):
+        for day, distance, elapsed in [
+            (8, 5, "30:00"),
+            (11, 10, "45:00"),
+            (14, 8, "35:00"),
+        ]:
+            create(
+                ui,
+                "activities",
+                kind=kind,
+                timestamp=f"2026-10-{day:02}T12:00",
+                distance_km=distance,
+                elapsed_time=elapsed,
+            )
+        create(
+            ui, "activities", kind=kind, distance_km=0, elapsed_time="20:00"
+        )
+        create(ui, "activities", kind=kind, distance_km=5)
     page = browser.page
     page.goto(browser.base + "/admin/fitness")
-    page.get_by_role("button", name="Cilja in višina", exact=True).click()
-    page.locator("#fitness-target-weight").fill("75")
-    page.locator("#fitness-target-waist").fill("85")
-    page.get_by_role("button", name="Shrani nastavitve").click()
-    page.wait_for_function(
-        "document.querySelector('#fitness-summary').textContent"
-        ".includes('Cilj: 75')"
-    )
-    page.get_by_role("tab", name="Pregled", exact=True).click()
-    assert page.locator("#chart-weight .fitness-chart-guide").count() == 1
-    assert page.locator("#chart-waist .fitness-chart-guide").count() == 1
-    page.get_by_role("tab", name="Predloge in nastavitve").click()
-    page.locator("#fitness-suggestion-kind").select_option("cycling")
-    assert page.locator("#fitness-suggestions .fitness-card").count() == 2
-    page.locator('[data-use-suggestion="cycling-cadence"]').click()
-    assert page.locator("#session-style").input_value() == "intervals"
-    assert page.locator("#session-cadence").input_value() == "95"
-    assert "tedensko" in page.locator("#session-advice").input_value()
-    page.get_by_role("button", name="Shrani v plan", exact=True).click()
-    page.locator("#fitness-session-dialog").wait_for(state="hidden")
-    page.get_by_role("button", name="Zabeleži aktivnost", exact=True).click()
-    page.locator("#session-kind").select_option("running")
+    for kind in ("cycling", "running"):
+        chart = page.locator(f"#chart-{kind}-fitness")
+        assert chart.locator("circle").count() == 3
+        radii = chart.locator("circle").evaluate_all(
+            "nodes => nodes.map(node => Number(node.getAttribute('r')))"
+        )
+        assert radii[0] < radii[1] < radii[2]
+        chart.locator("circle").first.click()
+        assert "5 km" in chart.locator("[role=status]").text_content()
+        assert "10 km/h" in chart.locator("[role=status]").text_content()
+        assert "Razdalja (km)" in chart.text_content()
+        assert "Povprečna hitrost (km/h)" in chart.text_content()
+    page.locator('[data-use-suggestion="running"]').click()
     page.locator("#session-distance").fill("5")
     page.locator("#session-elapsed").fill("27:30")
-    assert page.locator("#session-duration").input_value() == "27.5"
     assert "5:30 min/km" in page.locator("#session-performance").text_content()
     page.get_by_role("button", name="Shrani aktivnost", exact=True).click()
     page.locator("#fitness-session-dialog").wait_for(state="hidden")
-    page.get_by_role("tab", name="Dnevnik aktivnosti").click()
-    page.locator("#fitness-activities .fitness-card").wait_for()
-    assert "5:30 min/km" in page.locator("#fitness-activities").text_content()
-    assert "27:30" in page.locator("#fitness-distance-summary").text_content()
-    page.locator("#fitness-activities [data-edit]").click()
-    assert page.locator("#session-elapsed").input_value() == "27:30"
-    page.locator("#session-duration").fill("28")
-    assert page.locator("#session-elapsed").input_value() == "28:00"
-    page.get_by_role("button", name="Shrani aktivnost", exact=True).click()
-    page.locator("#fitness-session-dialog").wait_for(state="hidden")
-    assert state(ui)["activities"][0]["duration_seconds"] == 1680
-    page.reload()
-    assert state(ui)["profile"]["target_weight_kg"] == 75
-    page.get_by_role("tab", name="Dnevnik aktivnosti").click()
-    page.locator("#fitness-activities [data-edit]").click()
-    page.locator("#session-distance").fill("1")
-    page.locator("#session-elapsed").fill("1:00:00")
-    assert (
-        "60:00 min/km" in page.locator("#session-performance").text_content()
-    )
-    page.get_by_role("button", name="Prekliči", exact=True).click()
+    assert state(ui)["activities"][-1]["duration_seconds"] == 1650
 
 
 def test_browser_distance_totals_and_precise_cycling(ui, browser):
@@ -1570,7 +1497,6 @@ def test_browser_distance_totals_and_precise_cycling(ui, browser):
     page.locator("#session-kind").select_option("cycling")
     page.locator("#session-distance").fill("30")
     page.locator("#session-elapsed").fill("1:02:30")
-    page.locator("#session-cadence").fill("88")
     assert "28,8 km/h" in page.locator("#session-performance").text_content()
     page.get_by_role("button", name="Shrani aktivnost", exact=True).click()
     page.locator("#fitness-session-dialog").wait_for(state="hidden")
@@ -1579,7 +1505,6 @@ def test_browser_distance_totals_and_precise_cycling(ui, browser):
         ".includes('28,8 km/h')"
     )
     assert "1:02:30" in page.locator("#fitness-activities").text_content()
-    assert "88 obr./min" in page.locator("#fitness-activities").text_content()
     page.locator("#fitness-distance-period").select_option("all")
     assert "17 km" in page.locator("#fitness-distance-summary").text_content()
     for width in [320, 1440]:
@@ -1590,11 +1515,6 @@ def test_browser_distance_totals_and_precise_cycling(ui, browser):
         page.locator("#fitness-distance-summary").screenshot(
             path=f"/private/tmp/fitness-distance-{width}.png"
         )
-    page.get_by_role("tab", name="Predloge in nastavitve").click()
-    page.locator("#fitness-suggestion-kind").select_option("strength")
-    page.locator("#fitness-suggestions").screenshot(
-        path="/private/tmp/fitness-workout-suggestions.png"
-    )
 
 
 def test_template_edit_updates_pending_plan_and_schedule(ui):
@@ -1603,11 +1523,19 @@ def test_template_edit_updates_pending_plan_and_schedule(ui):
     )
     tid = template["id"]
     pending = create(
-        ui, "plan", kind="running", date="2026-10-15", template_id=tid,
+        ui,
+        "plan",
+        kind="running",
+        date="2026-10-15",
+        template_id=tid,
         duration_min=20,
     )
     done = create(
-        ui, "plan", kind="running", date="2026-10-14", template_id=tid,
+        ui,
+        "plan",
+        kind="running",
+        date="2026-10-14",
+        template_id=tid,
         duration_min=20,
     )
     complete_plan(ui, done)
@@ -1618,8 +1546,13 @@ def test_template_edit_updates_pending_plan_and_schedule(ui):
         ui, "plan", kind="running", date="2026-10-17", template_id="nope"
     )
     recurring = create(
-        ui, "schedule", kind="running", parity="even", weekday=0,
-        template_id=tid, duration_min=20,
+        ui,
+        "schedule",
+        kind="running",
+        parity="even",
+        weekday=0,
+        template_id=tid,
+        duration_min=20,
     )
     assert "template_id" not in unknown
     assert ui.client.get("/admin/fitness/data").status_code == 200

@@ -38,7 +38,7 @@
             const host = document.fullscreenElement || document.body;
             if (banner.parentElement !== host) host.appendChild(banner);
             const minutes = Math.ceil((midnight - now) / 60000);
-            banner.textContent = `Nočni počitek: zaklep ob 00:00 čez ${minutes} min. Filmi, glasba in druge razvedrilne vsebine bodo zaklenjene do 06:00; Gibanje in blog ostaneta dostopna.`;
+            banner.textContent = `Nočni počitek: zaklep ob 00:00 čez ${minutes} min. Filmi, glasba in druge razvedrilne vsebine bodo zaklenjene do 06:00; Zdravje in blog ostaneta dostopna.`;
         } else if (banner) banner.remove();
         const boundary = now < warningAt ? warningAt : midnight;
         timer = setTimeout(check, Math.max(1, Math.min(60000, boundary - now)));

@@ -112,7 +112,7 @@ def test_browser_movie_end_warning_boundary(
         expect(warning).to_be_visible()
         expect(warning).to_contain_text("presega 23:45")
         expect(warning).to_contain_text("Stran se ob polnoči zapre")
-        expect(warning).to_contain_text("preusmeri na Gibanje")
+        expect(warning).to_contain_text("preusmeri na Zdravje")
     else:
         expect(warning).not_to_be_visible()
 

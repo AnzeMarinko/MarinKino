@@ -1,10 +1,6 @@
-.fitness-toolbar, .fitness-week-navigation { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; margin-bottom: 1.25rem; }
+.fitness-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; margin-bottom: 1.25rem; }
 .fitness-tabs { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: 1.25rem; }
 .fitness-access-panel { border-left: 4px solid var(--admin-accent); }
-.fitness-cycle-library { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0 1.5rem; }
-.fitness-cycle-week { margin: 1.5rem 0; }
-.fitness-cycle-week > h3 { margin-bottom: .75rem; }
-.fitness-cycle-week.is-current > h3 { color: var(--admin-accent); }
 .admin-page .fitness-tabs button { padding: .7rem .9rem; border: 1px solid var(--admin-border); border-radius: .65rem; background: #fff; color: var(--admin-muted); font-size: .85rem; font-weight: 600; }
 .admin-page .fitness-tabs [aria-selected="true"] { background: var(--admin-accent); color: #fff; border-color: var(--admin-accent); }
 .fitness-overview-grid, .fitness-template-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
@@ -29,9 +25,6 @@
 .fitness-chart-wide svg { min-width: 820px; }
 .fitness-check { display: inline-flex; gap: .6rem; align-items: center; font-size: .8rem; color: var(--admin-muted); }
 .admin-page .fitness-check input { width: 18px; height: 18px; padding: 0; accent-color: var(--admin-accent); flex-shrink: 0; }
-.fitness-progress-item { margin-bottom: 1.1rem; }
-.fitness-progress-item > div { display: flex; justify-content: space-between; gap: .7rem; font-size: .85rem; margin-bottom: .4rem; }
-.fitness-progress-item progress { width: 100%; height: 12px; accent-color: var(--admin-accent); }
 .fitness-caption { display: block; font-size: .72rem; color: var(--admin-muted); margin-top: .35rem; }
 .fitness-goal { display: block; font-size: .78rem; color: #88528f; margin-top: .5rem; font-variant-numeric: tabular-nums; }
 .fitness-distance-total { display: block; font-size: 1.65rem; color: var(--admin-accent); margin-top: .65rem; font-variant-numeric: tabular-nums; }
@@ -46,21 +39,7 @@
 .fitness-card a { color: var(--admin-accent); overflow-wrap: anywhere; }
 .fitness-legend { display: flex; gap: .6rem 1rem; flex-wrap: wrap; font-size: .8rem; margin: .7rem 0; }
 .fitness-legend span { display: inline-flex; align-items: center; gap: .4rem; }
-.fitness-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
-.fitness-week-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .6rem; }
-.fitness-day { border: 1px solid var(--admin-border); border-radius: .7rem; padding: .65rem; min-width: 0; background: #f7fafb; }
-.fitness-day.is-today { border-color: var(--admin-accent); }
-.fitness-day > h3 { font-size: .8rem; }
-.fitness-day > small { font-size: .7rem; color: var(--admin-muted); }
-.fitness-day .fitness-card { padding: .65rem; margin-top: .65rem; background: #fff; }
-.fitness-day .fitness-card h3 { font-size: .85rem; }
-.fitness-day .fitness-card small, .fitness-day .fitness-card p { font-size: .75rem; }
-.fitness-day .btn { padding: .35rem .45rem; font-size: .7rem; min-height: 34px; }
-.fitness-day .fitness-card.is-completed { border: 1px solid #b8d7c6; border-left: 3px solid #37836e; background: #eff7f1; }
-.fitness-day .fitness-card.is-skipped { opacity: .7; }
-.fitness-week-navigation { justify-content: start; }
-.fitness-week-navigation input { width: auto; max-width: 100%; }
-.fitness-week-navigation strong { font-size: .9rem; }
+.fitness-legend i { font-size: 1rem; }
 .fitness-profile-form, .fitness-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .fitness-profile-form > [data-form-error] { grid-column: 1 / -1; }
 .fitness-profile-form > button { align-self: end; justify-self: start; }
@@ -71,14 +50,19 @@
 .fitness-dialog fieldset { border: 0; padding: 0; }
 .fitness-dialog legend { float: none; width: auto; }
 .fitness-value { font-variant-numeric: tabular-nums; white-space: nowrap; }
-@media (max-width: 1100px) { .fitness-week-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 650px) {
   .fitness-overview-grid, .fitness-template-grid, .fitness-profile-form, .fitness-wellbeing-grid { grid-template-columns: 1fr; }
-  .fitness-week-grid { grid-template-columns: 1fr; }
-  .fitness-day { padding: .85rem; }
   .fitness-dialog { padding: 1rem; }
   .fitness-tabs { gap: .25rem; }
   .admin-page .fitness-tabs button { font-size: .75rem; padding: .6rem .65rem; }
   .fitness-toolbar { align-items: start; }
 }
 @media (max-width: 360px) { .fitness-form-grid { grid-template-columns: 1fr; } }
+
+.fitness-suggestion-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 1rem; }
+.admin-page .fitness-suggestion { display: flex; flex-direction: column; align-items: center; gap: .4rem; color: var(--admin-ink); text-align: center; cursor: pointer; }
+.admin-page .fitness-suggestion:hover, .admin-page .fitness-suggestion:focus-visible { border-color: var(--admin-accent); background: #eef6f4; }
+.fitness-suggestion > i { font-size: 2rem; color: var(--admin-accent); }
+#fitness-plan-progress { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; font-size: .85rem; }
+.fitness-scatter-detail { min-height: 2.5em; color: var(--admin-muted); }
+@media (max-width: 650px) { .fitness-suggestion-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

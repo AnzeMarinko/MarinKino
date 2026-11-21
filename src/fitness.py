@@ -23,8 +23,8 @@ COLLECTIONS = ("measurements", "activities", "templates", "plan", "schedule")
 KINDS = {
     "cycling": "Kolesarjenje",
     "running": "Tek",
-    "cardio": "Kardio vaje",
-    "strength": "Vaje za moč",
+    "cardio": "Kardio",
+    "strength": "Uteži",
 }
 STARTERS = (
     (
@@ -462,12 +462,18 @@ def plan_progress(state):
         return bool(actual and actual.get("plan_id") == plan["id"])
 
     week = [row for row in state["plan"] if first <= row["date"] <= last]
-    # Any logged activity counts, planned or not, within the last 7 days.
+    # Both categories must be logged within the same rolling seven-day window.
     recent_activities = [
         row
         for row in state["activities"]
         if (today - timedelta(days=6)) <= local_date(row) <= today
     ]
+    endurance = sum(
+        row["kind"] in ("cycling", "running") for row in recent_activities
+    )
+    cardio_or_strength = sum(
+        row["kind"] in ("cardio", "strength") for row in recent_activities
+    )
     week_completed = [
         row
         for row in state["plan"]
@@ -491,7 +497,9 @@ def plan_progress(state):
         and row["status"] == "planned"
     ]
     return {
-        "allowed": bool(recent_activities),
+        "allowed": endurance > 0 and cardio_or_strength > 0,
+        "recent_endurance": endurance,
+        "recent_cardio_or_strength": cardio_or_strength,
         "recent_activities": len(recent_activities),
         "week_start": first,
         "week_end": last,

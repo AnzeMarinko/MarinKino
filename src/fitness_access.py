@@ -38,7 +38,7 @@ ESSENTIAL_ENDPOINTS = frozenset(
 NIGHT_WARNING = (
     "Nočni počitek: filmi, glasba in druge razvedrilne vsebine so med "
     "00:00 in 06:00 po uri tvoje naprave zaklenjene. "
-    "Gibanje in blog ostaneta dostopna."
+    "Zdravje in blog ostaneta dostopna."
 )
 
 
@@ -141,7 +141,7 @@ def init_fitness_access(app):
                     "Fitness access check unavailable"
                 )
                 return jsonify(
-                    error="Preverjanje gibanja ni uspelo. Odpri Gibanje.",
+                    error="Preverjanje zdravja ni uspelo. Odpri Zdravje.",
                     fitness_url=url_for("fitness.panel"),
                 ), 503
             g.fitness_access = progress
@@ -164,7 +164,10 @@ def init_fitness_access(app):
                     "Od zadnjega tehtanja sta minila več kot dva meseca. "
                     "Zabeleži novo meritev teže za odklep ostalih vsebin."
                     if weighing_locked
-                    else "V zadnjih 7 dneh najprej opravi vsaj eno aktivnost."
+                    else (
+                        "V zadnjih 7 dneh zabeleži tek ali kolesarjenje "
+                        "in kardio vadbo ali vadbo za moč."
+                    )
                 ),
                 fitness_url=fitness_url,
                 progress=progress,
@@ -181,8 +184,8 @@ def init_fitness_access(app):
                     if weighing_locked
                     else (
                         "Ostale vsebine so zaklenjene. V zadnjih 7 dneh "
-                        "najprej opravi vsaj eno aktivnost in zabeleži "
-                        "izvedbo."
+                        "zabeleži vsaj en tek ali kolesarjenje in vsaj "
+                        "eno kardio vadbo ali vadbo za moč."
                     )
                 )
             )

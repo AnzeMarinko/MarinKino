@@ -4,10 +4,10 @@
     if (!root) return;
     let state = JSON.parse(root.textContent);
     const el = id => document.getElementById(id);
-    const kinds = { cycling: "Kolesarjenje", running: "Tek", cardio: "Kardio vaje", strength: "Vaje za moč" };
-    const intensities = { light: "lahka", moderate: "zmerna", vigorous: "visoka" };
+    const kinds = { cycling: "Kolesarjenje", running: "Tek", cardio: "Kardio", strength: "Uteži" };
+    const icons = { cycling: "bi-bicycle", running: "bi-person-walking", strength: "bi-person-arms-up", cardio: "bi-heart-pulse" };
+    const kindIcon = kind => `<i class="bi ${icons[kind]}" aria-hidden="true"></i>`;
     const colors = { cycling: "#256b73", running: "#c07c24", cardio: "#7565b3", strength: "#c35e73" };
-    const weekdays = ["Ponedeljek", "Torek", "Sreda", "Četrtek", "Petek", "Sobota", "Nedelja"];
     const escape = value => String(value ?? "").replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
     const fmt = (value, digits = 1) => value == null ? "—" : Number(value).toLocaleString("sl-SI", { maximumFractionDigits: digits });
     const localParts = value => Object.fromEntries(new Intl.DateTimeFormat("sv-SE", {
@@ -23,13 +23,6 @@
     function addDays(day, offset) {
         const date = dayDate(day); date.setUTCDate(date.getUTCDate() + offset); return date.toISOString().slice(0, 10);
     }
-    const monday = day => addDays(day, -(dayDate(day).getUTCDay() + 6) % 7);
-    function isoWeek(day) {
-        const thursday = dayDate(addDays(monday(day), 3));
-        const first = new Date(Date.UTC(thursday.getUTCFullYear(), 0, 1, 12));
-        return Math.ceil(((thursday - first) / 86400000 + 1) / 7);
-    }
-    const parityLabel = day => `${isoWeek(day) % 2 ? "Lihi" : "Sodi"} teden · ${isoWeek(day)}`;
     const boolLabel = value => value === true ? "Da" : value === false ? "Ne" : "Ne vem";
     const clock = seconds => {
         if (seconds == null) return "—";
@@ -50,7 +43,6 @@
         const prefix = collection === "activities" ? "" : "Predvideno: ";
         return row.kind === "running" ? `${prefix}${paceClock(seconds / distance)} min/km` : `${prefix}${fmt(distance * 3600 / seconds)} km/h`;
     }
-    const workout = id => [...state.templates, ...state.suggestions].find(row => row.id === id);
     let editContext = null;
     let deleteContext = null;
     let profileDirty = false;
@@ -73,21 +65,18 @@
         return data;
     }
     async function refresh(success) {
-        try { state = await api(`/data?start=${monday(el("fitness-week").value || state.today)}`); render(); message(success); }
+        try { state = await api("/data"); render(); message(success); }
         catch (_error) { message(`${success} Pregleda ni mogoče osvežiti; uporabi Osveži pregled.`, true); }
     }
     function actions(collection, row) {
         return `<div class="admin-actions"><button type="button" class="btn btn-sm btn-outline-secondary" data-edit="${collection}" data-id="${escape(row.id)}">Uredi</button><button type="button" class="btn btn-sm btn-outline-danger" data-delete="${collection}" data-id="${escape(row.id)}">Izbriši</button></div>`;
     }
-    function sessionMeta(row, collection) {
-        const detail = performance(row, collection);
-        return `${escape(kinds[row.kind])} · ${sessionSeconds(row) == null ? "čas neznan" : `čas ${clock(sessionSeconds(row))}`} · ${escape(intensities[row.intensity] || "intenzivnost neznana")}${row.distance_km != null ? ` · ${fmt(row.distance_km, 3)} km` : ""}${detail ? ` · ${escape(detail)}` : ""}${row.training_style ? ` · ${escape(state.styles[row.training_style])}` : ""}${row.equipment ? ` · ${escape(state.equipment[row.equipment])}` : ""}${row.cadence_rpm != null ? ` · ${fmt(row.cadence_rpm)} obr./min` : ""}`;
+    function sessionMeta(row) {
+        const detail = performance(row, "activities");
+        return `${kindIcon(row.kind)} ${escape(kinds[row.kind])} · ${sessionSeconds(row) == null ? "čas neznan" : clock(sessionSeconds(row))}${row.distance_km != null ? ` · ${fmt(row.distance_km, 3)} km` : ""}${detail ? ` · ${escape(detail)}` : ""}`;
     }
     function card(row, collection) {
-        const status = collection === "plan" ? { planned: "Načrtovano", completed: "Opravljeno", skipped: "Preskočeno" }[row.status] : "";
-        const advice = row.advice || (collection === "templates" ? state.general_advice[row.kind] : "");
-        const controls = collection === "suggestions" ? `<div class="admin-actions"><button type="button" class="btn btn-sm btn-primary" data-use-suggestion="${escape(row.id)}">Dodaj v plan</button><button type="button" class="btn btn-sm btn-outline-secondary" data-save-suggestion="${escape(row.id)}">Prilagodi in shrani predlogo</button></div>` : collection === "plan" && row.status === "completed" ? "" : actions(collection, row);
-        return `<article class="fitness-card${row.status ? ` is-${escape(row.status)}` : ""}" data-entry-id="${escape(row.id)}"><h3>${escape(row.title)}</h3><small>${sessionMeta(row, collection)}</small>${row.timestamp ? `<small class="d-block mt-1">${escape(timestampLabel(row.timestamp))}</small>` : ""}${status ? `<strong class="d-block small mt-2">${status}</strong>` : ""}${row.description ? `<p>${escape(row.description)}</p>` : ""}${advice ? `<details class="fitness-advice"${collection === "suggestions" ? " open" : ""}><summary>Nasvet in razporeditev</summary><p>${escape(advice)}</p></details>` : ""}${row.tutorial_url ? `<a class="small" href="${escape(row.tutorial_url)}" target="_blank" rel="noopener noreferrer">Odpri tutorial ↗</a>` : ""}${controls}${collection === "templates" ? `<button type="button" class="btn btn-sm btn-primary mt-2" data-use-template="${escape(row.id)}">Dodaj v plan</button>` : ""}${collection === "plan" && row.status !== "completed" ? `<button type="button" class="btn btn-sm btn-primary mt-2" data-complete="${escape(row.id)}">Zabeleži izvedbo</button>` : ""}</article>`;
+        return `<article class="fitness-card" data-entry-id="${escape(row.id)}"><h3>${kindIcon(row.kind)} ${escape(row.title)}</h3><small>${sessionMeta(row)}</small><small class="d-block mt-1">${escape(timestampLabel(row.timestamp))}</small>${row.description ? `<p>${escape(row.description)}</p>` : ""}${actions(collection, row)}</article>`;
     }
     function lastMeasurement(key) { return [...state.measurements].reverse().find(row => row[key] != null); }
     function renderSummary() {
@@ -130,9 +119,6 @@
             : weighing.days == null
                 ? "Tehtanja še nisi zabeležil. Dodaj prvo meritev teže."
                 : `Od zadnjega tehtanja je minilo ${weighing.days} dni. Čas je za novo meritev teže.`;
-        const week = state.current_week, profile = state.profile;
-        el("fitness-week-label").textContent = `${dateLabel(week.date)}–${dateLabel(addDays(week.date, 6))}`;
-        el("fitness-progress").innerHTML = [["Aerobna vadba", week.aerobic_equivalent, profile.aerobic_goal, "enakovrednih min"], ["Vadba za moč", week.strength_days, profile.strength_goal, "dni"]].map(([label, value, goal, unit]) => `<div class="fitness-progress-item"><div><span>${label}</span><strong>${fmt(value)} / ${fmt(goal)} ${unit}</strong></div><progress max="${goal}" value="${Math.min(value, goal)}" aria-label="${label}">${fmt(value)} / ${fmt(goal)}</progress></div>`).join("");
     }
     function renderMeasurements() {
         const rows = [...state.measurements].reverse();
@@ -140,8 +126,7 @@
         el("fitness-measurements").innerHTML = `<table class="table"><thead><tr>${["Datum in ura", "Teža (kg)", "Pas (cm)", "ITM", "Pas/višina", "Na tešče", "Zjutraj", "Po veliki potrebi", "Opomba", "Dejanja"].map(label => `<th scope="col">${label}</th>`).join("")}</tr></thead><tbody>${rows.map(row => `<tr data-entry-id="${escape(row.id)}"><td class="fitness-value">${escape(timestampLabel(row.timestamp))}</td><td>${fmt(row.weight_kg)}</td><td>${fmt(row.waist_cm)}</td><td>${fmt(row.bmi)}</td><td>${fmt(row.waist_height_ratio, 3)}</td><td>${boolLabel(row.fasting)}</td><td>${boolLabel(row.morning)}</td><td>${boolLabel(row.after_bowel)}</td><td style="min-width:140px;white-space:pre-wrap;overflow-wrap:anywhere">${escape(row.notes)}</td><td>${actions("measurements", row)}</td></tr>`).join("")}</tbody></table>`;
     }
     function renderSuggestions() {
-        const kind = el("fitness-suggestion-kind").value;
-        el("fitness-suggestions").innerHTML = state.suggestions.filter(row => kind === "all" || row.kind === kind).map(row => card(row, "suggestions")).join("");
+        el("fitness-suggestions").innerHTML = state.suggestions.map(row => `<button type="button" class="fitness-card fitness-suggestion" data-use-suggestion="${escape(row.id)}">${kindIcon(row.kind)}<strong>${escape(row.title)}</strong><small>Zabeleži aktivnost</small></button>`).join("");
     }
     function renderDistanceSummary() {
         const period = el("fitness-distance-period").value;
@@ -155,48 +140,18 @@
             const paired = sessions.filter(row => row.distance_km > 0 && sessionSeconds(row) > 0);
             const pairedDistance = paired.reduce((sum, row) => sum + row.distance_km, 0), pairedSeconds = paired.reduce((sum, row) => sum + sessionSeconds(row), 0);
             const average = !paired.length ? "—" : kind === "running" ? `${paceClock(pairedSeconds / pairedDistance)} min/km` : `${fmt(pairedDistance * 3600 / pairedSeconds)} km/h`;
-            return `<div class="fitness-card"><h3>${kinds[kind]}</h3><strong class="fitness-distance-total">${measured.length ? fmt(distance, 3) : "—"} km</strong><p>Zabeleženi čas: <strong>${timed.length ? clock(seconds) : "—"}</strong></p><p>${kind === "running" ? "Skupni tempo" : "Povprečna hitrost"}: <strong>${average}</strong></p><small>${sessions.length} izvedb · ${sessions.length - measured.length} brez razdalje · ${sessions.length - timed.length} brez časa. Izračun tempa/hitrosti: ${paired.length} popolnih izvedb.</small></div>`;
+            return `<div class="fitness-card"><h3>${kindIcon(kind)} ${kinds[kind]}</h3><strong class="fitness-distance-total">${measured.length ? fmt(distance, 3) : "—"} km</strong><p>Zabeleženi čas: <strong>${timed.length ? clock(seconds) : "—"}</strong></p><p>${kind === "running" ? "Skupni tempo" : "Povprečna hitrost"}: <strong>${average}</strong></p><small>${sessions.length} izvedb · ${sessions.length - measured.length} brez razdalje · ${sessions.length - timed.length} brez časa. Izračun tempa/hitrosti: ${paired.length} popolnih izvedb.</small></div>`;
         }).join("");
     }
     function renderAccess() {
         const progress = state.plan_progress;
         const weighing = state.weighing_status;
-        el("fitness-access-status").textContent = `${parityLabel(state.today)} · ${progress.recent_activities} aktivnosti v zadnjih 7 dneh.`;
-        el("fitness-plan-progress").innerHTML = `<strong>Načrti zadnjih 7 dni: ${progress.recent_completed} / ${progress.recent_total} opravljenih</strong><p class="small text-muted">${dateLabel(progress.recent_start)}–${dateLabel(progress.recent_end)} · šteje tudi izvedba na drug dan.</p>`;
+        el("fitness-access-status").textContent = progress.allowed ? "Oba pogoja za zadnjih 7 dni izpolnjena." : "Za odklep v zadnjih 7 dneh zabeleži vsaj en tek ali kolesarjenje in vsaj eno kardio vadbo ali vadbo za moč.";
+        el("fitness-plan-progress").innerHTML = `<span>${progress.recent_endurance ? "✓" : "○"} Tek ali kolesarjenje</span><span>${progress.recent_cardio_or_strength ? "✓" : "○"} Kardio ali moč</span>`;
         const node = el("fitness-access-suggestions");
-        if (weighing.locked) {
-            node.hidden = false;
-            node.innerHTML = '<h3>Vsebina zaklenjena</h3><p>Od zadnjega tehtanja sta minila več kot dva meseca. Za nadaljevanje zabeleži novo meritev teže.</p><button type="button" class="btn btn-primary" data-new="measurements">Zabeleži tehtanje</button>';
-            return;
-        }
-        node.hidden = progress.allowed;
-        if (progress.allowed) { node.innerHTML = ""; return; }
-        const due = progress.due.length ? progress.due : progress.upcoming;
-        const heading = progress.due.length ? "Za opraviti · načrtovano v zadnjih treh dneh" : "V zadnjih treh dneh ni neopravljene vadbe. Izberi iz plana tega tedna ali zabeleži drugo aktivnost";
-        node.innerHTML = due.length ? `<h3>${heading}</h3><div class="fitness-template-grid">${due.map(row => `<article class="fitness-card"><h3>${escape(row.title)}</h3><small>Načrtovano: ${dateLabel(row.date)} · ${sessionMeta(row, "plan")}</small>${row.description ? `<p>${escape(row.description)}</p>` : ""}${row.advice ? `<details class="fitness-advice"><summary>Nasvet</summary><p>${escape(row.advice)}</p></details>` : ""}${row.tutorial_url ? `<a href="${escape(row.tutorial_url)}" target="_blank" rel="noopener noreferrer">Tutorial ↗</a>` : ""}<div class="admin-actions"><button class="btn btn-primary btn-sm" type="button" data-complete-due="${escape(row.id)}">Zabeleži izvedbo</button></div></article>`).join("")}</div>` : '<p>V zadnjih 7 dneh še nimaš aktivnosti. Zabeleži katerokoli aktivnost (tudi tisto, ki ni v planu) ali razporedi predlog vadbe v dvotedenski plan.</p>';
-    }
-    function renderCycle() {
-        el("fitness-cycle-library").innerHTML = state.suggestions.map(row => `<button type="button" class="btn btn-sm btn-outline-primary" data-schedule-suggestion="${escape(row.id)}">${escape(row.title)}</button>`).join("");
-        el("fitness-cycle-plan").innerHTML = ["odd", "even"].map(parity => {
-            const current = state.plan_progress.parity === parity;
-            return `<section class="fitness-cycle-week${current ? " is-current" : ""}" data-parity="${parity}"><h3>${parity === "odd" ? "Lihi tedni" : "Sodi tedni"}${current ? " · ta teden" : ""}</h3><div class="fitness-week-grid">${weekdays.map((day, index) => `<div class="fitness-day"><h3>${day}</h3>${state.schedule.filter(row => row.parity === parity && row.weekday === index).map(row => card(row, "schedule")).join("")}<button type="button" class="btn btn-sm btn-outline-primary" data-schedule-day="${parity}:${index}" aria-label="Dodaj vadbo: ${parity === "odd" ? "lihi" : "sodi"} tedni, ${day}">+ Vadba</button></div>`).join("")}</div></section>`;
-        }).join("");
-    }
-    function renderPlan() {
-        const start = monday(el("fitness-week").value || state.today), end = addDays(start, 13);
-        el("fitness-plan-range").textContent = `${dateLabel(start)}–${dateLabel(end)}`;
-        const rows = state.plan.filter(row => row.date >= start && row.date <= end);
-        const planned = rows.filter(row => row.status === "planned");
-        const minutes = planned.reduce((sum, row) => sum + (row.duration_min || 0), 0);
-        const unknown = planned.filter(row => row.duration_min == null).length;
-        el("fitness-plan-summary").textContent = `${planned.length} načrtovanih aktivnosti · ${fmt(minutes)} znanih minut${unknown ? ` · ${unknown} brez trajanja` : ""} · ${rows.filter(row => row.status === "completed").length} opravljenih · ${rows.filter(row => row.status === "skipped").length} preskočenih`;
-        el("fitness-plan").innerHTML = [0, 7].map(offset => {
-            const first = addDays(start, offset);
-            return `<section class="fitness-cycle-week"><h3>${parityLabel(first)} · ${dateLabel(first)}–${dateLabel(addDays(first, 6))}</h3><div class="fitness-week-grid">${weekdays.map((name, index) => {
-                const day = addDays(first, index), daily = rows.filter(row => row.date === day);
-                return `<div class="fitness-day${day === state.today ? " is-today" : ""}"><h3>${name}</h3><small>${dateLabel(day)}</small>${daily.map(row => card(row, "plan")).join("")}<button type="button" class="btn btn-sm btn-outline-primary mt-2" data-plan-day="${day}" aria-label="Dodaj aktivnost: ${name}, ${dateLabel(day)}">+ Aktivnost</button></div>`;
-            }).join("")}</div></section>`;
-        }).join("");
+        node.hidden = !weighing.locked;
+        node.innerHTML = weighing.locked ? '<p>Za odklep zabeleži novo meritev teže.</p><button type="button" class="btn btn-primary mb-3" data-new="measurements">Zabeleži tehtanje</button>' : "";
+        el("fitness-access-home").hidden = !progress.allowed || weighing.locked;
     }
     function emptyChart(id, text) { el(id).innerHTML = `<p class="admin-empty">${escape(text)}</p>`; }
     const svgText = (x, y, label, extra = "") => `<text x="${x}" y="${y}" font-size="11" fill="#627589" ${extra}>${escape(label)}</text>`;
@@ -266,7 +221,44 @@
             });
         });
     }
+    function fitnessChart(kind) {
+        const id = `chart-${kind}-fitness`;
+        const rows = state.activities.filter(row => row.kind === kind && row.distance_km > 0 && row.average_speed_kmh > 0)
+            .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        if (!rows.length) { emptyChart(id, "Za graf zabeleži aktivnost z razdaljo in časom."); return; }
+        const width = 540, height = 300, left = 60, right = 22, top = 30, bottom = 55;
+        const maxDistance = Math.max(...rows.map(row => row.distance_km)) * 1.12;
+        const maxSpeed = Math.max(...rows.map(row => row.average_speed_kmh)) * 1.12;
+        const firstTime = +new Date(rows[0].timestamp), lastTime = +new Date(rows.at(-1).timestamp);
+        const x = distance => left + distance / maxDistance * (width - left - right);
+        const y = speed => height - bottom - speed / maxSpeed * (height - top - bottom);
+        let contents = `<title>${kinds[kind]}: razdalja in povprečna hitrost. Večja pika pomeni novejšo aktivnost.</title>`;
+        for (let index = 0; index <= 4; index++) {
+            const distance = maxDistance * index / 4, speed = maxSpeed * index / 4;
+            contents += `<line x1="${left}" x2="${width - right}" y1="${y(speed)}" y2="${y(speed)}" stroke="#e5ecef"/>`;
+            contents += svgText(left - 8, y(speed) + 4, fmt(speed), 'text-anchor="end"');
+            contents += svgText(x(distance), height - bottom + 20, fmt(distance), 'text-anchor="middle"');
+        }
+        contents += svgText(left, 15, "Povprečna hitrost (km/h)") + svgText(width / 2, height - 8, "Razdalja (km)", 'text-anchor="middle"');
+        rows.forEach(row => {
+            const recency = lastTime === firstTime ? 1 : (+new Date(row.timestamp) - firstTime) / (lastTime - firstTime);
+            const caption = `${timestampLabel(row.timestamp)} · ${fmt(row.distance_km, 3)} km · ${fmt(row.average_speed_kmh)} km/h`;
+            contents += `<circle class="fitness-chart-point fitness-conditioning-point" cx="${x(row.distance_km)}" cy="${y(row.average_speed_kmh)}" r="${4 + 6 * recency}" fill="${colors[kind]}" fill-opacity="${.4 + .5 * recency}" stroke="white" stroke-width="1" tabindex="0" role="button" aria-label="${escape(caption)}" data-caption="${escape(caption)}"><title>${escape(caption)}</title></circle>`;
+        });
+        el(id).innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="group" aria-label="Kondicija: ${kinds[kind]}">${contents}</svg><p class="fitness-scatter-detail small" role="status">${rows.length} aktivnosti · manjše pike = starejše</p>`;
+        const detail = el(id).querySelector(".fitness-scatter-detail");
+        el(id).querySelectorAll("circle").forEach(point => {
+            const show = () => { detail.textContent = point.dataset.caption; };
+            point.addEventListener("click", show);
+            point.addEventListener("focus", show);
+            point.addEventListener("mouseenter", show);
+            point.addEventListener("keydown", event => {
+                if (event.key === "Enter" || event.key === " ") { event.preventDefault(); show(); }
+            });
+        });
+    }
     function renderCharts() {
+        fitnessChart("cycling"); fitnessChart("running");
         const targetGuide = (value, unit) => value == null ? [] : [{ value, label: `Cilj ${fmt(value)} ${unit}`, color: "#a364ae" }];
         lineChart("chart-weight", "weight_kg", "Graf telesne teže", 1, targetGuide(state.profile.target_weight_kg, "kg"));
         lineChart("chart-waist", "waist_cm", "Graf obsega pasu", 1, targetGuide(state.profile.target_waist_cm, "cm"));
@@ -290,17 +282,16 @@
             contents += svgText(left + (index + .5) * step, 242, dateLabel(week.date).replace(/\d{4}/, ""), 'text-anchor="middle"');
         });
         el("chart-activity").innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Graf opravljenih minut aktivnosti">${contents}</svg>`;
-        el("fitness-activity-legend").innerHTML = Object.entries(kinds).map(([kind, label]) => `<span><i style="background:${colors[kind]}"></i>${label}</span>`).join("");
+        el("fitness-activity-legend").innerHTML = Object.entries(kinds).map(([kind, label]) => `<span><i class="bi ${icons[kind]}" aria-hidden="true" style="color:${colors[kind]}"></i>${label}</span>`).join("");
         const weeklyDistance = (week, kind) => {
             const count = week.sessions_by_kind[kind], missing = week.missing_distance_by_kind[kind];
             return count && count === missing ? "—" : `${fmt(week.distance_by_kind[kind], 3)}${missing ? " + ?" : ""}`;
         };
-        el("fitness-weekly-table").innerHTML = `<table class="table"><thead><tr>${["Teden od", "Minute skupaj", "Tek (km)", "Kolo (km)", "Aerobne enakovredne minute", "Dnevi za moč", "Brez trajanja", "Brez aerobne intenzivnosti"].map(label => `<th scope="col">${label}</th>`).join("")}</tr></thead><tbody>${[...weekly].reverse().map(week => `<tr><td>${dateLabel(week.date)}</td><td>${fmt(week.minutes)}</td><td>${weeklyDistance(week, "running")}</td><td>${weeklyDistance(week, "cycling")}</td>${[week.aerobic_equivalent, week.strength_days, week.missing_duration, week.unknown_intensity].map(value => `<td>${fmt(value)}</td>`).join("")}</tr>`).join("")}</tbody></table><p class="form-text">»+ ?«: del razdalj ni znan. »—«: pri zabeleženih izvedbah ni znana nobena razdalja.</p>`;
+        el("fitness-weekly-table").innerHTML = `<table class="table"><thead><tr>${["Teden od", "Minute skupaj", "Tek (km)", "Kolo (km)", "Dnevi za moč"].map(label => `<th scope="col">${label}</th>`).join("")}</tr></thead><tbody>${[...weekly].reverse().map(week => `<tr><td>${dateLabel(week.date)}</td><td>${fmt(week.minutes)}</td><td>${weeklyDistance(week, "running")}</td><td>${weeklyDistance(week, "cycling")}</td>${[week.recorded_strength_days].map(value => `<td>${fmt(value)}</td>`).join("")}</tr>`).join("")}</tbody></table><p class="form-text">»+ ?«: del razdalj ni znan. »—«: pri zabeleženih izvedbah ni znana nobena razdalja.</p>`;
     }
     function render() {
-        renderAccess(); renderCycle(); renderSummary(); renderMeasurements(); renderPlan(); renderCharts(); renderSuggestions(); renderDistanceSummary();
-        el("fitness-activities").innerHTML = [...state.activities].reverse().map(row => card(row, "activities")).join("") || '<p class="admin-empty">Izvedenih aktivnosti še ni. Dodaj prvo vadbo ali potrdi izvedbo iz plana.</p>';
-        el("fitness-templates").innerHTML = state.templates.map(row => card(row, "templates")).join("") || '<p class="admin-empty">Ustvari predlogo svojih priljubljenih aktivnosti.</p>';
+        renderAccess(); renderSummary(); renderMeasurements(); renderCharts(); renderSuggestions(); renderDistanceSummary();
+        el("fitness-activities").innerHTML = [...state.activities].reverse().map(row => card(row, "activities")).join("") || '<p class="admin-empty">Izvedenih aktivnosti še ni. Dodaj prvo aktivnost.</p>';
         if (!profileDirty) Object.entries(state.profile).forEach(([name, value]) => { const input = el("fitness-profile").elements.namedItem(name); if (input) input.value = value ?? ""; });
     }
     function selectTab(key, focus = false) {
@@ -337,36 +328,17 @@
         if (row) fillForm(form, row); initDate(form, "measurement", row?.timestamp); syncStandard();
         el("fitness-measurement-dialog").showModal();
     }
-    function applyTemplate(row) {
-        if (!row) return;
-        const copy = { ...row }; delete copy.date; delete copy.timestamp; delete copy.status; fillForm(el("fitness-session-form"), copy);
-        el("session-elapsed").value = sessionSeconds(row) == null ? "" : clock(sessionSeconds(row));
-        updateSessionFields(); updatePerformance();
-    }
     function openSession(collection, row, options = {}) {
         const form = el("fitness-session-form"); form.reset(); formError(form);
-        editContext = { collection, id: row?.id, complete: options.complete };
-        const title = options.complete ? "Zabeleži izvedbo" : `${row ? "Uredi" : "Nova"} ${collection === "templates" ? "predloga" : collection === "schedule" ? "ponavljajoča vadba" : collection === "plan" ? "aktivnost v planu" : "aktivnost"}`;
-        el("fitness-session-title").textContent = title;
-        el("session-template-field").hidden = collection === "templates" || !!row;
-        el("session-template").innerHTML = '<option value="">Lastna aktivnost</option>' + [["Moje predloge", state.templates], ["Predlagane oblike vadbe", state.suggestions]].map(([label, rows]) => `<optgroup label="${label}">${rows.map(template => `<option value="${escape(template.id)}">${escape(template.title)}</option>`).join("")}</optgroup>`).join("");
-        el("session-actual-date").hidden = collection !== "activities" && !options.complete;
-        el("session-plan-date").hidden = collection !== "plan" || !!options.complete;
-        el("session-status-field").hidden = collection !== "plan" || !!options.complete || row?.status === "completed";
-        el("session-repeat-fields").hidden = !["plan", "schedule"].includes(collection) || !!options.complete || (collection === "plan" && !!row);
-        el("session-save").textContent = options.complete ? "Shrani izvedbo" : collection === "templates" ? "Shrani predlogo" : ["plan", "schedule"].includes(collection) ? "Shrani v plan" : "Shrani aktivnost";
-        if (row) { fillForm(form, row); el("session-elapsed").value = sessionSeconds(row) == null ? "" : clock(sessionSeconds(row)); if (row.status === "completed") el("session-status").value = "planned"; }
-        initDate(form, "session", options.complete ? null : row?.timestamp);
-        el("session-planned-context").hidden = !options.complete;
-        el("session-planned-context").textContent = options.complete ? `Načrtovano: ${dateLabel(row.date)}. Zgoraj vnesi dejanski datum izvedbe; privzeto je danes.` : "";
-        const selectedWeek = monday(el("fitness-week").value || state.today);
-        const defaultPlanDay = selectedWeek === monday(state.today) ? state.today : selectedWeek;
-        el("plan-date").value = row?.date || options.date || defaultPlanDay;
-        el("session-repeat").value = row?.parity || options.parity || (collection === "schedule" ? state.plan_progress.parity : "");
-        el("session-repeat").querySelector('option[value=""]').disabled = collection === "schedule";
-        el("session-weekday").value = row?.weekday ?? options.weekday ?? ((dayDate(el("plan-date").value).getUTCDay() + 6) % 7);
-        if (options.template) { el("session-template").value = options.template.id; applyTemplate(options.template); }
-        updatePlanFields(); updateSessionFields(); updatePerformance();
+        editContext = { collection: "activities", id: row?.id };
+        el("fitness-session-title").textContent = row ? "Uredi aktivnost" : "Nova aktivnost";
+        const values = row || options.template;
+        if (values) {
+            fillForm(form, values);
+            el("session-elapsed").value = sessionSeconds(values) == null ? "" : clock(sessionSeconds(values));
+        }
+        initDate(form, "session", row?.timestamp);
+        updateSessionFields(); updatePerformance();
         el("fitness-session-dialog").showModal();
     }
     function serialize(form) { return Object.fromEntries(new FormData(form)); }
@@ -385,8 +357,6 @@
         try {
             await api(path, method, payload);
             if (dialog) dialog.close(); else profileDirty = false;
-            if (path === "/plan" || /^\/plan\/[^/]+$/.test(path)) { el("fitness-week").value = payload.date; selectTab("plan"); }
-            if (path === "/schedule" || /^\/schedule\/[^/]+$/.test(path)) selectTab("plan");
             await refresh("Podatki shranjeni.");
         } catch (error) { formError(form, error.message || "Povezava ni uspela. Vnos je ohranjen; poskusi znova."); }
         finally { button.disabled = false; button.textContent = label; form.removeAttribute("aria-busy"); delete form.dataset.saving; }
@@ -397,43 +367,28 @@
         save(form, `/measurements${editContext.id ? `/${editContext.id}` : ""}`, editContext.id ? "PUT" : "POST", payload, el("fitness-measurement-dialog"));
     });
     el("fitness-session-form").addEventListener("submit", event => {
-        event.preventDefault(); const form = event.currentTarget, payload = serialize(form), context = editContext;
-        payload.timestamp = actualTimestamp(form); payload.date = payload.plan_date;
-        payload.template_id = state.templates.some(row => row.id === el("session-template").value) ? el("session-template").value : "";
-        const recurring = ["plan", "schedule"].includes(context.collection) && !context.complete && payload.parity;
-        const collection = recurring ? "schedule" : context.collection;
-        save(form, context.complete ? `/plan/${context.id}/complete` : `/${collection}${context.id ? `/${context.id}` : ""}`, context.complete || !context.id ? "POST" : "PUT", payload, el("fitness-session-dialog"));
+        event.preventDefault(); const form = event.currentTarget, context = editContext;
+        const original = state.activities.find(row => row.id === context.id);
+        const payload = { ...original, ...serialize(form), timestamp: actualTimestamp(form) };
+        // The visible clock/minutes fields replace any previously stored seconds.
+        delete payload.duration_seconds;
+        save(form, `/activities${context.id ? `/${context.id}` : ""}`, context.id ? "PUT" : "POST", payload, el("fitness-session-dialog"));
     });
     el("fitness-profile").addEventListener("input", () => { profileDirty = true; });
-    el("fitness-profile").addEventListener("submit", event => { event.preventDefault(); save(event.currentTarget, "/profile", "PUT", serialize(event.currentTarget)); });
-    el("session-template").addEventListener("change", event => applyTemplate(workout(event.target.value)));
-    function updatePlanFields() {
-        const planning = ["plan", "schedule"].includes(editContext?.collection) && !editContext?.complete;
-        const recurring = planning && !!el("session-repeat").value;
-        el("session-plan-date").hidden = !planning || recurring;
-        el("plan-date").disabled = !planning || recurring;
-        el("plan-date").required = planning && !recurring;
-        el("session-weekday-field").hidden = !recurring;
-        el("session-weekday").disabled = !recurring;
-        el("session-repeat").disabled = !planning;
-        if (recurring) el("session-status-field").hidden = true;
-        else el("session-status-field").hidden = !planning || editContext?.collection === "schedule" || !!state.plan.find(row => row.id === editContext?.id)?.activity_id;
-    }
-    el("session-repeat").addEventListener("change", updatePlanFields);
+    el("fitness-profile").addEventListener("submit", event => { event.preventDefault(); save(event.currentTarget, "/profile", "PUT", { ...state.profile, ...serialize(event.currentTarget) }); });
     function updateSessionFields() {
-        const kind = el("session-kind").value, usesEquipment = ["cardio", "strength"].includes(kind);
-        el("session-equipment-field").hidden = !usesEquipment; el("session-equipment").disabled = !usesEquipment;
-        el("session-cadence-field").hidden = kind !== "cycling"; el("session-cadence").disabled = kind !== "cycling";
+        const usesDistance = ["cycling", "running"].includes(el("session-kind").value);
+        el("session-distance-field").hidden = !usesDistance;
+        el("session-distance").disabled = !usesDistance;
     }
     function updatePerformance() {
         const elapsed = el("session-elapsed").value;
         const minutes = el("session-duration").value;
         const seconds = elapsed ? parseClock(elapsed) : minutes ? Math.round(Number(minutes) * 60) : null;
-        const value = performance({ kind: el("session-kind").value, duration_seconds: seconds, distance_km: Number(el("session-distance").value) }, editContext?.collection === "activities" || editContext?.complete ? "activities" : "plan");
+        const value = performance({ kind: el("session-kind").value, duration_seconds: seconds, distance_km: Number(el("session-distance").value) }, "activities");
         el("session-performance").textContent = value; el("session-performance").hidden = !value;
     }
     el("session-kind").addEventListener("change", () => { updateSessionFields(); updatePerformance(); });
-    el("session-insert-advice").addEventListener("click", () => { el("session-advice").value = state.general_advice[el("session-kind").value] || ""; });
     el("session-duration").addEventListener("input", event => { const value = event.target.value; el("session-elapsed").value = value !== "" && Number(value) > 0 && Number(value) <= 1440 ? clock(Number(value) * 60) : ""; updatePerformance(); });
     el("session-elapsed").addEventListener("input", event => { const seconds = parseClock(event.target.value); el("session-duration").value = seconds == null ? "" : String(seconds / 60); updatePerformance(); });
     el("session-distance").addEventListener("input", updatePerformance);
@@ -451,19 +406,11 @@
         if (button.dataset.delete) {
             deleteContext = { collection: button.dataset.delete, id: button.dataset.id };
             const row = state[deleteContext.collection].find(row => row.id === deleteContext.id);
-            el("fitness-delete-description").textContent = (row.title || `Meritev: ${timestampLabel(row.timestamp)}`) + (deleteContext.collection === "schedule" ? ". Odstrani ponavljanje in še neopravljene kopije od tega tedna naprej. Opravljene izvedbe ostanejo." : "");
+            el("fitness-delete-description").textContent = (row.title || `Meritev: ${timestampLabel(row.timestamp)}`);
             formError(el("fitness-delete-dialog")); el("fitness-delete-dialog").showModal();
         }
-        if (button.dataset.planDay) openSession("plan", null, { date: button.dataset.planDay });
-        if (button.dataset.scheduleDay) { const [parity, weekday] = button.dataset.scheduleDay.split(":"); openSession("schedule", null, { parity, weekday: Number(weekday) }); }
-        if (button.dataset.scheduleSuggestion) openSession("schedule", null, { template: workout(button.dataset.scheduleSuggestion) });
-        if (button.hasAttribute("data-open-plan")) { selectTab("plan"); el("panel-plan").scrollIntoView({ block: "start" }); }
-        if (button.dataset.useTemplate) openSession("plan", null, { template: state.templates.find(row => row.id === button.dataset.useTemplate) });
-        if (button.dataset.useSuggestion) openSession("plan", null, { template: workout(button.dataset.useSuggestion) });
-        if (button.dataset.saveSuggestion) openSession("templates", null, { template: workout(button.dataset.saveSuggestion) });
+        if (button.dataset.useSuggestion) openSession("activities", null, { template: state.suggestions.find(row => row.id === button.dataset.useSuggestion) });
         if (button.hasAttribute("data-fitness-settings")) { selectTab("templates"); el("fitness-settings").scrollIntoView({ block: "start" }); el("fitness-target-weight").focus({ preventScroll: true }); }
-        if (button.dataset.complete) openSession("plan", state.plan.find(row => row.id === button.dataset.complete), { complete: true });
-        if (button.dataset.completeDue) openSession("plan", state.plan.find(row => row.id === button.dataset.completeDue), { complete: true });
     });
     el("fitness-confirm-delete").addEventListener("click", async event => {
         const button = event.currentTarget; button.disabled = true; button.dataset.saving = "true";
@@ -472,20 +419,8 @@
         finally { button.disabled = false; delete button.dataset.saving; }
     });
     document.querySelectorAll(".fitness-dialog").forEach(dialog => dialog.addEventListener("cancel", event => { if (dialog.querySelector('[data-saving="true"]')) event.preventDefault(); }));
-    el("fitness-week").value = state.today;
-    let planRequest = 0;
-    async function loadPlan() {
-        const request = ++planRequest;
-        try { const data = await api(`/data?start=${monday(el("fitness-week").value || state.today)}`); if (request === planRequest) { state = data; render(); } }
-        catch (error) { if (request === planRequest) message(error.message || "Plana ni mogoče naložiti.", true); }
-    }
-    el("fitness-week").addEventListener("change", loadPlan);
-    el("fitness-prev-week").addEventListener("click", () => { el("fitness-week").value = addDays(el("fitness-week").value || state.today, -7); loadPlan(); });
-    el("fitness-next-week").addEventListener("click", () => { el("fitness-week").value = addDays(el("fitness-week").value || state.today, 7); loadPlan(); });
-    el("fitness-this-week").addEventListener("click", () => { el("fitness-week").value = state.today; loadPlan(); });
     el("fitness-period").addEventListener("change", renderCharts);
     el("fitness-comparable").addEventListener("change", renderCharts);
-    el("fitness-suggestion-kind").addEventListener("change", renderSuggestions);
     el("fitness-distance-period").addEventListener("change", renderDistanceSummary);
     let resizeTimer;
     window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(renderCharts, 100); });

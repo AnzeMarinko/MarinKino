@@ -25,7 +25,7 @@
         warning.hidden = !late;
         if (late) {
             const time = finish.toLocaleString("sl-SI", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
-            warning.textContent = `Predvideni konec filma: ${time} po uri naprave, kar presega 23:45. Stran se ob polnoči zapre in te preusmeri na Gibanje. Izračun upošteva preostali čas in hitrost predvajanja, brez dodatnih postankov.`;
+            warning.textContent = `Predvideni konec filma: ${time} po uri naprave, kar presega 23:45. Stran se ob polnoči zapre in te preusmeri na Zdravje. Izračun upošteva preostali čas in hitrost predvajanja, brez dodatnih postankov.`;
         }
         timer = setTimeout(update, 60000);
     }

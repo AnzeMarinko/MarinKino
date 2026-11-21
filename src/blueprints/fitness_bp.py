@@ -100,7 +100,7 @@ def panel():
         state = read_state(connection, current_user.get_id())
     remember_progress(state["plan_progress"], state["measurements"])
     return render_template(
-        "admin_fitness.html", pagetitle="Gibanje · MarinKino", fitness=state
+        "admin_fitness.html", pagetitle="Zdravje · MarinKino", fitness=state
     )
 
 
