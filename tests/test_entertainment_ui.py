@@ -86,7 +86,6 @@ def entertainment():
         {"name": "Ljubljana", "latitude": 46.1, "longitude": 14.6, "country": "Slovenija", "admin1": "Drug kraj"},
     ])
     module.fetch_weather_for_location = Mock(side_effect=lambda lat, lon, name: module.build_weather_data(weather_payload(), name))
-    module.daily_calendar = Mock(return_value={"saint": None, "holidays": []})
     app = Flask(__name__, template_folder=str(ROOT / "src/templates"), static_folder=str(ROOT / "src/static"))
     app.config.update(TESTING=True, SECRET_KEY="entertainment-tests-only")
     LoginManager(app).user_loader(lambda _id: None)

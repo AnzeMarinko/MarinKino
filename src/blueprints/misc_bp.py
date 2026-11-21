@@ -30,7 +30,6 @@ from utils import (
 )
 from weather_service import (
     build_weather_data,
-    daily_calendar,
     fetch_ip_location,
     fetch_weather_for_location,
     geocode_location,
@@ -388,8 +387,6 @@ def weather():
             "Vremenski podatki trenutno niso dosegljivi. "
             "Poskusi osvežiti stran ali izbrati drug kraj."
         )
-
-    weather_data["calendar"] = daily_calendar()
 
     return render_template(
         "weather.html",

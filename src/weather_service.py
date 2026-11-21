@@ -3,17 +3,11 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from functools import lru_cache
 from typing import Any
-from urllib.parse import urlparse
 
-import holidays
 import requests
-from bs4 import BeautifulSoup
 
 from security_cache import ttl_cache
-
-_SAINTS_URL = "https://svetniki.info/"
 
 _WEATHER_CODE_MAP = {
     0: "Sončno",
@@ -120,45 +114,6 @@ _SLOVENE_WEEKDAYS = (
     "nedelja",
 )
 _LUNAR_MONTH_DAYS = 29.530588
-
-
-def slovene_holidays(day: date) -> list[str]:
-    slovene_calendar = holidays.SI(years=day.year, language="sl")
-    print(slovene_calendar)
-    return [str(slovene_calendar[day])] if day in slovene_calendar else []
-
-
-@lru_cache(maxsize=32)
-def saint_of_day(day: date) -> dict[str, str] | None:
-    """Read current saint link from svetniki.info, once per calendar day."""
-    try:
-        response = requests.get(_SAINTS_URL, timeout=(2, 3))
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, "html.parser")
-        for link in soup.select("h2 a, h3 a, article a"):
-            name = link.get_text(" ", strip=True)
-            href = str(link.get("href") or "")
-            parsed = urlparse(href)
-            if (
-                name
-                and name.lower().startswith(
-                    ("sveti ", "sveta ", "blaženi ", "marijino ")
-                )
-                and parsed.netloc == "svetniki.info"
-                and parsed.path != "/"
-            ):
-                return {"name": name, "url": href}
-    except (requests.RequestException, ValueError):
-        pass
-    return None
-
-
-def daily_calendar(day: date | None = None) -> dict[str, Any]:
-    day = day or date.today()
-    return {
-        "saint": saint_of_day(day),
-        "holidays": slovene_holidays(day),
-    }
 
 
 def summarize_weather_code(code: Any) -> str:
