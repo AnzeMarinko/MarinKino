@@ -37,9 +37,16 @@
 .fitness-card small { color: var(--admin-muted); }
 .fitness-card .admin-actions { margin-top: .8rem; }
 .fitness-card a { color: var(--admin-accent); overflow-wrap: anywhere; }
+.fitness-activity-row { display: grid; grid-template-columns: 9rem minmax(8rem, 1fr) minmax(12rem, 1.4fr) minmax(5rem, 1fr) auto; align-items: center; gap: .75rem; min-width: 48rem; padding: .65rem .8rem; white-space: nowrap; }
+.fitness-activity-row > * { min-width: 0; }
+.fitness-activity-row h3 { margin: 0; font-size: .85rem; overflow: hidden; text-overflow: ellipsis; }
+.fitness-activity-row time, .fitness-activity-note { font-size: .78rem; color: var(--admin-muted); }
+.fitness-activity-note { overflow: hidden; text-overflow: ellipsis; }
+.fitness-card.fitness-activity-row .admin-actions { flex-wrap: nowrap; margin: 0; }
 .fitness-legend { display: flex; gap: .6rem 1rem; flex-wrap: wrap; font-size: .8rem; margin: .7rem 0; }
 .fitness-legend span { display: inline-flex; align-items: center; gap: .4rem; }
-.fitness-legend i { font-size: 1rem; }
+.fitness-kind-icon { display: inline-block; width: 1em; height: 1em; vertical-align: -.125em; flex-shrink: 0; }
+.fitness-legend .fitness-kind-icon { font-size: 1rem; color: var(--fitness-kind-color); }
 .fitness-profile-form, .fitness-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .fitness-profile-form > [data-form-error] { grid-column: 1 / -1; }
 .fitness-profile-form > button { align-self: end; justify-self: start; }
@@ -62,7 +69,7 @@
 .fitness-suggestion-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 1rem; }
 .admin-page .fitness-suggestion { display: flex; flex-direction: column; align-items: center; gap: .4rem; color: var(--admin-ink); text-align: center; cursor: pointer; }
 .admin-page .fitness-suggestion:hover, .admin-page .fitness-suggestion:focus-visible { border-color: var(--admin-accent); background: #eef6f4; }
-.fitness-suggestion > i { font-size: 2rem; color: var(--admin-accent); }
+.fitness-suggestion > .fitness-kind-icon { font-size: 2rem; color: var(--admin-accent); }
 #fitness-plan-progress { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; font-size: .85rem; }
 .fitness-scatter-detail { min-height: 2.5em; color: var(--admin-muted); }
 @media (max-width: 650px) { .fitness-suggestion-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

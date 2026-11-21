@@ -747,7 +747,9 @@ def test_browser_simple_suggestions_and_access_completion(
         assert page.locator("#session-kind").input_value() == kind
         page.get_by_role("button", name="Shrani aktivnost", exact=True).click()
         page.locator("#fitness-session-dialog").wait_for(state="hidden")
-    expect(page.locator("#fitness-access-home")).to_be_visible()
+    expect(page.locator("#fitness-access-status")).to_contain_text(
+        "Oba pogoja za zadnjih 7 dni izpolnjena."
+    )
     assert gated.client.get("/music").status_code == 200
 
 

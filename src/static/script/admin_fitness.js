@@ -5,8 +5,10 @@
     let state = JSON.parse(root.textContent);
     const el = id => document.getElementById(id);
     const kinds = { cycling: "Kolesarjenje", running: "Tek", cardio: "Kardio", strength: "Uteži" };
-    const icons = { cycling: "bi-bicycle", running: "bi-person-walking", strength: "bi-person-arms-up", cardio: "bi-heart-pulse" };
-    const kindIcon = kind => `<i class="bi ${icons[kind]}" aria-hidden="true"></i>`;
+    const icons = { cycling: "bi-bicycle", running: "bi-person-walking", cardio: "bi-person-arms-up" };
+    const kindIcon = kind => kind === "strength"
+        ? '<svg class="fitness-kind-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" focusable="false"><rect x="4" y="5" width="4" height="14" rx="1"/><rect x="16" y="5" width="4" height="14" rx="1"/><path d="M8 11h8v2H8M4 8H2v8h2m16-8h2v8h-2"/></svg>'
+        : `<i class="bi ${icons[kind]} fitness-kind-icon" aria-hidden="true"></i>`;
     const colors = { cycling: "#256b73", running: "#c07c24", cardio: "#7565b3", strength: "#c35e73" };
     const escape = value => String(value ?? "").replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
     const fmt = (value, digits = 1) => value == null ? "—" : Number(value).toLocaleString("sl-SI", { maximumFractionDigits: digits });
@@ -73,10 +75,10 @@
     }
     function sessionMeta(row) {
         const detail = performance(row, "activities");
-        return `${kindIcon(row.kind)} ${escape(kinds[row.kind])} · ${sessionSeconds(row) == null ? "čas neznan" : clock(sessionSeconds(row))}${row.distance_km != null ? ` · ${fmt(row.distance_km, 3)} km` : ""}${detail ? ` · ${escape(detail)}` : ""}`;
+        return `${sessionSeconds(row) == null ? "čas neznan" : clock(sessionSeconds(row))}${row.distance_km != null ? ` · ${fmt(row.distance_km, 3)} km` : ""}${detail ? ` · ${escape(detail)}` : ""}`;
     }
     function card(row, collection) {
-        return `<article class="fitness-card" data-entry-id="${escape(row.id)}"><h3>${kindIcon(row.kind)} ${escape(row.title)}</h3><small>${sessionMeta(row)}</small><small class="d-block mt-1">${escape(timestampLabel(row.timestamp))}</small>${row.description ? `<p>${escape(row.description)}</p>` : ""}${actions(collection, row)}</article>`;
+        return `<article class="fitness-card fitness-activity-row" data-entry-id="${escape(row.id)}"><time datetime="${escape(row.timestamp)}">${escape(timestampLabel(row.timestamp))}</time><h3 title="${escape(row.title)}">${kindIcon(row.kind)} ${escape(row.title)}</h3><small class="fitness-activity-meta">${sessionMeta(row)}</small><span class="fitness-activity-note" title="${escape(row.description)}">${escape(row.description) || "—"}</span>${actions(collection, row)}</article>`;
     }
     function lastMeasurement(key) { return [...state.measurements].reverse().find(row => row[key] != null); }
     function renderSummary() {
@@ -151,7 +153,6 @@
         const node = el("fitness-access-suggestions");
         node.hidden = !weighing.locked;
         node.innerHTML = weighing.locked ? '<p>Za odklep zabeleži novo meritev teže.</p><button type="button" class="btn btn-primary mb-3" data-new="measurements">Zabeleži tehtanje</button>' : "";
-        el("fitness-access-home").hidden = !progress.allowed || weighing.locked;
     }
     function emptyChart(id, text) { el(id).innerHTML = `<p class="admin-empty">${escape(text)}</p>`; }
     const svgText = (x, y, label, extra = "") => `<text x="${x}" y="${y}" font-size="11" fill="#627589" ${extra}>${escape(label)}</text>`;
@@ -282,7 +283,7 @@
             contents += svgText(left + (index + .5) * step, 242, dateLabel(week.date).replace(/\d{4}/, ""), 'text-anchor="middle"');
         });
         el("chart-activity").innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Graf opravljenih minut aktivnosti">${contents}</svg>`;
-        el("fitness-activity-legend").innerHTML = Object.entries(kinds).map(([kind, label]) => `<span><i class="bi ${icons[kind]}" aria-hidden="true" style="color:${colors[kind]}"></i>${label}</span>`).join("");
+        el("fitness-activity-legend").innerHTML = Object.entries(kinds).map(([kind, label]) => `<span style="--fitness-kind-color:${colors[kind]}">${kindIcon(kind)}${label}</span>`).join("");
         const weeklyDistance = (week, kind) => {
             const count = week.sessions_by_kind[kind], missing = week.missing_distance_by_kind[kind];
             return count && count === missing ? "—" : `${fmt(week.distance_by_kind[kind], 3)}${missing ? " + ?" : ""}`;

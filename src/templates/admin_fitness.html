@@ -15,7 +15,6 @@
   <div id="fitness-plan-progress"></div>
   <div id="fitness-access-suggestions"></div>
   <div id="fitness-suggestions" class="fitness-template-grid fitness-suggestion-grid"></div>
-  <a id="fitness-access-home" class="btn btn-primary mt-3" href="/">Odpri ostale vsebine</a>
 </section>
 <div id="fitness-summary" class="admin-stats" aria-label="Zadnje meritve"></div>
 <p id="fitness-weigh-reminder" class="admin-notice" role="status" hidden></p>
@@ -45,7 +44,7 @@
 <section id="panel-measurements" role="tabpanel" tabindex="0" aria-labelledby="tab-measurements" hidden><div class="admin-panel"><div class="admin-section-heading"><div><h2>Dnevnik meritev</h2><p>Teža, pas in vsak pogoj so neobvezni. »Ne vem« je ločeno od »Ne«.</p></div><button class="btn btn-primary" type="button" data-new="measurements">Dodaj meritev</button></div><div id="fitness-measurements" class="table-responsive"></div></div></section>
 <section id="panel-activities" role="tabpanel" tabindex="0" aria-labelledby="tab-activities" hidden>
   <div class="admin-panel"><div class="admin-section-heading"><div><h2>Razdalja in čas</h2><p>Tek in kolesarjenje: znani kilometri, čas ter skupni tempo oziroma hitrost.</p></div><label class="visually-hidden" for="fitness-distance-period">Obdobje za razdaljo in čas</label><select id="fitness-distance-period" class="form-select w-auto"><option value="week">Ta teden</option><option value="30">Zadnjih 30 dni</option><option value="all">Vse aktivnosti</option></select></div><div id="fitness-distance-summary" class="fitness-overview-grid"></div><p class="form-text mb-0">Tempo in hitrost se izračunata samo iz izvedb z znano pozitivno razdaljo in časom. Če zabeležiš čas s postanki, so vključeni tudi postanki.</p></div>
-  <div class="admin-panel"><div class="admin-section-heading"><div><h2>Opravljene aktivnosti</h2><p>Zabeleži vrsto aktivnosti, čas, razdaljo ali opombo.</p></div><button class="btn btn-primary" type="button" data-new="activities">Dodaj aktivnost</button></div><div id="fitness-activities"></div></div>
+  <div class="admin-panel"><div class="admin-section-heading"><div><h2>Opravljene aktivnosti</h2><p>Zabeleži vrsto aktivnosti, čas, razdaljo ali opombo.</p></div><button class="btn btn-primary" type="button" data-new="activities">Dodaj aktivnost</button></div><div id="fitness-activities" class="table-responsive" tabindex="0" role="region" aria-label="Dnevnik opravljenih aktivnosti"></div></div>
 </section>
 <section id="panel-templates" role="tabpanel" tabindex="0" aria-labelledby="tab-templates" hidden>
   <section id="fitness-settings" class="admin-panel"><h2 class="mb-3">Višina, ciljna teža in ciljni obseg pasu</h2><form id="fitness-profile" class="fitness-profile-form">
