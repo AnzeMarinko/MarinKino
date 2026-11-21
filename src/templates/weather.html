@@ -74,7 +74,7 @@
 
     <details class="weather-help mb-4">
       <summary><i class="bi bi-question-circle" aria-hidden="true"></i> Kako berem napoved?</summary>
-      <div class="weather-help-grid"><p><strong>Dnevne kartice</strong><br>Najvišja in najnižja temperatura ter skupne padavine v dnevu. Klikni »Prikaži vse dni« za daljšo napoved.</p><p><strong>Podrobni graf</strong><br>Izberi 24 ur, 48 ur ali celotno obdobje. Povleci graf za premik in se dotakni točke za vrednosti. V legendi vključi ali skrij posamezno meritev.</p><p><strong>Radar</strong><br>Animacija ARSO prikazuje padavine nad Slovenijo, ne napovedi za izbrani kraj. Napoved je informativna in se lahko spremeni.</p></div>
+      <div class="weather-help-grid"><p><strong>Dnevne vrstice</strong><br>Temperaturna črta poveže dnevni minimum in maksimum na skupni lestvici vseh dni. Moder stolpec pokaže količino padavin glede na najbolj namočen dan. Klikni »Prikaži vse dni« za daljšo napoved.</p><p><strong>Podrobni graf</strong><br>Izberi 24 ur, 48 ur ali celotno obdobje. Povleci graf za premik in se dotakni točke za vrednosti. V legendi vključi ali skrij posamezno meritev.</p><p><strong>Radar</strong><br>Animacija ARSO prikazuje padavine nad Slovenijo, ne napovedi za izbrani kraj. Napoved je informativna in se lahko spremeni.</p></div>
     </details>
 
     <section class="weather-hero mb-4" aria-labelledby="current-weather-title">
@@ -117,23 +117,38 @@
 
     <section class="weather-panel p-3 p-lg-4 mb-4" aria-labelledby="forecast-title">
       <div class="d-flex justify-content-between align-items-center mb-3"><h2 id="forecast-title" tabindex="-1" class="h4 mb-0">Napoved za prihodnje dni</h2><span class="weather-source">{{ weather.daily | selectattr('is_past', 'equalto', false) | list | length }} dni</span></div>
-      <div id="weatherDailyList" class="weather-daily-list">
-        {% for day in weather.daily if not day.is_past %}
-        <div class="{{ 'weather-day-extra' if loop.index > 6 else '' }}">
-          <article class="weather-day {{ 'weather-weekend' if day.is_weekend else '' }} {{ 'weather-day-today' if loop.first else '' }} h-100">
-            <div class="small fw-semibold text-capitalize">{{ 'Danes' if loop.first else day.weekday }}</div>
-            <div class="weather-date">{{ day.date }}</div>
-            <i class="bi {{ day.weather_icon }} weather-icon weather-icon--{{ day.weather_icon_class }} d-block my-3" aria-hidden="true"></i>
-            <div class="small text-truncate" title="{{ day.weather_label }}">{{ day.weather_label }}</div>
-            <div class="weather-day-temperatures mt-2"><strong title="Najvišja temperatura">{{ day.temperature_max if day.temperature_max is not none else '—' }}°</strong><span class="text-muted" title="Najnižja temperatura">{{ day.temperature_min if day.temperature_min is not none else '—' }}°</span></div>
-            <div class="small text-muted mt-1"><i class="bi bi-droplet"></i> {{ day.precipitation_sum if day.precipitation_sum is not none else '—' }} mm</div>
-          </article>
-        </div>
+      {% set temperatures = (future_days | map(attribute='temperature_min') | reject('none') | list) + (future_days | map(attribute='temperature_max') | reject('none') | list) %}
+      {% set temperature_floor = temperatures | min if temperatures else 0 %}
+      {% set temperature_span = ((temperatures | max) - temperature_floor) if temperatures else 0 %}
+      {% set precipitation_values = future_days | map(attribute='precipitation_sum') | reject('none') | list %}
+      {% set precipitation_peak = precipitation_values | max if precipitation_values else 0 %}
+      <p id="weatherDailyHelp" class="weather-source mb-3">Minimum → maksimum · skupna temperaturna lestvica vseh dni · padavine v mm</p>
+      <div class="weather-daily-heading" aria-hidden="true"><span>Dan</span><span></span><span>Vreme</span><span>Temperaturni razpon</span><span>Padavine</span></div>
+      <div id="weatherDailyList" class="weather-daily-list" role="list" aria-label="Dnevna napoved" aria-describedby="weatherDailyHelp">
+        {% for day in future_days %}
+        <article role="listitem" class="weather-day {{ 'weather-day-extra' if loop.index > 6 else '' }} {{ 'weather-day-today' if loop.first else '' }}">
+          <div class="weather-day-date"><strong class="text-capitalize">{{ 'Danes' if loop.first else day.weekday }}</strong><time class="weather-date" datetime="{{ day.date }}">{{ day.date }}</time></div>
+          <i class="bi {{ day.weather_icon }} weather-day-icon weather-icon weather-icon--{{ day.weather_icon_class }}" aria-hidden="true"></i>
+          <div class="weather-day-description">{{ day.weather_label }}</div>
+          <div class="weather-day-temperatures">
+            <span class="weather-day-min"><span class="visually-hidden">Najnižja temperatura: </span>{{ day.temperature_min if day.temperature_min is not none else '—' }}°</span>
+            <span class="weather-temperature-track" aria-hidden="true">
+              {% if day.temperature_min is not none and day.temperature_max is not none %}
+              <span class="weather-temperature-range" style="--range-start: {{ (((day.temperature_min - temperature_floor) / temperature_span) * 100)|round(2) if temperature_span > 0 else 50 }}%; --range-width: {{ (((day.temperature_max - day.temperature_min) / temperature_span) * 100)|round(2) if temperature_span > 0 else 0 }}%;"></span>
+              {% endif %}
+            </span>
+            <strong><span class="visually-hidden">Najvišja temperatura: </span>{{ day.temperature_max if day.temperature_max is not none else '—' }}°</strong>
+          </div>
+          <div class="weather-day-rain">
+            <span><i class="bi bi-droplet" aria-hidden="true"></i><span class="visually-hidden">Padavine: </span> {{ day.precipitation_sum if day.precipitation_sum is not none else '—' }} <small>mm</small></span>
+            <span class="weather-rain-track" aria-hidden="true"><span class="weather-rain-fill" style="--rain-width: {{ ((day.precipitation_sum / precipitation_peak) * 100)|round(2) if day.precipitation_sum is not none and precipitation_peak > 0 else 0 }}%;"></span></span>
+          </div>
+        </article>
         {% else %}<p class="weather-source">Dnevna napoved trenutno ni na voljo. Poskusi osvežiti stran.</p>
         {% endfor %}
       </div>
       <div class="weather-more-wrap mt-3 text-center">
-        <button type="button" class="btn btn-outline-primary btn-sm weather-more-toggle" data-expanded="false" aria-expanded="false" aria-controls="weatherDailyList" hidden>Prikaži vse dni</button>
+        <button type="button" class="btn btn-outline-primary btn-sm weather-more-toggle" aria-expanded="false" aria-controls="weatherDailyList" hidden>Prikaži vse dni ({{ future_days | length }})</button>
       </div>
     </section>
 
