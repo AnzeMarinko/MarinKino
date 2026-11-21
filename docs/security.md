@@ -43,12 +43,17 @@ strežnika; graf se naloži šele po izrecnem kliku. Ta izjema ne velja za
 ostale strani in ne omogoči inline JavaScripta ali `eval`.
 Nginx ohrani aplikacijski CSP; isti glavi ne dodaja podvojene politike.
 
-Dostopni dnevniki Nginx maskirajo obnovitvene in naročniške žetone v poteh ter izpuščajo
-query string. Referer vsebuje samo izvor. Stari dnevniki ostanejo pod obstoječo
-rotacijo; sprememba novega formata jih ne prepiše.
+Dostopni dnevniki Nginx maskirajo obnovitvene in naročniške žetone v poteh,
+izpuščajo query string in Referer. Aplikacija ne zbira ali prikazuje virov
+obiska. Stari dnevniki ostanejo pod obstoječo rotacijo; sprememba novega
+formata jih ne prepiše. Migracija odstrani shranjene agregate Referer.
 
-Statistika javnega bloga hrani agregate brez IP naslovov in geolokacije.
-Migracija ob nadgradnji ohrani vsoto starih ogledov in odstrani geolokacijske
+Statistika javnega bloga hrani oglede kot agregate. Za zgodovinska obdobja brez
+zanesljivega števca unikatnih obiskovalcev dashboard oceni unikatne kot 90 %
+zabeleženih ogledov. Od začetka novega števca se unikatni IP-ji štejejo
+natančno po objavi z HMAC zgoščeno vrednostjo; surovi IP se ne shrani.
+Geolokacija se ne zbira. Migracija ohrani vsoto starih ogledov, nastavi datum
+začetka natančnega štetja in odstrani stare IP-zgoščene ter geolokacijske
 ključe. Podrobnosti o omejenih opravilih, statiki in meritvah so v
 [performance.md](performance.md).
 

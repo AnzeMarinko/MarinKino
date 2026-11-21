@@ -580,7 +580,7 @@ return {page[1], changed}
 def _expire_legacy_stats(name, retention_seconds=400 * 24 * 60 * 60):
     deadline = time.monotonic() + 120
     changed = 0
-    for pattern in ("stats:*", "blog:views:*", "mail:*"):
+    for pattern in ("stats:*", "mail:*"):
         cursor = "0"
         for _ in range(100_000):
             if time.monotonic() > deadline:

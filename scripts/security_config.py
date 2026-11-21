@@ -486,16 +486,12 @@ map $uri $mk_log_uri {
     ~^/reset-password(?:/|$) /reset-password/[redacted];
     ~^/blog/subscribe/confirm(?:/|$) /blog/subscribe/confirm/[redacted];
 }
-map $http_referer $mk_log_referrer {
-    default "-";
-    "~^(?<mk_referrer_origin>https?://[A-Za-z0-9.-]+(?::[0-9]+)?)(?:/|$)" $mk_referrer_origin;
-}
 map $uri $mk_static_cache {
     default "no-cache";
     "~^/static/v/[a-f0-9]{64}/" "public, max-age=31536000, immutable";
 }
 log_format marinkino '$remote_addr - $remote_user [$time_local] "$request_method $mk_log_uri $server_protocol" '
-                     '$status $body_bytes_sent "$mk_log_referrer" '
+                     '$status $body_bytes_sent '
                      '"$http_user_agent"';
 access_log /var/log/nginx/access.log marinkino;
 error_log /var/log/nginx/error.log warn;

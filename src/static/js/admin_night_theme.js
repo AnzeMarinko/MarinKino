@@ -11,7 +11,7 @@
         if (dark) root.setAttribute("data-bs-theme", "dark");
         else if (previousBootstrapTheme === null) root.removeAttribute("data-bs-theme");
         else root.setAttribute("data-bs-theme", previousBootstrapTheme);
-        const boundary = new Date(now.getFullYear(), now.getMonth(), now.getDate() + (hour >= 22 ? 1 : 0), dark ? 5 : 22);
+        const boundary = new Date(now.getFullYear(), now.getMonth(), now.getDate() + (hour >= 23 ? 1 : 0), dark ? 5 : 23);
         timer = setTimeout(update, Math.max(1, Math.min(60000, boundary - now)));
     }
     update();

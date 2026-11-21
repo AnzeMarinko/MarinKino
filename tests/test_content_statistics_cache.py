@@ -62,7 +62,7 @@ def test_cached_markdown_retains_formatting_without_executable_html():
     assert blog_content.render_post_content(content) == first
 
 
-def test_statistics_aggregate_legacy_and_private_views_without_old_hash_reads(
+def test_statistics_aggregate_all_retained_views_and_private_views(
     monkeypatch,
 ):
     redis = fakeredis.FakeRedis(decode_responses=True)
@@ -72,8 +72,16 @@ def test_statistics_aggregate_legacy_and_private_views_without_old_hash_reads(
     }
     redis.hset("blog:views:one:2026-11-05", mapping={"192.0.2.1": 2})
     redis.hset("blog:views:two:2026-11-05", mapping={"views": 3})
-    expired = "blog:views:one:2025-01-01"
-    redis.hset(expired, mapping={"192.0.2.1": 900})
+    old_day = "blog:views:one:2025-01-01"
+    redis.hset(old_day, mapping={"192.0.2.1": 900})
+    redis.set("blog:unique:exact-start", "2026-11-06")
+    redis.sadd(
+        "blog:unique:current:one",
+        "digest-one",
+        "digest-two",
+        "digest-three",
+    )
+    redis.sadd("blog:unique:current:two", "digest-four")
     redis.hset(
         "stats:daily:2026-11-05:reader:200 OK",
         mapping={"GET /blog/<post_id>": 5},
@@ -101,11 +109,24 @@ def test_statistics_aggregate_legacy_and_private_views_without_old_hash_reads(
     result = admin_statistics.collect_statistics(
         redis, posts, date(2026, 11, 6)
     )
-    assert result["total_blog_views"] == 5
-    assert result["blog_views_daily"] == {"2026-11-05": 5}
+    assert result["total_blog_views"] == 905
+    assert result["blog_views_daily"] == {
+        "2025-01-01": 900,
+        "2026-11-05": 5,
+    }
+    assert result["blog_stats"][0]["views"] == 902
+    assert result["blog_stats"][0]["views_last_30_days"] == 2
+    assert result["blog_posts_daily"]["one"]["views"] == {
+        "2025-01-01": 900,
+        "2026-11-05": 2,
+    }
+    assert result["blog_stats"][1]["views"] == 3
+    assert result["blog_stats"][1]["views_last_30_days"] == 3
     assert result["users"] == ["reader"]
     assert "192.0.2.1" not in json.dumps(result)
-    assert expired not in read_keys
+    assert old_day in read_keys
+    assert result["blog_stats"][0]["unique_views"] == 815
+    assert result["blog_stats"][1]["unique_views"] == 4
     assert sum(
         call.args[0] == "blog:views:*" for call in scans.call_args_list
     ) == 1

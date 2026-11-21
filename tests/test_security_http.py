@@ -124,12 +124,24 @@ def test_referrers_and_dynamic_routes_are_bucketed(http):
         assert http.redis.ttl(key) > 0
 
 
+def test_referrers_are_not_collected(http):
+    for index in range(3):
+        response = http.client.get(
+            "/probe",
+            headers={"Referer": f"https://source-{index}.example/private"},
+        )
+        assert response.status_code == 200
+    assert not list(http.redis.scan_iter("stats:referrer:*"))
+    assert not list(http.redis.scan_iter("stats:referrer_content:*"))
+
 
 def test_malformed_referrer_never_breaks_response(http):
     response = http.client.get(
         "/probe", headers={"Referer": "https://[invalid"}
     )
     assert response.status_code == 200
+    assert not list(http.redis.scan_iter("stats:referrer:*"))
+    assert not list(http.redis.scan_iter("stats:referrer_content:*"))
 
 
 def test_headers_and_fingerprint_cookie_cannot_change_guest_identity(http):

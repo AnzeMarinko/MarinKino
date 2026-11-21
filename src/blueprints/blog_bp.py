@@ -12,6 +12,7 @@ import requests
 from flask import (
     Blueprint,
     abort,
+    current_app,
     flash,
     make_response,
     redirect,
@@ -27,6 +28,7 @@ from blog_content import load_posts, render_post_content
 from blog_i18n import BLOG_LANGUAGES, messages, normalize_language
 from blog_images import image_sources, post_gallery
 from blog_translation import translate_url
+from blog_unique import blog_ip_digest
 from mail_jobs import queue_mail
 from security_storage import atomic_write_json, serialized_json
 from utils import (
@@ -543,8 +545,17 @@ def blog_post(post_id):
         today = datetime.now(timezone.utc).date().isoformat()
         key = f"blog:views:{post_id}:{today}"
         try:
-            redis_client.hincrby(key, "views", 1)
-            redis_client.expire(key, 90 * 86400)
+            pipeline = redis_client.pipeline()
+            pipeline.hincrby(key, "views", 1)
+            client_ip = request.remote_addr
+            if client_ip:
+                try:
+                    digest = blog_ip_digest(current_app.secret_key, client_ip)
+                except ValueError:
+                    log.warning("Blog unique IP unavailable")
+                else:
+                    pipeline.sadd(f"blog:unique:current:{post_id}", digest)
+            pipeline.execute()
         except RedisError:
             log.warning("Blog statistics unavailable")
 

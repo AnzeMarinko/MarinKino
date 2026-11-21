@@ -138,7 +138,6 @@ def ui(tmp_path):
             },
             geo_stats_cities={},
             geo_stats={},
-            referrer_stats={},
             emails="",
             system_log="Test",
         )

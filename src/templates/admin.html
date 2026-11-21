@@ -10,7 +10,7 @@
   <a href="/admin/register"><i class="bi bi-person-plus" aria-hidden="true"></i><span><strong>Povabi uporabnika</strong><small>Povezava za nastavitev gesla</small></span></a>
   <a href="/admin/send_emails"><i class="bi bi-envelope-paper" aria-hidden="true"></i><span><strong>Pripravi e-pošto</strong><small>Najprej predogled in test sebi</small></span></a>
 </div>
-<nav class="admin-jumps" aria-label="Razdelki pregleda"><a href="#admin-comments">Komentarji</a><a href="#admin-users">Filmi in uporabniki</a><a href="#admin-access">Dostop</a><a href="#admin-blog-stats">Blog</a><a href="#admin-traffic">Obiskovalci</a><a href="#admin-tools">Orodja</a></nav>
+<nav class="admin-jumps" aria-label="Razdelki pregleda"><a href="#admin-comments">Komentarji</a><a href="#admin-users">Filmi in uporabniki</a><a href="#admin-access">Dostop</a><a href="#admin-blog-stats">Blog</a><a href="#admin-tools">Orodja</a></nav>
 
 <section id="admin-comments" class="admin-panel" aria-labelledby="comments-title">
   <div class="admin-section-heading"><div><h2 id="comments-title">Komentarji na filmih</h2><p>Preberi vprašanja in odgovori neposredno iz nadzorne plošče.</p></div><button class="btn btn-outline-secondary" type="button" id="refreshComments"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Osveži</button></div>
@@ -37,20 +37,13 @@
 </section>
 
 <section id="admin-blog-stats" class="admin-panel" aria-labelledby="blog-stats-title">
-  <div class="admin-section-heading"><div><h2 id="blog-stats-title">Statistika bloga</h2><p>Ogledi posameznih objav in dnevni pregled branja.</p></div><a class="btn btn-outline-secondary" href="/admin/blog">Upravljaj objave</a></div>
-  <div class="table-responsive"><table class="table table-hover" data-sortable><thead><tr><th scope="col" data-sort="text">Naslov</th><th scope="col" data-sort="number">Ogledi</th><th scope="col" data-sort="text">Datum</th></tr></thead><tbody>{% for stat in blog_stats %}<tr><td><a href="/admin/blog/edit/{{ stat.id }}">{{ stat.title }}</a></td><td>{{ stat.views }}</td><td>{{ stat.created_at }}</td></tr>{% else %}<tr><td colspan="3" class="text-muted">Ni še podatkov o objavah.</td></tr>{% endfor %}</tbody></table></div>
+  <div class="admin-section-heading"><div><h2 id="blog-stats-title">Statistika bloga</h2><p>Vsi shranjeni ogledi; zadnjih 30 dni; za zgodovino je unikatno število ocenjeno kot 90 % ogledov, od uvedbe števca pa šteje unikatne IP-je po objavi. Ocena lahko vključuje bote; IP ni nujno posamezna oseba.</p></div><a class="btn btn-outline-secondary" href="/admin/blog">Upravljaj objave</a></div>
+  <div class="table-responsive"><table class="table table-hover" data-sortable><thead><tr><th scope="col" data-sort="text">Naslov</th><th scope="col" data-sort="number">Vsi ogledi</th><th scope="col" data-sort="number">Zadnjih 30 dni</th><th scope="col" data-sort="number">Unikatni IP</th><th scope="col" data-sort="text">Datum</th></tr></thead><tbody>{% for stat in blog_stats %}<tr><td><a href="/admin/blog/edit/{{ stat.id }}">{{ stat.title }}</a></td><td>{{ stat.views }}</td><td>{{ stat.views_last_30_days }}</td><td>{{ stat.unique_views }}</td><td>{{ stat.created_at }}</td></tr>{% else %}<tr><td colspan="5" class="text-muted">Ni še podatkov o objavah.</td></tr>{% endfor %}</tbody></table></div>
   <div id="blog-views-graph" class="admin-plot mt-3" aria-label="Graf dnevnih ogledov bloga"></div>
   <h3 class="mt-4">Rast ogledov po objavah</h3>
   <details class="admin-help"><summary>Kako prebrati graf rasti?</summary><p class="small text-muted mt-2">Skupni ogledi od prvega zabeleženega ogleda. Osi sta linearni; x-os uporablja log₂ dni, y-os pa kvadratni koren ogledov. Oznake kažejo dejanske vrednosti ogledov in dni. Na x-osi 1 pomeni prvi dan, 2 drugi dan, 4 četrti dan … 1024 je 1024. dan.</p></details>
   <div class="admin-filter-bar"><label for="blogPostSelect" class="form-label mb-0">Objava</label><select id="blogPostSelect" class="form-select w-auto"></select></div>
   <div id="blog-growth-graph" class="admin-plot" aria-label="Graf rasti ogledov posameznih objav"></div>
-</section>
-
-<section id="admin-traffic" class="admin-panel" aria-labelledby="traffic-title">
-  <div class="admin-section-heading"><div><h2 id="traffic-title">Od kod pridejo obiskovalci?</h2><p>Skupno število dostopov po virih, brez določanja lokacije obiskovalcev.</p></div></div>
-  <div class="admin-chart-grid">
-    <div><h3 class="mb-3">Viri obiska</h3>{% if referrer_stats %}<div class="table-responsive"><table class="table table-hover" data-sortable><thead><tr><th scope="col" data-sort="text">Vir</th><th scope="col" data-sort="number">Obiski</th></tr></thead><tbody>{% for source, dates in referrer_stats.items() %}<tr><td class="text-break">{{ source }}</td><td>{{ dates.values()|sum }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="admin-empty">Ni podatkov o virih obiska.</p>{% endif %}</div>
-  </div>
 </section>
 
 <section id="admin-tools" class="admin-panel" aria-labelledby="tools-title">

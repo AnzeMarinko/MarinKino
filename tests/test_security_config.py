@@ -184,19 +184,19 @@ def test_static_bypasses_python_and_only_release_urls_are_immutable(project):
     assert "add_header Content-Security-Policy $mk_csp" in static
 
 
-def test_access_log_masks_token_paths_and_never_logs_query_or_full_referrer(project):
+def test_access_log_masks_token_paths_and_omits_referrer(project):
     config = security.render_nginx(security.deployment_config(project))
     log_format = config.split("log_format marinkino", 1)[1].split(";", 1)[0]
     assert '"$request"' not in log_format
     assert "$request_uri" not in log_format
     assert "$args" not in log_format
     assert "$http_referer" not in log_format
+    assert "$mk_log_referrer" not in log_format
     assert "$mk_log_uri" in log_format
-    assert "$mk_log_referrer" in log_format
+    assert "map $http_referer $mk_log_referrer" not in config
     mapping = config.split("map $uri $mk_log_uri {", 1)[1].split("}", 1)[0]
     for path in ["/password/reset", "/password/setup", "/blog/subscribe/confirm"]:
         assert f"{path}/[redacted]" in mapping
-    assert 'default "-";' in config
 
 
 def test_nginx_keeps_app_csp_nonce_without_duplicate_security_headers(project):

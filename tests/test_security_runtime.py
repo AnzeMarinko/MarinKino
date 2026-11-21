@@ -465,7 +465,7 @@ def test_aof_timeout_aborts_without_committing(
 
 def test_legacy_expiration_scans_pages_and_caps_ttl_without_keys(monkeypatch):
     calls = []
-    pages = iter(['["11", 2]', '["0", 1]', '["0", 0]', '["0", 3]'])
+    pages = iter(['["11", 2]', '["0", 1]', '["0", 3]'])
 
     def redis(*args, **kwargs):
         calls.append(args)
@@ -476,8 +476,7 @@ def test_legacy_expiration_scans_pages_and_caps_ttl_without_keys(monkeypatch):
     assert runtime._expire_legacy_stats("redis") == 6
     assert calls[0][-3:] == ("0", "stats:*", "34560000000")
     assert calls[1][-3] == "11"
-    assert calls[2][-2] == "blog:views:*"
-    assert calls[3][-2] == "mail:*"
+    assert calls[2][-2] == "mail:*"
     assert "'SCAN'" in calls[0][2] and "'PEXPIRE'" in calls[0][2]
     assert "'KEYS'" not in calls[0][2]
 

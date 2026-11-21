@@ -203,26 +203,6 @@ def record_response(response, redis):
             key = f"stats:monthly:{month}"
             pipe.hincrby(key, field, 1)
             pipe.expire(key, 400 * 86400)
-        referrer = request.referrer
-        if referrer and response.status_code < 400:
-            host = urlsplit(referrer).hostname or ""
-            source = "other"
-            for domain, label in (
-                ("facebook.com", "facebook"),
-                ("instagram.com", "instagram"),
-                ("google.com", "google"),
-                (os.getenv("WWW_DOMAIN", ""), "internal"),
-            ):
-                if domain and (host == domain or host.endswith("." + domain)):
-                    source = label
-                    break
-            key = f"stats:referrer:{today}"
-            pipe.hincrby(key, source, 1)
-            pipe.expire(key, STATS_TTL)
-            content = request.blueprint or "other"
-            key = f"stats:referrer_content:{today}:{content}"
-            pipe.hincrby(key, source, 1)
-            pipe.expire(key, STATS_TTL)
         pipe.execute()
     except (RedisError, ValueError):
         # Statistics are optional. Redis authentication still fails closed.

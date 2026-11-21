@@ -96,13 +96,13 @@
     fillSelect("blogPostSelect", "Vse objave", posts.map(([id, post]) => [id, post.title]));
     function plotBlogGrowth() {
         const chosen = el("blogPostSelect").value;
-        const maxDays = 1023, todayDay = dayNumber(new Date().toISOString());
+        const todayDay = dayNumber(new Date().toISOString());
         const traces = posts.filter(([id]) => !chosen || id === chosen).map(([id, post], index) => {
             const firstView = Math.min(...Object.entries(post.views).filter(([, count]) => count > 0).map(([date]) => dayNumber(date)));
             const perDay = {};
             Object.entries(post.views).forEach(([date, count]) => { const day = dayNumber(date) - firstView; perDay[day] = (perDay[day] || 0) + count; });
             const start = firstView;
-            const last = Math.min(maxDays, Math.max(todayDay - start, ...Object.keys(perDay).map(Number)));
+            const last = Math.max(todayDay - start, ...Object.keys(perDay).map(Number));
             const x = [], y = [], text = [];
             let total = 0;
             for (let day = 0; day <= last; day++) {
@@ -111,6 +111,14 @@
             }
             return { ...appearance(posts.findIndex(([otherId]) => otherId === id)), x, y, text, name: escape(post.title), mode: "lines", type: "scatter", hovertemplate: "%{text}<extra>%{fullData.name}</extra>" };
         });
+        const maxExponent = Math.max(
+            10,
+            Math.ceil(Math.max(0, ...traces.flatMap(trace => trace.x))),
+        );
+        const xTicks = Array.from(
+            { length: maxExponent + 1 },
+            (_, index) => index,
+        );
         const yMax = Math.max(0, ...traces.flatMap(trace => trace.y));
         const maxViews = yMax ** 2;
         const yTickCount = Math.max(2, Math.min(10, Math.floor(maxViews) + 1));
@@ -122,9 +130,9 @@
             xaxis: {
                 type: "linear",
                 title: { text: "Dnevi od prvega ogleda" },
-                range: [0, 10],
-                tickvals: Array.from({ length: 11 }, (_, index) => index),
-                ticktext: Array.from({ length: 11 }, (_, index) => String(2 ** index)),
+                range: [0, maxExponent],
+                tickvals: xTicks,
+                ticktext: xTicks.map(index => String(2 ** index)),
             },
             yaxis: {
                 type: "linear",

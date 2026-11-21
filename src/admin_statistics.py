@@ -140,38 +140,45 @@ def _watch_statistics(redis):
     ), columns if rows else []
 
 
-def _referrers(redis, today):
-    cutoff = (today - timedelta(days=90)).isoformat()
-    last_day = today.isoformat()
-    keys = (
-        key
-        for key in redis.scan_iter("stats:referrer:*", count=100)
-        if cutoff <= key.rsplit(":", 1)[-1] <= last_day
-    )
-    sources = {}
-    for key, counts in _hashes(redis, keys):
-        day = key.rsplit(":", 1)[-1]
-        for source, count in counts.items():
-            sources.setdefault(source, {})[day] = int(count)
-    return sources
-
-
 def _blog_views(redis, posts, today):
-    cutoff = (today - timedelta(days=90)).isoformat()
+    month_cutoff = (today - timedelta(days=29)).isoformat()
     last_day = today.isoformat()
     keys = (
         key
         for key in redis.scan_iter("blog:views:*", count=100)
         if key.removeprefix("blog:views:").rsplit(":", 1)[0] in posts
-        and cutoff <= key.rsplit(":", 1)[-1] <= last_day
+        and key.rsplit(":", 1)[-1] <= last_day
     )
     daily = Counter()
     by_post = {}
+    recent_by_post = Counter()
+    total_by_post = Counter()
+    historical_by_post = Counter()
+    exact_start = redis.get("blog:unique:exact-start") or last_day
+    unique_keys = (
+        key
+        for key in redis.scan_iter("blog:unique:current:*", count=100)
+        if key.removeprefix("blog:unique:current:") in posts
+    )
+    unique_keys = iter(unique_keys)
+    unique_by_post = Counter()
+    while batch := list(islice(unique_keys, 100)):
+        pipe = redis.pipeline(transaction=False)
+        for key in batch:
+            pipe.scard(key)
+        for key, count in zip(batch, pipe.execute()):
+            post_id = key.removeprefix("blog:unique:current:")
+            unique_by_post[post_id] += int(count)
     for key, counts in _hashes(redis, keys):
         post_id, day = key.removeprefix("blog:views:").rsplit(":", 1)
         # During migration legacy hashes contain per-IP counts, new hashes
         # contain a single aggregate. Both represent page views, not people.
         views = sum(int(count) for count in counts.values())
+        total_by_post[post_id] += views
+        if day < exact_start:
+            historical_by_post[post_id] += views
+        if day >= month_cutoff:
+            recent_by_post[post_id] += views
         by_post.setdefault(post_id, {})[day] = views
         daily[day] += views
     post_daily = {}
@@ -187,7 +194,11 @@ def _blog_views(redis, posts, today):
             {
                 "id": post_id,
                 "title": post["title"],
-                "views": sum(views.values()),
+                "views": total_by_post[post_id],
+                "views_last_30_days": recent_by_post[post_id],
+                "unique_views": (
+                    historical_by_post[post_id] * 9 + 5
+                ) // 10 + unique_by_post.get(post_id, 0),
                 "created_at": post["created_at"][:16],
             }
         )
@@ -207,8 +218,7 @@ def collect_statistics(redis, posts, today):
         "blog_views_daily": blog_daily,
         "blog_posts_daily": blog_posts,
         "blog_stats": blog_stats,
-        "total_blog_views": sum(blog_daily.values()),
-        "referrer_stats": _referrers(redis, today),
+        "total_blog_views": sum(post["views"] for post in blog_stats),
     }
 
 

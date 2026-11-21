@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "updated_at": "2026-11-09T02:17:17.205973+00:00",
+  "updated_at": "2026-11-21T02:17:17.532718+00:00",
   "packages": {
     "bootstrap": {
-      "version": "5.3.8",
-      "integrity": "sha512-HP1SZDqaLDPwsNiqRqi5NcP0SSXciX2s9E+RyqJIIqGo+vJeN5AJVM98CXmW/Wux0nQ5L7jeWUdplCEf0Ee+tg==",
-      "tarball": "https://registry.npmjs.org/bootstrap/-/bootstrap-5.3.8.tgz"
+      "version": "5.3.9",
+      "integrity": "sha512-20cU0rcfw8WdxtVbmfU+xT2EjvVTw9Ror/h1Qvd7DXCujRg8OO9mdBCsmTHdJFf3BuadmBNJtgIuUXsBqSkk/w==",
+      "tarball": "https://registry.npmjs.org/bootstrap/-/bootstrap-5.3.9.tgz"
     },
     "bootstrap-icons": {
       "version": "1.13.2",
@@ -43,9 +43,9 @@
       "tarball": "https://registry.npmjs.org/marked/-/marked-16.4.2.tgz"
     },
     "dompurify": {
-      "version": "3.4.17",
-      "integrity": "sha512-B/pSlYVHQ58kqISD/yDjuJ1yfzI34m1gF4lAod2bwSRhiN4K5Cl3H8Af7hqB2PmTL911tdEudnnXn5FnhRoz0w==",
-      "tarball": "https://registry.npmjs.org/dompurify/-/dompurify-3.4.17.tgz"
+      "version": "3.4.18",
+      "integrity": "sha512-ofe3wI/uNm68HInABYFJYqQxRw1EaKAjNdrFVKqjUY+UZurvNd2L/HuQe097s/4RivWiZyP6tT7aoT8atjfhwg==",
+      "tarball": "https://registry.npmjs.org/dompurify/-/dompurify-3.4.18.tgz"
     },
     "font-awesome": {
       "version": "4.7.0",
@@ -54,9 +54,9 @@
     }
   },
   "sha256": {
-    "bootstrap.min.css": "d85327d99c7a3ee1f9b5d0500d1370acea3ad2db39c163c2f51f232baedbdede",
-    "bootstrap.bundle.min.js": "e4fd49181388c48ec5040bd3fe66f57c29c8e67fcd8502b3354b96ec7ab47cc7",
-    "licenses/bootstrap.txt": "8d47ffd25085696e5ad7afd1e817588732bbe905ee99c1ca2b6204290a1d5002",
+    "bootstrap.min.css": "9caac977a0af0c2229abd397eee3345899c4020da2a1a0b711c1cc543fe3719d",
+    "bootstrap.bundle.min.js": "4ad2ad30a7df1fa0a615c4cfeb1aeffbe92019a8dff0262c99464acbd56dca5c",
+    "licenses/bootstrap.txt": "aac6a8f39d1752ec0825174dcd6cad3c07b1854e487504dae19028946ce327b9",
     "bootstrap-icons.min.css": "79c99c1a1e0e937f808a58165728b7ed00800f02ef5efcfcd10dfe71464e675d",
     "fonts/bootstrap-icons.woff": "24929e8a44da027588f833d4e82240ee734bd65bf962b08b0545af58a9ce80fa",
     "fonts/bootstrap-icons.woff2": "2b7689746f87e0beeae25338bc021dd2515c2f6f003f3d3d064d878d380b2150",
@@ -82,7 +82,7 @@
     "licenses/easymde.txt": "2d1856426f9bf7a1906107737ce7278c375378b6612150834334014d905c5b6e",
     "marked.min.js": "2e20e86f0a13107ae9bf00675894bbb573716a8e5b4fde612eacaff1e404c128",
     "licenses/marked.txt": "95717e19f1f9f0ed79d1342f7437c71f1487bc2f9b7974e171e8dc8edeaffac8",
-    "purify.min.js": "cd37898f9782adf54820c413191b5691803f0f137c799d6edcfd38523b4c2c31",
+    "purify.min.js": "8053ee2a6a09f9d50f7fcd6fb7f07072f52c7f3fa9aa12147cab4feaf65ee970",
     "licenses/dompurify.txt": "2074d93eb79d69445e1fdb4ddf13186ac670c9a5e7c75b646435801286a9da14",
     "font-awesome.min.css": "9a21a45666b6f49e755d4531a26979916ae3860583b42a56c97b4ccd85fc0419",
     "fonts/fontawesome-webfont.eot": "7bfcab6db99d5cfbf1705ca0536ddc78585432cc5fa41bbd7ad0f009033b2979",

@@ -126,10 +126,15 @@ Pri običajni napaki kampanje ponovitev izpusti uspešno poslane jezikovne
 skupine. SMTP ob prekinitvi povezave ne zagotavlja natanko ene dostave.
 Zaključena opravila odstranijo vsebino pošte; stanje se hrani sedem dni.
 
-Javni ogledi bloga so dnevni skupni števci, ne unikatni obiskovalci.
-Migracija `python -m analytics_privacy` odstrani stare IP/geolokacijske
-zapise, ohrani skupne števce in se ne dotika prijav. Obstoječe varnostne
-kopije imajo svojo politiko hrambe.
+Javni ogledi bloga so dnevni skupni števci. Nadzorna plošča prikazuje vse
+shranjene oglede, oglede zadnjih 30 dni in unikatne IP-je od uvedbe novega
+števca; en IP za posamezno objavo šteje največ enkrat na dan. Dnevni graf
+prikazuje vso shranjeno zgodovino. Unikatni IP-ji so shranjeni kot HMAC brez
+geolokacije. Zgodovinskih unikatnih IP-jev po migraciji ni mogoče obnoviti,
+ker so bili stari identifikatorji odstranjeni.
+Števci bloga nimajo roka poteka. Migracija `python -m analytics_privacy`
+odstrani stare IP/geolokacijske zapise in agregate Referer ter ohrani skupne
+števce. Obstoječe varnostne kopije imajo svojo politiko hrambe.
 
 ## Pred namestitvijo
 

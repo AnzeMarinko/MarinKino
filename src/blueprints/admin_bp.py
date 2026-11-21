@@ -298,7 +298,9 @@ def admin_blog():
     for post in sorted_posts:
         views = 0
         for key in redis_client.scan_iter(f"blog:views:{post['id']}:*"):
-            views += len(redis_client.hgetall(key).keys())
+            views += sum(
+                int(count) for count in redis_client.hgetall(key).values()
+            )
         post["views"] = views
         # Format dates
         if post.get("created_at"):
