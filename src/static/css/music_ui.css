@@ -3,6 +3,7 @@
 .music-app-container.radio-stories-page { --audio-accent: #a76024; --audio-soft: #fbefdc; --audio-border: #eadfce; background: #faf5eb; }
 .music-app-container :focus-visible, .private-modal-content :focus-visible { outline: 3px solid var(--audio-accent, #286e75); outline-offset: 3px; }
 .music-app-container [hidden] { display: none !important; }
+.music-app-container .player-toggle { display: none; }
 .audio-page-heading { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 1rem; position: relative; z-index: 3; padding: .2rem .25rem .6rem; }
 .audio-eyebrow { text-transform: uppercase; letter-spacing: .12em; color: var(--audio-accent); font-size: .62rem; font-weight: 700; }
 .audio-page-heading h1 { font-size: 1.8rem; font-weight: 750; letter-spacing: -.035em; margin: .2rem 0 .35rem; padding: 0; color: #263849; }
@@ -86,6 +87,7 @@
   .audio-eyebrow { font-size: .55rem; }
   .music-app-container #browser { flex-direction: column; }
   .music-app-container .browser-toggle { display: flex !important; height: 44px; background: #f7faf8; border-bottom: 1px solid var(--audio-border); flex-shrink: 0; }
+  .music-app-container.radio-stories-page .browser-toggle { display: none !important; }
   .music-app-container .toggle-btn { color: #61727e; padding: .5rem; margin: 0; background-image: none; font-size: .8rem; border: 0; }
   .music-app-container .toggle-btn.active { background: var(--audio-soft); color: var(--audio-accent); border-bottom: 2px solid var(--audio-accent); }
   .music-app-container .albums-section { flex: 1 1 0%; width: 100%; }
@@ -180,7 +182,14 @@
 
 /* Leave room for browsing on short phones, including the original iPhone SE. */
 @media (max-width: 812px) and (max-height: 740px), (max-width: 380px) {
-    .music-app-container { padding: .5rem; gap: .4rem; min-height: 540px; grid-template-rows: auto minmax(280px, 1fr) auto; }
+    .music-app-container { padding: .5rem; gap: .4rem; min-height: 0; grid-template-rows: auto minmax(0, 1fr); }
+    .music-app-container[data-audio-view]:has(.audio-private-details[open]),
+    .music-app-container[data-audio-view]:has(#trackSelectionToolbar:not([hidden])) { height: calc(100dvh - var(--audio-header-height, 65px)); grid-template-rows: auto minmax(0, 1fr); }
+    .music-app-container.radio-stories-page .browser-toggle { display: flex !important; }
+    .music-app-container .player-toggle { display: block; }
+    .music-app-container[data-audio-view="player"] #browser,
+    .music-app-container[data-audio-view]:not([data-audio-view="player"]) #player { display: none; }
+    .music-app-container[data-audio-view="player"] .player-section { overflow-y: auto; }
     .audio-page-heading { padding: 0 .2rem; }
     .audio-page-heading h1 { font-size: 1.15rem; margin: .1rem 0; }
     .audio-eyebrow { display: none; }
@@ -193,19 +202,21 @@
     .audio-results { margin: .1rem .6rem .2rem; }
     .music-app-container .track-list, .music-app-container .album-list { padding: .4rem; }
     .music-app-container .track-item { padding: .6rem; gap: .5rem; min-height: 60px; }
-    .music-app-container .player-section { padding: .6rem; gap: .35rem; padding-bottom: max(.6rem, env(safe-area-inset-bottom)); }
-    .music-app-container .progress-section { gap: .25rem; }
+    .music-app-container .player-section { padding: .75rem; gap: .75rem; padding-bottom: max(.75rem, env(safe-area-inset-bottom)); }
+    .music-app-container .progress-section { gap: .4rem; }
     .audio-player-heading > span:first-child { display: none; }
     .audio-player-heading { justify-content: flex-end; }
     .music-app-container .now-playing-info { gap: .5rem; }
     .music-app-container .album-cover { width: 36px; height: 36px; flex: 0 0 36px; font-size: 1.2rem; }
     .music-app-container .track-info { min-width: 0; }
-    .music-app-container .track-title, .music-app-container .track-artist { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .music-app-container .controls-section { gap: .25rem; justify-content: space-between; }
-    .music-app-container .controls-row { gap: .125rem; }
-    .music-app-container .btn-play { width: 44px; height: 44px; font-size: 1.6rem; }
-    .music-app-container .playback-mode-btn { width: 44px; padding: .4rem; }
-    #playbackModeLabel { display: none; }
+    .music-app-container .track-title, .music-app-container .track-artist { white-space: normal; overflow-wrap: anywhere; }
+    .music-app-container .track-title { font-size: 1.2rem; }
+    .music-app-container .track-artist, .music-app-container .time-display { font-size: 1rem; }
+    .music-app-container .controls-section { flex-direction: column; gap: .5rem; justify-content: center; }
+    .music-app-container .controls-row { width: 100%; gap: .375rem; }
+    .music-app-container .control-btn { width: 64px; height: 64px; font-size: 1.6rem; }
+    .music-app-container .btn-play { width: 64px; height: 64px; font-size: 2rem; }
+    .music-app-container .playback-mode-btn { width: auto; padding: .5rem .8rem; font-size: 1rem; }
     .audio-private-details { padding-top: .3rem; }
     .radio-stories-page .audio-player-hint { font-size: .65rem; line-height: 1.4; }
 }

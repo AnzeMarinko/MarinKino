@@ -77,14 +77,6 @@
             <div>
               <h2 id="current-weather-title" class="weather-temperature fw-bold mb-2">{{ weather.current.temperature if weather.current.temperature is not none else '—' }}°</h2>
               <div class="fs-5">{{ weather.current.weather_label }}</div>
-              <div class="weather-source weather-current-time mt-2">
-                <span id="weatherCurrentEpochSeconds">{{ weather.current.time or 'Lokalni čas izbranega kraja' }}</span>
-              </div>
-              <div class="weather-source weather-current-meta">
-                <span>{{ weather.timezone }}</span>
-                <span>·</span>
-                <span>Open-Meteo</span>
-              </div>
             </div>
           </div>
         </div>
@@ -94,9 +86,17 @@
             <div class="col-4"><div class="weather-stat"><i class="bi bi-wind"></i> <strong>{{ weather.current.wind_speed if weather.current.wind_speed is not none else '—' }} km/h</strong></div></div>
             <div class="col-4"><div class="weather-stat"><i class="bi bi-cloud"></i> <strong>{{ weather.current.cloud_cover if weather.current.cloud_cover is not none else '—' }}%</strong></div></div>
           </div>
+              <div class="weather-source weather-current-time mt-2">
+                <span id="weatherCurrentEpochSeconds">{{ weather.current.time or 'Lokalni čas izbranega kraja' }}</span>
+              </div>
+                {% if weather.current.time %}<div class="weather-source mt-3">Podatek napovedi: {{ weather.current.time|replace('T', ' ob ') }}</div>{% endif %}
+              <div class="weather-source weather-current-meta">
+                <span>{{ weather.timezone }}</span>
+                <span>·</span>
+                <span>Open-Meteo</span>
+              </div>
         </div>
       </div>
-      {% if weather.current.time %}<div class="weather-source mt-3">Podatek napovedi: {{ weather.current.time|replace('T', ' ob ') }}</div>{% endif %}
     </section>
 
     <section class="weather-panel p-3 p-lg-4 mb-4" aria-labelledby="forecast-title">

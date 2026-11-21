@@ -2463,29 +2463,42 @@ function initializeBrowserToggle() {
     browserToggleInitialized = true;
     const albumsSection = document.getElementById("albums");
     const tracksSection = document.getElementById("tracks");
+    const workspace = document.querySelector(".music-app-container");
     const toggleButtons = document.querySelectorAll(".toggle-btn");
+    const smallScreen = window.matchMedia("(max-width: 812px) and (max-height: 740px), (max-width: 380px)");
 
-    if (!albumsSection || !tracksSection) {
+    if (!albumsSection || !tracksSection || !workspace) {
         return;
     }
 
+    const defaultTab = isRadioStoriesPage ? "tracks" : "albums";
+    const savedTabRaw = playbackStorage.getItem("musicBrowserTab");
+    let browserTab = !isRadioStoriesPage && (savedTabRaw === "albums" || savedTabRaw === "tracks")
+        ? savedTabRaw : defaultTab;
+
     function switchView(target) {
-        const nextTarget = isRadioStoriesPage && target === "albums" ? "tracks" : target;
+        const nextTarget = target === "player" && smallScreen.matches
+            ? "player"
+            : isRadioStoriesPage ? "tracks" : target === "tracks" ? "tracks" : "albums";
+
+        if (nextTarget !== "player") {
+            browserTab = nextTarget;
+            playbackStorage.setItem("musicBrowserTab", nextTarget);
+        }
+        workspace.dataset.audioView = nextTarget;
 
         toggleButtons.forEach(btn => {
             btn.classList.toggle("active", btn.dataset.target === nextTarget);
             btn.setAttribute('aria-pressed', String(btn.dataset.target === nextTarget));
         });
 
-        if (nextTarget === "albums") {
+        if (browserTab === "albums") {
             albumsSection.classList.add("active");
             tracksSection.classList.remove("active");
         } else {
             tracksSection.classList.add("active");
             albumsSection.classList.remove("active");
         }
-
-        playbackStorage.setItem("musicBrowserTab", nextTarget);
     }
 
     toggleButtons.forEach(btn => {
@@ -2496,25 +2509,11 @@ function initializeBrowserToggle() {
         });
     });
 
-    const defaultTab = isRadioStoriesPage ? "tracks" : "albums";
-    const savedTabRaw = playbackStorage.getItem("musicBrowserTab");
-    const savedTab =
-        savedTabRaw === "albums" || savedTabRaw === "tracks"
-            ? savedTabRaw
-            : defaultTab;
-    switchView(isRadioStoriesPage ? "tracks" : savedTab);
-
-    window.addEventListener("orientationchange", () => {
-        const savedTab = playbackStorage.getItem("musicBrowserTab");
-        const nextTab =
-            isRadioStoriesPage
-                ? "tracks"
-                : savedTab === "albums" || savedTab === "tracks"
-                    ? savedTab
-                    : defaultTab;
-        setTimeout(() => {
-            switchView(nextTab);
-        }, 200);
+    switchView(browserTab);
+    smallScreen.addEventListener("change", () => {
+        if (!smallScreen.matches && workspace.dataset.audioView === "player") {
+            switchView(browserTab);
+        }
     });
 }
 

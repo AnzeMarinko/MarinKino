@@ -1059,6 +1059,10 @@
 .weather-notice { color: var(--weather-ink); background: var(--weather-card); border: 1px solid #b9924a80; border-left: 4px solid #b9924a; border-radius: .6rem; padding: 1rem; font-size: .85rem; }
 .weather-page .btn-outline-primary, .weather-page .btn-outline-secondary { color: var(--weather-accent); border-color: var(--weather-border); }
 .weather-page .btn-outline-primary:hover, .weather-page .btn-outline-secondary:hover { color: var(--weather-ink); background: #729bc430; border-color: var(--weather-accent); }
+.weather-page .weather-page-heading .btn-outline-secondary { background-color: rgba(255, 255, 255, 0.72); border-color: var(--weather-accent); }
+.weather-page--night .weather-page-heading .btn-outline-secondary { background-color: rgba(17, 27, 43, 0.92); }
+.weather-page .weather-page-heading .btn-outline-secondary:hover { background-color: rgba(232, 244, 255, 0.92); }
+.weather-page--night .weather-page-heading .btn-outline-secondary:hover { background-color: rgba(35, 54, 80, 0.96); }
 @media (max-width: 991.98px) {
     .weather-day, .weather-daily-heading { grid-template-columns: 6rem 2rem minmax(0, 1fr) minmax(10rem, 1.8fr) 5rem; gap: .6rem; }
 }

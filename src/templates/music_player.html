@@ -17,19 +17,14 @@
         <span class="music-ambience__wave music-ambience__wave--five"></span>
         <span class="music-ambience__wave music-ambience__wave--six"></span>
     </div>
-    <header class="audio-page-heading">
-      <div><h1>Glasba <span class="audio-eyebrow">Za dobro melodijo</span></h1><p>Izberi album ali poišči pesem. Svoje najljubše zberi v osebnih albumih.</p></div>
-
-      <a class="section-action-btn" href="/suggestions?type=music">Predlagaj glasbo</a>
-    <nav class="audio-quick-links" aria-label="Na tej strani"><a href="#browser">Izbira vsebin</a><a href="#player">Na predvajalnik ↓</a></nav>
-    </header>
     <!-- Browser Section -->
     <noscript class="audio-no-script"><p class="audio-empty">Za izbiro in predvajanje vsebin omogoči JavaScript v brskalniku.</p></noscript>
+    <div class="browser-toggle" id="browserToggle" aria-label="Pogledi glasbe">
+        <button type="button" class="toggle-btn active" data-target="albums" aria-controls="albums" aria-pressed="true"><i class="bi bi-disc" aria-hidden="true"></i> Albumi</button>
+        <button type="button" class="toggle-btn" data-target="tracks" aria-controls="tracks" aria-pressed="false"><i class="bi bi-music-note-beamed" aria-hidden="true"></i> Pesmi</button>
+        <button type="button" class="toggle-btn player-toggle" data-target="player" aria-controls="player" aria-pressed="false"><i class="bi bi-play-circle" aria-hidden="true"></i> Predvajalnik</button>
+    </div>
     <section id="browser" tabindex="-1" aria-label="Izbira glasbe">
-        <div class="browser-toggle" id="browserToggle">
-            <button type="button" class="toggle-btn active" data-target="albums" aria-controls="albums" aria-pressed="true"><i class="bi bi-disc" aria-hidden="true"></i> Albumi</button>
-            <button type="button" class="toggle-btn" data-target="tracks" aria-controls="tracks" aria-pressed="false"><i class="bi bi-music-note-beamed" aria-hidden="true"></i> Pesmi</button>
-        </div>
         <div id="albums" class="albums-section">
             <div class="section-header albums-header">
                 <div class="section-header-title">
@@ -84,7 +79,6 @@
 
     <!-- Player Section -->
     <section id="player" tabindex="-1" class="player-section" aria-label="Predvajalnik">
-        <div class="audio-player-heading"><span><i class="bi bi-headphones" aria-hidden="true"></i> Tvoj predvajalnik</span><span id="playbackStatus" role="status" aria-live="polite">Izberi in predvajaj</span></div>
         <div class="now-playing-info">
             <div class="album-cover" aria-hidden="true">
                 <i class="bi bi-music-note"></i>
@@ -153,7 +147,6 @@
             </div>
         </div>
     </details>
-        <p class="audio-player-hint">Tipkovnica: preslednica predvaja ali ustavi, ← / → premakneta za 10 sekund.</p>
     </section>
 </main>
 

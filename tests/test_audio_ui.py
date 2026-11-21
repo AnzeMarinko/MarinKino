@@ -129,7 +129,7 @@ def test_browser_audio_keyboard_shortcuts(audio_site, browser):
 
 
 @pytest.mark.parametrize("size", [(320, 568), (375, 667), (667, 375)])
-def test_browser_small_phone_lists_scroll(audio_site, browser, size):
+def test_browser_small_phone_lists_scroll(audio_site, browser, size, tmp_path):
     page = browser.page
     page.set_viewport_size(dict(zip(("width", "height"), size)))
     songs = audio_site.public_albums[0]["songs"]
@@ -177,18 +177,19 @@ def test_browser_small_phone_lists_scroll(audio_site, browser, size):
         assert page.evaluate(
             "document.documentElement.scrollWidth <= innerWidth + 1"
         )
+        page.locator('.toggle-btn[data-target="player"]').click()
         page.locator("#playBtn").scroll_into_view_if_needed()
         assert page.locator("#playBtn").evaluate(
             "el => el.getBoundingClientRect().bottom <= innerHeight + 1"
         )
         page.screenshot(
-            path=f"/private/tmp/audio-small-{path[1:]}-{size[0]}.png",
+            path=str(tmp_path / f"audio-small-{path[1:]}-{size[0]}.png"),
             full_page=True,
         )
 
 
 def test_browser_audio_layout_search_keyboard_and_playback(
-    audio_site, browser
+    audio_site, browser, tmp_path
 ):
     page = browser.page
     for width in [320, 390, 820, 1440]:
@@ -207,7 +208,12 @@ def test_browser_audio_layout_search_keyboard_and_playback(
                 page.locator('.toggle-btn[data-target="albums"]').click()
                 page.locator(".album-item").first.click()
                 page.locator('.toggle-btn[data-target="tracks"]').click()
+            if width <= 380:
+                assert page.locator("#player").is_hidden()
+                page.locator('.toggle-btn[data-target="player"]').click()
             assert page.locator("#player").is_visible()
+            if width <= 380:
+                page.locator('.toggle-btn[data-target="tracks"]').click()
             if path == "/music":
                 sub = page.locator(".album-item-after-separator")
                 assert sub.count() == 1
@@ -250,6 +256,8 @@ def test_browser_audio_layout_search_keyboard_and_playback(
                 '() => document.querySelector("#playBtn")'
                 '.getAttribute("aria-label") === "Premor"'
             )
+            if width <= 380:
+                page.locator('.toggle-btn[data-target="player"]').click()
             assert page.locator(".album-cover").evaluate(
                 "el => getComputedStyle(el).animationName"
             ) == ("spin" if width <= 812 else "none")
@@ -274,9 +282,92 @@ def test_browser_audio_layout_search_keyboard_and_playback(
                 )
                 page.locator(".audio-private-details summary").click()
             page.screenshot(
-                path=f"/private/tmp/audio-{path[1:]}-{width}.png",
+                path=str(tmp_path / f"audio-{path[1:]}-{width}.png"),
                 full_page=True,
             )
+
+
+@pytest.mark.parametrize("path", ["/music", "/radio-stories"])
+def test_small_audio_player_tab_preserves_playback(audio_site, browser, path):
+    from playwright.sync_api import expect
+
+    page = browser.page
+    page.set_viewport_size({"width": 320, "height": 568})
+    page.goto(browser.base + path)
+    if path == "/music":
+        page.locator('.toggle-btn[data-target="tracks"]').click()
+    tracks = page.locator("#tracks")
+    player = page.locator("#player")
+    player_tab = page.locator('.toggle-btn[data-target="player"]')
+    tracks_tab = page.locator('.toggle-btn[data-target="tracks"]')
+    expect(tracks).to_be_visible()
+    expect(player).to_be_hidden()
+    page.locator(".track-item").first.click()
+    page.wait_for_function("() => !document.querySelector('#audio').paused")
+    player_tab.click()
+    expect(player).to_be_visible()
+    expect(page.locator("#browser")).to_be_hidden()
+    expect(player_tab).to_have_attribute("aria-pressed", "true")
+    tracks_tab.click()
+    expect(tracks).to_be_visible()
+    expect(player).to_be_hidden()
+    assert page.locator("#audio").evaluate("el => !el.paused")
+    player_tab.click()
+    page.set_viewport_size({"width": 1024, "height": 768})
+    expect(page.locator("#browser")).to_be_visible()
+    expect(player).to_be_visible()
+    expect(player_tab).to_be_hidden()
+    page.set_viewport_size({"width": 320, "height": 568})
+    expect(tracks).to_be_visible()
+    expect(player).to_be_hidden()
+    expect(tracks_tab).to_have_attribute("aria-pressed", "true")
+
+
+@pytest.mark.parametrize("size", [(320, 568), (375, 667), (667, 375)])
+@pytest.mark.parametrize("path", ["/music", "/radio-stories"])
+def test_small_player_controls_fit_and_show_mode(
+    audio_site, browser, size, path
+):
+    page = browser.page
+    page.set_viewport_size(dict(zip(("width", "height"), size)))
+    page.goto(browser.base + path)
+    page.locator('.toggle-btn[data-target="player"]').click()
+    buttons = page.locator(".primary-controls .control-btn")
+    assert 3 <= buttons.count() <= 4
+    boxes = [buttons.nth(i).bounding_box() for i in range(buttons.count())]
+    assert all(box["width"] >= 64 and box["height"] >= 64 for box in boxes)
+    assert max(box["y"] for box in boxes) - min(box["y"] for box in boxes) < 5
+    assert all(
+        0 <= box["x"] and box["x"] + box["width"] <= size[0] for box in boxes
+    )
+    for selector, minimum in [
+        ("#nowPlayingTitle", 19),
+        ("#nowPlayingArtist", 16),
+        ("#timeDisplay", 16),
+    ]:
+        assert (
+            page.locator(selector).evaluate(
+                "el => parseFloat(getComputedStyle(el).fontSize)"
+            )
+            >= minimum
+        )
+    title = page.locator("#nowPlayingTitle")
+    title.evaluate(
+        "el => el.textContent = 'Zelo dolg naslov pesmi za manjši zaslon'"
+    )
+    assert title.evaluate(
+        "el => getComputedStyle(el).whiteSpace === 'normal' && "
+        "el.scrollWidth <= el.clientWidth"
+    )
+    if path == "/music":
+        label = page.locator("#playbackModeLabel")
+        assert label.is_visible()
+        original = label.inner_text()
+        page.locator("#playbackModeBtn").click()
+        assert label.is_visible() and label.inner_text() != original
+        assert page.locator("#playbackModeBtn").evaluate(
+            "el => el.scrollWidth <= el.clientWidth"
+        )
 
 
 def test_browser_personal_album_safe_names_and_empty_state(
