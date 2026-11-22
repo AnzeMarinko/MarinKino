@@ -1,6 +1,16 @@
 .fitness-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; margin-bottom: 1.25rem; }
 .fitness-tabs { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: 1.25rem; }
 .fitness-access-panel { border-left: 4px solid var(--admin-accent); }
+#fitness-recency .fitness-recency-item { border-width: 1px 1px 1px 4px; }
+#fitness-recency .fitness-recency-item[data-status="green"] { border-color: #3c8b58; background: #edf8ef; }
+#fitness-recency .fitness-recency-item[data-status="green"] strong { color: #246b3d; }
+#fitness-recency .fitness-recency-item[data-status="yellow"] { border-color: #d3a51c; background: #fff9df; }
+#fitness-recency .fitness-recency-item[data-status="yellow"] strong { color: #866300; }
+#fitness-recency .fitness-recency-item[data-status="orange"] { border-color: #db7927; background: #fff1e5; }
+#fitness-recency .fitness-recency-item[data-status="orange"] strong { color: #a64e0c; }
+#fitness-recency .fitness-recency-item[data-status="red"] { border-color: #c94b48; background: #fff0ef; }
+#fitness-recency .fitness-recency-item[data-status="red"] strong { color: #a83230; }
+#fitness-recency .fitness-recency-item[data-status="empty"] strong { color: var(--admin-muted); font-size: 1.15rem; }
 .admin-page .fitness-tabs button { padding: .7rem .9rem; border: 1px solid var(--admin-border); border-radius: .65rem; background: #fff; color: var(--admin-muted); font-size: .85rem; font-weight: 600; }
 .admin-page .fitness-tabs [aria-selected="true"] { background: var(--admin-accent); color: #fff; border-color: var(--admin-accent); }
 .fitness-overview-grid, .fitness-template-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }

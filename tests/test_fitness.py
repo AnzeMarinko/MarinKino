@@ -1284,6 +1284,34 @@ def test_browser_measurements_graphs_and_mobile_layout(ui, browser):
     assert page.locator("#chart-weight circle").count() == 1
 
 
+def test_browser_recency_colors_and_latest_activity(ui, browser):
+    create(ui, "activities", kind="cycling", timestamp="2026-10-10T12:00")
+    create(ui, "activities", kind="strength", timestamp="2026-10-07T12:00")
+    create(
+        ui,
+        "measurements",
+        timestamp="2026-09-29T12:00",
+        weight_kg=80,
+    )
+    page = browser.page
+    page.goto(browser.base + "/admin/fitness")
+    recency = page.locator("#fitness-recency .fitness-recency-item")
+    assert recency.nth(0).get_attribute("data-status") == "yellow"
+    assert recency.nth(0).locator("strong").text_content() == "4 dni"
+    assert recency.nth(1).get_attribute("data-status") == "orange"
+    assert recency.nth(1).locator("strong").text_content() == "7 dni"
+    assert recency.nth(2).get_attribute("data-status") == "red"
+    assert recency.nth(2).locator("strong").text_content() == "15 dni"
+
+    create(ui, "activities", kind="running", timestamp="2026-10-11T12:00")
+    page.locator("#fitness-refresh").click()
+    page.wait_for_function(
+        "document.querySelector('#fitness-recency .fitness-recency-item')"
+        ".dataset.status === 'green'"
+    )
+    assert recency.nth(0).locator("strong").text_content() == "3 dni"
+
+
 def test_browser_goals_use_rolling_seven_days_and_persist(ui, browser):
     # Fixture is Wednesday: Sunday and Thursday belong in the rolling window.
     for kind, day, minutes in [

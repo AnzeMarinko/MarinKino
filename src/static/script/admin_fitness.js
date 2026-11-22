@@ -81,6 +81,25 @@
         return `<article class="fitness-card fitness-activity-row" data-entry-id="${escape(row.id)}"><time datetime="${escape(row.timestamp)}">${escape(timestampLabel(row.timestamp))}</time><h3 title="${escape(row.title)}">${kindIcon(row.kind)} ${escape(row.title)}</h3><small class="fitness-activity-meta">${sessionMeta(row)}</small><span class="fitness-activity-note" title="${escape(row.description)}">${escape(row.description) || "—"}</span>${actions(collection, row)}</article>`;
     }
     function lastMeasurement(key) { return [...state.measurements].reverse().find(row => row[key] != null); }
+    function latestActivity(kinds) {
+        return state.activities
+            .filter(row => kinds.includes(row.kind))
+            .reduce((latest, row) => !latest || new Date(row.timestamp) > new Date(latest.timestamp) ? row : latest, null);
+    }
+    function renderRecency() {
+        const items = [
+            ["Kolesarjenje ali tek", latestActivity(["cycling", "running"])],
+            ["Vaje za moč ali kardio", latestActivity(["strength", "cardio"])],
+            ["Meritev teže", lastMeasurement("weight_kg")]
+        ];
+        el("fitness-recency").innerHTML = items.map(([label, row]) => {
+            if (!row) return `<div class="admin-stat fitness-recency-item" data-status="empty"><span>${label}</span><strong>Ni podatkov</strong><small class="fitness-caption">Dodaj prvi zapis</small></div>`;
+            const days = Math.max(0, Math.round((dayDate(state.today) - dayDate(localDateTime(row.timestamp).date)) / 86400000));
+            const status = days < 4 ? "green" : days < 7 ? "yellow" : days <= 14 ? "orange" : "red";
+            const elapsed = days === 0 ? "Danes" : days === 1 ? "1 dan" : `${days} dni`;
+            return `<div class="admin-stat fitness-recency-item" data-status="${status}"><span>${label}</span><strong>${elapsed}</strong><small class="fitness-caption">${escape(timestampLabel(row.timestamp))}</small></div>`;
+        }).join("");
+    }
     function renderSummary() {
         const weight = lastMeasurement("weight_kg"), waist = lastMeasurement("waist_cm");
         const bmiInfo = weight?.bmi == null
@@ -303,7 +322,7 @@
         el("fitness-weekly-table").innerHTML = `<table class="table"><thead><tr>${["Teden od", "Minute skupaj", "Tek (km)", "Kolo (km)", "Dnevi za moč"].map(label => `<th scope="col">${label}</th>`).join("")}</tr></thead><tbody>${[...weekly].reverse().map(week => `<tr><td>${dateLabel(week.date)}</td><td>${fmt(week.minutes)}</td><td>${weeklyDistance(week, "running")}</td><td>${weeklyDistance(week, "cycling")}</td>${[week.recorded_strength_days].map(value => `<td>${fmt(value)}</td>`).join("")}</tr>`).join("")}</tbody></table><p class="form-text">»+ ?«: del razdalj ni znan. »—«: pri zabeleženih izvedbah ni znana nobena razdalja.</p>`;
     }
     function render() {
-        renderAccess(); renderSummary(); renderMeasurements(); renderCharts(); renderSuggestions(); renderDistanceSummary();
+        renderAccess(); renderSummary(); renderRecency(); renderMeasurements(); renderCharts(); renderSuggestions(); renderDistanceSummary();
         el("fitness-activities").innerHTML = [...state.activities].reverse().map(row => card(row, "activities")).join("") || '<p class="admin-empty">Izvedenih aktivnosti še ni. Dodaj prvo aktivnost.</p>';
         if (!profileDirty) Object.entries(state.profile).forEach(([name, value]) => { const input = el("fitness-profile").elements.namedItem(name); if (input) input.value = value ?? ""; });
     }
