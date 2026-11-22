@@ -5,7 +5,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_fitness.css') }}">
 <noscript><p class="admin-notice">Za vnos podatkov in prikaz grafov omogoči JavaScript.</p></noscript>
 <div class="fitness-toolbar">
-  <div class="admin-actions"><button type="button" class="btn btn-primary" data-new="measurements"><i class="bi bi-plus-lg" aria-hidden="true"></i> Nova meritev</button><button type="button" class="btn btn-outline-primary" data-new="activities">Zabeleži aktivnost</button><button type="button" class="btn btn-outline-secondary" data-fitness-settings>Cilja in višina</button></div>
+  <div class="admin-actions"><button type="button" class="btn btn-primary" data-new="measurements"><i class="bi bi-plus-lg" aria-hidden="true"></i> Nova meritev</button><button type="button" class="btn btn-outline-primary" data-new="activities">Zabeleži aktivnost</button><button type="button" class="btn btn-outline-secondary" data-fitness-settings>Cilji in višina</button></div>
   <div class="admin-actions"><span class="small text-muted">Časovni pas: Ljubljana</span><button id="fitness-refresh" type="button" class="btn btn-sm btn-outline-secondary">Osveži pregled</button></div>
 </div>
 <p id="fitness-message" class="admin-notice" role="status" hidden></p>
@@ -14,6 +14,7 @@
   <p id="fitness-access-status" role="status"></p>
   <div id="fitness-plan-progress"></div>
   <div id="fitness-access-suggestions"></div>
+  <div class="fitness-weekly-goals"><div class="admin-section-heading"><h3>Cilja za zadnjih 7 dni</h3><span id="fitness-week-label" class="small text-muted"></span></div><div id="fitness-progress"></div></div>
   <div id="fitness-suggestions" class="fitness-template-grid fitness-suggestion-grid"></div>
 </section>
 <div id="fitness-summary" class="admin-stats" aria-label="Zadnje meritve"></div>
@@ -47,10 +48,12 @@
   <div class="admin-panel"><div class="admin-section-heading"><div><h2>Opravljene aktivnosti</h2><p>Zabeleži vrsto aktivnosti, čas, razdaljo ali opombo.</p></div><button class="btn btn-primary" type="button" data-new="activities">Dodaj aktivnost</button></div><div id="fitness-activities" class="table-responsive" tabindex="0" role="region" aria-label="Dnevnik opravljenih aktivnosti"></div></div>
 </section>
 <section id="panel-templates" role="tabpanel" tabindex="0" aria-labelledby="tab-templates" hidden>
-  <section id="fitness-settings" class="admin-panel"><h2 class="mb-3">Višina, ciljna teža in ciljni obseg pasu</h2><form id="fitness-profile" class="fitness-profile-form">
+  <section id="fitness-settings" class="admin-panel"><h2 class="mb-3">Višina in cilji</h2><form id="fitness-profile" class="fitness-profile-form">
     <div><label class="form-label" for="fitness-height">Telesna višina (cm)</label><input id="fitness-height" name="height_cm" inputmode="decimal" class="form-control" type="number" min="50" max="260" step="0.1"><p class="form-text">Brez višine ITM in pas/višina ostaneta prazna. Sprememba višine preračuna celoten graf.</p></div>
     <div><label class="form-label" for="fitness-target-weight">Ciljna telesna teža (kg)</label><input id="fitness-target-weight" name="target_weight_kg" inputmode="decimal" class="form-control" type="number" min="1" max="600" step="0.1"><p class="form-text">Neobvezno. Prikažemo razliko do cilja in ciljno črto na grafu teže.</p></div>
     <div><label class="form-label" for="fitness-target-waist">Ciljni obseg pasu (cm)</label><input id="fitness-target-waist" name="target_waist_cm" inputmode="decimal" class="form-control" type="number" min="1" max="400" step="0.1"><p class="form-text">Neobvezno. Prazno polje odstrani cilj.</p></div>
+    <div><label class="form-label" for="fitness-aerobic-goal">Tek ali kolesarjenje (min/7 dni)</label><input id="fitness-aerobic-goal" name="aerobic_goal" class="form-control" type="number" min="1" max="3000" step="1" required><p class="form-text">Dejanske minute teka in kolesarjenja v zadnjih 7 dneh skupaj.</p></div>
+    <div><label class="form-label" for="fitness-strength-goal">Moč ali kardio (vadb/7 dni)</label><input id="fitness-strength-goal" name="strength_goal" class="form-control" type="number" min="1" max="100" step="1" required><p class="form-text">Vsaka zabeležena vadba šteje enkrat, tudi več vadb isti dan.</p></div>
     <button type="submit" class="btn btn-primary">Shrani nastavitve</button><p class="admin-notice" data-form-error role="alert" hidden></p>
   </form></section>
 </section>

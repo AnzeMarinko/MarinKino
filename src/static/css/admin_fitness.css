@@ -71,5 +71,9 @@
 .admin-page .fitness-suggestion:hover, .admin-page .fitness-suggestion:focus-visible { border-color: var(--admin-accent); background: #eef6f4; }
 .fitness-suggestion > .fitness-kind-icon { font-size: 2rem; color: var(--admin-accent); }
 #fitness-plan-progress { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; font-size: .85rem; }
+.fitness-weekly-goals { margin-top: 1.25rem; }
+.fitness-progress-item { margin-top: .8rem; }
+.fitness-progress-item > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .4rem .7rem; font-size: .85rem; margin-bottom: .4rem; }
+.fitness-progress-item progress { display: block; width: 100%; height: 12px; accent-color: var(--admin-accent); }
 .fitness-scatter-detail { min-height: 2.5em; color: var(--admin-muted); }
 @media (max-width: 650px) { .fitness-suggestion-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

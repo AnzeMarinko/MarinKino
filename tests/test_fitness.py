@@ -1284,6 +1284,54 @@ def test_browser_measurements_graphs_and_mobile_layout(ui, browser):
     assert page.locator("#chart-weight circle").count() == 1
 
 
+def test_browser_goals_use_rolling_seven_days_and_persist(ui, browser):
+    # Fixture is Wednesday: Sunday and Thursday belong in the rolling window.
+    for kind, day, minutes in [
+        ("running", "2026-10-11", 15),
+        ("cycling", "2026-10-08", 20),
+        ("cardio", "2026-10-14", 40),
+        ("strength", "2026-10-14", None),
+        ("running", "2026-10-07", 200),
+        ("strength", "2026-10-07", 30),
+    ]:
+        create(
+            ui,
+            "activities",
+            kind=kind,
+            timestamp=f"{day}T12:00",
+            duration_min=minutes,
+            intensity="vigorous",
+        )
+    page = browser.page
+    page.goto(browser.base + "/admin/fitness")
+    page.get_by_role("button", name="Cilji in višina", exact=True).click()
+    page.locator("#fitness-aerobic-goal").fill("60")
+    page.locator("#fitness-strength-goal").fill("3")
+    page.get_by_role("button", name="Shrani nastavitve").click()
+    page.wait_for_function(
+        "document.querySelector('#fitness-progress').textContent"
+        ".includes('35 / 60 min')"
+    )
+    bars = page.locator("#fitness-progress progress")
+    assert bars.nth(0).get_attribute("value") == "35"
+    assert bars.nth(1).get_attribute("value") == "2"
+    assert "2 / 3 vadb" in page.locator("#fitness-progress").text_content()
+    assert state(ui)["plan_progress"]["allowed"]  # Goals do not gate access.
+    extra = create(ui, "activities", kind="running", duration_min=40)
+    page.locator("#fitness-refresh").click()
+    page.wait_for_function(
+        "document.querySelector('#fitness-progress').textContent"
+        ".includes('75 / 60 min')"
+    )
+    assert bars.nth(0).get_attribute("value") == "60"
+    ui.client.delete(f"/admin/fitness/activities/{extra['id']}")
+    page.reload()
+    assert "35 / 60 min" in page.locator("#fitness-progress").text_content()
+    page.get_by_role("tab", name="Nastavitve").click()
+    assert page.locator("#fitness-aerobic-goal").input_value() == "60"
+    assert page.locator("#fitness-strength-goal").input_value() == "3"
+
+
 def test_browser_activity_failure_preserves_draft(ui, browser):
     create(ui, "activities", kind="running", description="Stara opomba")
     page = browser.page

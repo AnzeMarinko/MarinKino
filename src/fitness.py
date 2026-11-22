@@ -236,16 +236,19 @@ def validate_profile(data):
             data.get("target_waist_cm"), "Ciljni obseg pasu", 1, 400
         ),
         "aerobic_goal": number(
-            data.get("aerobic_goal"), "Tedenski aerobni cilj", 1, 3000
+            data.get("aerobic_goal"),
+            "Cilj minut teka ali kolesarjenja",
+            1,
+            3000,
         )
         or 150,
         "strength_goal": number(
-            data.get("strength_goal"), "Cilj dni za moč", 1, 7
+            data.get("strength_goal"), "Cilj vadb za moč ali kardio", 1, 100
         )
         or 2,
     }
     if result["strength_goal"] != int(result["strength_goal"]):
-        raise ValidationError("Cilj dni za moč mora biti celo število.")
+        raise ValidationError("Cilj števila vadb mora biti celo število.")
     return result
 
 

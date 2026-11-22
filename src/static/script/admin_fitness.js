@@ -153,6 +153,18 @@
         const node = el("fitness-access-suggestions");
         node.hidden = !weighing.locked;
         node.innerHTML = weighing.locked ? '<p>Za odklep zabeleži novo meritev teže.</p><button type="button" class="btn btn-primary mb-3" data-new="measurements">Zabeleži tehtanje</button>' : "";
+        const recent = state.activities.filter(row => {
+            const date = localDateTime(row.timestamp).date;
+            return date >= progress.recent_start && date <= progress.recent_end;
+        });
+        const minutes = recent.filter(row => ["running", "cycling"].includes(row.kind))
+            .reduce((sum, row) => sum + (sessionSeconds(row) || 0), 0) / 60;
+        const sessions = progress.recent_cardio_or_strength;
+        el("fitness-week-label").textContent = `${dateLabel(progress.recent_start)}–${dateLabel(progress.recent_end)}`;
+        el("fitness-progress").innerHTML = [
+            ["Tek ali kolesarjenje", minutes, state.profile.aerobic_goal, "min"],
+            ["Moč ali kardio", sessions, state.profile.strength_goal, "vadb"]
+        ].map(([label, value, goal, unit]) => `<div class="fitness-progress-item"><div><span>${label}</span><strong>${fmt(value)} / ${fmt(goal)} ${unit}</strong></div><progress max="${goal}" value="${Math.min(value, goal)}" aria-label="${label}" aria-valuetext="${fmt(value)} od ${fmt(goal)} ${unit}">${fmt(value)} / ${fmt(goal)} ${unit}</progress></div>`).join("");
     }
     function emptyChart(id, text) { el(id).innerHTML = `<p class="admin-empty">${escape(text)}</p>`; }
     const svgText = (x, y, label, extra = "") => `<text x="${x}" y="${y}" font-size="11" fill="#627589" ${extra}>${escape(label)}</text>`;
